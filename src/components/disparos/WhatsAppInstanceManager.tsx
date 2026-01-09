@@ -165,21 +165,24 @@ export function WhatsAppInstanceManager({
       if (instanceType === "whatsapp" && data?.id) {
         const { error: configError } = await supabase
           .from("uazapi_config")
-          .upsert({
-            user_id: user?.id,
-            api_key: apiKey.trim(),
-            base_url: baseUrl.trim(),
-            is_active: true,
-            whatsapp_instancia_id: data.id,
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: "user_id",
-          });
+          .upsert(
+            {
+              user_id: user?.id,
+              api_key: apiKey.trim(),
+              base_url: baseUrl.trim(),
+              is_active: true,
+              whatsapp_instancia_id: data.id,
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: "user_id",
+            }
+          );
 
         if (configError) {
           console.error("Error updating uazapi_config:", configError);
         }
-        
+
         onMainInstanceChange?.(data.id);
       }
 
@@ -187,7 +190,7 @@ export function WhatsAppInstanceManager({
       if (data?.id && user?.id) {
         const webhookUrl = getWebhookUrl(data.id);
         const { data: session } = await supabase.auth.getSession();
-        
+
         const response = await supabase.functions.invoke("uazapi-set-webhook", {
           headers: { Authorization: `Bearer ${session.session?.access_token}` },
           body: {
@@ -203,12 +206,17 @@ export function WhatsAppInstanceManager({
         }
       }
 
-      toast.success("Instância adicionada!");
+      // Reset UI + reload list
       setAddDialogOpen(false);
       setNome("");
       setBaseUrl("");
       setApiKey("");
       onInstancesChange();
+
+      // Immediately open QR Code flow (like before)
+      if (data) {
+        await handleConnect(data);
+      }
     } catch (error: any) {
       toast.error(error.message || "Erro ao adicionar");
     } finally {
