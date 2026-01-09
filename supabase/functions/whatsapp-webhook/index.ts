@@ -443,10 +443,10 @@ Deno.serve(async (req) => {
                 chat_id: matchingChat.id,
                 message_id: messageId,
                 content: messageText || '',
-                sender_type: 'contact',
+                sender_type: 'customer',
                 media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                 timestamp: msgTime,
-              }, { onConflict: 'message_id' });
+              }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {
               console.error('Error saving WhatsApp message:', msgInsertError);
@@ -494,10 +494,10 @@ Deno.serve(async (req) => {
                   chat_id: newChat.id,
                   message_id: messageId,
                   content: messageText || '',
-                  sender_type: 'contact',
+                  sender_type: 'customer',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
-                }, { onConflict: 'message_id' });
+                }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
               if (msgInsertError) {
                 console.error('Error saving first WhatsApp message:', msgInsertError);
