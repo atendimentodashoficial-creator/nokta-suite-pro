@@ -105,6 +105,38 @@ Deno.serve(async (req) => {
       const nestedStatus = statusData?.status;
       const state = statusData?.state || instanceStatus || statusData?.connection_status;
 
+      const lastDisconnectReason = statusData?.instance?.lastDisconnectReason;
+      const lastDisconnectAt = statusData?.instance?.lastDisconnect;
+
+      // Some providers report "connected" in the panel, but WhatsApp rejects the pairing.
+      // When that happens, UAZapi often records a lastDisconnectReason like "connection attempt canceled".
+      if (
+        typeof lastDisconnectReason === "string" &&
+        /canceled|cancelled|não foi possivel|nao foi possivel|not possible|pairing failed/i.test(lastDisconnectReason)
+      ) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error:
+              "O WhatsApp recusou a conexão no celular (pareamento cancelado). Tente gerar um novo QR Code e conectar novamente.",
+            details: {
+              url_testada: statusEndpoint,
+              status: state || instanceStatus || "unknown",
+              whatsapp_status: "pairing_failed",
+              last_disconnect_reason: lastDisconnectReason,
+              last_disconnect_at: lastDisconnectAt ?? null,
+              instance_status: instanceStatus,
+              raw_state: state,
+              tipo_erro: "pairing_rejected",
+            },
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
       // Some providers flip fields during pairing; we only accept "really connected" when:
       // - loggedIn === true
       // - jid is present
@@ -129,12 +161,14 @@ Deno.serve(async (req) => {
       const isReallyConnected = loggedInFlag === true && hasJid && connectedIsOk && !isTransitional;
 
       // Check for banned/disconnected states
-      const isBanned = state === "BANNED" ||
+      const isBanned =
+        state === "BANNED" ||
         state === "banned" ||
         statusData?.banned === true ||
         instanceStatus === "banned";
 
-      const isDisconnected = state === "close" ||
+      const isDisconnected =
+        state === "close" ||
         state === "disconnected" ||
         state === "DISCONNECTED" ||
         state === "UNPAIRED" ||
