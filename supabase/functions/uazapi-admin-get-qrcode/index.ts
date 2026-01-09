@@ -366,6 +366,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: true, 
         qrcode: qrCode,
+        pairingCode: pairingCode || null,
         connected: false,
         message: "Escaneie o QR Code com seu WhatsApp"
       }), {

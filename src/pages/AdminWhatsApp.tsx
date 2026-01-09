@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { MessageSquare, RefreshCw, Plus, LayoutList, Kanban, CheckCircle2, Trash2, CheckSquare, Square, X, QrCode, Unplug, Loader2, Smartphone, XCircle, Pencil, Settings } from "lucide-react";
+import { MessageSquare, RefreshCw, Plus, LayoutList, Kanban, CheckCircle2, Trash2, CheckSquare, Square, X, QrCode, Unplug, Loader2, Smartphone, XCircle, Pencil, Settings, Hash, Keyboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -59,7 +59,12 @@ export default function AdminWhatsApp() {
   const [newInstanceName, setNewInstanceName] = useState("");
   const [manualBaseUrl, setManualBaseUrl] = useState("");
   const [manualApiKey, setManualApiKey] = useState("");
-  const [showManualConfig, setShowManualConfig] = useState(false);
+  const [connectionMethod, setConnectionMethod] = useState<"qrcode" | "pairing" | "manual">("qrcode");
+
+  // Pairing code state
+  const [pairingCodePhone, setPairingCodePhone] = useState("");
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingCodeLoading, setPairingCodeLoading] = useState(false);
 
   // Edit instance name dialog
   const [editNameDialogOpen, setEditNameDialogOpen] = useState(false);
@@ -254,10 +259,10 @@ export default function AdminWhatsApp() {
           api_key: apiKey,
         };
 
-        // Reset manual config state
+        // Reset config state
         setManualBaseUrl("");
         setManualApiKey("");
-        setShowManualConfig(false);
+        setConnectionMethod("qrcode");
       } else {
         // Try Admin API first
         const createResponse = await supabase.functions.invoke("uazapi-admin-create-instance", {
@@ -271,7 +276,7 @@ export default function AdminWhatsApp() {
           setQrCodeDialogOpen(false);
           setCreateInstanceDialogOpen(true);
           setNewInstanceName(name);
-          setShowManualConfig(true);
+          setConnectionMethod("manual");
           return;
         }
 
@@ -1608,67 +1613,199 @@ export default function AdminWhatsApp() {
                 </ResizablePanel>
               </ResizablePanelGroup>))}
 
-      {/* QR Code Dialog */}
+      {/* QR Code / Pairing Code Dialog */}
       <Dialog open={qrCodeDialogOpen} onOpenChange={(open) => {
         if (!open && qrPollingInterval) {
           clearInterval(qrPollingInterval);
           setQrPollingInterval(null);
         }
+        if (!open) {
+          setPairingCode(null);
+          setPairingCodePhone("");
+          setConnectionMethod("qrcode");
+        }
         setQrCodeDialogOpen(open);
       }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5" />
+              {connectionMethod === "pairing" ? <Hash className="h-5 w-5" /> : <QrCode className="h-5 w-5" />}
               Conectar WhatsApp
             </DialogTitle>
             <DialogDescription>
-              Escaneie o QR Code com seu WhatsApp
+              {connectionMethod === "pairing" 
+                ? "Use o código de pareamento no seu WhatsApp"
+                : "Escaneie o QR Code com seu WhatsApp"}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex flex-col items-center gap-4 py-4">
-            {qrCodeLoading ? (
-              <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-lg">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : qrCodeData ? (
-              <>
-                <div className="p-4 bg-white rounded-lg shadow-sm">
-                  <img src={qrCodeData} alt="QR Code" className="w-56 h-56" />
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Smartphone className="h-4 w-4" />
-                  <span>Escaneie com seu WhatsApp</span>
-                </div>
-                {qrPollingInterval && (
-                  <div className="flex items-center gap-2 text-xs text-green-600">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    <span>Aguardando conexão...</span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted rounded-lg gap-2">
-                <XCircle className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Erro ao carregar</span>
-              </div>
-            )}
-            
-            <Button variant="outline" size="sm" onClick={refreshQrCode} disabled={qrCodeLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${qrCodeLoading ? 'animate-spin' : ''}`} />
-              Atualizar QR Code
+          {/* Connection Method Tabs */}
+          <div className="flex gap-2 border-b pb-2">
+            <Button
+              variant={connectionMethod === "qrcode" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setConnectionMethod("qrcode")}
+              className="flex-1"
+            >
+              <QrCode className="h-4 w-4 mr-1" />
+              QR Code
+            </Button>
+            <Button
+              variant={connectionMethod === "pairing" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setConnectionMethod("pairing")}
+              className="flex-1"
+            >
+              <Hash className="h-4 w-4 mr-1" />
+              Código
             </Button>
           </div>
+          
+          {/* QR Code Tab */}
+          {connectionMethod === "qrcode" && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              {qrCodeLoading ? (
+                <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-lg">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : qrCodeData ? (
+                <>
+                  <div className="p-4 bg-white rounded-lg shadow-sm">
+                    <img src={qrCodeData} alt="QR Code" className="w-56 h-56" />
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Smartphone className="h-4 w-4" />
+                    <span>Escaneie com seu WhatsApp</span>
+                  </div>
+                  {qrPollingInterval && (
+                    <div className="flex items-center gap-2 text-xs text-green-600">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Aguardando conexão...</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted rounded-lg gap-2">
+                  <XCircle className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Erro ao carregar</span>
+                </div>
+              )}
+              
+              <Button variant="outline" size="sm" onClick={refreshQrCode} disabled={qrCodeLoading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${qrCodeLoading ? 'animate-spin' : ''}`} />
+                Atualizar QR Code
+              </Button>
+            </div>
+          )}
+
+          {/* Pairing Code Tab */}
+          {connectionMethod === "pairing" && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              {!pairingCode ? (
+                <>
+                  <div className="w-full space-y-3">
+                    <div>
+                      <Label>Número do WhatsApp</Label>
+                      <Input
+                        value={pairingCodePhone}
+                        onChange={(e) => setPairingCodePhone(e.target.value)}
+                        placeholder="Ex: 5511999999999"
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Digite o número com código do país (ex: 55 para Brasil)
+                      </p>
+                    </div>
+                    <Button 
+                      className="w-full"
+                      onClick={async () => {
+                        if (!pairingCodePhone.trim()) {
+                          toast.error("Digite o número do WhatsApp");
+                          return;
+                        }
+                        if (!mainInstance) {
+                          toast.error("Nenhuma instância configurada");
+                          return;
+                        }
+                        setPairingCodeLoading(true);
+                        try {
+                          const { data: session } = await supabase.auth.getSession();
+                          const response = await supabase.functions.invoke("uazapi-get-pairing-code", {
+                            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+                            body: { 
+                              base_url: mainInstance.base_url, 
+                              api_key: mainInstance.api_key,
+                              phone_number: pairingCodePhone.trim()
+                            },
+                          });
+                          
+                          if (response.data?.connected) {
+                            toast.success("WhatsApp já está conectado!");
+                            setQrCodeDialogOpen(false);
+                            setConnectionStatus('connected');
+                            return;
+                          }
+                          
+                          if (response.data?.pairingCode) {
+                            setPairingCode(response.data.pairingCode);
+                            startQrPolling(mainInstance.base_url, mainInstance.api_key, mainInstance);
+                          } else {
+                            toast.error(response.data?.error || "Não foi possível obter o código de pareamento");
+                          }
+                        } catch {
+                          toast.error("Erro ao obter código de pareamento");
+                        } finally {
+                          setPairingCodeLoading(false);
+                        }
+                      }}
+                      disabled={pairingCodeLoading}
+                    >
+                      {pairingCodeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Gerar Código"}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <div className="text-4xl font-mono font-bold tracking-widest bg-muted px-6 py-4 rounded-lg">
+                      {pairingCode}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-3">
+                      Abra seu WhatsApp → Dispositivos Conectados → Conectar um Dispositivo → Conectar com número de telefone
+                    </p>
+                  </div>
+                  {qrPollingInterval && (
+                    <div className="flex items-center gap-2 text-xs text-green-600">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Aguardando conexão...</span>
+                    </div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setPairingCode(null);
+                      setPairingCodePhone("");
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Gerar Novo Código
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* Create Instance Dialog (name first, then QR) */}
+      {/* Create Instance Dialog (name first, then connection method) */}
       <Dialog open={createInstanceDialogOpen} onOpenChange={(open) => {
         if (!open) {
-          setShowManualConfig(false);
+          setConnectionMethod("qrcode");
           setManualBaseUrl("");
           setManualApiKey("");
+          setPairingCodePhone("");
+          setPairingCode(null);
         }
         setCreateInstanceDialogOpen(open);
       }}>
@@ -1676,9 +1813,7 @@ export default function AdminWhatsApp() {
           <DialogHeader>
             <DialogTitle>Nova Instância WhatsApp</DialogTitle>
             <DialogDescription>
-              {showManualConfig 
-                ? "A criação automática não está disponível. Configure manualmente a instância criada no painel UAZAPI."
-                : "Defina um nome e depois escaneie o QR Code para conectar."}
+              Defina um nome e escolha como deseja conectar.
             </DialogDescription>
           </DialogHeader>
 
@@ -1693,7 +1828,33 @@ export default function AdminWhatsApp() {
               />
             </div>
 
-            {showManualConfig && (
+            {/* Connection Method Selector */}
+            <div className="space-y-2">
+              <Label>Método de conexão</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={connectionMethod === "qrcode" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setConnectionMethod("qrcode")}
+                  className="flex-1"
+                >
+                  <QrCode className="h-4 w-4 mr-1" />
+                  QR Code
+                </Button>
+                <Button
+                  variant={connectionMethod === "manual" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setConnectionMethod("manual")}
+                  className="flex-1"
+                >
+                  <Keyboard className="h-4 w-4 mr-1" />
+                  Manual
+                </Button>
+              </div>
+            </div>
+
+            {/* Manual Config Fields */}
+            {connectionMethod === "manual" && (
               <>
                 <div>
                   <Label>URL Base da instância</Label>
@@ -1723,30 +1884,16 @@ export default function AdminWhatsApp() {
               </>
             )}
 
-            <div className="flex justify-between items-center gap-2 pt-2">
-              <div>
-                {!showManualConfig && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setShowManualConfig(true)}
-                    className="text-xs text-muted-foreground"
-                  >
-                    Configurar manualmente
-                  </Button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={() => handleCreateInstance(newInstanceName, showManualConfig)}
-                  disabled={isCreatingInstance}
-                >
-                  {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : showManualConfig ? "Conectar" : "Criar"}
-                </Button>
-              </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => handleCreateInstance(newInstanceName, connectionMethod === "manual")}
+                disabled={isCreatingInstance}
+              >
+                {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : connectionMethod === "manual" ? "Conectar" : "Continuar"}
+              </Button>
             </div>
           </div>
         </DialogContent>
