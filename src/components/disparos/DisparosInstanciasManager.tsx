@@ -157,6 +157,8 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
 
     setSaving(true);
     try {
+      let savedInstanciaId: string | null = null;
+      
       if (editingInstancia) {
         const { error } = await supabase
           .from("disparos_instancias")
@@ -168,9 +170,10 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
           .eq("id", editingInstancia.id);
 
         if (error) throw error;
+        savedInstanciaId = editingInstancia.id;
         toast.success("Instância atualizada!");
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("disparos_instancias")
           .insert({
             user_id: user?.id,
@@ -178,10 +181,43 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
             base_url: baseUrl.trim(),
             api_key: apiKey.trim(),
             is_active: true,
-          });
+          })
+          .select()
+          .single();
 
         if (error) throw error;
+        savedInstanciaId = data?.id;
         toast.success("Instância adicionada!");
+      }
+
+      // Automatically configure webhook
+      if (savedInstanciaId && user?.id) {
+        try {
+          const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${savedInstanciaId}`;
+          
+          const { data: session } = await supabase.auth.getSession();
+          const response = await supabase.functions.invoke("uazapi-set-webhook", {
+            headers: {
+              Authorization: `Bearer ${session.session?.access_token}`,
+            },
+            body: {
+              base_url: baseUrl.trim(),
+              api_key: apiKey.trim(),
+              webhook_url: webhookUrl,
+              instancia_id: savedInstanciaId,
+            },
+          });
+
+          if (response.data?.success) {
+            toast.success("Webhook configurado automaticamente!");
+          } else {
+            console.warn("Webhook auto-config failed:", response.data?.error);
+            toast.info("Instância salva. Configure o webhook manualmente se necessário.");
+          }
+        } catch (webhookError) {
+          console.error("Error setting webhook:", webhookError);
+          // Don't fail the save operation, just warn
+        }
       }
 
       setDialogOpen(false);
