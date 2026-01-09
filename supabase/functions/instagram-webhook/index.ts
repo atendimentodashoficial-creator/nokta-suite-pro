@@ -247,6 +247,39 @@ async function processMessage(supabase: any, event: any) {
         );
       }
 
+      // Send buttons if configured
+      if (gatilho.resposta_botoes && Array.isArray(gatilho.resposta_botoes) && gatilho.resposta_botoes.length > 0) {
+        console.log('Sending buttons for trigger:', gatilho.nome, 'Buttons:', JSON.stringify(gatilho.resposta_botoes));
+        
+        await sendInstagramButtons(
+          config.page_access_token,
+          config.instagram_account_id,
+          senderId,
+          gatilho.resposta_botoes,
+          gatilho.resposta_texto // Use text as title if available
+        );
+
+        // Log response
+        await supabase.from('instagram_mensagens').insert({
+          user_id: config.user_id,
+          instagram_user_id: senderId,
+          tipo: 'dm_enviada_botoes',
+          conteudo: JSON.stringify(gatilho.resposta_botoes),
+          gatilho_id: gatilho.id,
+        });
+      }
+
+      // Send link if configured
+      if (gatilho.resposta_link_url) {
+        const linkText = gatilho.resposta_link_texto || gatilho.resposta_link_url;
+        await sendInstagramMessage(
+          config.page_access_token,
+          config.instagram_account_id,
+          senderId,
+          `${linkText}\n${gatilho.resposta_link_url}`
+        );
+      }
+
       break; // Only one response per message
     }
   }
@@ -538,4 +571,106 @@ async function sendInstagramMedia(
   console.log('Media sent result:', { url, status: response.status, mediaType, result });
 
   return result;
+}
+
+async function sendInstagramButtons(
+  accessToken: string,
+  instagramAccountId: string | null,
+  recipientId: string,
+  buttons: any[],
+  messageText?: string | null,
+) {
+  const trimmed = (accessToken || "").trim();
+  const isInstagramGraphToken = trimmed.startsWith("IG");
+
+  const url = isInstagramGraphToken
+    ? `https://graph.instagram.com/v24.0/${instagramAccountId ?? 'me'}/messages`
+    : `https://graph.facebook.com/v18.0/me/messages`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (isInstagramGraphToken) {
+    headers['Authorization'] = `Bearer ${trimmed}`;
+  }
+
+  // Separate URL buttons and quick replies
+  const urlButtons = buttons.filter((b: any) => b.type === 'url' && b.url);
+  const quickReplies = buttons.filter((b: any) => b.type === 'quick_reply');
+
+  console.log('Processing buttons - URL buttons:', urlButtons.length, 'Quick replies:', quickReplies.length);
+
+  // If we have URL buttons, use generic template
+  if (urlButtons.length > 0) {
+    const templateButtons = urlButtons.map((b: any) => ({
+      type: "web_url",
+      url: b.url.startsWith('http') ? b.url : `https://${b.url}`,
+      title: b.title
+    }));
+
+    const messagePayload = {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "generic",
+          elements: [{
+            title: messageText || "Clique no botão abaixo:",
+            buttons: templateButtons.slice(0, 3) // Max 3 buttons per element
+          }]
+        }
+      }
+    };
+
+    const body = isInstagramGraphToken
+      ? { recipient: { id: recipientId }, message: messagePayload }
+      : { recipient: { id: recipientId }, message: messagePayload, access_token: trimmed };
+
+    console.log('Sending template with buttons:', JSON.stringify(body));
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    console.log('Template buttons sent result:', { url, status: response.status, result });
+    
+    if (!response.ok) {
+      console.error('Error sending template buttons:', result);
+    }
+  }
+
+  // If we have quick replies, send them with a text message
+  if (quickReplies.length > 0) {
+    const messagePayload = {
+      text: messageText || "Escolha uma opção:",
+      quick_replies: quickReplies.map((b: any) => ({
+        content_type: "text",
+        title: b.title,
+        payload: b.payload || b.title
+      }))
+    };
+
+    const body = isInstagramGraphToken
+      ? { recipient: { id: recipientId }, message: messagePayload }
+      : { recipient: { id: recipientId }, message: messagePayload, access_token: trimmed };
+
+    console.log('Sending quick replies:', JSON.stringify(body));
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    console.log('Quick replies sent result:', { url, status: response.status, result });
+    
+    if (!response.ok) {
+      console.error('Error sending quick replies:', result);
+    }
+
+    return result;
+  }
+
+  return { success: true };
 }
