@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Calendar as CalendarIcon, Clock, User, Phone, Plus, Check, X, RefreshCw, MessageCircle, Trash2, FileText, Bell, History } from "lucide-react";
 import { format, startOfDay, endOfDay, addDays, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { EditarAgendamentoDialog } from "@/components/clientes/EditarAgendamentoDialog";
+import { ReagendarDialog } from "@/components/clientes/ReagendarDialog";
 import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
 import { useNavigate } from "react-router-dom";
@@ -464,7 +464,11 @@ export default function Agenda() {
       )}
 
       {/* Dialogs */}
-      {agendamentoSelecionado && <EditarAgendamentoDialog agendamento={agendamentoSelecionado} open={!!agendamentoSelecionado} onOpenChange={open => !open && setAgendamentoSelecionado(null)} />}
+      <ReagendarDialog
+        agendamento={agendamentoSelecionado}
+        open={!!agendamentoSelecionado}
+        onOpenChange={(open) => !open && setAgendamentoSelecionado(null)}
+      />
 
       {clienteParaFatura && <NovaFaturaDialog clienteId={clienteParaFatura.id} clienteNome={clienteParaFatura.nome} procedimentoId={clienteParaFatura.procedimentoId} profissionalId={clienteParaFatura.profissionalId} agendamentoId={clienteParaFatura.agendamentoId} open={novaFaturaOpen} onOpenChange={open => {
       setNovaFaturaOpen(open);
