@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload } from "lucide-react";
+import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload, UserCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,6 +32,8 @@ const gatilhoSchema = z.object({
     payload: z.string().optional(),
     url: z.string().optional(),
   })).optional(),
+  verificar_seguidor: z.boolean().optional(),
+  mensagem_pedir_seguir: z.string().optional(),
 });
 
 type GatilhoFormData = z.infer<typeof gatilhoSchema>;
@@ -47,6 +49,8 @@ interface Gatilho {
   resposta_link_url: string | null;
   resposta_link_texto: string | null;
   resposta_botoes: any[] | null;
+  verificar_seguidor: boolean | null;
+  mensagem_pedir_seguir: string | null;
   ativo: boolean;
   created_at: string;
 }
@@ -78,6 +82,8 @@ export function InstagramGatilhosTab() {
       resposta_link_url: "",
       resposta_link_texto: "",
       resposta_botoes: [],
+      verificar_seguidor: false,
+      mensagem_pedir_seguir: "",
     },
   });
 
@@ -177,6 +183,8 @@ export function InstagramGatilhosTab() {
         resposta_link_url: data.resposta_link_url || null,
         resposta_link_texto: data.resposta_link_texto || null,
         resposta_botoes: buttons.length > 0 ? buttons : null,
+        verificar_seguidor: data.verificar_seguidor || false,
+        mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         ativo: true,
       };
 
@@ -326,7 +334,7 @@ export function InstagramGatilhosTab() {
                 </div>
 
                 <Tabs defaultValue="texto" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="texto" className="text-xs">
                       <MessageCircle className="h-3 w-3 mr-1" />
                       Texto
@@ -342,6 +350,10 @@ export function InstagramGatilhosTab() {
                     <TabsTrigger value="botoes" className="text-xs">
                       <MousePointerClick className="h-3 w-3 mr-1" />
                       Botões
+                    </TabsTrigger>
+                    <TabsTrigger value="seguidor" className="text-xs">
+                      <UserCheck className="h-3 w-3 mr-1" />
+                      Seguidor
                     </TabsTrigger>
                   </TabsList>
 
@@ -530,6 +542,53 @@ export function InstagramGatilhosTab() {
                     <p className="text-xs text-muted-foreground">
                       Máximo de 3 botões por mensagem
                     </p>
+                  </TabsContent>
+
+                  <TabsContent value="seguidor" className="mt-4 space-y-4">
+                    <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="verificar_seguidor"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between">
+                            <div>
+                              <FormLabel>Verificar se segue</FormLabel>
+                              <FormDescription className="text-xs">
+                                Só envia a resposta se a pessoa te seguir
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="mensagem_pedir_seguir"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Mensagem se NÃO seguir</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Olá! 👋 Antes de continuar, me segue lá pra não perder nenhuma novidade! 💜"
+                                rows={3}
+                                disabled={!form.watch("verificar_seguidor")}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Enviada quando a pessoa não te segue. Use {"{nome}"} para incluir o nome.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </TabsContent>
                 </Tabs>
 
