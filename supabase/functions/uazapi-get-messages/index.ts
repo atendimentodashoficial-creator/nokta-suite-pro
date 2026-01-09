@@ -221,7 +221,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // No longer filtering messages by chat created_at - show all message history
+    // If UAZapi returned no messages, fallback to database messages
+    if (finalMessages.length === 0) {
+      console.log('No messages from UAZapi, falling back to database messages');
+      
+      const { data: dbOnlyMessages, error: dbOnlyError } = await supabase
+        .from('whatsapp_messages')
+        .select('*')
+        .eq('chat_id', existingChat.id)
+        .order('timestamp', { ascending: true });
+      
+      if (dbOnlyError) {
+        console.error('Error loading database messages:', dbOnlyError);
+      } else if (dbOnlyMessages && dbOnlyMessages.length > 0) {
+        console.log(`Found ${dbOnlyMessages.length} messages in database`);
+        finalMessages = dbOnlyMessages.map((m: any) => ({
+          message_id: m.message_id,
+          sender_type: m.sender_type,
+          content: m.deleted ? 'Mensagem apagada' : m.content,
+          media_type: m.media_type || 'text',
+          media_url: m.media_url,
+          timestamp: m.timestamp,
+          status: m.status,
+          deleted: m.deleted || false,
+        }));
+      }
+    }
 
     // Sort by timestamp (oldest first)
     finalMessages.sort((a: any, b: any) =>
