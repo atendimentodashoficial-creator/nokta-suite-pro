@@ -212,11 +212,11 @@ serve(async (req) => {
       return clean.slice(-8);
     };
 
-    // Buscar TODOS os chats existentes para preservar unread_count e verificar duplicatas por últimos 8 dígitos
+    // Buscar TODOS os chats existentes para preservar unread_count, contact_name e verificar duplicatas por últimos 8 dígitos
     const { data: existingChats } = await supabase
       .from("whatsapp_chats")
       .select(
-        "id, normalized_number, contact_number, chat_id, unread_count, deleted_at, last_message_time, last_read_at, provider_unread_count, provider_unread_baseline",
+        "id, normalized_number, contact_number, chat_id, contact_name, unread_count, deleted_at, last_message_time, last_read_at, provider_unread_count, provider_unread_baseline",
       )
       .eq("user_id", user.id);
 
@@ -306,7 +306,7 @@ serve(async (req) => {
 
       const existingChat = existingByLast8.get(last8);
       
-      // Determine contact name: use provider name when available and valid
+      // Determine contact name: PRESERVE user-edited name, otherwise use provider name
       // Provider may return: wa_name (contact name in address book), name (contact name), wa_contactName
       const providerName = chat.wa_name || chat.name || chat.wa_contactName || null;
       
@@ -319,14 +319,35 @@ serve(async (req) => {
       // Format phone number for display when no name is available
       const formattedPhone = chat.phone || normalized;
       
-      // Priority: real provider name > formatted phone number
-      let contactName: string;
+      // Get provider-derived name (may be used for new chats or as fallback)
+      let providerDerivedName: string;
       if (providerName && !isProviderNameJustPhone && providerName.trim() !== '') {
-        // Provider has a real name (not just phone), use it
-        contactName = providerName.trim();
+        providerDerivedName = providerName.trim();
       } else {
-        // Use the phone number as fallback
-        contactName = formattedPhone;
+        providerDerivedName = formattedPhone;
+      }
+      
+      // Priority: existing user-edited name > provider name > phone number
+      // Check if the existing name differs from provider name (user edited it)
+      let contactName: string;
+      if (existingChat?.contact_name) {
+        // Check if the existing name is different from both the current provider name AND the phone number
+        // If it's different, the user likely edited it - preserve it
+        const existingName = existingChat.contact_name.trim();
+        const existingIsPhone = existingName.replace(/\D/g, '').length >= 8 && 
+          getLast8Digits(existingName) === last8;
+        
+        if (!existingIsPhone && existingName !== providerDerivedName) {
+          // User has customized the name - preserve it
+          contactName = existingName;
+          console.log(`[SYNC] Preserving user-edited name "${existingName}" for ${chat.phone} (provider: "${providerDerivedName}")`);
+        } else {
+          // Use provider name (user hasn't customized or it matches)
+          contactName = providerDerivedName;
+        }
+      } else {
+        // New chat - use provider-derived name
+        contactName = providerDerivedName;
       }
       
       const deletedAt = existingChat?.deleted_at;
