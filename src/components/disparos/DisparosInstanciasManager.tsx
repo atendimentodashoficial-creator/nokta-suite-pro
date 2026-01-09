@@ -141,23 +141,47 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
       });
 
       if (response.data?.success) {
-        setWebhookStatus(prev => ({ ...prev, [instancia.id]: 'configured' }));
+        setWebhookStatus((prev) => ({ ...prev, [instancia.id]: "configured" }));
         return true;
-      } else {
-        console.error('Webhook config failed:', response.data);
-        setWebhookStatus(prev => ({ ...prev, [instancia.id]: 'error' }));
-        return false;
       }
+
+      console.error("Webhook config failed:", response.data);
+      setWebhookStatus((prev) => ({ ...prev, [instancia.id]: "error" }));
+      return false;
     } catch (error) {
-      console.error('Error configuring webhook:', error);
-      setWebhookStatus(prev => ({ ...prev, [instancia.id]: 'error' }));
+      console.error("Error configuring webhook:", error);
+      setWebhookStatus((prev) => ({ ...prev, [instancia.id]: "error" }));
       return false;
     }
   };
 
+  // Ensures webhook is configured even in race conditions right after (re)connect.
+  const ensureWebhookConfigured = async (
+    instancia: DisparosInstancia,
+    opts?: { initialDelayMs?: number; retries?: number; retryDelayMs?: number }
+  ): Promise<boolean> => {
+    const initialDelayMs = opts?.initialDelayMs ?? 0;
+    const retries = opts?.retries ?? 3;
+    const retryDelayMs = opts?.retryDelayMs ?? 2500;
+
+    if (initialDelayMs > 0) {
+      await new Promise((r) => setTimeout(r, initialDelayMs));
+    }
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      const ok = await configureWebhook(instancia);
+      if (ok) return true;
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, retryDelayMs));
+      }
+    }
+
+    return false;
+  };
+
   const handleReconfigureWebhook = async (instancia: DisparosInstancia) => {
     setConfiguringWebhook(instancia.id);
-    const success = await configureWebhook(instancia);
+    const success = await ensureWebhookConfigured(instancia, { retries: 2, retryDelayMs: 2000 });
     if (success) {
       toast.success("Webhook configurado com sucesso!");
       onInstanciasChange();
@@ -248,18 +272,21 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
       if (response.data?.connected) {
         toast.success("WhatsApp já está conectado!");
         setQrCodeDialogOpen(false);
-        setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
+        setConnectionStatus((prev) => ({ ...prev, [instancia.id]: "connected" }));
 
-        // IMPORTANT: even if already connected, ensure webhook is configured
-        setTimeout(async () => {
-          const webhookConfigured = await configureWebhook(instancia);
-          if (webhookConfigured) {
-            toast.success("Webhook configurado automaticamente!");
-            onInstanciasChange();
-          } else {
-            toast.warning("Webhook não foi configurado. Clique em 'Configurar Webhook'.");
-          }
-        }, 1500);
+        // Sempre garantir webhook ao (re)conectar (mesmo se já estiver conectado)
+        const webhookConfigured = await ensureWebhookConfigured(instancia, {
+          initialDelayMs: 0,
+          retries: 3,
+          retryDelayMs: 2500,
+        });
+
+        if (webhookConfigured) {
+          toast.success("Webhook configurado automaticamente!");
+          onInstanciasChange();
+        } else {
+          toast.warning("Webhook não foi configurado. Clique em 'Configurar Webhook'.");
+        }
 
         return;
       }
@@ -338,17 +365,20 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
             setQrCodeDialogOpen(false);
             setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
             toast.success("WhatsApp conectado!");
-            
-            // Wait a bit before configuring webhook to ensure connection is stable
-            setTimeout(async () => {
-              const webhookConfigured = await configureWebhook(instancia);
-              if (webhookConfigured) {
-                toast.success("Webhook configurado automaticamente!");
-              } else {
-                toast.warning("Webhook não foi configurado. Clique em 'Configurar Webhook'.");
-              }
-            }, 2000);
-            
+
+            // Sempre garantir webhook após conectar (com retries para evitar race condition)
+            const webhookConfigured = await ensureWebhookConfigured(instancia, {
+              initialDelayMs: 2000,
+              retries: 3,
+              retryDelayMs: 2500,
+            });
+
+            if (webhookConfigured) {
+              toast.success("Webhook configurado automaticamente!");
+            } else {
+              toast.warning("Webhook não foi configurado. Clique em 'Configurar Webhook'.");
+            }
+
             onInstanciasChange();
           }
         } else {
