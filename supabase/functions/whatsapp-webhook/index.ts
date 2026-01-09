@@ -24,6 +24,26 @@ interface WhatsAppWebhookPayload {
     messageType?: string;
     mediaType?: string;
     type?: string;
+    // Click-to-WhatsApp Ad referral data
+    referral?: {
+      source_url?: string;
+      source_type?: string;
+      source_id?: string;
+      headline?: string;
+      body?: string;
+      ctwa_clid?: string;
+      media_type?: string;
+    };
+  };
+  // Some providers send referral at root level
+  referral?: {
+    source_url?: string;
+    source_type?: string;
+    source_id?: string;
+    headline?: string;
+    body?: string;
+    ctwa_clid?: string;
+    media_type?: string;
   };
   event?: {
     Chat?: string;
@@ -633,6 +653,28 @@ Deno.serve(async (req) => {
     console.log('No matching lead found, creating new lead...');
     await logEvent(userId, 'info', `Criando novo lead para ${name} (${phone})`);
 
+    // Extract referral data from Click-to-WhatsApp ads
+    const referral = payload.message?.referral || payload.referral;
+    const utmData: Record<string, string | null> = {
+      utm_source: null,
+      utm_campaign: null,
+      utm_medium: null,
+      utm_content: null,
+      fbclid: null,
+    };
+
+    if (referral) {
+      console.log('Click-to-WhatsApp referral data detected:', JSON.stringify(referral));
+      await logEvent(userId, 'info', `Dados de anúncio CTWA detectados: ${JSON.stringify(referral)}`);
+      
+      // Map referral data to UTM-like fields
+      utmData.utm_source = 'facebook';
+      utmData.utm_medium = 'cpc';
+      utmData.utm_campaign = referral.headline || referral.source_id || null;
+      utmData.utm_content = referral.source_id || null;
+      utmData.fbclid = referral.ctwa_clid || null;
+    }
+
     const { data: newLead, error: insertError } = await supabase
       .from('leads')
       .insert({
@@ -645,6 +687,12 @@ Deno.serve(async (req) => {
         status: 'lead',
         origem_lead: true,
         data_contato: today,
+        // UTM data from Click-to-WhatsApp ads
+        utm_source: utmData.utm_source,
+        utm_campaign: utmData.utm_campaign,
+        utm_medium: utmData.utm_medium,
+        utm_content: utmData.utm_content,
+        fbclid: utmData.fbclid,
       })
       .select()
       .single();
