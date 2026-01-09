@@ -243,7 +243,7 @@ export default function Disparos() {
     setFilteredChats(filtered);
   }, [searchTerm, chats, filterInstanciaId]);
 
-  // Load instancias
+  // Load instancias (just load data, don't auto-check connection status)
   const loadInstancias = async () => {
     try {
       const { data } = await supabase
@@ -263,8 +263,7 @@ export default function Disparos() {
         if (data.length > 0 && !selectedInstanciaId) {
           setSelectedInstanciaId(data[0].id);
         }
-        // Check connection status for each instance
-        data.forEach(inst => checkConnectionStatus(inst));
+        // DON'T auto-check connection status - only check when user opens manager
       }
     } catch (error) {
       console.error("Error loading instancias:", error);
@@ -969,7 +968,11 @@ export default function Disparos() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowInstanceManager(true)}
+                  onClick={() => {
+                    setShowInstanceManager(true);
+                    // Only check connection status when user opens the manager
+                    fullInstancias.forEach(inst => checkConnectionStatus(inst));
+                  }}
                 >
                   <Settings className="h-4 w-4" />
                 </Button>

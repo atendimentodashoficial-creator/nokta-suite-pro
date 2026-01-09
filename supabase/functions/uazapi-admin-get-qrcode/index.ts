@@ -178,13 +178,24 @@ Deno.serve(async (req) => {
         console.log("Status data:", JSON.stringify(statusData));
         
         const nestedStatus = statusData?.status;
-        const isConnected = statusData?.connected === true || 
-                           nestedStatus?.connected === true ||
-                           nestedStatus?.loggedIn === true ||
-                           statusData?.state === "open" ||
-                           statusData?.state === "connected";
+        const instanceData = statusData?.instance;
+        
+        // Check if actually logged in - need jid AND loggedIn to be true
+        // "connected: true" just means websocket is active, not that user is authenticated
+        const isLoggedIn = nestedStatus?.loggedIn === true || 
+                           statusData?.loggedIn === true ||
+                           (nestedStatus?.jid && nestedStatus?.jid !== null) ||
+                           (statusData?.jid && statusData?.jid !== null);
+        
+        // Also check instance QR code from status response
+        if (!qrCode && instanceData?.qrcode) {
+          qrCode = instanceData.qrcode;
+          if (qrCode && !qrCode.startsWith("data:image")) {
+            qrCode = `data:image/png;base64,${qrCode}`;
+          }
+        }
 
-        if (isConnected) {
+        if (isLoggedIn) {
           return new Response(JSON.stringify({ 
             success: true, 
             connected: true,
