@@ -9,19 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import {
-  MessageSquare,
   Link2,
   CheckCircle2,
   XCircle,
   Eye,
   EyeOff,
   Loader2,
-  Copy,
   RefreshCw,
   Plus,
   Trash2,
   Bot,
-  Send,
   Database
 } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
@@ -33,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { WhatsAppInstanceManager, WhatsAppInstance } from "@/components/disparos/WhatsAppInstanceManager";
 
 interface LinkedAdAccount {
   id: string;
@@ -94,12 +90,9 @@ export default function Conexoes() {
   const [newGoogleCustomerId, setNewGoogleCustomerId] = useState("");
   const [addingGoogleAccount, setAddingGoogleAccount] = useState(false);
 
-  // ===== WhatsApp/UAZapi State =====
+  // ===== WhatsApp/UAZapi State (kept for legacy compatibility) =====
   const [loadingWhatsAppConfig, setLoadingWhatsAppConfig] = useState(true);
   const [whatsAppInstanciaId, setWhatsAppInstanciaId] = useState<string | null>(null);
-
-  // ===== Disparos Instancias State =====
-  const [disparosInstancias, setDisparosInstancias] = useState<WhatsAppInstance[]>([]);
   const [loadingDisparosInstancias, setLoadingDisparosInstancias] = useState(true);
 
   // ===== OpenAI State =====
@@ -124,32 +117,14 @@ export default function Conexoes() {
     if (user) {
       loadMetaConfig();
       loadWhatsAppConfig();
-      loadDisparosInstancias();
       loadLinkedAdAccounts();
       loadGoogleAdsConfig();
       loadLinkedGoogleAdsAccounts();
       checkOpenAIConfig();
       loadApifyConfig();
-    }
-  }, [user]);
-
-  const loadDisparosInstancias = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("disparos_instancias")
-        .select("*")
-        .eq("user_id", user?.id)
-        .order("created_at");
-
-      if (!error && data) {
-        setDisparosInstancias(data);
-      }
-    } catch (error) {
-      console.error("Error loading disparos instancias:", error);
-    } finally {
       setLoadingDisparosInstancias(false);
     }
-  };
+  }, [user]);
 
   // ===== OpenAI Functions =====
   const checkOpenAIConfig = async () => {
@@ -1409,83 +1384,6 @@ export default function Conexoes() {
         </Card>
       )}
 
-      {/* WhatsApp Principal Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-950 rounded-lg">
-                <MessageSquare className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">WhatsApp Principal</CardTitle>
-                <CardDescription>
-                  Conecte seu WhatsApp para receber leads e mensagens
-                </CardDescription>
-              </div>
-            </div>
-            <Badge variant={whatsAppInstanciaId ? "default" : "secondary"} className="gap-1">
-              {whatsAppInstanciaId ? (
-                <>
-                  <CheckCircle2 className="h-3 w-3" />
-                  Configurado
-                </>
-              ) : (
-                "Não configurado"
-              )}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <WhatsAppInstanceManager 
-            instances={disparosInstancias}
-            onInstancesChange={loadDisparosInstancias}
-            instanceType="whatsapp"
-            mainInstanceId={whatsAppInstanciaId}
-            onMainInstanceChange={(id) => setWhatsAppInstanciaId(id)}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Disparos Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 dark:bg-orange-950 rounded-lg">
-                <Send className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Disparos em Massa</CardTitle>
-                <CardDescription>
-                  Instâncias adicionais para campanhas de disparo
-                </CardDescription>
-              </div>
-            </div>
-            <Badge variant={disparosInstancias.filter(i => i.id !== whatsAppInstanciaId).length > 0 ? "default" : "secondary"} className="gap-1">
-              {disparosInstancias.filter(i => i.id !== whatsAppInstanciaId && i.is_active).length > 0 ? (
-                <>
-                  <CheckCircle2 className="h-3 w-3" />
-                  {disparosInstancias.filter(i => i.id !== whatsAppInstanciaId && i.is_active).length} ativa{disparosInstancias.filter(i => i.id !== whatsAppInstanciaId && i.is_active).length !== 1 ? "s" : ""}
-                </>
-              ) : (
-                "Nenhuma"
-              )}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            <strong>Nota:</strong> As mensagens recebidas nestas instâncias não serão convertidas em leads automaticamente.
-          </p>
-          <WhatsAppInstanceManager 
-            instances={disparosInstancias}
-            onInstancesChange={loadDisparosInstancias}
-            instanceType="disparos"
-            mainInstanceId={whatsAppInstanciaId}
-          />
-        </CardContent>
-      </Card>
 
       {/* OpenAI Card */}
       <Card>

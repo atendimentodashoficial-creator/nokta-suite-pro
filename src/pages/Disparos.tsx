@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter } from "lucide-react";
+import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter, QrCode, Loader2, Smartphone, Unplug, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,10 +25,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Card } from "@/components/ui/card";
 
 interface DisparosInstancia {
   id: string;
   nome: string;
+  base_url?: string;
+  api_key?: string;
+  is_active?: boolean;
 }
 
 export default function Disparos() {
@@ -60,6 +64,22 @@ export default function Disparos() {
   const [selectedInstanciaId, setSelectedInstanciaId] = useState<string>("");
   const [filterInstanciaId, setFilterInstanciaId] = useState<string>("all");
   const deepLinkHandledRef = useRef(false);
+
+  // Instance management state
+  const [fullInstancias, setFullInstancias] = useState<DisparosInstancia[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, 'connected' | 'disconnected' | 'loading'>>({});
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
+  const [qrCodeData, setQrCodeData] = useState<string | null>(null);
+  const [qrCodeLoading, setQrCodeLoading] = useState(false);
+  const [selectedQrInstancia, setSelectedQrInstancia] = useState<DisparosInstancia | null>(null);
+  const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [showInstanceManager, setShowInstanceManager] = useState(false);
+  const [addInstanceDialogOpen, setAddInstanceDialogOpen] = useState(false);
+  const [newInstanciaNome, setNewInstanciaNome] = useState("");
+  const [newInstanciaUrl, setNewInstanciaUrl] = useState("");
+  const [newInstanciaToken, setNewInstanciaToken] = useState("");
+  const [savingInstance, setSavingInstance] = useState(false);
   const getChatLast8 = (chat: any) => {
     const candidates = [chat?.contact_number, chat?.normalized_number, chat?.chat_id].filter(Boolean);
     for (const c of candidates) {
@@ -228,7 +248,7 @@ export default function Disparos() {
     try {
       const { data } = await supabase
         .from("disparos_instancias")
-        .select("id, nome")
+        .select("*")
         .eq("is_active", true);
       
       if (data) {
@@ -238,15 +258,231 @@ export default function Disparos() {
         });
         setInstanciasMap(map);
         setInstanciasList(data);
+        setFullInstancias(data);
         // Set default selection to first instance
         if (data.length > 0 && !selectedInstanciaId) {
           setSelectedInstanciaId(data[0].id);
         }
+        // Check connection status for each instance
+        data.forEach(inst => checkConnectionStatus(inst));
       }
     } catch (error) {
       console.error("Error loading instancias:", error);
     }
   };
+
+  // Check connection status of an instance
+  const checkConnectionStatus = async (instancia: DisparosInstancia) => {
+    if (!instancia.base_url || !instancia.api_key) return;
+    setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'loading' }));
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("uazapi-test-connection", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: instancia.base_url, api_key: instancia.api_key },
+      });
+      setConnectionStatus(prev => ({ 
+        ...prev, 
+        [instancia.id]: response.data?.success ? 'connected' : 'disconnected' 
+      }));
+    } catch {
+      setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'disconnected' }));
+    }
+  };
+
+  // Create new instance and get QR code
+  const handleCreateAndConnect = async () => {
+    setIsCreatingInstance(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const instanceName = `WhatsApp-${Date.now()}`;
+      
+      const response = await supabase.functions.invoke("uazapi-admin-create-instance", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { instance_name: instanceName },
+      });
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || "Erro ao criar instância");
+      }
+
+      toast.success("Instância criada!");
+      await loadInstancias();
+      checkConfig();
+
+      // Open QR code if available
+      if (response.data?.qrcode) {
+        setQrCodeData(response.data.qrcode);
+        setSelectedQrInstancia(response.data.instance);
+        setQrCodeDialogOpen(true);
+        startQrPolling(response.data.instance);
+      } else if (response.data?.instance) {
+        // No QR yet, need to fetch it
+        handleConnectInstance(response.data.instance);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao criar instância");
+    } finally {
+      setIsCreatingInstance(false);
+    }
+  };
+
+  // Connect existing instance (get QR code)
+  const handleConnectInstance = async (instancia: DisparosInstancia) => {
+    if (!instancia.base_url || !instancia.api_key) {
+      toast.error("Instância sem configuração");
+      return;
+    }
+    setSelectedQrInstancia(instancia);
+    setQrCodeDialogOpen(true);
+    setQrCodeLoading(true);
+    setQrCodeData(null);
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: instancia.base_url, api_key: instancia.api_key },
+      });
+
+      if (response.data?.connected) {
+        toast.success("WhatsApp já está conectado!");
+        setQrCodeDialogOpen(false);
+        setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
+        return;
+      }
+
+      if (response.data?.qrcode) {
+        setQrCodeData(response.data.qrcode);
+        startQrPolling(instancia);
+      } else {
+        toast.error(response.data?.error || "Não foi possível obter o QR Code");
+      }
+    } catch {
+      toast.error("Erro ao obter QR Code");
+    } finally {
+      setQrCodeLoading(false);
+    }
+  };
+
+  // Start polling to check if connected
+  const startQrPolling = (instancia: DisparosInstancia) => {
+    if (qrPollingInterval) clearInterval(qrPollingInterval);
+    if (!instancia.base_url || !instancia.api_key) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        const response = await supabase.functions.invoke("uazapi-test-connection", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { base_url: instancia.base_url, api_key: instancia.api_key },
+        });
+
+        if (response.data?.success) {
+          clearInterval(interval);
+          setQrPollingInterval(null);
+          setQrCodeDialogOpen(false);
+          setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
+          toast.success("WhatsApp conectado!");
+          loadInstancias();
+          checkConfig();
+        }
+      } catch {}
+    }, 5000);
+
+    setQrPollingInterval(interval);
+    setTimeout(() => {
+      clearInterval(interval);
+      setQrPollingInterval(null);
+    }, 120000);
+  };
+
+  // Disconnect instance
+  const handleDisconnectInstance = async (instancia: DisparosInstancia) => {
+    if (!instancia.base_url || !instancia.api_key) return;
+    try {
+      await fetch(`${instancia.base_url}/instance/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "token": instancia.api_key },
+      });
+      toast.success("WhatsApp desconectado!");
+      setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'disconnected' }));
+    } catch {
+      toast.error("Erro ao desconectar");
+    }
+  };
+
+  // Add manual instance
+  const handleAddManualInstance = async () => {
+    if (!newInstanciaNome.trim() || !newInstanciaUrl.trim() || !newInstanciaToken.trim()) {
+      toast.error("Preencha todos os campos");
+      return;
+    }
+    setSavingInstance(true);
+    try {
+      const { data, error } = await supabase
+        .from("disparos_instancias")
+        .insert({
+          user_id: user?.id,
+          nome: newInstanciaNome.trim(),
+          base_url: newInstanciaUrl.trim(),
+          api_key: newInstanciaToken.trim(),
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Auto-configure webhook
+      if (data?.id && user?.id) {
+        const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${data.id}`;
+        const { data: session } = await supabase.auth.getSession();
+        await supabase.functions.invoke("uazapi-set-webhook", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: {
+            base_url: newInstanciaUrl.trim(),
+            api_key: newInstanciaToken.trim(),
+            webhook_url: webhookUrl,
+            instancia_id: data.id,
+          },
+        });
+      }
+
+      toast.success("Instância adicionada!");
+      setAddInstanceDialogOpen(false);
+      setNewInstanciaNome("");
+      setNewInstanciaUrl("");
+      setNewInstanciaToken("");
+      loadInstancias();
+      checkConfig();
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao adicionar");
+    } finally {
+      setSavingInstance(false);
+    }
+  };
+
+  // Delete instance
+  const handleDeleteInstance = async (id: string) => {
+    try {
+      const { error } = await supabase.from("disparos_instancias").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Instância removida!");
+      loadInstancias();
+      checkConfig();
+    } catch {
+      toast.error("Erro ao remover");
+    }
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (qrPollingInterval) clearInterval(qrPollingInterval);
+    };
+  }, [qrPollingInterval]);
 
   // Load chats and config on mount
   useEffect(() => {
@@ -729,6 +965,15 @@ export default function Disparos() {
                   <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 </Button>
 
+                {/* Instance Manager button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowInstanceManager(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+
                 {viewMode === "list" && (
                   isSelectionMode ? (
                     <Button size="sm" variant="ghost" onClick={toggleSelectionMode}>
@@ -808,13 +1053,22 @@ export default function Disparos() {
                   {!hasConfig ? (
                     <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                       <Send className="h-12 w-12 text-muted-foreground mb-4" />
-                      <h2 className="text-lg font-medium mb-2">Configure os Disparos</h2>
+                      <h2 className="text-lg font-medium mb-2">Conecte seu WhatsApp</h2>
                       <p className="text-muted-foreground mb-4">
-                        Acesse Configurações → Conexões para configurar a instância de disparos
+                        Crie uma instância e escaneie o QR Code para começar
                       </p>
-                      <Button onClick={() => window.location.href = '/configuracoes'}>
-                        Ir para Configurações
-                      </Button>
+                      <div className="flex flex-col gap-2 w-full max-w-xs">
+                        <Button onClick={handleCreateAndConnect} disabled={isCreatingInstance}>
+                          {isCreatingInstance ? (
+                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</>
+                          ) : (
+                            <><QrCode className="h-4 w-4 mr-2" />Criar e Conectar</>
+                          )}
+                        </Button>
+                        <Button variant="outline" onClick={() => setAddInstanceDialogOpen(true)}>
+                          <Plus className="h-4 w-4 mr-2" />Adicionar Manualmente
+                        </Button>
+                      </div>
                     </div>
                   ) : filteredChats.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -896,13 +1150,22 @@ export default function Disparos() {
                 {!hasConfig ? (
                   <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                     <Send className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h2 className="text-lg font-medium mb-2">Configure os Disparos</h2>
+                    <h2 className="text-lg font-medium mb-2">Conecte seu WhatsApp</h2>
                     <p className="text-muted-foreground mb-4">
-                      Acesse Configurações → Conexões para configurar a instância de disparos
+                      Crie uma instância e escaneie o QR Code para começar
                     </p>
-                    <Button onClick={() => window.location.href = '/configuracoes'}>
-                      Ir para Configurações
-                    </Button>
+                    <div className="flex flex-col gap-2 w-full max-w-xs">
+                      <Button onClick={handleCreateAndConnect} disabled={isCreatingInstance}>
+                        {isCreatingInstance ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</>
+                        ) : (
+                          <><QrCode className="h-4 w-4 mr-2" />Criar e Conectar</>
+                        )}
+                      </Button>
+                      <Button variant="outline" onClick={() => setAddInstanceDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />Adicionar Manualmente
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="h-full flex flex-col overflow-hidden min-h-0">
@@ -965,13 +1228,22 @@ export default function Disparos() {
                     {!hasConfig ? (
                       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                         <Send className="h-12 w-12 text-muted-foreground mb-4" />
-                        <h2 className="text-lg font-medium mb-2">Configure os Disparos</h2>
+                        <h2 className="text-lg font-medium mb-2">Conecte seu WhatsApp</h2>
                         <p className="text-muted-foreground mb-4">
-                          Acesse Configurações → Conexões para configurar a instância de disparos
+                          Crie uma instância e escaneie o QR Code para começar
                         </p>
-                        <Button onClick={() => window.location.href = '/configuracoes'}>
-                          Ir para Configurações
-                        </Button>
+                        <div className="flex flex-col gap-2 w-full max-w-xs">
+                          <Button onClick={handleCreateAndConnect} disabled={isCreatingInstance}>
+                            {isCreatingInstance ? (
+                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</>
+                            ) : (
+                              <><QrCode className="h-4 w-4 mr-2" />Criar e Conectar</>
+                            )}
+                          </Button>
+                          <Button variant="outline" onClick={() => setAddInstanceDialogOpen(true)}>
+                            <Plus className="h-4 w-4 mr-2" />Adicionar Manualmente
+                          </Button>
+                        </div>
                       </div>
                     ) : filteredChats.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -1133,6 +1405,215 @@ export default function Disparos() {
         open={compararListasOpen}
         onOpenChange={setCompararListasOpen}
       />
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrCodeDialogOpen} onOpenChange={(open) => {
+        if (!open && qrPollingInterval) {
+          clearInterval(qrPollingInterval);
+          setQrPollingInterval(null);
+        }
+        setQrCodeDialogOpen(open);
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Conectar WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              {selectedQrInstancia?.nome || "Nova Instância"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center gap-4 py-4">
+            {qrCodeLoading ? (
+              <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-lg">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : qrCodeData ? (
+              <>
+                <div className="p-4 bg-white rounded-lg shadow-sm">
+                  <img src={qrCodeData} alt="QR Code" className="w-56 h-56" />
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Smartphone className="h-4 w-4" />
+                  <span>Escaneie com seu WhatsApp</span>
+                </div>
+                {qrPollingInterval && (
+                  <div className="flex items-center gap-2 text-xs text-green-600">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Aguardando conexão...</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted rounded-lg gap-2">
+                <X className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Erro ao carregar</span>
+              </div>
+            )}
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => selectedQrInstancia && handleConnectInstance(selectedQrInstancia)} 
+              disabled={qrCodeLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${qrCodeLoading ? 'animate-spin' : ''}`} />
+              Atualizar QR Code
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Instance Dialog */}
+      <Dialog open={addInstanceDialogOpen} onOpenChange={setAddInstanceDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Instância</DialogTitle>
+            <DialogDescription>
+              Adicione os dados da sua instância UAZapi
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Nome</Label>
+              <Input
+                value={newInstanciaNome}
+                onChange={(e) => setNewInstanciaNome(e.target.value)}
+                placeholder="Ex: WhatsApp Principal"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>URL Base</Label>
+              <Input
+                value={newInstanciaUrl}
+                onChange={(e) => setNewInstanciaUrl(e.target.value)}
+                placeholder="https://sua-instancia.uazapi.com"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Token da Instância</Label>
+              <Input
+                type="password"
+                value={newInstanciaToken}
+                onChange={(e) => setNewInstanciaToken(e.target.value)}
+                placeholder="Token de autenticação"
+                className="mt-1"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setAddInstanceDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleAddManualInstance} disabled={savingInstance}>
+                {savingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Adicionar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Instance Manager Dialog */}
+      <Dialog open={showInstanceManager} onOpenChange={setShowInstanceManager}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Instâncias</DialogTitle>
+            <DialogDescription>
+              Gerencie suas conexões WhatsApp
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 pt-4">
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => { setShowInstanceManager(false); setAddInstanceDialogOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Instância
+              </Button>
+            </div>
+
+            {fullInstancias.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhuma instância configurada.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {fullInstancias.map((instancia) => {
+                  const status = connectionStatus[instancia.id];
+                  const isConnected = status === 'connected';
+                  const isLoading = status === 'loading';
+                  
+                  return (
+                    <Card key={instancia.id} className="p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${
+                            isConnected ? 'bg-green-500' : isLoading ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
+                          }`} />
+                          <div>
+                            <h4 className="font-medium">{instancia.nome}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              {isConnected ? 'Conectado' : isLoading ? 'Verificando...' : 'Desconectado'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {isConnected ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDisconnectInstance(instancia)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Unplug className="h-4 w-4 mr-2" />
+                              Desconectar
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleConnectInstance(instancia)}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <QrCode className="h-4 w-4 mr-2" />
+                                  Conectar
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => checkConnectionStatus(instancia)}
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteInstance(instancia.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
