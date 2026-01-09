@@ -76,47 +76,8 @@ Deno.serve(async (req) => {
     console.log(`Chat created_at: ${chatCreatedAt?.toISOString() || 'N/A'} - messages before this will be filtered`);
 
 
-    // Garantir que exista um Lead para este chat (se não estiver nas abas Leads ou Clientes)
-    try {
-      const { data: chatRow } = await supabase
-        .from('whatsapp_chats')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('chat_id', chatid)
-        .maybeSingle();
-
-      if (chatRow) {
-        const normalize = (p: string) => (p ? p.replace(/[^\d]/g, '') : '');
-        const phoneNorm = chatRow.normalized_number || normalize(chatRow.contact_number);
-
-        // Buscar telefones existentes deste usuário
-        const { data: existingLeads } = await supabase
-          .from('leads')
-          .select('id, telefone')
-          .eq('user_id', user.id);
-
-        const exists = (existingLeads ?? []).some((l: any) => normalize(l.telefone) === phoneNorm);
-
-        if (!exists && phoneNorm) {
-          const { error: insertLeadError } = await supabase.from('leads').insert({
-            user_id: user.id,
-            nome: chatRow.contact_name || 'Contato WhatsApp',
-            telefone: phoneNorm,
-            procedimento_nome: 'Contato via WhatsApp',
-            origem: 'WhatsApp',
-            status: 'lead',
-            origem_lead: true,
-            data_contato: new Date().toISOString().split('T')[0],
-            observacoes: chatRow.last_message ? `Primeira mensagem: ${chatRow.last_message}` : null,
-          });
-          if (insertLeadError) {
-            console.error('Error inserting lead from messages:', insertLeadError);
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Lead ensure step failed:', e);
-    }
+    // Lead creation is now handled ONLY by webhook for new incoming messages
+    // Old conversations should NOT create leads when opened
     // Helper function to generate alternative chat IDs (with/without 9th digit)
     const generateAlternateChatIds = (originalChatId: string): string[] => {
       const chatIds = [originalChatId];
