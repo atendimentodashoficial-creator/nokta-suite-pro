@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DisparosInstanciasManager, DisparosInstancia } from "@/components/disparos/DisparosInstanciasManager";
+import { WhatsAppInstanceManager, WhatsAppInstance } from "@/components/disparos/WhatsAppInstanceManager";
 
 interface LinkedAdAccount {
   id: string;
@@ -95,19 +95,11 @@ export default function Conexoes() {
   const [addingGoogleAccount, setAddingGoogleAccount] = useState(false);
 
   // ===== WhatsApp/UAZapi State =====
-  const [hasWhatsAppConfig, setHasWhatsAppConfig] = useState(false);
   const [loadingWhatsAppConfig, setLoadingWhatsAppConfig] = useState(true);
-  const [whatsAppApiKey, setWhatsAppApiKey] = useState("");
-  const [whatsAppBaseUrl, setWhatsAppBaseUrl] = useState("");
   const [whatsAppInstanciaId, setWhatsAppInstanciaId] = useState<string | null>(null);
-  const [whatsAppLastWebhookAt, setWhatsAppLastWebhookAt] = useState<string | null>(null);
-  
-  const [savingWhatsApp, setSavingWhatsApp] = useState(false);
-  const [testingWhatsApp, setTestingWhatsApp] = useState(false);
-  const [whatsAppTestResult, setWhatsAppTestResult] = useState<{ success: boolean; message: string; details?: unknown } | null>(null);
 
   // ===== Disparos Instancias State =====
-  const [disparosInstancias, setDisparosInstancias] = useState<DisparosInstancia[]>([]);
+  const [disparosInstancias, setDisparosInstancias] = useState<WhatsAppInstance[]>([]);
   const [loadingDisparosInstancias, setLoadingDisparosInstancias] = useState(true);
 
   // ===== OpenAI State =====
@@ -583,202 +575,18 @@ export default function Conexoes() {
     try {
       const { data, error } = await supabase
         .from("uazapi_config")
-        .select("*, whatsapp_instancia_id")
+        .select("whatsapp_instancia_id")
         .eq("user_id", user?.id)
         .maybeSingle();
 
-      if (!error && data) {
-        setHasWhatsAppConfig(true);
-        setWhatsAppApiKey(data.api_key);
-        setWhatsAppBaseUrl(data.base_url);
+      if (!error && data?.whatsapp_instancia_id) {
         setWhatsAppInstanciaId(data.whatsapp_instancia_id);
-
-        // Load last_webhook_at from the mirror instance in disparos_instancias
-        if (data.whatsapp_instancia_id) {
-          const { data: instanciaData } = await supabase
-            .from("disparos_instancias")
-            .select("last_webhook_at")
-            .eq("id", data.whatsapp_instancia_id)
-            .maybeSingle();
-
-          if (instanciaData?.last_webhook_at) {
-            setWhatsAppLastWebhookAt(instanciaData.last_webhook_at);
-          }
-        }
       }
     } catch (error) {
       console.error("Error loading WhatsApp config:", error);
     } finally {
       setLoadingWhatsAppConfig(false);
     }
-  };
-
-  const saveWhatsAppConfig = async () => {
-    if (!whatsAppApiKey || !whatsAppBaseUrl) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSavingWhatsApp(true);
-    try {
-      // First, create or update a mirror entry in disparos_instancias for the WhatsApp instance
-      // This allows the webhook to use the same instancia_id pattern as Disparos
-      let instanciaId = whatsAppInstanciaId;
-
-      if (!instanciaId) {
-        // Create new entry in disparos_instancias for WhatsApp
-        const { data: newInstancia, error: instanciaError } = await supabase
-          .from("disparos_instancias")
-          .insert({
-            user_id: user?.id,
-            nome: "WhatsApp Principal",
-            base_url: whatsAppBaseUrl,
-            api_key: whatsAppApiKey,
-            is_active: true,
-          })
-          .select("id")
-          .single();
-
-        if (instanciaError) throw instanciaError;
-        instanciaId = newInstancia.id;
-      } else {
-        // Update existing entry
-        const { error: updateError } = await supabase
-          .from("disparos_instancias")
-          .update({
-            base_url: whatsAppBaseUrl,
-            api_key: whatsAppApiKey,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", instanciaId);
-
-        if (updateError) throw updateError;
-      }
-
-      // Now save the uazapi_config with the instancia_id reference
-      const { error } = await supabase
-        .from("uazapi_config")
-        .upsert({
-          user_id: user?.id,
-          api_key: whatsAppApiKey,
-          base_url: whatsAppBaseUrl,
-          is_active: true,
-          whatsapp_instancia_id: instanciaId,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: "user_id",
-        });
-
-      if (error) throw error;
-
-      setWhatsAppInstanciaId(instanciaId);
-      setHasWhatsAppConfig(true);
-      
-      // Reload disparos instancias to reflect the new/updated entry
-      loadDisparosInstancias();
-      
-      toast({
-        title: "Configuração salva!",
-        description: "WhatsApp configurado com sucesso",
-      });
-    } catch (error) {
-      console.error("Error saving WhatsApp config:", error);
-      toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar a configuração",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingWhatsApp(false);
-    }
-  };
-
-  const testWhatsAppConnection = async () => {
-    if (!whatsAppBaseUrl || !whatsAppApiKey) {
-      toast({
-        title: "Erro",
-        description: "Preencha URL Base e API Key",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setTestingWhatsApp(true);
-    setWhatsAppTestResult(null);
-
-    try {
-      const { data: session, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session.session) {
-        setWhatsAppTestResult({ success: false, message: "Sessão expirada. Faça login novamente." });
-        return;
-      }
-
-      const response = await supabase.functions.invoke("uazapi-test-connection", {
-        headers: {
-          Authorization: `Bearer ${session.session.access_token}`,
-        },
-        body: {
-          base_url: whatsAppBaseUrl,
-          api_key: whatsAppApiKey,
-        },
-      });
-
-      if (response.error) {
-        setWhatsAppTestResult({ success: false, message: response.error.message || "Erro ao testar conexão" });
-        return;
-      }
-
-      const result = response.data;
-      setWhatsAppTestResult({
-        success: result.success,
-        message: result.success ? result.message : result.error,
-        details: result.details,
-      });
-
-      if (result.success) {
-        sonnerToast.success("Conexão testada com sucesso!");
-      }
-    } catch (error: unknown) {
-      console.error("Error testing WhatsApp connection:", error);
-      const errorMessage = error instanceof Error ? error.message : "Erro ao testar conexão";
-      setWhatsAppTestResult({ success: false, message: errorMessage });
-    } finally {
-      setTestingWhatsApp(false);
-    }
-  };
-
-  const getWebhookUrl = () => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    // Include instancia_id if available (same pattern as Disparos)
-    if (whatsAppInstanciaId) {
-      return `${supabaseUrl}/functions/v1/whatsapp-webhook?user_id=${user?.id}&instancia_id=${whatsAppInstanciaId}`;
-    }
-    return `${supabaseUrl}/functions/v1/whatsapp-webhook?user_id=${user?.id}`;
-  };
-
-  const copyWebhookUrl = () => {
-    navigator.clipboard.writeText(getWebhookUrl());
-    sonnerToast.success("URL do webhook copiada!");
-  };
-
-  // Format webhook timestamp to relative time
-  const formatWebhookTime = (timestamp: string) => {
-    const now = new Date();
-    const webhookDate = new Date(timestamp);
-    const diffMs = now.getTime() - webhookDate.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return "agora mesmo";
-    if (diffMins < 60) return `há ${diffMins} min`;
-    if (diffHours < 24) return `há cerca de ${diffHours} hora${diffHours > 1 ? "s" : ""}`;
-    return `há ${diffDays} dia${diffDays > 1 ? "s" : ""}`;
   };
 
   // ===== Google Ads Functions =====
@@ -1601,7 +1409,7 @@ export default function Conexoes() {
         </Card>
       )}
 
-      {/* WhatsApp/UAZapi Card */}
+      {/* WhatsApp Principal Card */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -1610,17 +1418,17 @@ export default function Conexoes() {
                 <MessageSquare className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <CardTitle className="text-lg">WhatsApp (UAZapi)</CardTitle>
+                <CardTitle className="text-lg">WhatsApp Principal</CardTitle>
                 <CardDescription>
-                  Configure a integração com WhatsApp via UAZapi
+                  Conecte seu WhatsApp para receber leads e mensagens
                 </CardDescription>
               </div>
             </div>
-            <Badge variant={hasWhatsAppConfig ? "default" : "secondary"} className="gap-1">
-              {hasWhatsAppConfig ? (
+            <Badge variant={whatsAppInstanciaId ? "default" : "secondary"} className="gap-1">
+              {whatsAppInstanciaId ? (
                 <>
                   <CheckCircle2 className="h-3 w-3" />
-                  Conectado
+                  Configurado
                 </>
               ) : (
                 "Não configurado"
@@ -1628,123 +1436,14 @@ export default function Conexoes() {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4">
-            <div>
-              <Label htmlFor="whatsappBaseUrl">URL Base</Label>
-              <Input
-                id="whatsappBaseUrl"
-                value={whatsAppBaseUrl}
-                onChange={(e) => setWhatsAppBaseUrl(e.target.value)}
-                placeholder="https://api.uazapi.com"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="whatsappApiKey">API Key</Label>
-              <Input
-                id="whatsappApiKey"
-                type="password"
-                value={whatsAppApiKey}
-                onChange={(e) => setWhatsAppApiKey(e.target.value)}
-                placeholder="Sua chave de API"
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={testWhatsAppConnection} 
-              disabled={testingWhatsApp || !whatsAppBaseUrl || !whatsAppApiKey}
-            >
-              {testingWhatsApp ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Testando...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Testar Conexão
-                </>
-              )}
-            </Button>
-            <Button onClick={saveWhatsAppConfig} disabled={savingWhatsApp}>
-              {savingWhatsApp ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                "Salvar Configuração"
-              )}
-            </Button>
-          </div>
-
-          {whatsAppTestResult && (
-            <div className={`p-3 rounded-lg border ${whatsAppTestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
-              <div className="flex items-start gap-2">
-                {whatsAppTestResult.success ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
-                ) : (
-                  <XCircle className="h-4 w-4 text-red-600 mt-0.5" />
-                )}
-                <div className="flex-1">
-                  <span className={`text-sm ${whatsAppTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                    {whatsAppTestResult.message}
-                  </span>
-                  {whatsAppTestResult.details && (
-                    <details className="mt-2">
-                      <summary className="text-xs text-muted-foreground cursor-pointer">Detalhes técnicos</summary>
-                      <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
-                        {JSON.stringify(whatsAppTestResult.details, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {user && (
-            <div className="border-t pt-4 mt-4">
-              <Label className="flex items-center gap-2 mb-2">
-                <Link2 className="h-4 w-4" />
-                URL do Webhook
-              </Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Configure este webhook no UAZapi para receber mensagens automaticamente
-              </p>
-              <div className="flex gap-2">
-                <Input
-                  value={getWebhookUrl()}
-                  readOnly
-                  className="text-xs font-mono"
-                />
-                <Button size="icon" variant="outline" onClick={copyWebhookUrl}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Webhook Status */}
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-3">
-                <Link2 className="h-3 w-3" />
-                <span>Status:</span>
-                {whatsAppLastWebhookAt ? (
-                  <Badge variant="outline" className="text-xs gap-1 bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Ativo - {formatWebhookTime(whatsAppLastWebhookAt)}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    Sem dados recebidos
-                  </Badge>
-                )}
-              </div>
-            </div>
-          )}
+        <CardContent>
+          <WhatsAppInstanceManager 
+            instances={disparosInstancias}
+            onInstancesChange={loadDisparosInstancias}
+            instanceType="whatsapp"
+            mainInstanceId={whatsAppInstanciaId}
+            onMainInstanceChange={(id) => setWhatsAppInstanciaId(id)}
+          />
         </CardContent>
       </Card>
 
@@ -1757,20 +1456,20 @@ export default function Conexoes() {
                 <Send className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <CardTitle className="text-lg">Disparos (UAZapi)</CardTitle>
+                <CardTitle className="text-lg">Disparos em Massa</CardTitle>
                 <CardDescription>
-                  Configure múltiplas instâncias UAZapi para disparos em massa
+                  Instâncias adicionais para campanhas de disparo
                 </CardDescription>
               </div>
             </div>
-            <Badge variant={disparosInstancias.length > 0 ? "default" : "secondary"} className="gap-1">
-              {disparosInstancias.length > 0 ? (
+            <Badge variant={disparosInstancias.filter(i => i.id !== whatsAppInstanciaId).length > 0 ? "default" : "secondary"} className="gap-1">
+              {disparosInstancias.filter(i => i.id !== whatsAppInstanciaId && i.is_active).length > 0 ? (
                 <>
                   <CheckCircle2 className="h-3 w-3" />
-                  {disparosInstancias.filter(i => i.is_active).length} ativa{disparosInstancias.filter(i => i.is_active).length !== 1 ? "s" : ""}
+                  {disparosInstancias.filter(i => i.id !== whatsAppInstanciaId && i.is_active).length} ativa{disparosInstancias.filter(i => i.id !== whatsAppInstanciaId && i.is_active).length !== 1 ? "s" : ""}
                 </>
               ) : (
-                "Não configurado"
+                "Nenhuma"
               )}
             </Badge>
           </div>
@@ -1779,9 +1478,11 @@ export default function Conexoes() {
           <p className="text-sm text-muted-foreground mb-4">
             <strong>Nota:</strong> As mensagens recebidas nestas instâncias não serão convertidas em leads automaticamente.
           </p>
-          <DisparosInstanciasManager 
-            instancias={disparosInstancias.filter(inst => inst.id !== whatsAppInstanciaId)} 
-            onInstanciasChange={loadDisparosInstancias}
+          <WhatsAppInstanceManager 
+            instances={disparosInstancias}
+            onInstancesChange={loadDisparosInstancias}
+            instanceType="disparos"
+            mainInstanceId={whatsAppInstanciaId}
           />
         </CardContent>
       </Card>
