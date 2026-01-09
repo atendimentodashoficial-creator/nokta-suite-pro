@@ -50,17 +50,21 @@ Deno.serve(async (req) => {
 
     // Verificar se o chat existe no banco antes de buscar mensagens
     // Filtrar apenas chats ATIVOS (deleted_at IS NULL) para evitar conflito com chats deletados
-    const { data: existingChat, error: chatCheckError } = await supabase
+    // Use limit(1) instead of maybeSingle() to avoid errors when duplicates exist
+    const { data: existingChats, error: chatCheckError } = await supabase
       .from('whatsapp_chats')
       .select('id, created_at')
       .eq('user_id', user.id)
       .eq('chat_id', chatid)
       .is('deleted_at', null)
-      .maybeSingle();
+      .order('created_at', { ascending: false })
+      .limit(1);
 
     if (chatCheckError) {
       console.error('Error checking chat:', chatCheckError);
     }
+
+    const existingChat = existingChats?.[0] || null;
 
     // Se o chat não existe ou foi excluído - retornar vazio
     if (!existingChat) {
