@@ -44,9 +44,9 @@ serve(async (req) => {
       console.error("Error fetching chat:", chatError);
     }
 
-    // This is when the chat record was created - we only want messages AFTER this time
-    const chatCreatedAt = chatData?.created_at ? new Date(chatData.created_at) : null;
-    console.log("Chat created_at:", chatCreatedAt?.toISOString());
+    // NOTE: We no longer filter messages by chat created_at since we want to show old conversations
+    // The created_at filter was meant for chats recreated after deletion, but now we import all history
+    console.log("Chat created_at:", chatData?.created_at);
 
     let config: any = null;
 
@@ -207,16 +207,7 @@ serve(async (req) => {
       const msgTimestamp = toIsoTimestamp(msg.messageTimestamp || msg.timestamp);
       const msgDate = new Date(msgTimestamp);
       
-      // Skip messages that are BEFORE the chat was created, UNLESS
-      // the chat's last_message_time is that message (indicates the chat was created *from* that message via sync).
-      // This handles the edge case where the provider's sync created the chat record slightly after the message time.
-      const chatLastMsgTime = chatData?.last_message_time ? new Date(chatData.last_message_time).getTime() : 0;
-      const msgTime = msgDate.getTime();
-      const isFirstMsgFromSync = chatLastMsgTime && Math.abs(msgTime - chatLastMsgTime) < 5000; // within 5 seconds
-
-      if (chatCreatedAt && msgDate < chatCreatedAt && !isFirstMsgFromSync) {
-        continue;
-      }
+      // NOTE: We no longer filter messages by chat created_at - show all message history
       
       // Early content extraction for duplicate check
       // msg.content can be an object (media) or string, so handle both
