@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -229,6 +229,9 @@ export function NovoAgendamentoDialog({
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   // Track last phone used for auto-fill to only trigger on phone change
   const [lastAutoFilledPhone, setLastAutoFilledPhone] = useState<string | null>(null);
+  // Ensure initial auto-fill runs at most once per (dialog open + phone)
+  const initialAutofillKeyRef = useRef<string | null>(null);
+
   const queryClient = useQueryClient();
   const createAgendamento = useCreateAgendamento();
   const { data: procedimentos } = useProcedimentos();
@@ -268,24 +271,31 @@ export function NovoAgendamentoDialog({
     if (open) {
       setNameManuallyEdited(false);
       setLastAutoFilledPhone(null);
+      initialAutofillKeyRef.current = null;
     }
   }, [open]);
 
   useEffect(() => {
     const preencherDadosIniciais = async () => {
       if (!initialData) return;
-      
+
+      // If user already started editing the name, never overwrite it.
+      if (nameManuallyEdited) return;
+
+      const autofillKey = `${open ? 'open' : 'closed'}|${clienteId || ''}|${initialData.telefone || ''}`;
+      if (initialAutofillKeyRef.current === autofillKey) return;
+
       // Primeiro, definir o telefone e código do país
       if (initialData.telefone) {
         const { countryCode: extractedCode, phoneWithoutCountry } = extractCountryCode(initialData.telefone);
         form.setValue("telefone", phoneWithoutCountry);
         setCountryCode(extractedCode);
-        
+
         const last8Digits = getLast8Digits(initialData.telefone);
-        
+
         // Mark this phone as auto-filled so handleTelefoneBlur doesn't trigger again
         setLastAutoFilledPhone(last8Digits || null);
-        
+
         // Buscar cliente existente pelo telefone para usar nome correto
         if (last8Digits && last8Digits.length >= 8) {
           try {
@@ -300,7 +310,7 @@ export function NovoAgendamentoDialog({
                 .is("deleted_at", null);
 
               // Encontrar cliente existente pelos últimos 8 dígitos
-              const clienteExistente = allClientes?.find(lead => 
+              const clienteExistente = allClientes?.find((lead) =>
                 getLast8Digits(lead.telefone) === last8Digits
               );
 
@@ -310,6 +320,8 @@ export function NovoAgendamentoDialog({
                 if (clienteExistente.email) {
                   form.setValue("email", clienteExistente.email);
                 }
+
+                initialAutofillKeyRef.current = autofillKey;
                 return; // Dados preenchidos com cliente existente
               }
             }
@@ -318,14 +330,17 @@ export function NovoAgendamentoDialog({
           }
         }
       }
-      
+
       // Fallback: usar dados do initialData se não encontrar cliente existente
       if (initialData.nome) form.setValue("nome", initialData.nome);
       if (initialData.email) form.setValue("email", initialData.email);
+
+      initialAutofillKeyRef.current = autofillKey;
     };
-    
-    preencherDadosIniciais();
-  }, [initialData, form]);
+
+    // Only attempt autofill while dialog is open
+    if (open) preencherDadosIniciais();
+  }, [open, clienteId, initialData, form, nameManuallyEdited]);
 
   // Buscar clientes para autocomplete
   const handleNomeChange = (value: string) => {
