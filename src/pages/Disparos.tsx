@@ -428,21 +428,26 @@ export default function Disparos() {
   };
 
 
-  // Delete instance (also disconnect from UAZapi)
+  // Delete instance (also delete from UAZapi via admin API)
   const handleDeleteInstance = async (id: string) => {
     try {
       // Get instance data before deleting
       const instancia = fullInstancias.find(i => i.id === id);
       
-      // Call UAZapi to disconnect/delete the instance
-      if (instancia?.base_url && instancia?.api_key) {
+      // Call UAZapi admin to delete the instance completely
+      if (instancia) {
         try {
-          await fetch(`${instancia.base_url}/instance/disconnect`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "token": instancia.api_key },
+          const { data: session } = await supabase.auth.getSession();
+          await supabase.functions.invoke("uazapi-admin-delete-instance", {
+            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+            body: {
+              instance_name: instancia.nome || instancia.id,
+              base_url: instancia.base_url,
+              api_key: instancia.api_key,
+            },
           });
         } catch (e) {
-          console.log("UAZapi disconnect call failed (instance may already be disconnected):", e);
+          console.log("UAZapi admin delete call failed:", e);
         }
       }
 
