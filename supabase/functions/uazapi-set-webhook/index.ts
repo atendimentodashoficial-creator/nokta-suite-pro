@@ -167,23 +167,64 @@ Deno.serve(async (req) => {
     }
 
     if (success) {
+      // Some UAZAPI panels require explicitly defining which events should be forwarded.
+      // We'll best-effort configure it, but don't fail the whole setup if this part isn't supported.
+      const eventSetupAttempts: Array<{ endpoint: string; method: string; ok: boolean; status?: number; body?: string }> = [];
+      const eventEndpoints = [
+        { url: `${normalizedBaseUrl}/webhook/events`, method: "PUT" },
+        { url: `${normalizedBaseUrl}/webhook/events`, method: "POST" },
+        { url: `${normalizedBaseUrl}/webhook/listen`, method: "POST" },
+      ];
+      const eventPayloads = [
+        // Panel hint: "coloque 'messages'"
+        { events: ["messages"], autoPath: false },
+        { events: ["messages"], autoPath: true },
+        // Fallback to explicit event names (some servers expect this)
+        { events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "MESSAGES_DELETE"], autoPath: false },
+      ];
+
+      for (const ep of eventEndpoints) {
+        for (const payload of eventPayloads) {
+          try {
+            const r = await fetch(ep.url, {
+              method: ep.method,
+              headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "token": api_key,
+              },
+              body: JSON.stringify(payload),
+            });
+            const text = await r.text().catch(() => "");
+            eventSetupAttempts.push({ endpoint: ep.url, method: ep.method, ok: r.ok, status: r.status, body: text?.slice(0, 500) });
+            if (r.ok) break;
+          } catch (e: any) {
+            eventSetupAttempts.push({ endpoint: ep.url, method: ep.method, ok: false, body: e?.message || String(e) });
+          }
+        }
+      }
+
       // Update the instance record with webhook configured status
       if (instancia_id) {
         await supabaseClient
           .from("disparos_instancias")
-          .update({ 
+          .update({
             last_webhook_at: new Date().toISOString(),
           })
           .eq("id", instancia_id);
       }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: "Webhook configurado com sucesso!"
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Webhook configurado com sucesso!",
+          event_setup: eventSetupAttempts,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     return new Response(JSON.stringify({ 
