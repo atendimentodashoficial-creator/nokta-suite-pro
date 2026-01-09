@@ -207,6 +207,79 @@ Deno.serve(async (req) => {
       }
 
       if (isReallyConnected) {
+        // Double-check with a lightweight authenticated endpoint.
+        // Some servers momentarily report loggedIn/jid but the session still isn't usable.
+        const chatEndpoint = `${normalizedBaseUrl}/chat/find`;
+        try {
+          const chatResp = await fetch(chatEndpoint, {
+            method: "POST",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+              "token": api_key,
+            },
+            body: JSON.stringify({ limit: 1, offset: 0 }),
+          });
+
+          if (!chatResp.ok) {
+            const text = await chatResp.text().catch(() => "");
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error:
+                  "A instância aparenta estar conectada, mas o WhatsApp ainda não aceitou a sessão (falha ao validar). Gere um novo QR Code e tente novamente.",
+                details: {
+                  url_testada: statusEndpoint,
+                  status: state || "connected",
+                  whatsapp_status: "session_not_ready",
+                  loggedIn: true,
+                  jid: String(jid),
+                  connected: true,
+                  instance_status: instanceStatus,
+                  raw_state: state,
+                  validation: {
+                    endpoint: chatEndpoint,
+                    status: chatResp.status,
+                    body: text?.substring(0, 300) || null,
+                  },
+                  tipo_erro: "session_validation_failed",
+                },
+              }),
+              {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }
+            );
+          }
+        } catch (e: any) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error:
+                "A instância aparenta estar conectada, mas não conseguimos validar a sessão agora. Gere um novo QR Code e tente novamente.",
+              details: {
+                url_testada: statusEndpoint,
+                status: state || "connected",
+                whatsapp_status: "session_not_ready",
+                loggedIn: true,
+                jid: String(jid),
+                connected: true,
+                instance_status: instanceStatus,
+                raw_state: state,
+                validation: {
+                  endpoint: chatEndpoint,
+                  error: e?.message || String(e),
+                },
+                tipo_erro: "session_validation_error",
+              },
+            }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+
         return new Response(JSON.stringify({
           success: true,
           message: "WhatsApp conectado e funcionando!",
@@ -219,6 +292,7 @@ Deno.serve(async (req) => {
             connected: true,
             instance_status: instanceStatus,
             raw_state: state,
+            validation: { endpoint: chatEndpoint, ok: true },
           },
         }), {
           status: 200,
