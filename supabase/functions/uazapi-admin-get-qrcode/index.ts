@@ -71,6 +71,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Helper: check if already connected FIRST before trying to get QR
+    const checkIfConnected = async (): Promise<{ connected: boolean; disconnectReason?: string }> => {
+      try {
+        const statusResp = await fetch(`${normalizedBaseUrl}/instance/status`, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+            ...tokenHeader,
+          },
+        });
+
+        if (!statusResp.ok) return { connected: false };
+
+        const statusData = await statusResp.json().catch(() => null);
+        if (!statusData) return { connected: false };
+
+        console.log("Initial status check:", JSON.stringify(statusData));
+
+        const nested = statusData?.status;
+        const instanceData = statusData?.instance;
+        
+        // Check if already logged in
+        const loggedInFlag = nested?.loggedIn === true || statusData?.loggedIn === true;
+        const jid = nested?.jid ?? statusData?.jid;
+        const isConnected = loggedInFlag === true && jid != null && String(jid).length > 0;
+
+        const disconnectReason = instanceData?.lastDisconnectReason || statusData?.lastDisconnectReason;
+
+        return { connected: isConnected, disconnectReason };
+      } catch (e) {
+        console.error("Error checking initial status:", e);
+        return { connected: false };
+      }
+    };
+
+    // Check if already connected BEFORE trying to get QR
+    const initialStatus = await checkIfConnected();
+    
+    if (initialStatus.connected) {
+      console.log("Instance already connected, no QR needed");
+      return new Response(JSON.stringify({ 
+        success: true, 
+        connected: true,
+        message: "WhatsApp já está conectado!"
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Log disconnect reason if available
+    if (initialStatus.disconnectReason) {
+      console.log("Last disconnect reason:", initialStatus.disconnectReason);
+    }
+
     // Helper: fetch QR from /instance/status (different UAZapi versions expose it in different fields)
     const fetchQrFromStatusOnce = async (): Promise<string | null> => {
       const statusResp = await fetch(`${normalizedBaseUrl}/instance/status`, {
@@ -107,7 +162,7 @@ Deno.serve(async (req) => {
       return found.startsWith("data:image") ? found : `data:image/png;base64,${found}`;
     };
 
-    const waitForQrFromStatus = async (timeoutMs = 30000, intervalMs = 2000): Promise<string | null> => {
+    const waitForQrFromStatus = async (timeoutMs = 45000, intervalMs = 3000): Promise<string | null> => {
       const startedAt = Date.now();
       while (Date.now() - startedAt < timeoutMs) {
         const qr = await fetchQrFromStatusOnce();
@@ -166,10 +221,10 @@ Deno.serve(async (req) => {
       lastError = e.message;
     }
 
-    // If connect didn't return QR, poll /instance/status to retrieve it (recommended by some UAZapi responses)
+    // If connect didn't return QR, poll /instance/status to retrieve it (extended timeout for recently disconnected instances)
     if (!qrCode) {
-      console.log("QR not returned by /instance/connect. Polling /instance/status for QR...");
-      qrCode = await waitForQrFromStatus(30000, 2000);
+      console.log("QR not returned by /instance/connect. Polling /instance/status for QR (up to 45s)...");
+      qrCode = await waitForQrFromStatus(45000, 3000);
     }
 
     // If still no QR, try legacy GET endpoints as last resort
@@ -217,60 +272,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Also check instance status to see if already connected
-    try {
-      const statusResponse = await fetch(`${normalizedBaseUrl}/instance/status`, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json",
-          ...tokenHeader,
-        },
-      });
+    // Final status check - try to get QR from status one more time
+    if (!qrCode) {
+      try {
+        const statusResponse = await fetch(`${normalizedBaseUrl}/instance/status`, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+            ...tokenHeader,
+          },
+        });
 
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        console.log("Status data:", JSON.stringify(statusData));
-        
-        const nestedStatus = statusData?.status;
-        const instanceData = statusData?.instance;
-        
-        // Check if actually logged in (avoid false positives while still connecting)
-        const nested = statusData?.status;
-        const instanceStatus = statusData?.instance?.status;
-        const state = statusData?.state || instanceStatus || statusData?.connection_status;
-        const stateLower = String(state || "").toLowerCase();
-        const instanceStatusLower = String(instanceStatus || "").toLowerCase();
-        const isTransitional =
-          stateLower === "connecting" ||
-          stateLower === "starting" ||
-          instanceStatusLower === "connecting" ||
-          instanceStatusLower === "starting";
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          console.log("Final status check:", JSON.stringify(statusData));
+          
+          const instanceData = statusData?.instance;
+          
+          // Try to get QR from status response
+          if (instanceData?.qrcode) {
+            qrCode = instanceData.qrcode;
+            if (qrCode && !qrCode.startsWith("data:image")) {
+              qrCode = `data:image/png;base64,${qrCode}`;
+            }
+          }
 
-        const loggedInFlag = nested?.loggedIn === true || statusData?.loggedIn === true;
-        const jid = nested?.jid ?? statusData?.jid;
-        const isLoggedIn = loggedInFlag === true && jid != null && String(jid).length > 0 && !isTransitional;
-        
-        // Also check instance QR code from status response
-        if (!qrCode && instanceData?.qrcode) {
-          qrCode = instanceData.qrcode;
-          if (qrCode && !qrCode.startsWith("data:image")) {
-            qrCode = `data:image/png;base64,${qrCode}`;
+          // Check if instance was recently disconnected (helps with error message)
+          if (!qrCode && instanceData?.lastDisconnectReason) {
+            lastError = `Instância desconectada recentemente. Aguarde alguns segundos e tente novamente.`;
           }
         }
-
-        if (isLoggedIn) {
-          return new Response(JSON.stringify({ 
-            success: true, 
-            connected: true,
-            message: "WhatsApp já está conectado!"
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+      } catch (e) {
+        console.error("Error in final status check:", e);
       }
-    } catch (e) {
-      console.error("Error checking status:", e);
     }
 
     if (qrCode) {
