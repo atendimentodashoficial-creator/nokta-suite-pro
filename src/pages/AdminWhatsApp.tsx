@@ -57,6 +57,9 @@ export default function AdminWhatsApp() {
   // Create instance dialog (name first, then QR)
   const [createInstanceDialogOpen, setCreateInstanceDialogOpen] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState("");
+  const [manualBaseUrl, setManualBaseUrl] = useState("");
+  const [manualApiKey, setManualApiKey] = useState("");
+  const [showManualConfig, setShowManualConfig] = useState(false);
 
   // Edit instance name dialog
   const [editNameDialogOpen, setEditNameDialogOpen] = useState(false);
@@ -190,11 +193,19 @@ export default function AdminWhatsApp() {
   };
 
   // Create new instance with user-provided name and open QR Code dialog
-  const handleCreateInstance = async (instanceName: string) => {
+  const handleCreateInstance = async (instanceName: string, useManualConfig = false) => {
     const name = instanceName.trim();
     if (!name) {
       toast.error("Informe um nome para a instância");
       return;
+    }
+
+    // If using manual config, validate fields
+    if (useManualConfig) {
+      if (!manualBaseUrl.trim() || !manualApiKey.trim()) {
+        toast.error("Informe a URL Base e a API Key da instância");
+        return;
+      }
     }
 
     setCreateInstanceDialogOpen(false);
@@ -207,18 +218,77 @@ export default function AdminWhatsApp() {
     try {
       const { data: session } = await supabase.auth.getSession();
 
-      const createResponse = await supabase.functions.invoke("uazapi-admin-create-instance", {
-        headers: { Authorization: `Bearer ${session.session?.access_token}` },
-        body: { instance_name: name },
-      });
+      let newInstance: { id: string; nome: string; base_url: string; api_key: string } | null = null;
 
-      if (!createResponse.data?.success) {
-        toast.error(createResponse.data?.error || "Erro ao criar instância");
+      if (useManualConfig) {
+        // Use manual config - create instance locally without Admin API
+        const baseUrl = manualBaseUrl.trim().replace(/\/+$/, '');
+        const apiKey = manualApiKey.trim();
+
+        // First test if the connection works
+        const testResponse = await supabase.functions.invoke("uazapi-test-connection", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { base_url: baseUrl, api_key: apiKey },
+        });
+
+        if (!testResponse.data?.success && !testResponse.data?.details) {
+          toast.error("Não foi possível conectar com a instância. Verifique a URL e API Key.");
+          setQrCodeDialogOpen(false);
+          return;
+        }
+
+        // Create instance in database
+        const { data: createdInstance, error: insertError } = await supabase
+          .from("disparos_instancias")
+          .insert({
+            user_id: user?.id,
+            nome: name,
+            base_url: baseUrl,
+            api_key: apiKey,
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        newInstance = {
+          id: createdInstance.id,
+          nome: name,
+          base_url: baseUrl,
+          api_key: apiKey,
+        };
+
+        // Reset manual config state
+        setManualBaseUrl("");
+        setManualApiKey("");
+        setShowManualConfig(false);
+      } else {
+        // Try Admin API first
+        const createResponse = await supabase.functions.invoke("uazapi-admin-create-instance", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { instance_name: name },
+        });
+
+        if (!createResponse.data?.success) {
+          // Admin API failed - show manual config option
+          toast.error("Admin API não disponível. Configure manualmente a instância.");
+          setQrCodeDialogOpen(false);
+          setCreateInstanceDialogOpen(true);
+          setNewInstanceName(name);
+          setShowManualConfig(true);
+          return;
+        }
+
+        newInstance = createResponse.data.instance;
+      }
+
+      if (!newInstance) {
+        toast.error("Erro ao criar instância");
         setQrCodeDialogOpen(false);
         return;
       }
 
-      const newInstance = createResponse.data.instance;
       setMainInstance(newInstance);
       setHasConfig(true);
 
@@ -232,23 +302,25 @@ export default function AdminWhatsApp() {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
 
-      // Get QR code for the new instance
-      if (createResponse.data.qrcode) {
-        setQrCodeData(createResponse.data.qrcode);
+      // Get QR code
+      const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
+      });
+
+      if (qrResponse.data?.connected) {
+        toast.success("WhatsApp já está conectado!");
+        setQrCodeDialogOpen(false);
+        setConnectionStatus('connected');
+        return;
+      }
+
+      if (qrResponse.data?.qrcode) {
+        setQrCodeData(qrResponse.data.qrcode);
         startQrPolling(newInstance.base_url, newInstance.api_key, newInstance);
       } else {
-        // Fetch QR code separately
-        const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
-          headers: { Authorization: `Bearer ${session.session?.access_token}` },
-          body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
-        });
-
-        if (qrResponse.data?.qrcode) {
-          setQrCodeData(qrResponse.data.qrcode);
-          startQrPolling(newInstance.base_url, newInstance.api_key, newInstance);
-        } else {
-          toast.error("Instância criada, mas não foi possível obter QR Code");
-        }
+        toast.error(qrResponse.data?.error || "Não foi possível obter o QR Code");
+        setQrCodeDialogOpen(false);
       }
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar instância");
@@ -1570,13 +1642,22 @@ export default function AdminWhatsApp() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Instance Dialog (name first) */}
-      <Dialog open={createInstanceDialogOpen} onOpenChange={setCreateInstanceDialogOpen}>
+      {/* Create Instance Dialog (name first, then QR) */}
+      <Dialog open={createInstanceDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setShowManualConfig(false);
+          setManualBaseUrl("");
+          setManualApiKey("");
+        }
+        setCreateInstanceDialogOpen(open);
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nova Instância WhatsApp</DialogTitle>
             <DialogDescription>
-              Defina um nome e depois escaneie o QR Code para conectar.
+              {showManualConfig 
+                ? "A criação automática não está disponível. Configure manualmente a instância criada no painel UAZAPI."
+                : "Defina um nome e depois escaneie o QR Code para conectar."}
             </DialogDescription>
           </DialogHeader>
 
@@ -1591,16 +1672,60 @@ export default function AdminWhatsApp() {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => handleCreateInstance(newInstanceName)}
-                disabled={isCreatingInstance}
-              >
-                {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
-              </Button>
+            {showManualConfig && (
+              <>
+                <div>
+                  <Label>URL Base da instância</Label>
+                  <Input
+                    value={manualBaseUrl}
+                    onChange={(e) => setManualBaseUrl(e.target.value)}
+                    placeholder="Ex: https://nokta.uazapi.com"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    URL do servidor UAZAPI onde a instância foi criada
+                  </p>
+                </div>
+                <div>
+                  <Label>API Key / Token da instância</Label>
+                  <Input
+                    value={manualApiKey}
+                    onChange={(e) => setManualApiKey(e.target.value)}
+                    placeholder="Ex: abc123-def456-..."
+                    className="mt-1"
+                    type="password"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Token de acesso gerado ao criar a instância no painel UAZAPI
+                  </p>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-between items-center gap-2 pt-2">
+              <div>
+                {!showManualConfig && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowManualConfig(true)}
+                    className="text-xs text-muted-foreground"
+                  >
+                    Configurar manualmente
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => handleCreateInstance(newInstanceName, showManualConfig)}
+                  disabled={isCreatingInstance}
+                >
+                  {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : showManualConfig ? "Conectar" : "Criar"}
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
