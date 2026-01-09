@@ -91,42 +91,58 @@ serve(async (req) => {
     const eventId = crypto.randomUUID();
     const eventTime = Math.floor(Date.now() / 1000);
 
-    // Build user data with hashed values
+    // Build user data with hashed values (all available fields from Meta's list)
     const userData: Record<string, unknown> = {};
 
+    // Phone number (ph) - required format: digits only with country code
     if (customer_phone) {
       const normalizedPhone = normalizePhone(customer_phone);
       userData.ph = [await sha256Hash(normalizedPhone)];
     }
 
+    // Email (em)
     if (customer_email) {
-      userData.em = [await sha256Hash(customer_email)];
+      userData.em = [await sha256Hash(customer_email.toLowerCase().trim())];
     }
 
+    // First name (fn) and Last name (ln)
     if (customer_name) {
-      const nameParts = customer_name.trim().split(" ");
+      const nameParts = customer_name.trim().split(" ").filter((p: string) => p.length > 0);
       if (nameParts.length > 0) {
-        userData.fn = await sha256Hash(nameParts[0]);
+        // First name - first word
+        userData.fn = await sha256Hash(nameParts[0].toLowerCase());
       }
       if (nameParts.length > 1) {
-        userData.ln = await sha256Hash(nameParts[nameParts.length - 1]);
+        // Last name - last word
+        userData.ln = await sha256Hash(nameParts[nameParts.length - 1].toLowerCase());
       }
     }
 
+    // Country (country) - always Brazil for this system
+    userData.country = await sha256Hash("br");
+
+    // External ID (external_id) - use lead_id or customer_id for matching
+    if (external_id) {
+      userData.external_id = [await sha256Hash(external_id)];
+    } else if (lead_id) {
+      // Fallback to lead_id as external identifier
+      userData.external_id = [await sha256Hash(lead_id)];
+    }
+
+    // Facebook Click ID (fbc) - for attribution
     if (fbclid) {
       userData.fbc = `fb.1.${eventTime}.${fbclid}`;
     }
 
-    if (external_id) {
-      userData.external_id = [await sha256Hash(external_id)];
-    }
+    // Client IP address and User Agent would be added if we had them
+    // These improve match quality but we don't have access to them in server-side calls
 
     // Build the event payload
     const eventData: Record<string, unknown> = {
       event_name,
       event_time: eventTime,
       event_id: eventId,
-      action_source: "website",
+      action_source: "system_generated", // Using system_generated since events come from CRM
       user_data: userData,
     };
 
