@@ -227,7 +227,10 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <button className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mb-2 hover:bg-blue-200 transition-colors cursor-pointer">
+          <button 
+            className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mb-2 hover:bg-blue-200 transition-colors cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Megaphone className="w-3 h-3" />
             <span>via {sourceInfo.label}</span>
           </button>
