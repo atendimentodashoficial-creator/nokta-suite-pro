@@ -71,15 +71,61 @@ Deno.serve(async (req) => {
       });
     }
 
-    // First, call POST /instance/connect to initiate connection and get QR code
-    // According to UAZapi docs: POST /instance/connect without phone param generates QR code
+    // Helper: fetch QR from /instance/status (different UAZapi versions expose it in different fields)
+    const fetchQrFromStatusOnce = async (): Promise<string | null> => {
+      const statusResp = await fetch(`${normalizedBaseUrl}/instance/status`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          ...tokenHeader,
+        },
+      });
+
+      if (!statusResp.ok) return null;
+
+      const statusData = await statusResp.json().catch(() => null);
+      if (!statusData) return null;
+
+      const candidates = [
+        statusData?.qrcode,
+        statusData?.qr,
+        statusData?.qr_code,
+        statusData?.base64,
+        statusData?.data?.qrcode,
+        statusData?.data?.base64,
+        statusData?.instance?.qrcode,
+        statusData?.instance?.qr,
+        statusData?.instance?.base64,
+        statusData?.status?.qrcode,
+        statusData?.status?.qr,
+        statusData?.status?.base64,
+      ].filter(Boolean);
+
+      const found = candidates.length ? String(candidates[0]) : null;
+      if (!found) return null;
+
+      return found.startsWith("data:image") ? found : `data:image/png;base64,${found}`;
+    };
+
+    const waitForQrFromStatus = async (timeoutMs = 30000, intervalMs = 2000): Promise<string | null> => {
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < timeoutMs) {
+        const qr = await fetchQrFromStatusOnce();
+        if (qr) return qr;
+        await new Promise((r) => setTimeout(r, intervalMs));
+      }
+      return null;
+    };
+
+    // First, try POST /instance/connect to initiate connection and (sometimes) return QR code
+    // Some UAZapi deployments return 404 or "use /instance/status"; in those cases we fall back to polling /instance/status.
     let qrCode: string | null = null;
     let lastError = "";
     let pairingCode: string | null = null;
 
     try {
       console.log("Calling POST /instance/connect to generate QR code");
-      
+
       const connectResponse = await fetch(`${normalizedBaseUrl}/instance/connect`, {
         method: "POST",
         headers: {
@@ -87,24 +133,26 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           ...tokenHeader,
         },
-        body: JSON.stringify({}), // Empty body = generate QR code (no phone = QR mode)
+        body: JSON.stringify({}),
       });
 
       console.log("Connect response status:", connectResponse.status);
 
       if (connectResponse.ok) {
-        const connectData = await connectResponse.json();
-        console.log("Connect response data keys:", Object.keys(connectData));
+        const connectData = await connectResponse.json().catch(() => ({}));
+        console.log("Connect response data keys:", Object.keys(connectData || {}));
         console.log("Connect response:", JSON.stringify(connectData));
-        
-        // Extract QR code from response
-        qrCode = connectData.qrcode || connectData.qr || connectData.qr_code || 
-                 connectData.base64 || connectData.data?.qrcode || connectData.data?.base64 ||
-                 connectData.code;
-        
-        // Also check for pairing code
+
+        qrCode = connectData.qrcode ||
+          connectData.qr ||
+          connectData.qr_code ||
+          connectData.base64 ||
+          connectData.data?.qrcode ||
+          connectData.data?.base64 ||
+          connectData.code;
+
         pairingCode = connectData.pairingCode || connectData.pairing_code || connectData.code;
-        
+
         if (qrCode && !qrCode.startsWith("data:image")) {
           qrCode = `data:image/png;base64,${qrCode}`;
         }
@@ -118,7 +166,13 @@ Deno.serve(async (req) => {
       lastError = e.message;
     }
 
-    // If /instance/connect didn't return QR, try GET endpoints as fallback
+    // If connect didn't return QR, poll /instance/status to retrieve it (recommended by some UAZapi responses)
+    if (!qrCode) {
+      console.log("QR not returned by /instance/connect. Polling /instance/status for QR...");
+      qrCode = await waitForQrFromStatus(30000, 2000);
+    }
+
+    // If still no QR, try legacy GET endpoints as last resort
     if (!qrCode) {
       const qrEndpoints = [
         `${normalizedBaseUrl}/instance/qrcode`,
@@ -129,7 +183,7 @@ Deno.serve(async (req) => {
       for (const endpoint of qrEndpoints) {
         try {
           console.log("Trying GET endpoint:", endpoint);
-          
+
           const response = await fetch(endpoint, {
             method: "GET",
             headers: {
@@ -141,12 +195,12 @@ Deno.serve(async (req) => {
           console.log("Response status:", response.status);
 
           if (response.ok) {
-            const data = await response.json();
-            console.log("QR response data keys:", Object.keys(data));
-            
-            qrCode = data.qrcode || data.qr || data.qr_code || data.base64 || data.data?.qrcode || data.data?.base64;
-            
-            if (qrCode) {
+            const data = await response.json().catch(() => ({}));
+            console.log("QR response data keys:", Object.keys(data || {}));
+
+            const raw = data.qrcode || data.qr || data.qr_code || data.base64 || data.data?.qrcode || data.data?.base64;
+            if (raw) {
+              qrCode = String(raw);
               if (!qrCode.startsWith("data:image")) {
                 qrCode = `data:image/png;base64,${qrCode}`;
               }
@@ -180,12 +234,21 @@ Deno.serve(async (req) => {
         const nestedStatus = statusData?.status;
         const instanceData = statusData?.instance;
         
-        // Check if actually logged in - need jid AND loggedIn to be true
-        // "connected: true" just means websocket is active, not that user is authenticated
-        const isLoggedIn = nestedStatus?.loggedIn === true || 
-                           statusData?.loggedIn === true ||
-                           (nestedStatus?.jid && nestedStatus?.jid !== null) ||
-                           (statusData?.jid && statusData?.jid !== null);
+        // Check if actually logged in (avoid false positives while still connecting)
+        const nested = statusData?.status;
+        const instanceStatus = statusData?.instance?.status;
+        const state = statusData?.state || instanceStatus || statusData?.connection_status;
+        const stateLower = String(state || "").toLowerCase();
+        const instanceStatusLower = String(instanceStatus || "").toLowerCase();
+        const isTransitional =
+          stateLower === "connecting" ||
+          stateLower === "starting" ||
+          instanceStatusLower === "connecting" ||
+          instanceStatusLower === "starting";
+
+        const loggedInFlag = nested?.loggedIn === true || statusData?.loggedIn === true;
+        const jid = nested?.jid ?? statusData?.jid;
+        const isLoggedIn = loggedInFlag === true && jid != null && String(jid).length > 0 && !isTransitional;
         
         // Also check instance QR code from status response
         if (!qrCode && instanceData?.qrcode) {
