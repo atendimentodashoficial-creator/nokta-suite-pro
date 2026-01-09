@@ -1592,6 +1592,177 @@ export type Database = {
           },
         ]
       }
+      instagram_config: {
+        Row: {
+          app_id: string
+          app_secret: string
+          created_at: string
+          id: string
+          instagram_account_id: string | null
+          is_active: boolean | null
+          page_access_token: string
+          updated_at: string
+          user_id: string
+          webhook_verify_token: string
+        }
+        Insert: {
+          app_id: string
+          app_secret: string
+          created_at?: string
+          id?: string
+          instagram_account_id?: string | null
+          is_active?: boolean | null
+          page_access_token: string
+          updated_at?: string
+          user_id: string
+          webhook_verify_token?: string
+        }
+        Update: {
+          app_id?: string
+          app_secret?: string
+          created_at?: string
+          id?: string
+          instagram_account_id?: string | null
+          is_active?: boolean | null
+          page_access_token?: string
+          updated_at?: string
+          user_id?: string
+          webhook_verify_token?: string
+        }
+        Relationships: []
+      }
+      instagram_fluxos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          descricao: string | null
+          etapas: Json
+          id: string
+          nome: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          descricao?: string | null
+          etapas?: Json
+          id?: string
+          nome: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          descricao?: string | null
+          etapas?: Json
+          id?: string
+          nome?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      instagram_gatilhos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          fluxo_id: string | null
+          id: string
+          nome: string
+          palavras_chave: string[]
+          resposta_texto: string | null
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          fluxo_id?: string | null
+          id?: string
+          nome: string
+          palavras_chave?: string[]
+          resposta_texto?: string | null
+          tipo?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          fluxo_id?: string | null
+          id?: string
+          nome?: string
+          palavras_chave?: string[]
+          resposta_texto?: string | null
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      instagram_mensagens: {
+        Row: {
+          conteudo: string | null
+          created_at: string
+          fluxo_id: string | null
+          gatilho_id: string | null
+          id: string
+          instagram_user_id: string
+          instagram_username: string | null
+          media_url: string | null
+          metadata: Json | null
+          post_id: string | null
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          conteudo?: string | null
+          created_at?: string
+          fluxo_id?: string | null
+          gatilho_id?: string | null
+          id?: string
+          instagram_user_id: string
+          instagram_username?: string | null
+          media_url?: string | null
+          metadata?: Json | null
+          post_id?: string | null
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          conteudo?: string | null
+          created_at?: string
+          fluxo_id?: string | null
+          gatilho_id?: string | null
+          id?: string
+          instagram_user_id?: string
+          instagram_username?: string | null
+          media_url?: string | null
+          metadata?: Json | null
+          post_id?: string | null
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_mensagens_fluxo_id_fkey"
+            columns: ["fluxo_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_fluxos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instagram_mensagens_gatilho_id_fkey"
+            columns: ["gatilho_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_gatilhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_status_custom: {
         Row: {
           ativo: boolean | null

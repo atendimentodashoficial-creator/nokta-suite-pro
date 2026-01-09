@@ -23,6 +23,7 @@ import MetricasCampanhas from "./pages/MetricasCampanhas";
 import GoogleAdsMetrics from "./pages/GoogleAdsMetrics";
 import Disparos from "./pages/Disparos";
 import Extrator from "./pages/Extrator";
+import Instagram from "./pages/Instagram";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="whatsapp" element={<AdminWhatsApp />} />
               <Route path="disparos" element={<Disparos />} />
               <Route path="extrator" element={<Extrator />} />
+              <Route path="instagram" element={<Instagram />} />
               <Route path="financeiro" element={<Dashboard />} />
               <Route path="metricas-campanhas" element={<MetricasCampanhas />} />
               <Route path="google-ads" element={<GoogleAdsMetrics />} />
