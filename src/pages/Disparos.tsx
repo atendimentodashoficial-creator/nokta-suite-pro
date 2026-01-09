@@ -277,20 +277,22 @@ export default function Disparos() {
     }
   };
 
-  // Check connection status of an instance
+  // Check connection status of an instance (lightweight - avoids /chat/find during pairing)
   const checkConnectionStatus = async (instancia: DisparosInstancia) => {
     if (!instancia.base_url || !instancia.api_key) return;
     setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'loading' }));
 
     try {
       const { data: session } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke("uazapi-test-connection", {
+      const response = await supabase.functions.invoke("uazapi-check-status", {
         headers: { Authorization: `Bearer ${session.session?.access_token}` },
         body: { base_url: instancia.base_url, api_key: instancia.api_key },
       });
-      setConnectionStatus(prev => ({ 
-        ...prev, 
-        [instancia.id]: response.data?.success ? 'connected' : 'disconnected' 
+
+      const isConnected = response.data?.status === "connected";
+      setConnectionStatus(prev => ({
+        ...prev,
+        [instancia.id]: isConnected ? 'connected' : 'disconnected'
       }));
     } catch {
       setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'disconnected' }));
@@ -380,73 +382,54 @@ export default function Disparos() {
     }
   };
 
-  // Start polling to check if connected
+  // Start polling to check if connected (lightweight - avoids pairing interference)
   const startQrPolling = (instancia: DisparosInstancia) => {
     if (qrPollingInterval) clearInterval(qrPollingInterval);
     if (!instancia.base_url || !instancia.api_key) return;
 
-    // IMPORTANT: Give the UAZAPI session time to stabilize BEFORE any polling
-    // Polling too early can interfere with the WhatsApp connection handshake
+    // Avoid /chat/find during pairing - it can cause WhatsApp to reject/log out
     let pollCount = 0;
-    const minPollsBeforeConnect = 3; // ~18s (3 polls * 6s) - wait longer before checking
+    const minPollsBeforeConnect = 3;
     let confirmedCount = 0;
-    const requiredConfirmations = 2; // require 2 confirmations (~12s of stable connection)
-    const pollInterval = 6000; // 6 seconds between polls (slower to avoid interference)
+    const requiredConfirmations = 2;
+    const pollInterval = 8000;
 
-    // Delay the first poll to give WhatsApp time to establish connection
-    const initialDelay = 8000; // 8 seconds before first poll
-    
+    const initialDelay = 12000;
+
     let interval: NodeJS.Timeout | null = null;
-    
+
     const startPolling = () => {
       interval = setInterval(async () => {
         pollCount++;
         try {
           const { data: session } = await supabase.auth.getSession();
-          const response = await supabase.functions.invoke("uazapi-test-connection", {
+          const response = await supabase.functions.invoke("uazapi-check-status", {
             headers: { Authorization: `Bearer ${session.session?.access_token}` },
             body: { base_url: instancia.base_url, api_key: instancia.api_key },
           });
 
-          const details = response.data?.details;
-          const apiSaysLoggedIn = details?.loggedIn === true;
-          const apiJid = details?.jid;
-          const apiConnected = details?.connected === true;
+          const apiStatus = response.data?.status;
+          const strongSignal = apiStatus === "connected";
 
-          // Only accept a STRONG, stable signal
-          const strongSignal = apiSaysLoggedIn && Boolean(apiJid) && apiConnected;
-
-          console.log("Polling status check:", {
+          console.log("[Disparos QR Poll]", {
             pollCount,
             confirmedCount,
-            success: response.data?.success,
-            apiSaysLoggedIn,
-            apiJid,
-            apiConnected,
-            details,
+            apiStatus,
+            data: response.data,
           });
 
-          // Wait for minimum polls before considering connection
-          if (pollCount < minPollsBeforeConnect) {
-            console.log(`Waiting for session to stabilize (poll ${pollCount}/${minPollsBeforeConnect})...`);
-            return;
-          }
+          if (pollCount < minPollsBeforeConnect) return;
 
-          if (strongSignal) {
-            confirmedCount++;
-            console.log(`Strong signal confirmed (${confirmedCount}/${requiredConfirmations})`);
-          } else {
-            confirmedCount = 0;
-          }
+          if (strongSignal) confirmedCount++;
+          else confirmedCount = 0;
 
           if (confirmedCount >= requiredConfirmations) {
-            console.log("Connection confirmed (stable)! Closing dialog and configuring webhook...");
             if (interval) clearInterval(interval);
             setQrPollingInterval(null);
             setQrCodeDialogOpen(false);
             setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
             toast.success("WhatsApp conectado!");
-            
+
             // Configure webhook after successful connection
             const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${instancia.id}`;
             const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
@@ -465,20 +448,18 @@ export default function Disparos() {
               console.error("Webhook config failed:", webhookResponse.data);
               toast.warning("Webhook não foi configurado. Configure manualmente em 'Gerenciar Instâncias'.");
             }
-            
+
             loadInstancias();
             checkConfig();
           }
         } catch (error) {
-          console.error("Polling error:", error);
+          console.error("[Disparos QR Poll] Error:", error);
         }
       }, pollInterval);
 
       setQrPollingInterval(interval);
     };
 
-    // Start polling after initial delay
-    console.log(`Waiting ${initialDelay}ms before starting connection polling...`);
     setTimeout(startPolling, initialDelay);
 
     // Timeout after 3 minutes
