@@ -249,6 +249,18 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
         toast.success("WhatsApp já está conectado!");
         setQrCodeDialogOpen(false);
         setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
+
+        // IMPORTANT: even if already connected, ensure webhook is configured
+        setTimeout(async () => {
+          const webhookConfigured = await configureWebhook(instancia);
+          if (webhookConfigured) {
+            toast.success("Webhook configurado automaticamente!");
+            onInstanciasChange();
+          } else {
+            toast.warning("Webhook não foi configurado. Clique em 'Configurar Webhook'.");
+          }
+        }, 1500);
+
         return;
       }
 
