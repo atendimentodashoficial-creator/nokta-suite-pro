@@ -794,6 +794,10 @@ export default function Disparos() {
 
   const handleBulkDelete = async () => {
     if (selectedChatIds.size === 0) return;
+    if (!user?.id) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
     setIsDeleting(true);
     try {
       const ids = Array.from(selectedChatIds);
@@ -808,17 +812,21 @@ export default function Disparos() {
 
       const now = new Date().toISOString();
 
+      // Update by ID with user_id filter
       const { error: byIdError } = await supabase
         .from('disparos_chats')
         .update({ deleted_at: now })
-        .in('id', ids);
+        .in('id', ids)
+        .eq('user_id', user.id);
       if (byIdError) throw byIdError;
 
+      // Also soft-delete by normalized_number to catch duplicates
       if (normalizedNumbers.length > 0) {
         const { error: byNumberError } = await supabase
           .from('disparos_chats')
           .update({ deleted_at: now })
-          .in('normalized_number', normalizedNumbers);
+          .in('normalized_number', normalizedNumbers)
+          .eq('user_id', user.id);
         if (byNumberError) throw byNumberError;
       }
 
