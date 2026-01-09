@@ -2919,8 +2919,8 @@ export type Database = {
       increment_whatsapp_chat_unread: {
         Args: {
           p_chat_id: string
-          p_last_message: string
-          p_last_message_time: string
+          p_last_message?: string
+          p_last_message_time?: string
         }
         Returns: number
       }
