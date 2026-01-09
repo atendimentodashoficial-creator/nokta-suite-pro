@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Zap, MessageSquare, BarChart3 } from "lucide-react";
+import { Settings, Zap, MessageSquare, BarChart3, FileText } from "lucide-react";
 import { InstagramConfigTab } from "@/components/instagram/InstagramConfigTab";
 import { InstagramGatilhosTab } from "@/components/instagram/InstagramGatilhosTab";
 import { InstagramFluxosTab } from "@/components/instagram/InstagramFluxosTab";
 import { InstagramHistoricoTab } from "@/components/instagram/InstagramHistoricoTab";
+import { InstagramFormulariosTab } from "@/components/instagram/InstagramFormulariosTab";
 
 export default function Instagram() {
   const [activeTab, setActiveTab] = useState("config");
@@ -20,7 +21,7 @@ export default function Instagram() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="config" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Configuração
@@ -28,6 +29,10 @@ export default function Instagram() {
             <TabsTrigger value="gatilhos" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
               Gatilhos
+            </TabsTrigger>
+            <TabsTrigger value="formularios" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Formulários
             </TabsTrigger>
             <TabsTrigger value="fluxos" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
@@ -45,6 +50,10 @@ export default function Instagram() {
 
           <TabsContent value="gatilhos">
             <InstagramGatilhosTab />
+          </TabsContent>
+
+          <TabsContent value="formularios">
+            <InstagramFormulariosTab />
           </TabsContent>
 
           <TabsContent value="fluxos">

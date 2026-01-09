@@ -1,0 +1,474 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { Plus, Trash2, Loader2, FileText, Copy, Eye, ExternalLink, Users } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+const formSchema = z.object({
+  nome: z.string().min(1, "Nome é obrigatório"),
+  titulo_pagina: z.string().min(1, "Título é obrigatório"),
+  subtitulo_pagina: z.string().optional(),
+  texto_botao: z.string().min(1, "Texto do botão é obrigatório"),
+  mensagem_sucesso: z.string().min(1, "Mensagem de sucesso é obrigatória"),
+  cor_primaria: z.string().optional(),
+  imagem_url: z.string().optional(),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+interface Formulario {
+  id: string;
+  nome: string;
+  titulo_pagina: string;
+  subtitulo_pagina: string | null;
+  texto_botao: string;
+  mensagem_sucesso: string;
+  campos: string[];
+  cor_primaria: string;
+  imagem_url: string | null;
+  ativo: boolean;
+  created_at: string;
+}
+
+interface Resposta {
+  id: string;
+  nome: string | null;
+  telefone: string | null;
+  email: string | null;
+  instagram_user_id: string | null;
+  created_at: string;
+}
+
+export function InstagramFormulariosTab() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nome: "",
+      titulo_pagina: "Preencha seus dados",
+      subtitulo_pagina: "",
+      texto_botao: "Enviar",
+      mensagem_sucesso: "Obrigado! Seus dados foram enviados com sucesso.",
+      cor_primaria: "#8B5CF6",
+      imagem_url: "",
+    },
+  });
+
+  const { data: formularios, isLoading } = useQuery({
+    queryKey: ["instagram-formularios"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const { data, error } = await supabase
+        .from("instagram_formularios")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      
+      return (data || []).map(f => ({
+        ...f,
+        campos: Array.isArray(f.campos) ? f.campos : JSON.parse(f.campos as string)
+      })) as Formulario[];
+    },
+  });
+
+  const { data: respostas, isLoading: loadingRespostas } = useQuery({
+    queryKey: ["instagram-formularios-respostas", selectedFormId],
+    queryFn: async () => {
+      if (!selectedFormId) return [];
+
+      const { data, error } = await supabase
+        .from("instagram_formularios_respostas")
+        .select("*")
+        .eq("formulario_id", selectedFormId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as Resposta[];
+    },
+    enabled: !!selectedFormId,
+  });
+
+  const createFormulario = useMutation({
+    mutationFn: async (data: FormData) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const { error } = await supabase.from("instagram_formularios").insert({
+        user_id: user.id,
+        nome: data.nome,
+        titulo_pagina: data.titulo_pagina,
+        subtitulo_pagina: data.subtitulo_pagina || null,
+        texto_botao: data.texto_botao,
+        mensagem_sucesso: data.mensagem_sucesso,
+        cor_primaria: data.cor_primaria || "#8B5CF6",
+        imagem_url: data.imagem_url || null,
+        campos: ["nome", "telefone", "email"],
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
+      toast.success("Formulário criado com sucesso!");
+      setDialogOpen(false);
+      form.reset();
+    },
+    onError: (error) => {
+      console.error("Erro ao criar formulário:", error);
+      toast.error("Erro ao criar formulário");
+    },
+  });
+
+  const toggleFormulario = useMutation({
+    mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
+      const { error } = await supabase
+        .from("instagram_formularios")
+        .update({ ativo })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
+    },
+  });
+
+  const deleteFormulario = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("instagram_formularios").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
+      toast.success("Formulário excluído");
+    },
+  });
+
+  const getFormUrl = (formId: string) => {
+    return `${window.location.origin}/f/${formId}`;
+  };
+
+  const copyFormUrl = (formId: string) => {
+    navigator.clipboard.writeText(getFormUrl(formId));
+    toast.success("Link copiado!");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Formulários de Captura</h2>
+          <p className="text-sm text-muted-foreground">
+            Crie formulários para capturar dados dos seus leads via Instagram
+          </p>
+        </div>
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Formulário
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Criar Novo Formulário</DialogTitle>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit((data) => createFormulario.mutate(data))} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="nome"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do Formulário</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ex: Captura E-book" {...field} />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Apenas para organização interna
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="titulo_pagina"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Título da Página</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Preencha seus dados" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="subtitulo_pagina"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subtítulo (opcional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Receba seu material exclusivo" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="texto_botao"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Texto do Botão</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enviar" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="cor_primaria"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cor do Botão</FormLabel>
+                        <FormControl>
+                          <div className="flex gap-2">
+                            <Input type="color" className="w-12 h-10 p-1" {...field} />
+                            <Input placeholder="#8B5CF6" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="mensagem_sucesso"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mensagem de Sucesso</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Obrigado! Seus dados foram enviados com sucesso." 
+                          rows={2}
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="imagem_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL da Imagem (opcional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." {...field} />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Imagem exibida no topo do formulário
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex gap-2 justify-end pt-4">
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={createFormulario.isPending}>
+                    {createFormulario.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                    Criar Formulário
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {formularios?.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium">Nenhum formulário criado</h3>
+            <p className="text-sm text-muted-foreground">
+              Crie seu primeiro formulário para capturar leads
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Tabs defaultValue="formularios">
+          <TabsList>
+            <TabsTrigger value="formularios">Formulários</TabsTrigger>
+            <TabsTrigger value="respostas" disabled={!selectedFormId}>
+              <Users className="h-4 w-4 mr-1" />
+              Respostas
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="formularios" className="mt-4">
+            <div className="grid gap-4">
+              {formularios?.map((formulario) => (
+                <Card 
+                  key={formulario.id} 
+                  className={`cursor-pointer transition-colors ${
+                    selectedFormId === formulario.id ? "ring-2 ring-primary" : ""
+                  } ${!formulario.ativo ? "opacity-60" : ""}`}
+                  onClick={() => setSelectedFormId(formulario.id)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <CardTitle className="text-base">{formulario.nome}</CardTitle>
+                        <Badge variant="outline">
+                          {formulario.campos.length} campos
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => copyFormUrl(formulario.id)}
+                          title="Copiar link"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(getFormUrl(formulario.id), "_blank")}
+                          title="Visualizar"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                        <Switch
+                          checked={formulario.ativo}
+                          onCheckedChange={(ativo) =>
+                            toggleFormulario.mutate({ id: formulario.id, ativo })
+                          }
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteFormulario.mutate(formulario.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>Título: {formulario.titulo_pagina}</span>
+                      <span>•</span>
+                      <span
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: formulario.cor_primaria }}
+                      />
+                    </div>
+                    <div className="mt-2 p-2 bg-muted rounded text-xs font-mono truncate">
+                      {getFormUrl(formulario.id)}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="respostas" className="mt-4">
+            {selectedFormId && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Respostas do Formulário
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingRespostas ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : respostas?.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      Nenhuma resposta ainda
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Telefone</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Data</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {respostas?.map((resposta) => (
+                          <TableRow key={resposta.id}>
+                            <TableCell>{resposta.nome || "-"}</TableCell>
+                            <TableCell>{resposta.telefone || "-"}</TableCell>
+                            <TableCell>{resposta.email || "-"}</TableCell>
+                            <TableCell>
+                              {format(new Date(resposta.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
+  );
+}
