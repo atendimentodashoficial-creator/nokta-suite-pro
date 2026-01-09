@@ -385,9 +385,11 @@ export default function Disparos() {
     if (qrPollingInterval) clearInterval(qrPollingInterval);
     if (!instancia.base_url || !instancia.api_key) return;
 
-    // Skip initial polls to give user time to scan QR
+    // Skip initial polls to give user time to scan QR (avoid false positives)
     let pollCount = 0;
-    const minPollsBeforeConnect = 2; // Wait at least 10 seconds (2 x 5s) before accepting connection
+    const minPollsBeforeConnect = 2; // ~10s
+    let confirmedCount = 0;
+    const requiredConfirmations = 3; // require stability for ~15s
 
     const interval = setInterval(async () => {
       pollCount++;
@@ -398,44 +400,66 @@ export default function Disparos() {
           body: { base_url: instancia.base_url, api_key: instancia.api_key },
         });
 
-        // Only accept connection after minimum polls to avoid false positives
-        if (response.data?.success && pollCount >= minPollsBeforeConnect) {
-          // Double-check that it's really logged in, not just "connected"
-          const details = response.data?.details;
-          const isReallyLoggedIn = details?.whatsapp_status === 'connected' || 
-            (details?.status && !['connecting', 'disconnected', 'close'].includes(details.status));
-          
-          if (isReallyLoggedIn) {
-            clearInterval(interval);
-            setQrPollingInterval(null);
-            setQrCodeDialogOpen(false);
-            setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
-            toast.success("WhatsApp conectado!");
-            
-            // Configure webhook after successful connection
-            const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${instancia.id}`;
-            const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
-              headers: { Authorization: `Bearer ${session.session?.access_token}` },
-              body: {
-                base_url: instancia.base_url,
-                api_key: instancia.api_key,
-                webhook_url: webhookUrl,
-                instancia_id: instancia.id,
-              },
-            });
+        const details = response.data?.details;
+        const apiSaysLoggedIn = details?.loggedIn === true;
+        const apiJid = details?.jid;
+        const apiConnected = details?.connected === true;
 
-            if (webhookResponse.data?.success) {
-              toast.success("Webhook configurado automaticamente!");
-            } else {
-              console.error("Webhook config failed:", webhookResponse.data);
-              toast.warning("Webhook não foi configurado. Configure manualmente em 'Gerenciar Instâncias'.");
-            }
-            
-            loadInstancias();
-            checkConfig();
-          }
+        // Only accept a STRONG, stable signal
+        const strongSignal = apiSaysLoggedIn && Boolean(apiJid) && apiConnected;
+
+        console.log("Polling status check:", {
+          pollCount,
+          confirmedCount,
+          success: response.data?.success,
+          apiSaysLoggedIn,
+          apiJid,
+          apiConnected,
+          details,
+        });
+
+        // Wait for minimum polls before considering connection
+        if (pollCount < minPollsBeforeConnect) return;
+
+        if (strongSignal) {
+          confirmedCount++;
+        } else {
+          confirmedCount = 0;
         }
-      } catch {}
+
+        if (confirmedCount >= requiredConfirmations) {
+          console.log("Connection confirmed (stable)! Closing dialog and configuring webhook...");
+          clearInterval(interval);
+          setQrPollingInterval(null);
+          setQrCodeDialogOpen(false);
+          setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
+          toast.success("WhatsApp conectado!");
+          
+          // Configure webhook after successful connection
+          const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${instancia.id}`;
+          const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+            body: {
+              base_url: instancia.base_url,
+              api_key: instancia.api_key,
+              webhook_url: webhookUrl,
+              instancia_id: instancia.id,
+            },
+          });
+
+          if (webhookResponse.data?.success) {
+            toast.success("Webhook configurado automaticamente!");
+          } else {
+            console.error("Webhook config failed:", webhookResponse.data);
+            toast.warning("Webhook não foi configurado. Configure manualmente em 'Gerenciar Instâncias'.");
+          }
+          
+          loadInstancias();
+          checkConfig();
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+      }
     }, 5000);
 
     setQrPollingInterval(interval);
