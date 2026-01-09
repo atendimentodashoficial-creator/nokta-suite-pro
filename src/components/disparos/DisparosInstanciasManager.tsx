@@ -18,13 +18,11 @@ import {
   Eye,
   EyeOff,
   Save,
-  X,
   Copy,
   Link,
   Webhook,
   QrCode,
-  Smartphone,
-  Zap
+  Smartphone
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -46,7 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 export interface DisparosInstancia {
   id: string;
@@ -70,8 +68,6 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingInstancia, setEditingInstancia] = useState<DisparosInstancia | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [creationMode, setCreationMode] = useState<"auto" | "manual">("auto");
-  const [adminConfigured, setAdminConfigured] = useState<boolean | null>(null);
 
   // Form state
   const [nome, setNome] = useState("");
@@ -89,27 +85,6 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   const [selectedInstanciaForQr, setSelectedInstanciaForQr] = useState<DisparosInstancia | null>(null);
   const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
-  const [creatingInstance, setCreatingInstance] = useState(false);
-
-  // Check if admin API is configured
-  useEffect(() => {
-    checkAdminConfig();
-  }, []);
-
-  const checkAdminConfig = async () => {
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke("uazapi-admin-list-instances", {
-        headers: {
-          Authorization: `Bearer ${session.session?.access_token}`,
-        },
-      });
-      
-      setAdminConfigured(response.data?.admin_configured || false);
-    } catch (error) {
-      setAdminConfigured(false);
-    }
-  };
 
   // Test all connections on mount
   useEffect(() => {
@@ -172,56 +147,6 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
     setBaseUrl("");
     setApiKey("");
     setShowApiKey(false);
-  };
-
-  const handleCreateAutomatic = async () => {
-    if (!nome.trim()) {
-      toast.error("Digite um nome para a instância");
-      return;
-    }
-
-    setCreatingInstance(true);
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      
-      const response = await supabase.functions.invoke("uazapi-admin-create-instance", {
-        headers: {
-          Authorization: `Bearer ${session.session?.access_token}`,
-        },
-        body: {
-          instance_name: nome.trim(),
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      if (!response.data?.success) {
-        throw new Error(response.data?.error || "Erro ao criar instância");
-      }
-
-      toast.success("Instância criada! Escaneie o QR Code para conectar.");
-      
-      setDialogOpen(false);
-      resetForm();
-      onInstanciasChange();
-
-      // If QR code was returned, show it
-      if (response.data.qrcode) {
-        setQrCodeData(response.data.qrcode);
-        setSelectedInstanciaForQr(response.data.instance);
-        setQrCodeDialogOpen(true);
-      } else if (response.data.instance) {
-        // Fetch QR code separately
-        fetchQrCode(response.data.instance);
-      }
-    } catch (error: any) {
-      console.error("Error creating instance:", error);
-      toast.error(error.message || "Erro ao criar instância");
-    } finally {
-      setCreatingInstance(false);
-    }
   };
 
   const handleSave = async () => {
@@ -470,186 +395,66 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
               </DialogDescription>
             </DialogHeader>
             
-            {!editingInstancia && adminConfigured !== false ? (
-              <Tabs value={creationMode} onValueChange={(v) => setCreationMode(v as "auto" | "manual")} className="pt-2">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="auto" className="gap-2">
-                    <Zap className="h-4 w-4" />
-                    Automático
-                  </TabsTrigger>
-                  <TabsTrigger value="manual" className="gap-2">
-                    <Edit className="h-4 w-4" />
-                    Manual
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="auto" className="space-y-4 pt-4">
-                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <QrCode className="h-4 w-4 text-primary" />
-                      Criação rápida com QR Code
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      A instância será criada automaticamente. Você só precisa escanear o QR Code com seu celular.
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <Label>Nome da Instância *</Label>
-                    <Input
-                      value={nome}
-                      onChange={(e) => setNome(e.target.value)}
-                      placeholder="Ex: Número Principal"
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="outline" onClick={() => {
-                      setDialogOpen(false);
-                      resetForm();
-                    }}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleCreateAutomatic} disabled={creatingInstance || !nome.trim()}>
-                      {creatingInstance ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Criando...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="h-4 w-4 mr-2" />
-                          Criar Instância
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="manual" className="space-y-4 pt-4">
-                  <div>
-                    <Label>Nome da Instância *</Label>
-                    <Input
-                      value={nome}
-                      onChange={(e) => setNome(e.target.value)}
-                      placeholder="Ex: Número Principal"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>URL Base *</Label>
-                    <Input
-                      value={baseUrl}
-                      onChange={(e) => setBaseUrl(e.target.value)}
-                      placeholder="https://api.uazapi.com"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>API Key *</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Input
-                        type={showApiKey ? "text" : "password"}
-                        value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
-                        placeholder="Sua chave de API"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                      >
-                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="outline" onClick={() => {
-                      setDialogOpen(false);
-                      resetForm();
-                    }}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleSave} disabled={saving}>
-                      {saving ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Salvando...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Salvar
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            ) : (
-              // Editing mode or admin not configured - show manual form only
-              <div className="space-y-4 pt-4">
-                <div>
-                  <Label>Nome da Instância *</Label>
+            <div className="space-y-4 pt-4">
+              <div>
+                <Label>Nome da Instância *</Label>
+                <Input
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Ex: Número Principal"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>URL Base *</Label>
+                <Input
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="https://api.uazapi.com"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>API Key *</Label>
+                <div className="flex gap-2 mt-1">
                   <Input
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder="Ex: Número Principal"
-                    className="mt-1"
+                    type={showApiKey ? "text" : "password"}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Sua chave de API"
                   />
-                </div>
-                <div>
-                  <Label>URL Base *</Label>
-                  <Input
-                    value={baseUrl}
-                    onChange={(e) => setBaseUrl(e.target.value)}
-                    placeholder="https://api.uazapi.com"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>API Key *</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      type={showApiKey ? "text" : "password"}
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="Sua chave de API"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" onClick={() => {
-                    setDialogOpen(false);
-                    setEditingInstancia(null);
-                    resetForm();
-                  }}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleSave} disabled={saving}>
-                    {saving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Salvar
-                      </>
-                    )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                  >
+                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
-            )}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => {
+                  setDialogOpen(false);
+                  setEditingInstancia(null);
+                  resetForm();
+                }}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Salvar
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
