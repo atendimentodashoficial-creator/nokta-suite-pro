@@ -4,13 +4,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, ExternalLink, TestTube } from "lucide-react";
-import { useMetaPixelConfig, useSaveMetaPixelConfig } from "@/hooks/useMetaPixel";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Save, ExternalLink, TestTube, Send, CheckCircle2, XCircle, Clock, RefreshCw } from "lucide-react";
+import { useMetaPixelConfig, useSaveMetaPixelConfig, useSendConversionEvent, useConversionEvents } from "@/hooks/useMetaPixel";
 import { MetaIcon } from "@/components/icons/MetaIcon";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export function MetaPixelConfig() {
   const { data: config, isLoading } = useMetaPixelConfig();
   const saveConfig = useSaveMetaPixelConfig();
+  const sendEvent = useSendConversionEvent();
+  const { data: conversionEvents, isLoading: eventsLoading, refetch: refetchEvents } = useConversionEvents();
 
   const [pixelId, setPixelId] = useState("");
   const [accessToken, setAccessToken] = useState("");
@@ -21,6 +28,27 @@ export function MetaPixelConfig() {
     purchase: true,
     complete_registration: true,
   });
+  const [testEventType, setTestEventType] = useState<"Lead" | "InitiateCheckout" | "Purchase" | "CompleteRegistration">("Lead");
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  const handleSendTestEvent = async () => {
+    if (!config) return;
+    
+    setIsSendingTest(true);
+    try {
+      await sendEvent.mutateAsync({
+        event_name: testEventType,
+        value: testEventType === "Purchase" ? 100 : undefined,
+        currency: testEventType === "Purchase" ? "BRL" : undefined,
+        customer_name: "Teste Lovable",
+        customer_phone: "5511999999999",
+        external_id: `test_${Date.now()}`,
+      });
+      refetchEvents();
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   useEffect(() => {
     if (config) {
@@ -204,6 +232,166 @@ export function MetaPixelConfig() {
             </>
           )}
         </Button>
+
+        {/* Seção de Teste */}
+        {config && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <TestTube className="h-4 w-4" />
+                    Testar Envio de Evento
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Envie um evento de teste para verificar a configuração
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <select
+                  value={testEventType}
+                  onChange={(e) => setTestEventType(e.target.value as typeof testEventType)}
+                  className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="Lead">Lead</option>
+                  <option value="InitiateCheckout">InitiateCheckout</option>
+                  <option value="Purchase">Purchase (R$ 100)</option>
+                  <option value="CompleteRegistration">CompleteRegistration</option>
+                </select>
+                <Button
+                  onClick={handleSendTestEvent}
+                  disabled={isSendingTest}
+                  variant="secondary"
+                >
+                  {isSendingTest ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar Teste
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {testEventCode && (
+                <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-md">
+                  💡 Com o código de teste "{testEventCode}" ativo, o evento aparecerá na aba "Eventos de Teste" do Gerenciador de Eventos do Meta
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Histórico de Eventos */}
+        {config && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base font-semibold">Histórico de Eventos</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Últimos eventos enviados para o Meta Pixel
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => refetchEvents()}
+                  disabled={eventsLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${eventsLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+
+              <ScrollArea className="h-[300px] rounded-md border">
+                {eventsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : conversionEvents && conversionEvents.length > 0 ? (
+                  <div className="p-4 space-y-3">
+                    {conversionEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="p-3 border rounded-lg space-y-2 bg-muted/30"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={event.status === 'success' ? 'default' : event.status === 'error' ? 'destructive' : 'secondary'}>
+                              {event.event_name}
+                            </Badge>
+                            {event.status === 'success' ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            ) : event.status === 'error' ? (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            ) : (
+                              <Clock className="h-4 w-4 text-yellow-500" />
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(event.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {event.value && (
+                            <div>
+                              <span className="text-muted-foreground">Valor:</span>{" "}
+                              <span className="font-medium">R$ {event.value}</span>
+                            </div>
+                          )}
+                          {event.utm_source && (
+                            <div>
+                              <span className="text-muted-foreground">Origem:</span>{" "}
+                              <span className="font-medium">{event.utm_source}</span>
+                            </div>
+                          )}
+                          {event.utm_campaign && (
+                            <div>
+                              <span className="text-muted-foreground">Campanha:</span>{" "}
+                              <span className="font-medium">{event.utm_campaign}</span>
+                            </div>
+                          )}
+                          {event.fbclid && (
+                            <div className="col-span-2">
+                              <span className="text-muted-foreground">FBCLID:</span>{" "}
+                              <span className="font-mono text-xs">{event.fbclid.slice(0, 20)}...</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {event.response && (
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                              Ver resposta do Meta
+                            </summary>
+                            <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
+                              {JSON.stringify(event.response, null, 2)}
+                            </pre>
+                          </details>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Clock className="h-8 w-8 mb-2" />
+                    <p>Nenhum evento enviado ainda</p>
+                    <p className="text-xs">Envie um evento de teste acima</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          </>
+        )}
 
         {/* Links úteis */}
         <div className="pt-4 border-t">
