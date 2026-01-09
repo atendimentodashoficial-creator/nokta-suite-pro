@@ -69,44 +69,78 @@ Deno.serve(async (req) => {
     // Normalize server URL
     const normalizedServerUrl = serverUrl.replace(/\/+$/, '');
 
-    // Create instance via UAZapi Admin API
-    const createResponse = await fetch(`${normalizedServerUrl}/admin/instance/create`, {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "admintoken": adminToken,
-      },
-      body: JSON.stringify({
-        name: instance_name,
-        // Additional options can be added here
-      }),
-    });
+    // Try multiple endpoint variations for UAZapi Admin API
+    const endpoints = [
+      { url: `${normalizedServerUrl}/admin/instance`, method: "POST" },
+      { url: `${normalizedServerUrl}/admin/instances`, method: "POST" },
+      { url: `${normalizedServerUrl}/admin/create`, method: "POST" },
+      { url: `${normalizedServerUrl}/instance/create`, method: "POST" },
+      { url: `${normalizedServerUrl}/instances`, method: "POST" },
+    ];
 
-    console.log("Create response status:", createResponse.status);
+    let createResponse: Response | null = null;
+    let successEndpoint = "";
+    let lastError = "";
 
-    if (!createResponse.ok) {
-      const errorText = await createResponse.text().catch(() => "");
-      console.error("Create instance error:", errorText);
+    for (const endpoint of endpoints) {
+      console.log(`Trying endpoint: ${endpoint.url}`);
       
-      // Try to parse error message
-      let errorMessage = "Erro ao criar instância na UAZapi.";
       try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.message || errorJson.error || errorMessage;
-      } catch {
-        if (errorText) errorMessage = errorText;
+        const response = await fetch(endpoint.url, {
+          method: endpoint.method,
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "admintoken": adminToken,
+            "Authorization": `Bearer ${adminToken}`,
+            "token": adminToken,
+          },
+          body: JSON.stringify({
+            name: instance_name,
+            instanceName: instance_name,
+            instance_name: instance_name,
+          }),
+        });
+
+        console.log(`Endpoint ${endpoint.url} status: ${response.status}`);
+
+        if (response.ok || response.status === 201) {
+          createResponse = response;
+          successEndpoint = endpoint.url;
+          break;
+        } else if (response.status !== 404 && response.status !== 405) {
+          // Store error for non-404/405 errors
+          const errorText = await response.text().catch(() => "");
+          lastError = errorText;
+          console.log(`Endpoint error: ${errorText}`);
+        }
+      } catch (e: any) {
+        console.log(`Endpoint ${endpoint.url} failed: ${e.message}`);
       }
+    }
+
+    if (!createResponse) {
+      console.error("All endpoints failed. Last error:", lastError);
+      
+      let errorMessage = "Não foi possível criar instância. Verifique as credenciais de administração da UAZapi.";
+      try {
+        if (lastError) {
+          const errorJson = JSON.parse(lastError);
+          errorMessage = errorJson.message || errorJson.error || errorMessage;
+        }
+      } catch {}
 
       return new Response(JSON.stringify({ 
         success: false, 
         error: errorMessage,
-        status: createResponse.status
+        tried_endpoints: endpoints.map(e => e.url),
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log("Success with endpoint:", successEndpoint);
 
     const createData = await createResponse.json();
     console.log("Create response data:", JSON.stringify(createData));
