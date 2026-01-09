@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Phone, Mail, Calendar, MessageCircle, Trash2, CheckSquare, Square, X, UserPlus, Megaphone } from "lucide-react";
+import { Search, Phone, Mail, Calendar, MessageCircle, Trash2, CheckSquare, Square, X, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,7 @@ import { navigateToChat } from "@/utils/chatRouting";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { LeadCampaignBadge } from "@/components/leads/LeadCampaignBadge";
 
 export default function Leads() {
   const navigate = useNavigate();
@@ -299,23 +300,7 @@ export default function Leads() {
                   </div>
 
                   {/* Attribution / Campaign info */}
-                  {(lead.utm_campaign || lead.utm_source) && (
-                    <div className="flex items-center gap-2">
-                      <Megaphone className="h-4 w-4 flex-shrink-0 text-blue-500" />
-                      <div className="flex flex-wrap gap-1">
-                        {lead.utm_source && (
-                          <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-2 py-0.5 rounded">
-                            {lead.utm_source}
-                          </span>
-                        )}
-                        {lead.utm_campaign && (
-                          <span className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 px-2 py-0.5 rounded truncate max-w-[150px]" title={lead.utm_campaign}>
-                            {lead.utm_campaign}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <LeadCampaignBadge lead={lead} />
 
                   {/* Show all presences (instances where this contact appeared) */}
                   {lead.allPresences && lead.allPresences.length > 0 && (
