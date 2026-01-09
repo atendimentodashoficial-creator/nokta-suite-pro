@@ -16,7 +16,9 @@ import {
   RefreshCw,
   QrCode,
   Smartphone,
-  Unplug
+  Unplug,
+  Webhook,
+  AlertCircle
 } from "lucide-react";
 import {
   Dialog,
@@ -75,11 +77,20 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [selectedInstancia, setSelectedInstancia] = useState<DisparosInstancia | null>(null);
   const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
+  // Webhook status
+  const [webhookStatus, setWebhookStatus] = useState<Record<string, 'configured' | 'pending' | 'error'>>({});
+  const [configuringWebhook, setConfiguringWebhook] = useState<string | null>(null);
+
   // Check connection status on mount
   useEffect(() => {
     instancias.forEach(inst => {
       if (inst.is_active) {
         checkConnectionStatus(inst);
+        // Check webhook status based on last_webhook_at
+        setWebhookStatus(prev => ({
+          ...prev,
+          [inst.id]: inst.last_webhook_at ? 'configured' : 'pending'
+        }));
       }
     });
   }, [instancias]);
@@ -113,6 +124,48 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
     }
   };
 
+  const configureWebhook = async (instancia: DisparosInstancia): Promise<boolean> => {
+    try {
+      const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook/${user?.id}/${instancia.id}`;
+      const { data: session } = await supabase.auth.getSession();
+
+      const response = await supabase.functions.invoke("uazapi-set-webhook", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: {
+          base_url: instancia.base_url,
+          api_key: instancia.api_key,
+          webhook_url: webhookUrl,
+          instancia_id: instancia.id,
+        },
+      });
+
+      if (response.data?.success) {
+        setWebhookStatus(prev => ({ ...prev, [instancia.id]: 'configured' }));
+        return true;
+      } else {
+        console.error('Webhook config failed:', response.data);
+        setWebhookStatus(prev => ({ ...prev, [instancia.id]: 'error' }));
+        return false;
+      }
+    } catch (error) {
+      console.error('Error configuring webhook:', error);
+      setWebhookStatus(prev => ({ ...prev, [instancia.id]: 'error' }));
+      return false;
+    }
+  };
+
+  const handleReconfigureWebhook = async (instancia: DisparosInstancia) => {
+    setConfiguringWebhook(instancia.id);
+    const success = await configureWebhook(instancia);
+    if (success) {
+      toast.success("Webhook configurado com sucesso!");
+      onInstanciasChange();
+    } else {
+      toast.error("Erro ao configurar webhook. Verifique as credenciais.");
+    }
+    setConfiguringWebhook(null);
+  };
+
   const handleAddInstancia = async () => {
     if (!nome.trim() || !baseUrl.trim() || !apiKey.trim()) {
       toast.error("Preencha todos os campos");
@@ -136,22 +189,22 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
       if (error) throw error;
 
       // Auto-configure webhook
+      let webhookSuccess = false;
       if (data?.id && user?.id) {
-        const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook/${user.id}/${data.id}`;
-        const { data: session } = await supabase.auth.getSession();
-
-        await supabase.functions.invoke("uazapi-set-webhook", {
-          headers: { Authorization: `Bearer ${session.session?.access_token}` },
-          body: {
-            base_url: baseUrl.trim(),
-            api_key: apiKey.trim(),
-            webhook_url: webhookUrl,
-            instancia_id: data.id,
-          },
-        });
+        webhookSuccess = await configureWebhook({
+          ...data,
+          nome: nome.trim(),
+          base_url: baseUrl.trim(),
+          api_key: apiKey.trim(),
+        } as DisparosInstancia);
       }
 
-      toast.success("Instância adicionada!");
+      if (webhookSuccess) {
+        toast.success("Instância adicionada e webhook configurado!");
+      } else {
+        toast.warning("Instância adicionada, mas o webhook não foi configurado automaticamente. Conecte o WhatsApp e tente reconfigurar.");
+      }
+      
       setAddDialogOpen(false);
       setNome("");
       setBaseUrl("");
@@ -253,6 +306,15 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
           setQrCodeDialogOpen(false);
           setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
           toast.success("WhatsApp conectado!");
+          
+          // Auto-configure webhook after successful connection
+          const webhookConfigured = await configureWebhook(instancia);
+          if (webhookConfigured) {
+            toast.success("Webhook configurado automaticamente!");
+          } else {
+            toast.warning("Webhook não foi configurado. Clique em 'Configurar Webhook'.");
+          }
+          
           onInstanciasChange();
         }
       } catch {}
@@ -343,65 +405,122 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
             const status = connectionStatus[instancia.id];
             const isConnected = status === 'connected';
             const isLoading = status === 'loading';
+            const wbStatus = webhookStatus[instancia.id];
+            const isWebhookConfigured = wbStatus === 'configured';
+            const isWebhookError = wbStatus === 'error';
+            const isConfiguringWebhook = configuringWebhook === instancia.id;
             
             return (
               <Card key={instancia.id} className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      isConnected ? 'bg-green-500' : isLoading ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
-                    }`} />
-                    <div>
-                      <h4 className="font-medium">{instancia.nome}</h4>
-                      <p className="text-xs text-muted-foreground">
-                        {isConnected ? 'Conectado' : isLoading ? 'Verificando...' : 'Desconectado'}
-                      </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${
+                        isConnected ? 'bg-green-500' : isLoading ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
+                      }`} />
+                      <div>
+                        <h4 className="font-medium">{instancia.nome}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          {isConnected ? 'Conectado' : isLoading ? 'Verificando...' : 'Desconectado'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {isConnected ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDisconnect(instancia)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Unplug className="h-4 w-4 mr-2" />
+                          Desconectar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleConnect(instancia)}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <QrCode className="h-4 w-4 mr-2" />
+                              Conectar
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => checkConnectionStatus(instancia)}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteConfirmId(instancia.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    {isConnected ? (
+                  {/* Webhook status row */}
+                  <div className="flex items-center justify-between border-t pt-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Webhook className={`h-4 w-4 ${isWebhookConfigured ? 'text-green-500' : isWebhookError ? 'text-red-500' : 'text-amber-500'}`} />
+                      <span className="text-muted-foreground">
+                        {isWebhookConfigured 
+                          ? 'Webhook configurado' 
+                          : isWebhookError 
+                            ? 'Erro ao configurar webhook' 
+                            : 'Webhook não configurado'}
+                      </span>
+                      {instancia.last_webhook_at && (
+                        <span className="text-xs text-muted-foreground">
+                          (última atividade: {new Date(instancia.last_webhook_at).toLocaleDateString('pt-BR')})
+                        </span>
+                      )}
+                    </div>
+                    
+                    {(!isWebhookConfigured || isWebhookError) && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDisconnect(instancia)}
-                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleReconfigureWebhook(instancia)}
+                        disabled={isConfiguringWebhook}
                       >
-                        <Unplug className="h-4 w-4 mr-2" />
-                        Desconectar
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleConnect(instancia)}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                        {isConfiguringWebhook ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : (
-                          <>
-                            <QrCode className="h-4 w-4 mr-2" />
-                            Conectar
-                          </>
+                          <AlertCircle className="h-4 w-4 mr-2" />
                         )}
+                        Configurar Webhook
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => checkConnectionStatus(instancia)}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteConfirmId(instancia.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    
+                    {isWebhookConfigured && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleReconfigureWebhook(instancia)}
+                        disabled={isConfiguringWebhook}
+                      >
+                        {isConfiguringWebhook ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        Reconfigurar
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
