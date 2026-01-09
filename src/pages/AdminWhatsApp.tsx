@@ -1608,100 +1608,109 @@ export default function AdminWhatsApp() {
 
       {/* Manage Instance Dialog */}
       <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Gerenciar Instância
-            </DialogTitle>
+            <DialogTitle>Gerenciar Instância</DialogTitle>
             <DialogDescription>
-              {mainInstance?.nome || "WhatsApp Principal"}
+              Gerencie sua conexão WhatsApp
             </DialogDescription>
           </DialogHeader>
-
+          
           <div className="space-y-4 pt-4">
-            {/* Status Card */}
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${
-                    connectionStatus === 'connected' ? 'bg-green-500' : 
-                    connectionStatus === 'loading' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
-                  }`} />
-                  <div>
-                    <p className="font-medium text-sm">{mainInstance?.nome}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {connectionStatus === 'connected' ? 'Conectado' : 
-                       connectionStatus === 'loading' ? 'Verificando...' : 'Desconectado'}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => mainInstance && checkConnectionStatus(mainInstance.base_url, mainInstance.api_key)}
-                >
-                  <RefreshCw className="h-4 w-4" />
+            {!mainInstance ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <QrCode className="h-12 w-12 text-muted-foreground mb-4" />
+                <h2 className="text-lg font-medium mb-2">Nenhuma instância configurada</h2>
+                <p className="text-muted-foreground mb-4">
+                  Crie uma instância e escaneie o QR Code para começar
+                </p>
+                <Button onClick={() => { setManageDialogOpen(false); setCreateInstanceDialogOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Instância
                 </Button>
               </div>
-            </Card>
+            ) : (
+              <Card className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      connectionStatus === 'connected' ? 'bg-green-500' : 
+                      connectionStatus === 'loading' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
+                    }`} />
+                    <div>
+                      <h4 className="font-medium">{mainInstance.nome}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {connectionStatus === 'connected' ? 'Conectado' : 
+                         connectionStatus === 'loading' ? 'Verificando...' : 'Desconectado'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setEditingName(mainInstance.nome || "");
+                        setManageDialogOpen(false);
+                        setEditNameDialogOpen(true);
+                      }}
+                      title="Editar nome"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
 
-            {/* Actions */}
-            <div className="space-y-2">
-              {/* Edit Name */}
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
-                onClick={() => {
-                  setEditingName(mainInstance?.nome || "");
-                  setManageDialogOpen(false);
-                  setEditNameDialogOpen(true);
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-                Editar nome
-              </Button>
-
-              {/* Reconnect */}
-              {connectionStatus === 'disconnected' && (
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                  onClick={() => {
-                    setManageDialogOpen(false);
-                    handleOpenQrCode();
-                  }}
-                >
-                  <QrCode className="h-4 w-4" />
-                  Reconectar via QR Code
-                </Button>
-              )}
-
-              {/* Disconnect */}
-              {connectionStatus === 'connected' && (
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2 text-amber-600 hover:text-amber-600"
-                  onClick={() => {
-                    handleDisconnect();
-                    setManageDialogOpen(false);
-                  }}
-                >
-                  <Unplug className="h-4 w-4" />
-                  Desconectar WhatsApp
-                </Button>
-              )}
-
-              {/* Delete */}
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-                onClick={() => setDeleteInstanceConfirmOpen(true)}
-              >
-                <Trash2 className="h-4 w-4" />
-                Remover instância
-              </Button>
-            </div>
+                    {connectionStatus === 'connected' ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          handleDisconnect();
+                        }}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Unplug className="h-4 w-4 mr-2" />
+                        Desconectar
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => {
+                          setManageDialogOpen(false);
+                          handleOpenQrCode();
+                        }}
+                        disabled={connectionStatus === 'loading'}
+                      >
+                        {connectionStatus === 'loading' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <QrCode className="h-4 w-4 mr-2" />
+                            Conectar
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => checkConnectionStatus(mainInstance.base_url, mainInstance.api_key)}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeleteInstanceConfirmOpen(true)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
         </DialogContent>
       </Dialog>
