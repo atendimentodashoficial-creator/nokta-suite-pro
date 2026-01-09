@@ -310,9 +310,19 @@ export function ReagendarDialog({
         <DialogHeader>
           <DialogTitle>Reagendar Agendamento</DialogTitle>
           {agendamento && (
-            <p className="text-sm text-muted-foreground">
-              Cliente: {agendamento.leads?.nome}
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                Cliente: <span className="font-medium text-foreground">{agendamento.leads?.nome}</span>
+              </p>
+              {agendamento.profissional_id && profissionais && (
+                <p className="text-sm text-muted-foreground">
+                  Profissional atual: <span className="font-medium text-foreground">
+                    {profissionais.find(p => p.id === agendamento.profissional_id)?.nome || "—"}
+                  </span>
+                  <span className="text-xs ml-2 text-primary">(você pode trocar abaixo)</span>
+                </p>
+              )}
+            </div>
           )}
         </DialogHeader>
 
@@ -419,11 +429,14 @@ export function ReagendarDialog({
                 <div className="flex items-center justify-between">
                   <FormLabel>Selecione Profissional e Horário *</FormLabel>
                   {profissionalWatch && form.watch("hora") && (
-                    <span className="text-xs text-primary">
-                      ✓ {profissionais?.find(p => p.id === profissionalWatch)?.nome} - {form.watch("hora")}
+                    <span className="text-xs text-primary font-medium">
+                      ✓ {profissionais?.find(p => p.id === profissionalWatch)?.nome} às {form.watch("hora")}
                     </span>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Clique em um horário para selecionar o profissional e horário desejado
+                </p>
                 
                 {profissionaisDisponiveis.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
