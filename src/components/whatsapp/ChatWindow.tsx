@@ -319,8 +319,9 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       
       setChatLabels((chatLabelsData || []).map((l: any) => l.label_id));
     } catch (error: any) {
+      // Don't show error toast for labels - it's non-critical functionality
+      // Some UAZAPI servers don't support the labels endpoint
       console.error('Error loading labels:', error);
-      toast.error('Erro ao carregar etiquetas');
     }
   };
 
