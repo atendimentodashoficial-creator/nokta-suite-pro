@@ -472,6 +472,8 @@ export default function AdminWhatsApp() {
     // Skip initial polls to give user time to scan QR (avoid false positives)
     let pollCount = 0;
     const minPollsBeforeConnect = 2; // ~10s
+    let confirmedCount = 0;
+    const requiredConfirmations = 3; // require stability for ~15s
 
     const interval = setInterval(async () => {
       pollCount++;
@@ -482,26 +484,38 @@ export default function AdminWhatsApp() {
           body: { base_url: baseUrl, api_key: apiKey },
         });
 
-        // Only mark as connected when WhatsApp is REALLY logged in
         const details = response.data?.details;
-        const loggedIn = details?.status?.loggedIn === true;
-        const hasJid = Boolean(details?.status?.jid);
-        const instanceStatus = details?.instance?.status;
-        
-        console.log("Polling status check:", { 
-          pollCount, 
-          loggedIn, 
-          hasJid, 
-          instanceStatus, 
+        const apiSaysLoggedIn = details?.loggedIn === true;
+        const apiJid = details?.jid;
+        const apiStatus = String(details?.status || details?.whatsapp_status || "").toLowerCase();
+
+        // Some providers don't expose loggedIn/jid consistently; treat "connected" as a weak signal.
+        // We only close after N consecutive confirmations.
+        const strongSignal = apiSaysLoggedIn && Boolean(apiJid);
+        const weakSignal = apiStatus === "connected";
+
+        console.log("Polling status check:", {
+          pollCount,
+          confirmedCount,
           success: response.data?.success,
-          details 
+          apiSaysLoggedIn,
+          apiJid,
+          apiStatus,
+          details,
         });
 
-        // Connected if loggedIn is true and has a JID - don't require instanceStatus
-        const isReallyLoggedIn = loggedIn && hasJid;
+        const isConfirmedNow = response.data?.success === true || strongSignal || weakSignal;
 
-        if (response.data?.success && pollCount >= minPollsBeforeConnect && isReallyLoggedIn) {
-          console.log("Connection confirmed! Closing dialog and configuring webhook...");
+        if (pollCount < minPollsBeforeConnect) return;
+
+        if (isConfirmedNow) {
+          confirmedCount++;
+        } else {
+          confirmedCount = 0;
+        }
+
+        if (confirmedCount >= requiredConfirmations) {
+          console.log("Connection confirmed (stable)! Closing dialog and configuring webhook...");
           clearInterval(interval);
           setQrPollingInterval(null);
           setQrCodeDialogOpen(false);
@@ -513,7 +527,7 @@ export default function AdminWhatsApp() {
           if (instanciaId && user?.id) {
             const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${instanciaId}`;
             console.log("Configuring webhook:", webhookUrl);
-            
+
             const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
               headers: { Authorization: `Bearer ${session.session?.access_token}` },
               body: {
@@ -525,7 +539,7 @@ export default function AdminWhatsApp() {
             });
 
             console.log("Webhook response:", webhookResponse.data);
-            
+
             if (webhookResponse.data?.success) {
               toast.success("Webhook configurado!");
             } else {
