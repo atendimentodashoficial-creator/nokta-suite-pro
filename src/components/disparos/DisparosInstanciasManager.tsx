@@ -294,40 +294,67 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const startPolling = (instancia: DisparosInstancia) => {
     if (qrPollingInterval) clearInterval(qrPollingInterval);
 
+    // Use slower polling with lightweight status check to avoid interfering with WhatsApp pairing
+    // The aggressive polling was causing "401: logged out from another device" errors
+    let pollCount = 0;
+    const minPollsBeforeCheck = 3; // Wait at least 3 polls (~24s) before considering connection valid
+    let confirmations = 0;
+    const requiredConfirmations = 2; // Require 2 consecutive confirmations
+
     const interval = setInterval(async () => {
+      pollCount++;
+      
       try {
         const { data: session } = await supabase.auth.getSession();
         
-        const response = await supabase.functions.invoke("uazapi-test-connection", {
+        // Use lightweight status check - doesn't call /chat/find
+        const response = await supabase.functions.invoke("uazapi-check-status", {
           headers: { Authorization: `Bearer ${session.session?.access_token}` },
           body: { base_url: instancia.base_url, api_key: instancia.api_key },
         });
 
-        if (response.data?.success) {
-          clearInterval(interval);
-          setQrPollingInterval(null);
-          setQrCodeDialogOpen(false);
-          setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
-          toast.success("WhatsApp conectado!");
+        console.log(`[Disparos Poll ${pollCount}] Status:`, response.data?.status, "Confirmations:", confirmations);
+
+        // Only accept connection after minimum polls to let WhatsApp session stabilize
+        if (pollCount >= minPollsBeforeCheck && response.data?.success && response.data?.status === "connected") {
+          confirmations++;
           
-          // Auto-configure webhook after successful connection
-          const webhookConfigured = await configureWebhook(instancia);
-          if (webhookConfigured) {
-            toast.success("Webhook configurado automaticamente!");
-          } else {
-            toast.warning("Webhook não foi configurado. Clique em 'Configurar Webhook'.");
+          if (confirmations >= requiredConfirmations) {
+            clearInterval(interval);
+            setQrPollingInterval(null);
+            setQrCodeDialogOpen(false);
+            setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
+            toast.success("WhatsApp conectado!");
+            
+            // Wait a bit before configuring webhook to ensure connection is stable
+            setTimeout(async () => {
+              const webhookConfigured = await configureWebhook(instancia);
+              if (webhookConfigured) {
+                toast.success("Webhook configurado automaticamente!");
+              } else {
+                toast.warning("Webhook não foi configurado. Clique em 'Configurar Webhook'.");
+              }
+            }, 2000);
+            
+            onInstanciasChange();
           }
-          
-          onInstanciasChange();
+        } else {
+          // Reset confirmations if not connected
+          confirmations = 0;
         }
-      } catch {}
-    }, 5000);
+      } catch (err) {
+        console.error("[Disparos Poll] Error:", err);
+        confirmations = 0;
+      }
+    }, 8000); // Poll every 8 seconds (slower to avoid interference)
 
     setQrPollingInterval(interval);
+    
+    // Timeout after 3 minutes
     setTimeout(() => {
       clearInterval(interval);
       setQrPollingInterval(null);
-    }, 120000);
+    }, 180000);
   };
 
   const refreshQrCode = () => {
