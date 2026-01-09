@@ -65,16 +65,36 @@ Deno.serve(async (req) => {
       { url: `${normalizedBaseUrl}/config/webhook`, method: "POST" },
     ];
 
-    // Different payload formats to try
+    // Complete payload with all necessary fields for UAZAPI
+    const fullPayload = {
+      url: webhook_url,
+      enabled: true,
+      events: [
+        "messages.upsert",
+        "messages.update",
+        "message",
+        "message.any",
+        "connection.update",
+        "send.message",
+        "status.instance",
+      ],
+      addUrlEvents: true,
+      addUrlTypesMessages: true,
+    };
+
+    // Also try simpler payloads as fallback
     const payloads = [
-      { url: webhook_url },
-      { webhook: webhook_url },
-      { webhookUrl: webhook_url },
-      { webhook_url: webhook_url },
+      fullPayload,
+      { url: webhook_url, enabled: true, events: ["messages.upsert", "message", "message.any"] },
+      { url: webhook_url, enabled: true },
+      { webhook: webhook_url, enabled: true },
+      { webhookUrl: webhook_url, enabled: true },
+      { webhook_url: webhook_url, enabled: true },
     ];
 
     let success = false;
     let lastError = "";
+    let lastResponse: any = null;
 
     for (const endpoint of webhookEndpoints) {
       for (const payload of payloads) {
@@ -95,9 +115,16 @@ Deno.serve(async (req) => {
 
           if (response.ok) {
             const data = await response.json().catch(() => ({}));
-            console.log("Success! Response:", JSON.stringify(data));
-            success = true;
-            break;
+            console.log("Response data:", JSON.stringify(data));
+            lastResponse = data;
+            
+            // Check if webhook is actually enabled
+            const webhookData = Array.isArray(data) ? data[0] : data;
+            if (webhookData?.enabled === true || webhookData?.success === true || response.status === 200) {
+              console.log("Webhook configured successfully!");
+              success = true;
+              break;
+            }
           } else if (response.status !== 404 && response.status !== 405) {
             const text = await response.text().catch(() => "");
             lastError = text || `Status ${response.status}`;
@@ -109,6 +136,33 @@ Deno.serve(async (req) => {
       }
       
       if (success) break;
+    }
+
+    // If first attempts didn't enable it, try to explicitly enable
+    if (!success && lastResponse) {
+      console.log("Trying to explicitly enable webhook...");
+      try {
+        const enableResponse = await fetch(`${normalizedBaseUrl}/webhook/set`, {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "token": api_key,
+          },
+          body: JSON.stringify({
+            ...fullPayload,
+            id: lastResponse?.id || (Array.isArray(lastResponse) ? lastResponse[0]?.id : undefined),
+          }),
+        });
+        
+        if (enableResponse.ok) {
+          const enableData = await enableResponse.json().catch(() => ({}));
+          console.log("Enable response:", JSON.stringify(enableData));
+          success = true;
+        }
+      } catch (e: any) {
+        console.error("Enable error:", e.message);
+      }
     }
 
     if (success) {
