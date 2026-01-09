@@ -61,6 +61,11 @@ export default function AdminWhatsApp() {
   // Edit instance name dialog
   const [editNameDialogOpen, setEditNameDialogOpen] = useState(false);
   const [editingName, setEditingName] = useState("");
+
+  // Manage instance dialog
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
+  const [deletingInstance, setDeletingInstance] = useState(false);
+  const [deleteInstanceConfirmOpen, setDeleteInstanceConfirmOpen] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const getChatLast8 = (chat: any) => {
     // Prefer explicit numbers, fallback to chat_id
@@ -338,6 +343,50 @@ export default function AdminWhatsApp() {
       }
     } catch {
       toast.error("Erro ao desconectar");
+    }
+  };
+
+  // Delete instance completely
+  const handleDeleteInstance = async () => {
+    if (!mainInstance) return;
+    setDeletingInstance(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+
+      // Try to delete from UAZapi server
+      try {
+        await supabase.functions.invoke("uazapi-admin-delete-instance", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { instance_id: mainInstance.id },
+        });
+      } catch (e) {
+        console.error("Error deleting from UAZapi:", e);
+      }
+
+      // Clear uazapi_config link
+      await supabase
+        .from("uazapi_config")
+        .update({ whatsapp_instancia_id: null, is_active: false })
+        .eq("user_id", user?.id);
+
+      // Delete from disparos_instancias
+      const { error } = await supabase
+        .from("disparos_instancias")
+        .delete()
+        .eq("id", mainInstance.id);
+
+      if (error) throw error;
+
+      toast.success("Instância removida!");
+      setMainInstance(null);
+      setHasConfig(false);
+      setConnectionStatus('disconnected');
+      setManageDialogOpen(false);
+      setDeleteInstanceConfirmOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao remover instância");
+    } finally {
+      setDeletingInstance(false);
     }
   };
 
@@ -1054,7 +1103,7 @@ export default function AdminWhatsApp() {
                     variant="outline" 
                     size="sm" 
                     className="gap-1 text-green-600 border-green-600 h-6 px-2 text-xs ml-auto"
-                    onClick={handleDisconnect}
+                    onClick={() => setManageDialogOpen(true)}
                   >
                     <CheckCircle2 className="h-3 w-3" />
                     Conectado
@@ -1090,7 +1139,7 @@ export default function AdminWhatsApp() {
                     variant="outline" 
                     size="sm" 
                     className="gap-1 text-green-600 border-green-600 h-8 px-3"
-                    onClick={handleDisconnect}
+                    onClick={() => setManageDialogOpen(true)}
                   >
                     <CheckCircle2 className="h-3 w-3" />
                     Conectado
@@ -1556,5 +1605,128 @@ export default function AdminWhatsApp() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Manage Instance Dialog */}
+      <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Gerenciar Instância
+            </DialogTitle>
+            <DialogDescription>
+              {mainInstance?.nome || "WhatsApp Principal"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            {/* Status Card */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    connectionStatus === 'connected' ? 'bg-green-500' : 
+                    connectionStatus === 'loading' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
+                  }`} />
+                  <div>
+                    <p className="font-medium text-sm">{mainInstance?.nome}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {connectionStatus === 'connected' ? 'Conectado' : 
+                       connectionStatus === 'loading' ? 'Verificando...' : 'Desconectado'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => mainInstance && checkConnectionStatus(mainInstance.base_url, mainInstance.api_key)}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </Card>
+
+            {/* Actions */}
+            <div className="space-y-2">
+              {/* Edit Name */}
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setEditingName(mainInstance?.nome || "");
+                  setManageDialogOpen(false);
+                  setEditNameDialogOpen(true);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+                Editar nome
+              </Button>
+
+              {/* Reconnect */}
+              {connectionStatus === 'disconnected' && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => {
+                    setManageDialogOpen(false);
+                    handleOpenQrCode();
+                  }}
+                >
+                  <QrCode className="h-4 w-4" />
+                  Reconectar via QR Code
+                </Button>
+              )}
+
+              {/* Disconnect */}
+              {connectionStatus === 'connected' && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-amber-600 hover:text-amber-600"
+                  onClick={() => {
+                    handleDisconnect();
+                    setManageDialogOpen(false);
+                  }}
+                >
+                  <Unplug className="h-4 w-4" />
+                  Desconectar WhatsApp
+                </Button>
+              )}
+
+              {/* Delete */}
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                onClick={() => setDeleteInstanceConfirmOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Remover instância
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Instance Confirmation */}
+      <AlertDialog open={deleteInstanceConfirmOpen} onOpenChange={setDeleteInstanceConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover instância?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá remover a instância "{mainInstance?.nome}" completamente. 
+              Você precisará configurar uma nova conexão para usar o WhatsApp.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingInstance}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteInstance}
+              disabled={deletingInstance}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Remover"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>;
 }
