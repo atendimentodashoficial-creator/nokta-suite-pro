@@ -54,37 +54,70 @@ Deno.serve(async (req) => {
     // Normalize base URL
     const normalizedBaseUrl = base_url.replace(/\/+$/, '');
 
-    // Call the logout endpoint
-    const response = await fetch(`${normalizedBaseUrl}/instance/logout`, {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "token": api_key,
-      },
-    });
+    // Try multiple endpoint variations (different UAZAPI servers expose different disconnect routes/methods)
+    const attempts: Array<{ url: string; method: string }> = [
+      { url: `${normalizedBaseUrl}/instance/logout`, method: "POST" },
+      { url: `${normalizedBaseUrl}/instance/logout`, method: "GET" },
+      { url: `${normalizedBaseUrl}/instance/disconnect`, method: "POST" },
+      { url: `${normalizedBaseUrl}/instance/disconnect`, method: "GET" },
+    ];
 
-    console.log("Logout response status:", response.status);
+    let lastStatus = 0;
+    let lastBody = "";
 
-    if (response.ok || response.status === 200) {
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: "WhatsApp desconectado com sucesso!"
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } else {
-      const errorText = await response.text().catch(() => "");
-      console.log("Logout error:", errorText);
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: "Erro ao desconectar do servidor UAZAPI"
-      }), {
+    for (const attempt of attempts) {
+      try {
+        console.log(`Trying disconnect: ${attempt.method} ${attempt.url}`);
+
+        const resp = await fetch(attempt.url, {
+          method: attempt.method,
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "token": api_key,
+          },
+        });
+
+        lastStatus = resp.status;
+        lastBody = await resp.text().catch(() => "");
+        console.log("Disconnect response status:", resp.status);
+
+        if (resp.ok || resp.status === 200 || resp.status === 204) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: "WhatsApp desconectado com sucesso!",
+              endpoint_used: attempt.url,
+              method_used: attempt.method,
+            }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        // If method is not allowed or not found, try next option
+        if (resp.status === 404 || resp.status === 405) {
+          continue;
+        }
+      } catch (e: any) {
+        console.log("Disconnect attempt failed:", e?.message || e);
+      }
+    }
+
+    console.log("All disconnect attempts failed", { lastStatus, lastBody });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Erro ao desconectar do servidor UAZAPI",
+        details: { lastStatus, lastBody },
+      }),
+      {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+      },
+    );
 
   } catch (error: any) {
     console.error("Error in uazapi-disconnect-instance:", error);
