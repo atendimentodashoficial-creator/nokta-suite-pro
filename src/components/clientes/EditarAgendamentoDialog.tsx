@@ -130,7 +130,6 @@ const gerarHorariosIntervalo = (
 };
 
 const editarAgendamentoSchema = z.object({
-  status: z.enum(["agendado", "confirmado", "cancelado", "realizado"]),
   data_agendamento: z.date({
     required_error: "Data é obrigatória",
   }),
@@ -171,7 +170,6 @@ export function EditarAgendamentoDialog({
   const form = useForm<EditarAgendamentoFormData>({
     resolver: zodResolver(editarAgendamentoSchema),
     defaultValues: {
-      status: agendamento.status,
       hora: format(new Date(agendamento.data_agendamento), "HH:mm"),
       tipo: agendamento.tipo || "",
       procedimento_id: agendamento.procedimento_id || "",
@@ -185,7 +183,6 @@ export function EditarAgendamentoDialog({
   useEffect(() => {
     if (agendamento && open) {
       form.reset({
-        status: agendamento.status,
         data_agendamento: new Date(agendamento.data_agendamento),
         hora: format(new Date(agendamento.data_agendamento), "HH:mm"),
         tipo: agendamento.tipo || "",
@@ -281,7 +278,6 @@ export function EditarAgendamentoDialog({
       const dataFoiAlterada = dataHora.getTime() !== dataOriginal.getTime();
 
       const updateData: any = {
-        status: data.status,
         tipo: data.tipo || null,
         data_agendamento: dataHora.toISOString(),
         procedimento_id: data.procedimento_id || null,
@@ -343,29 +339,6 @@ export function EditarAgendamentoDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="agendado">Agendado</SelectItem>
-                      <SelectItem value="confirmado">Confirmado</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
-                      <SelectItem value="realizado">Realizado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
