@@ -385,7 +385,12 @@ export default function Disparos() {
     if (qrPollingInterval) clearInterval(qrPollingInterval);
     if (!instancia.base_url || !instancia.api_key) return;
 
+    // Skip initial polls to give user time to scan QR
+    let pollCount = 0;
+    const minPollsBeforeConnect = 2; // Wait at least 10 seconds (2 x 5s) before accepting connection
+
     const interval = setInterval(async () => {
+      pollCount++;
       try {
         const { data: session } = await supabase.auth.getSession();
         const response = await supabase.functions.invoke("uazapi-test-connection", {
@@ -393,23 +398,32 @@ export default function Disparos() {
           body: { base_url: instancia.base_url, api_key: instancia.api_key },
         });
 
-        if (response.data?.success) {
-          clearInterval(interval);
-          setQrPollingInterval(null);
-          setQrCodeDialogOpen(false);
-          setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
-          toast.success("WhatsApp conectado!");
-          loadInstancias();
-          checkConfig();
+        // Only accept connection after minimum polls to avoid false positives
+        if (response.data?.success && pollCount >= minPollsBeforeConnect) {
+          // Double-check that it's really logged in, not just "connected"
+          const details = response.data?.details;
+          const isReallyLoggedIn = details?.whatsapp_status === 'connected' || 
+            (details?.status && !['connecting', 'disconnected', 'close'].includes(details.status));
+          
+          if (isReallyLoggedIn) {
+            clearInterval(interval);
+            setQrPollingInterval(null);
+            setQrCodeDialogOpen(false);
+            setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
+            toast.success("WhatsApp conectado!");
+            loadInstancias();
+            checkConfig();
+          }
         }
       } catch {}
     }, 5000);
 
     setQrPollingInterval(interval);
+    // Timeout after 3 minutes
     setTimeout(() => {
       clearInterval(interval);
       setQrPollingInterval(null);
-    }, 120000);
+    }, 180000);
   };
 
   // Disconnect instance
