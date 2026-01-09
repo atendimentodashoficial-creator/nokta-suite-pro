@@ -1636,8 +1636,10 @@ export type Database = {
           ativo: boolean | null
           created_at: string
           descricao: string | null
+          edges: Json | null
           etapas: Json
           id: string
+          nodes: Json | null
           nome: string
           updated_at: string
           user_id: string
@@ -1646,8 +1648,10 @@ export type Database = {
           ativo?: boolean | null
           created_at?: string
           descricao?: string | null
+          edges?: Json | null
           etapas?: Json
           id?: string
+          nodes?: Json | null
           nome: string
           updated_at?: string
           user_id: string
@@ -1656,8 +1660,10 @@ export type Database = {
           ativo?: boolean | null
           created_at?: string
           descricao?: string | null
+          edges?: Json | null
           etapas?: Json
           id?: string
+          nodes?: Json | null
           nome?: string
           updated_at?: string
           user_id?: string
@@ -1672,6 +1678,11 @@ export type Database = {
           id: string
           nome: string
           palavras_chave: string[]
+          resposta_botoes: Json | null
+          resposta_link_texto: string | null
+          resposta_link_url: string | null
+          resposta_midia_tipo: string | null
+          resposta_midia_url: string | null
           resposta_texto: string | null
           tipo: string
           updated_at: string
@@ -1684,6 +1695,11 @@ export type Database = {
           id?: string
           nome: string
           palavras_chave?: string[]
+          resposta_botoes?: Json | null
+          resposta_link_texto?: string | null
+          resposta_link_url?: string | null
+          resposta_midia_tipo?: string | null
+          resposta_midia_url?: string | null
           resposta_texto?: string | null
           tipo?: string
           updated_at?: string
@@ -1696,6 +1712,11 @@ export type Database = {
           id?: string
           nome?: string
           palavras_chave?: string[]
+          resposta_botoes?: Json | null
+          resposta_link_texto?: string | null
+          resposta_link_url?: string | null
+          resposta_midia_tipo?: string | null
+          resposta_midia_url?: string | null
           resposta_texto?: string | null
           tipo?: string
           updated_at?: string
