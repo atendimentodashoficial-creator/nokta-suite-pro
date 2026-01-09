@@ -1601,9 +1601,11 @@ export type Database = {
           id: string
           instagram_account_id: string | null
           is_active: boolean | null
+          mensagem_pedir_seguir: string | null
           page_access_token: string
           updated_at: string
           user_id: string
+          verificar_seguidor: boolean | null
           webhook_verify_token: string
         }
         Insert: {
@@ -1614,9 +1616,11 @@ export type Database = {
           id?: string
           instagram_account_id?: string | null
           is_active?: boolean | null
+          mensagem_pedir_seguir?: string | null
           page_access_token: string
           updated_at?: string
           user_id: string
+          verificar_seguidor?: boolean | null
           webhook_verify_token?: string
         }
         Update: {
@@ -1627,9 +1631,11 @@ export type Database = {
           id?: string
           instagram_account_id?: string | null
           is_active?: boolean | null
+          mensagem_pedir_seguir?: string | null
           page_access_token?: string
           updated_at?: string
           user_id?: string
+          verificar_seguidor?: boolean | null
           webhook_verify_token?: string
         }
         Relationships: []

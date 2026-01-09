@@ -96,6 +96,12 @@ async function processMessage(supabase: any, event: any) {
 
   if (!senderId || !message) return;
 
+  // Skip echo messages (messages sent by ourselves)
+  if (message.is_echo) {
+    console.log('Skipping echo message');
+    return;
+  }
+
   console.log('Processing message from:', senderId, 'Content:', message.text);
 
   // Find active config
@@ -110,6 +116,41 @@ async function processMessage(supabase: any, event: any) {
   }
 
   const config = configs[0];
+
+  // Check if follower verification is enabled
+  if (config.verificar_seguidor && config.mensagem_pedir_seguir) {
+    const followerInfo = await checkIfFollower(config.page_access_token, senderId);
+    
+    if (followerInfo && !followerInfo.is_user_follow_business) {
+      console.log('User does not follow business, sending follow request message');
+      
+      // Replace {nome} with username if available
+      let followMessage = config.mensagem_pedir_seguir;
+      if (followerInfo.username) {
+        followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
+      }
+
+      await sendInstagramMessage(
+        config.page_access_token,
+        config.instagram_account_id,
+        senderId,
+        followMessage
+      );
+
+      // Log the message
+      await supabase.from('instagram_mensagens').insert({
+        user_id: config.user_id,
+        instagram_user_id: senderId,
+        instagram_username: followerInfo.username,
+        tipo: 'dm_enviada',
+        conteudo: followMessage,
+        metadata: { tipo: 'pedir_seguir', follower_info: followerInfo },
+      });
+
+      // Don't process other triggers if user doesn't follow
+      return;
+    }
+  }
 
   // Check if this is first interaction
   const isFirstInteraction = await checkAndTrackInteraction(supabase, config.user_id, senderId);
@@ -133,7 +174,7 @@ async function processMessage(supabase: any, event: any) {
       .eq('user_id', config.user_id)
       .eq('ativo', true)
       .eq('tipo', 'primeira_interacao')
-      .single();
+      .maybeSingle();
 
     if (welcomeGatilho?.resposta_texto) {
       console.log('Sending welcome message');
@@ -212,6 +253,42 @@ async function processMessage(supabase: any, event: any) {
 
   // Also check ice breaker payloads
   await checkIceBreakerPayload(supabase, config, senderId, message.text);
+}
+
+async function checkIfFollower(accessToken: string, userId: string): Promise<any | null> {
+  try {
+    const trimmed = (accessToken || "").trim();
+    const isInstagramGraphToken = trimmed.startsWith("IG");
+
+    const fields = 'username,profile_pic,is_user_follow_business,is_business_follow_user,follower_count';
+    
+    let url: string;
+    if (isInstagramGraphToken) {
+      url = `https://graph.instagram.com/v24.0/${userId}?fields=${fields}`;
+    } else {
+      url = `https://graph.facebook.com/v18.0/${userId}?fields=${fields}&access_token=${trimmed}`;
+    }
+
+    const headers: Record<string, string> = {};
+    if (isInstagramGraphToken) {
+      headers['Authorization'] = `Bearer ${trimmed}`;
+    }
+
+    const response = await fetch(url, { headers });
+    const result = await response.json();
+    
+    console.log('Follower check result:', result);
+
+    if (!response.ok) {
+      console.error('Failed to check follower status:', result);
+      return null;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error checking follower status:', error);
+    return null;
+  }
 }
 
 async function checkAndTrackInteraction(supabase: any, userId: string, instagramUserId: string): Promise<boolean> {
