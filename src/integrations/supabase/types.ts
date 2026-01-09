@@ -1813,6 +1813,7 @@ export type Database = {
           agendamento_id: string | null
           created_at: string
           currency: string | null
+          customer_data_sent: Json | null
           event_id: string
           event_name: string
           event_time: string
@@ -1831,6 +1832,7 @@ export type Database = {
           agendamento_id?: string | null
           created_at?: string
           currency?: string | null
+          customer_data_sent?: Json | null
           event_id: string
           event_name: string
           event_time?: string
@@ -1849,6 +1851,7 @@ export type Database = {
           agendamento_id?: string | null
           created_at?: string
           currency?: string | null
+          customer_data_sent?: Json | null
           event_id?: string
           event_name?: string
           event_time?: string
