@@ -194,6 +194,13 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         status: msg.status,
         deleted: msg.deleted,
         timestamp: msg.timestamp,
+        // Campaign attribution fields
+        utm_source: msg.utm_source,
+        utm_campaign: msg.utm_campaign,
+        utm_medium: msg.utm_medium,
+        utm_content: msg.utm_content,
+        utm_term: msg.utm_term,
+        fbclid: msg.fbclid,
       }));
 
       const dedupedFormatted = dedupeChatMessages(formattedMessages);
@@ -593,6 +600,13 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
             status: payload.new.status,
             deleted: payload.new.deleted,
             timestamp: payload.new.timestamp,
+            // Campaign attribution fields
+            utm_source: payload.new.utm_source,
+            utm_campaign: payload.new.utm_campaign,
+            utm_medium: payload.new.utm_medium,
+            utm_content: payload.new.utm_content,
+            utm_term: payload.new.utm_term,
+            fbclid: payload.new.fbclid,
           };
           setMessages(prev => dedupeChatMessages([...prev, newMsg]));
           setShouldScrollToBottom(true);
@@ -610,7 +624,19 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
           setMessages(prevMessages =>
             prevMessages.map(msg =>
               msg.message_id === payload.new.message_id
-                ? { ...msg, deleted: payload.new.deleted, content: payload.new.content, status: payload.new.status }
+                ? { 
+                    ...msg, 
+                    deleted: payload.new.deleted, 
+                    content: payload.new.content, 
+                    status: payload.new.status,
+                    // Update attribution fields too
+                    utm_source: payload.new.utm_source,
+                    utm_campaign: payload.new.utm_campaign,
+                    utm_medium: payload.new.utm_medium,
+                    utm_content: payload.new.utm_content,
+                    utm_term: payload.new.utm_term,
+                    fbclid: payload.new.fbclid,
+                  }
                 : msg
             )
           );

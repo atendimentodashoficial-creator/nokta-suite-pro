@@ -507,6 +507,8 @@ Deno.serve(async (req) => {
               messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
             ).toISOString();
 
+            // Note: utmData is extracted later in the code, so we save message first without UTM
+            // and will update with UTM data after extraction
             const { error: msgInsertError } = await supabase
               .from('whatsapp_messages')
               .upsert({
@@ -522,6 +524,9 @@ Deno.serve(async (req) => {
               console.error('Error saving WhatsApp message:', msgInsertError);
             } else {
               console.log('Saved WhatsApp message:', messageId);
+              // Store messageId and chatId for later UTM update
+              (globalThis as any).__savedWhatsAppMsgId = messageId;
+              (globalThis as any).__savedWhatsAppChatId = matchingChat.id;
             }
           } else {
             // Chat doesn't exist yet - create it automatically so the UI can show it immediately
@@ -573,6 +578,9 @@ Deno.serve(async (req) => {
                 console.error('Error saving first WhatsApp message:', msgInsertError);
               } else {
                 console.log('Saved first WhatsApp message:', messageId);
+                // Store messageId and chatId for later UTM update
+                (globalThis as any).__savedWhatsAppMsgId = messageId;
+                (globalThis as any).__savedWhatsAppChatId = newChat.id;
               }
             }
           }
@@ -811,7 +819,40 @@ Deno.serve(async (req) => {
       };
     }
 
-    // Determine origin for lead based on instance.
+    // === Update the saved message with UTM data if we have attribution ===
+    const savedMsgId = (globalThis as any).__savedWhatsAppMsgId;
+    const savedChatId = (globalThis as any).__savedWhatsAppChatId;
+    delete (globalThis as any).__savedWhatsAppMsgId;
+    delete (globalThis as any).__savedWhatsAppChatId;
+
+    if (savedMsgId && savedChatId && referral) {
+      console.log('Updating message with campaign attribution:', { 
+        messageId: savedMsgId, 
+        chatId: savedChatId,
+        campaign: utmData.utm_campaign,
+        source: utmData.utm_source 
+      });
+      
+      const { error: utmUpdateError } = await supabase
+        .from('whatsapp_messages')
+        .update({
+          utm_source: utmData.utm_source,
+          utm_campaign: utmData.utm_campaign,
+          utm_medium: utmData.utm_medium,
+          utm_content: utmData.utm_content,
+          utm_term: utmData.utm_term,
+          fbclid: utmData.fbclid,
+        })
+        .eq('chat_id', savedChatId)
+        .eq('message_id', savedMsgId);
+
+      if (utmUpdateError) {
+        console.error('Error updating message with UTM data:', utmUpdateError);
+      } else {
+        console.log('Successfully added campaign attribution to message:', savedMsgId);
+      }
+    }
+
     // Rule: if webhook includes an instance param, treat it as Disparos unless it matches the configured main WhatsApp instance.
     let instanciaNome: string | null = instanciaNomeFromDb;
 

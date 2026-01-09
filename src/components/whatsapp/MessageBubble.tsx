@@ -1,9 +1,15 @@
-import { Check, CheckCheck, Image, Video, FileAudio, File } from "lucide-react";
+import { Check, CheckCheck, Image, Video, FileAudio, File, Megaphone } from "lucide-react";
 import { formatWhatsAppText } from "@/utils/whatsapp";
 import { format } from "date-fns";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface MessageBubbleProps {
   message: {
@@ -15,6 +21,13 @@ interface MessageBubbleProps {
     timestamp: string;
     status?: string | null;
     deleted?: boolean;
+    // Campaign attribution fields
+    utm_source?: string | null;
+    utm_campaign?: string | null;
+    utm_medium?: string | null;
+    utm_content?: string | null;
+    utm_term?: string | null;
+    fbclid?: string | null;
   };
 }
 
@@ -52,6 +65,11 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
   const [mediaData, setMediaData] = useState<{ fileURL: string; mimetype: string } | null>(null);
   const [isLoadingMedia, setIsLoadingMedia] = useState(false);
   const [mediaRequested, setMediaRequested] = useState(false);
+
+  // Check if this message has campaign attribution
+  const hasAttribution = Boolean(
+    message.utm_source || message.utm_campaign || message.fbclid
+  );
 
   const loadMedia = async () => {
     setMediaRequested(true);
@@ -190,6 +208,94 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
     );
   };
 
+  // Get source info for badge
+  const getSourceInfo = () => {
+    if (message.utm_source === 'facebook' || message.fbclid) {
+      return { label: 'Meta Ads', color: 'bg-blue-500' };
+    }
+    if (message.utm_source) {
+      return { label: message.utm_source, color: 'bg-purple-500' };
+    }
+    return { label: 'Campanha', color: 'bg-gray-500' };
+  };
+
+  const renderCampaignBadge = () => {
+    if (!hasAttribution || isDeleted) return null;
+
+    const sourceInfo = getSourceInfo();
+
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mb-2 hover:bg-blue-200 transition-colors cursor-pointer">
+            <Megaphone className="w-3 h-3" />
+            <span>via {sourceInfo.label}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-3" align="start">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-blue-500" />
+              <span className="font-semibold text-sm">Origem do Clique</span>
+            </div>
+            
+            <div className="space-y-2">
+              {/* Fonte */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Fonte:</span>
+                <Badge variant="secondary" className={`text-white ${sourceInfo.color}`}>
+                  {sourceInfo.label}
+                </Badge>
+              </div>
+
+              {/* Campanha (nome real) */}
+              {message.utm_campaign && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">Campanha:</span>
+                  <span className="text-sm font-medium bg-muted px-2 py-1 rounded">
+                    {message.utm_campaign}
+                  </span>
+                </div>
+              )}
+
+              {/* Texto do anúncio (body) */}
+              {message.utm_term && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">Texto do Anúncio:</span>
+                  <span className="text-sm bg-muted px-2 py-1 rounded">
+                    {message.utm_term}
+                  </span>
+                </div>
+              )}
+
+              {/* ID do anúncio (se necessário) */}
+              {message.utm_content && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">ID Anúncio:</span>
+                  <span className="text-xs font-mono truncate max-w-[140px]" title={message.utm_content}>
+                    {message.utm_content}
+                  </span>
+                </div>
+              )}
+
+              {/* Click ID */}
+              {message.fbclid && (
+                <div className="pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">FBCLID:</span>
+                    <span className="text-xs font-mono truncate max-w-[140px]" title={message.fbclid}>
+                      {message.fbclid.slice(0, 12)}...
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   return (
     <div
       className={`rounded-lg px-4 py-2 ${
@@ -200,6 +306,9 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
           : 'bg-muted text-foreground'
       }`}
     >
+      {/* Campaign attribution badge - show above content for customer messages */}
+      {!isAgent && renderCampaignBadge()}
+
       {/* Media content - hide if deleted */}
       {!isDeleted && isMedia && message.media_url && renderMedia()}
 
