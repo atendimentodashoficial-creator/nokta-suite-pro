@@ -6,10 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface MessageBubbleProps {
   message: {
@@ -28,6 +30,7 @@ interface MessageBubbleProps {
     utm_content?: string | null;
     utm_term?: string | null;
     fbclid?: string | null;
+    ad_thumbnail_url?: string | null;
   };
 }
 
@@ -225,8 +228,8 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
     const sourceInfo = getSourceInfo();
 
     return (
-      <Popover>
-        <PopoverTrigger asChild>
+      <Dialog>
+        <DialogTrigger asChild>
           <button 
             className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mb-2 hover:bg-blue-200 transition-colors cursor-pointer"
             onClick={(e) => e.stopPropagation()}
@@ -234,68 +237,83 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             <Megaphone className="w-3 h-3" />
             <span>via {sourceInfo.label}</span>
           </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-72 p-3" align="start">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Megaphone className="w-4 h-4 text-blue-500" />
-              <span className="font-semibold text-sm">Origem do Clique</span>
-            </div>
-            
-            <div className="space-y-2">
-              {/* Fonte */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Fonte:</span>
-                <Badge variant="secondary" className={`text-white ${sourceInfo.color}`}>
-                  {sourceInfo.label}
-                </Badge>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-blue-500" />
+              Origem do Anúncio
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Ad thumbnail preview */}
+            {message.ad_thumbnail_url && (
+              <div className="rounded-lg overflow-hidden border">
+                <img 
+                  src={message.ad_thumbnail_url} 
+                  alt="Preview do anúncio" 
+                  className="w-full h-auto max-h-48 object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
               </div>
+            )}
 
-              {/* Campanha (nome real) */}
-              {message.utm_campaign && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">Campanha:</span>
-                  <span className="text-sm font-medium bg-muted px-2 py-1 rounded">
-                    {message.utm_campaign}
-                  </span>
+            {/* Source badge */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Fonte:</span>
+              <Badge variant="secondary" className={`text-white ${sourceInfo.color}`}>
+                {sourceInfo.label}
+              </Badge>
+            </div>
+
+            {/* Campaign name (title) */}
+            {message.utm_campaign && (
+              <div className="space-y-1">
+                <span className="text-sm text-muted-foreground">Nome do Anúncio:</span>
+                <div className="p-3 bg-muted rounded-lg">
+                  <span className="text-sm font-medium">{message.utm_campaign}</span>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Texto do anúncio (body) */}
-              {message.utm_term && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">Texto do Anúncio:</span>
-                  <span className="text-sm bg-muted px-2 py-1 rounded">
-                    {message.utm_term}
-                  </span>
+            {/* Ad body text */}
+            {message.utm_term && (
+              <div className="space-y-1">
+                <span className="text-sm text-muted-foreground">Texto do Anúncio:</span>
+                <div className="p-3 bg-muted rounded-lg max-h-40 overflow-y-auto">
+                  <span className="text-sm whitespace-pre-wrap">{message.utm_term}</span>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* ID do anúncio (se necessário) */}
-              {message.utm_content && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">ID Anúncio:</span>
-                  <span className="text-xs font-mono truncate max-w-[140px]" title={message.utm_content}>
-                    {message.utm_content}
-                  </span>
-                </div>
-              )}
-
-              {/* Click ID */}
-              {message.fbclid && (
-                <div className="pt-2 border-t">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">FBCLID:</span>
-                    <span className="text-xs font-mono truncate max-w-[140px]" title={message.fbclid}>
-                      {message.fbclid.slice(0, 12)}...
+            {/* Technical IDs - collapsed by default */}
+            {(message.utm_content || message.fbclid) && (
+              <div className="pt-3 border-t space-y-2">
+                <span className="text-xs text-muted-foreground">Dados Técnicos:</span>
+                {message.utm_content && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">ID do Anúncio:</span>
+                    <span className="font-mono truncate max-w-[180px]" title={message.utm_content}>
+                      {message.utm_content}
                     </span>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+                {message.fbclid && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">FBCLID:</span>
+                    <span className="font-mono truncate max-w-[180px]" title={message.fbclid}>
+                      {message.fbclid.slice(0, 20)}...
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </PopoverContent>
-      </Popover>
+        </DialogContent>
+      </Dialog>
     );
   };
 

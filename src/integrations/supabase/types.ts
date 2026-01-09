@@ -992,6 +992,7 @@ export type Database = {
       }
       disparos_messages: {
         Row: {
+          ad_thumbnail_url: string | null
           admin_id: string | null
           chat_id: string
           content: string
@@ -1012,6 +1013,7 @@ export type Database = {
           utm_term: string | null
         }
         Insert: {
+          ad_thumbnail_url?: string | null
           admin_id?: string | null
           chat_id: string
           content: string
@@ -1032,6 +1034,7 @@ export type Database = {
           utm_term?: string | null
         }
         Update: {
+          ad_thumbnail_url?: string | null
           admin_id?: string | null
           chat_id?: string
           content?: string
@@ -2637,6 +2640,7 @@ export type Database = {
       }
       whatsapp_messages: {
         Row: {
+          ad_thumbnail_url: string | null
           admin_id: string | null
           chat_id: string
           content: string
@@ -2657,6 +2661,7 @@ export type Database = {
           utm_term: string | null
         }
         Insert: {
+          ad_thumbnail_url?: string | null
           admin_id?: string | null
           chat_id: string
           content: string
@@ -2677,6 +2682,7 @@ export type Database = {
           utm_term?: string | null
         }
         Update: {
+          ad_thumbnail_url?: string | null
           admin_id?: string | null
           chat_id?: string
           content?: string

@@ -208,6 +208,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         utm_content: msg.utm_content,
         utm_term: msg.utm_term,
         fbclid: msg.fbclid,
+        ad_thumbnail_url: msg.ad_thumbnail_url,
       }));
 
       setMessages(formattedMessages);
@@ -853,6 +854,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
             utm_content: payload.new.utm_content,
             utm_term: payload.new.utm_term,
             fbclid: payload.new.fbclid,
+            ad_thumbnail_url: payload.new.ad_thumbnail_url,
           };
           setMessages(prev => [...prev, newMsg]);
           setShouldScrollToBottom(true);
@@ -882,6 +884,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
                     utm_content: payload.new.utm_content,
                     utm_term: payload.new.utm_term,
                     fbclid: payload.new.fbclid,
+                    ad_thumbnail_url: payload.new.ad_thumbnail_url,
                   }
                 : msg
             )
