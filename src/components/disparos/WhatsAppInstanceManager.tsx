@@ -315,6 +315,25 @@ export function WhatsAppInstanceManager({
           setQrCodeDialogOpen(false);
           setConnectionStatus(prev => ({ ...prev, [instance.id]: 'connected' }));
           toast.success("WhatsApp conectado!");
+          
+          // Configure webhook after successful connection
+          const webhookUrl = getWebhookUrl(instance.id);
+          const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+            body: {
+              base_url: instance.base_url,
+              api_key: instance.api_key,
+              webhook_url: webhookUrl,
+              instancia_id: instance.id,
+            },
+          });
+
+          if (webhookResponse.data?.success) {
+            toast.success("Webhook configurado!");
+          } else {
+            console.error("Webhook config failed:", webhookResponse.data);
+          }
+          
           onInstancesChange();
         }
       } catch {}
