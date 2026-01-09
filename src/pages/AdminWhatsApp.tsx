@@ -521,10 +521,10 @@ export default function AdminWhatsApp() {
           toast.success("WhatsApp conectado!");
 
           // Configure webhook after successful connection
-          const instanciaId = instanciaRef?.id;
-          if (instanciaId && user?.id) {
-            const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${instanciaId}`;
-            console.log("Configuring webhook:", webhookUrl);
+            const instanciaId = instanciaRef?.id;
+            if (instanciaId && user?.id) {
+              const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook/${user.id}/${instanciaId}`;
+              console.log("Configuring webhook:", webhookUrl);
 
             const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
               headers: { Authorization: `Bearer ${session.session?.access_token}` },

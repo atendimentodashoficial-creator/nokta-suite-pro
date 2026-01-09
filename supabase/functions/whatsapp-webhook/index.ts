@@ -179,10 +179,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get user_id from query parameters
+    // Identify user/instance from URL.
+    // UAZAPI may append extra path segments when addUrlEvents/addUrlTypesMessages are enabled.
     const url = new URL(req.url);
-    const userId = url.searchParams.get('user_id');
-    const instanciaId = url.searchParams.get('instancia_id'); // Optional: for Disparos instance-specific updates
+
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    const fnIdx = pathParts.findIndex((p) => p === 'whatsapp-webhook');
+    const userIdFromPath = fnIdx >= 0 ? pathParts[fnIdx + 1] : null;
+    const instanciaIdFromPath = fnIdx >= 0 ? pathParts[fnIdx + 2] : null;
+
+    const userId = url.searchParams.get('user_id') || userIdFromPath;
+    // Sometimes providers incorrectly append "/..." onto query param values; sanitize.
+    const rawInstanciaId = url.searchParams.get('instancia_id') || instanciaIdFromPath;
+    const instanciaId = rawInstanciaId ? rawInstanciaId.split('/')[0] : null;
 
     if (!userId) {
       console.error('Missing user_id parameter');
@@ -196,14 +205,15 @@ Deno.serve(async (req) => {
     await logEvent(userId, 'info', `Webhook recebido via POST${instanciaId ? ` (instancia: ${instanciaId})` : ''}`);
     console.log('Processing webhook for user:', userId, instanciaId ? `instancia: ${instanciaId}` : '');
 
-    // Update last_webhook_at for the instance if instancia_id is provided
-    if (instanciaId) {
+    // Update last_webhook_at for the instance if instancia_id is provided (and looks like UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (instanciaId && uuidRegex.test(instanciaId)) {
       const { error: updateError } = await supabase
         .from('disparos_instancias')
         .update({ last_webhook_at: new Date().toISOString() })
         .eq('id', instanciaId)
         .eq('user_id', userId);
-      
+
       if (updateError) {
         console.error('Error updating last_webhook_at:', updateError);
       } else {
@@ -242,8 +252,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate payload for new message events
-    if (!payload.chat || !payload.message) {
+    // Normalize payload differences between providers.
+    // UAZAPI (observed) may send: { EventType: 'messages', message: { chatid, content, text, sender, sender_pn, ... } }
+    const anyPayload: any = payload as any;
+    const hasMessage = Boolean(anyPayload?.message);
+    const hasChat = Boolean(anyPayload?.chat) || Boolean(anyPayload?.message?.chatid) || Boolean(anyPayload?.message?.chatId);
+
+    if (!hasMessage || !hasChat) {
       console.error('Invalid payload structure');
       await logEvent(userId, 'error', 'Estrutura de payload inválida', payload);
       return new Response(
@@ -252,8 +267,24 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Ensure we have a chat object
+    if (!anyPayload.chat) {
+      anyPayload.chat = {
+        wa_chatid: anyPayload?.message?.chatid || anyPayload?.message?.chatId,
+        wa_name: anyPayload?.message?.senderName,
+      };
+    }
+
+    // Ensure messageTimestamp field exists
+    if (anyPayload?.message?.messageTimestamp == null && anyPayload?.message?.timestamp != null) {
+      anyPayload.message.messageTimestamp = anyPayload.message.timestamp;
+    }
+
+    // Use normalized payload below
+    const normalizedPayload = anyPayload as WhatsAppWebhookPayload;
+
     // Ignore messages sent by the user (fromMe = true)
-    if (payload.message.fromMe) {
+    if (normalizedPayload.message?.fromMe) {
       console.log('Ignoring message sent by user');
       await logEvent(userId, 'info', 'Mensagem ignorada (enviada pelo usuário)');
       return new Response(
@@ -263,21 +294,23 @@ Deno.serve(async (req) => {
     }
 
     // Extract data from payload
-    const phone = payload.chat.phone?.trim() || 
-                  payload.message?.sender_pn?.replace('@s.whatsapp.net', '') ||
-                  payload.chat.wa_chatid?.replace('@s.whatsapp.net', '') ||
-                  '';
-    
-    const name = payload.chat.wa_name?.trim() || 
-                 payload.chat.name?.trim() || 
-                 payload.message?.senderName?.trim() ||
-                 'Contato WhatsApp';
-    
+    const chatId = normalizedPayload.chat?.wa_chatid || normalizedPayload.chat?.wa_chatid || '';
+    const phone = normalizedPayload.chat?.phone?.trim() ||
+      (normalizedPayload.message as any)?.sender_pn?.replace('@s.whatsapp.net', '') ||
+      String((normalizedPayload.message as any)?.sender || '').replace(/\D/g, '') ||
+      (chatId ? chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '') : '') ||
+      '';
+
+    const name = normalizedPayload.chat?.wa_name?.trim() ||
+      normalizedPayload.chat?.name?.trim() ||
+      normalizedPayload.message?.senderName?.trim() ||
+      'Contato WhatsApp';
+
     // Get text content or media placeholder
-    const textFromPayload = typeof payload.message.text === 'string' ? payload.message.text : '';
-    const contentFromPayload = typeof payload.message.content === 'string' ? payload.message.content : '';
+    const textFromPayload = typeof normalizedPayload.message?.text === 'string' ? normalizedPayload.message.text : '';
+    const contentFromPayload = typeof normalizedPayload.message?.content === 'string' ? normalizedPayload.message.content : '';
     const rawText = (textFromPayload || contentFromPayload).trim();
-    const mediaPlaceholder = getMediaPlaceholder(payload.message);
+    const mediaPlaceholder = getMediaPlaceholder(normalizedPayload.message);
     const messageText = rawText || mediaPlaceholder || '';
 
     if (!phone) {
@@ -295,7 +328,7 @@ Deno.serve(async (req) => {
     await logEvent(userId, 'info', `Contato identificado - Telefone: ${phone} (normalizado: ${normalizedIncoming}), Nome: ${name}`);
 
     // === Deduplicate webhook events to prevent double-counting unread messages ===
-    const messageTimestamp = payload.message.messageTimestamp;
+    const messageTimestamp = normalizedPayload.message!.messageTimestamp;
     const messageHash = `${messageText?.substring(0, 50) || 'empty'}`;
     const last8Incoming = getLast8Digits(phone);
     
@@ -386,7 +419,7 @@ Deno.serve(async (req) => {
             }
           } else {
             // Chat doesn't exist yet - create it automatically so the UI can show it immediately
-            const chatId = payload.chat.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
+            const chatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
             const msgTime = new Date(
               messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
             ).toISOString();
@@ -475,7 +508,7 @@ Deno.serve(async (req) => {
               .eq('id', instanciaId)
               .maybeSingle();
 
-            const chatId = payload.chat.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
+            const chatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
             const msgTime = new Date(
               messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
             ).toISOString();

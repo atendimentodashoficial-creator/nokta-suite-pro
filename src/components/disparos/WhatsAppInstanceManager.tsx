@@ -129,7 +129,7 @@ export function WhatsAppInstanceManager({
 
   const getWebhookUrl = (instanceId: string) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    return `${supabaseUrl}/functions/v1/whatsapp-webhook?user_id=${user?.id}&instancia_id=${instanceId}`;
+    return `${supabaseUrl}/functions/v1/whatsapp-webhook/${user?.id}/${instanceId}`;
   };
 
   const handleAddInstance = async () => {
