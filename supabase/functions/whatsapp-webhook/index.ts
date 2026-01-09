@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
     const userId = url.searchParams.get('user_id') || userIdFromPath;
     // Sometimes providers incorrectly append "/..." onto query param values; sanitize.
     const rawInstanciaId = url.searchParams.get('instancia_id') || instanciaIdFromPath;
-    const instanciaId = rawInstanciaId ? rawInstanciaId.split('/')[0] : null;
+    const rawInstanciaKey = rawInstanciaId ? rawInstanciaId.split('/')[0] : null;
 
     if (!userId) {
       console.error('Missing user_id parameter');
@@ -202,11 +202,55 @@ Deno.serve(async (req) => {
       );
     }
 
-    await logEvent(userId, 'info', `Webhook recebido via POST${instanciaId ? ` (instancia: ${instanciaId})` : ''}`);
-    console.log('Processing webhook for user:', userId, instanciaId ? `instancia: ${instanciaId}` : '');
-
-    // Update last_webhook_at for the instance if instancia_id is provided (and looks like UUID)
+    // Resolve instance info (some providers send UUID, others send instance_name).
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const hasInstanceParam = Boolean(rawInstanciaKey);
+
+    const { data: uazapiConfig } = await supabase
+      .from('uazapi_config')
+      .select('whatsapp_instancia_id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    let instanciaId: string | null = null;
+    let instanciaNomeFromDb: string | null = null;
+
+    if (rawInstanciaKey) {
+      // Try matching by id, instance_name or friendly nome (best-effort).
+      const { data: instanciaRow } = await supabase
+        .from('disparos_instancias')
+        .select('id, nome, instance_name')
+        .eq('user_id', userId)
+        .or(`id.eq.${rawInstanciaKey},instance_name.eq.${rawInstanciaKey},nome.eq.${rawInstanciaKey}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (instanciaRow?.id) {
+        instanciaId = instanciaRow.id;
+        instanciaNomeFromDb = instanciaRow.nome || null;
+      } else {
+        // Could not resolve to a known record; keep it as "hasInstanceParam" and classify as Disparos later.
+        instanciaId = null;
+      }
+    }
+
+    const isMainWhatsAppInstance = Boolean(
+      uazapiConfig?.whatsapp_instancia_id && instanciaId && uazapiConfig.whatsapp_instancia_id === instanciaId
+    );
+
+    await logEvent(
+      userId,
+      'info',
+      `Webhook recebido via POST${hasInstanceParam ? ` (instancia: ${rawInstanciaKey})` : ''}`,
+    );
+    console.log(
+      'Processing webhook for user:',
+      userId,
+      hasInstanceParam ? `instancia: ${rawInstanciaKey}` : ''
+    );
+
+    // Update last_webhook_at for the resolved instance (if we have a UUID id).
     if (instanciaId && uuidRegex.test(instanciaId)) {
       const { error: updateError } = await supabase
         .from('disparos_instancias')
@@ -377,26 +421,10 @@ Deno.serve(async (req) => {
         // (referenced in uazapi_config.whatsapp_instancia_id)
         // If so, update whatsapp_chats. Otherwise, update only disparos_chats.
 
-        let shouldUpdateWhatsApp = !instanciaId; // Default: no instancia_id = WhatsApp
-        let shouldUpdateDisparos = !!instanciaId;
-
-        if (instanciaId) {
-          // Check if this instancia_id matches the WhatsApp main instance
-          const { data: uazapiConfig } = await supabase
-            .from('uazapi_config')
-            .select('whatsapp_instancia_id')
-            .eq('user_id', userId)
-            .eq('is_active', true)
-            .maybeSingle();
-
-          if (uazapiConfig?.whatsapp_instancia_id === instanciaId) {
-            // This is the WhatsApp main instance -> update whatsapp_chats, NOT disparos_chats
-            shouldUpdateWhatsApp = true;
-            shouldUpdateDisparos = false;
-            console.log('Instance is WhatsApp main instance, updating whatsapp_chats only');
-          }
-        }
-
+        // If there's no instance param => WhatsApp.
+        // If there IS an instance param => it's Disparos, unless it matches the configured main WhatsApp instance.
+        const shouldUpdateWhatsApp = !hasInstanceParam || isMainWhatsAppInstance;
+        const shouldUpdateDisparos = hasInstanceParam && !isMainWhatsAppInstance;
         if (shouldUpdateWhatsApp) {
           const { data: existingChats } = await supabase
             .from('whatsapp_chats')
@@ -509,9 +537,8 @@ Deno.serve(async (req) => {
         }
 
         // ===== Disparos chats =====
-        // Only update Disparos chats when instancia_id truly belongs to a Disparos instance.
-        if (shouldUpdateDisparos) {
-          // If instancia_id is provided, only update the chat for that specific instance
+        // Only update Disparos chats when we can resolve the instance UUID.
+        if (shouldUpdateDisparos && instanciaId) {
           // This prevents updating all chats when the same contact exists in multiple instances
           let disparosQuery = supabase
             .from('disparos_chats')
@@ -708,36 +735,21 @@ Deno.serve(async (req) => {
       utmData.fbclid = referral.ctwa_clid || null;
     }
 
-    // Get instance name for tracking and determine origin
-    let instanciaNome: string | null = null;
-    let isDisparosInstance = false;
-    
-    if (instanciaId) {
-      // Check if this instance is a Disparos instance (not the main WhatsApp instance)
+    // Determine origin for lead based on instance.
+    // Rule: if webhook includes an instance param, treat it as Disparos unless it matches the configured main WhatsApp instance.
+    let instanciaNome: string | null = instanciaNomeFromDb;
+
+    if (hasInstanceParam && !instanciaNome && instanciaId) {
       const { data: instanciaInfo } = await supabase
         .from('disparos_instancias')
         .select('nome')
         .eq('id', instanciaId)
-        .single();
-      
-      if (instanciaInfo) {
-        instanciaNome = instanciaInfo.nome || null;
-        
-        // Check if this is the main WhatsApp instance
-        const { data: uazapiConfig } = await supabase
-          .from('uazapi_config')
-          .select('whatsapp_instancia_id')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .maybeSingle();
-        
-        // If the instancia_id is NOT the main WhatsApp instance, it's a Disparos instance
-        isDisparosInstance = uazapiConfig?.whatsapp_instancia_id !== instanciaId;
-        console.log('Instance classification:', isDisparosInstance ? 'Disparos' : 'WhatsApp', 'instancia_id:', instanciaId);
-      }
+        .maybeSingle();
+
+      instanciaNome = instanciaInfo?.nome || null;
     }
-    
-    // Determine the origin based on instance type
+
+    const isDisparosInstance = hasInstanceParam && !isMainWhatsAppInstance;
     const leadOrigem = isDisparosInstance ? 'Disparos' : 'WhatsApp';
 
     // Garantir que exista (ou seja RESTAURADO) um lead para o telefone (match por últimos 8 dígitos)
