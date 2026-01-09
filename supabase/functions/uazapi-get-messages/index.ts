@@ -71,10 +71,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Usar created_at do chat para filtrar mensagens anteriores (lógica igual a Disparos)
-    const chatCreatedAt = existingChat.created_at ? new Date(existingChat.created_at) : null;
-    console.log(`Chat created_at: ${chatCreatedAt?.toISOString() || 'N/A'} - messages before this will be filtered`);
-
+    // NOTE: We no longer filter messages by chat created_at since we want to show old conversations
+    // The created_at filter was meant for chats recreated after deletion, but now we import all history
 
     // Lead creation is now handled ONLY by webhook for new incoming messages
     // Old conversations should NOT create leads when opened
@@ -219,18 +217,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Filtrar mensagens anteriores ao created_at do chat (histórico após exclusão)
-    if (chatCreatedAt) {
-      const beforeFilter = finalMessages.length;
-      finalMessages = finalMessages.filter((msg: any) => {
-        const msgTime = new Date(msg.timestamp);
-        return msgTime >= chatCreatedAt;
-      });
-      const afterFilter = finalMessages.length;
-      if (beforeFilter !== afterFilter) {
-        console.log(`Filtered out ${beforeFilter - afterFilter} messages older than chat created_at`);
-      }
-    }
+    // No longer filtering messages by chat created_at - show all message history
 
     // Sort by timestamp (oldest first)
     finalMessages.sort((a: any, b: any) =>
