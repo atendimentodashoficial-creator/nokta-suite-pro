@@ -306,22 +306,27 @@ serve(async (req) => {
 
       const existingChat = existingByLast8.get(last8);
       
-      // Determine contact name: only use provider name if it's a REAL name (not just phone number)
-      const providerName = chat.name || null;
-      const isProviderNameJustPhone = providerName && providerName.replace(/\D/g, '').length >= 8 && 
-        normalized.includes(providerName.replace(/\D/g, '').slice(-8));
+      // Determine contact name: use provider name when available and valid
+      // Provider may return: wa_name (contact name in address book), name (contact name), wa_contactName
+      const providerName = chat.wa_name || chat.name || chat.wa_contactName || null;
       
-      // Priority: real provider name > existing DB name > "Sem nome" fallback
+      // Check if the provider name is just the phone number formatted
+      const isProviderNameJustPhone = providerName && (
+        providerName.replace(/\D/g, '').length >= 8 && 
+        getLast8Digits(providerName) === last8
+      );
+      
+      // Format phone number for display when no name is available
+      const formattedPhone = chat.phone || normalized;
+      
+      // Priority: real provider name > formatted phone number
       let contactName: string;
-      if (providerName && !isProviderNameJustPhone) {
+      if (providerName && !isProviderNameJustPhone && providerName.trim() !== '') {
         // Provider has a real name (not just phone), use it
-        contactName = providerName;
-      } else if (existingChat?.contact_name && existingChat.contact_name !== chat.phone && existingChat.contact_name !== "Sem nome") {
-        // Preserve existing name from DB (e.g., from campaign list)
-        contactName = existingChat.contact_name;
+        contactName = providerName.trim();
       } else {
-        // Fallback
-        contactName = "Sem nome";
+        // Use the phone number as fallback
+        contactName = formattedPhone;
       }
       
       const deletedAt = existingChat?.deleted_at;
