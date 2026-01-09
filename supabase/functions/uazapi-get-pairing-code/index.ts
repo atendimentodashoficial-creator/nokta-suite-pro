@@ -113,24 +113,42 @@ Deno.serve(async (req) => {
         const connectData = await connectResponse.json().catch(() => ({}));
         console.log("Connect response:", JSON.stringify(connectData));
 
-        pairingCode = connectData.pairingCode || connectData.pairing_code || connectData.code || connectData.paircode;
-        
+        pairingCode =
+          connectData.pairingCode ||
+          connectData.pairing_code ||
+          connectData.code ||
+          connectData.paircode ||
+          connectData?.instance?.paircode ||
+          connectData?.instance?.pairingCode;
+
         if (pairingCode) {
           // Format pairing code with dash for readability (XXXX-XXXX)
-          const formattedCode = pairingCode.length === 8 
+          const formattedCode = pairingCode.length === 8
             ? `${pairingCode.substring(0, 4)}-${pairingCode.substring(4)}`
             : pairingCode;
 
-          return new Response(JSON.stringify({ 
-            success: true, 
-            pairingCode: formattedCode,
-            rawCode: pairingCode,
-            connected: false,
-            message: "Use este código no WhatsApp para conectar"
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return new Response(
+            JSON.stringify({
+              success: true,
+              pairingCode: formattedCode,
+              rawCode: pairingCode,
+              connected: false,
+              message: "Use este código no WhatsApp para conectar",
+            }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+
+        // Some servers don't support pairing codes and only return a QR.
+        const qrFromConnect = connectData?.qrcode || connectData?.qr || connectData?.qr_code || connectData?.instance?.qrcode;
+        const providerMsg = connectData?.message || connectData?.response || connectData?.error || "";
+        if (qrFromConnect) {
+          lastError = "Este servidor não retornou código de pareamento (apenas QR Code). Use a opção 'QR Code'.";
+        } else if (providerMsg) {
+          lastError = String(providerMsg);
         }
       } else {
         const errorText = await connectResponse.text().catch(() => "");
