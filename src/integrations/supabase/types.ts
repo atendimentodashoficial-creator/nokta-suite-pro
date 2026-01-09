@@ -998,6 +998,10 @@ export type Database = {
           content: string
           created_at: string
           deleted: boolean | null
+          fb_ad_id: string | null
+          fb_ad_name: string | null
+          fb_adset_name: string | null
+          fb_campaign_name: string | null
           fbclid: string | null
           id: string
           media_type: Database["public"]["Enums"]["message_media_type"] | null
@@ -1019,6 +1023,10 @@ export type Database = {
           content: string
           created_at?: string
           deleted?: boolean | null
+          fb_ad_id?: string | null
+          fb_ad_name?: string | null
+          fb_adset_name?: string | null
+          fb_campaign_name?: string | null
           fbclid?: string | null
           id?: string
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
@@ -1040,6 +1048,10 @@ export type Database = {
           content?: string
           created_at?: string
           deleted?: boolean | null
+          fb_ad_id?: string | null
+          fb_ad_name?: string | null
+          fb_adset_name?: string | null
+          fb_campaign_name?: string | null
           fbclid?: string | null
           id?: string
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
@@ -1627,6 +1639,10 @@ export type Database = {
           email: string | null
           endereco: string | null
           estado: string | null
+          fb_ad_id: string | null
+          fb_ad_name: string | null
+          fb_adset_name: string | null
+          fb_campaign_name: string | null
           fbclid: string | null
           gclid: string | null
           genero: string | null
@@ -1664,6 +1680,10 @@ export type Database = {
           email?: string | null
           endereco?: string | null
           estado?: string | null
+          fb_ad_id?: string | null
+          fb_ad_name?: string | null
+          fb_adset_name?: string | null
+          fb_campaign_name?: string | null
           fbclid?: string | null
           gclid?: string | null
           genero?: string | null
@@ -1701,6 +1721,10 @@ export type Database = {
           email?: string | null
           endereco?: string | null
           estado?: string | null
+          fb_ad_id?: string | null
+          fb_ad_name?: string | null
+          fb_adset_name?: string | null
+          fb_campaign_name?: string | null
           fbclid?: string | null
           gclid?: string | null
           genero?: string | null
@@ -2646,6 +2670,10 @@ export type Database = {
           content: string
           created_at: string
           deleted: boolean | null
+          fb_ad_id: string | null
+          fb_ad_name: string | null
+          fb_adset_name: string | null
+          fb_campaign_name: string | null
           fbclid: string | null
           id: string
           media_type: Database["public"]["Enums"]["message_media_type"] | null
@@ -2667,6 +2695,10 @@ export type Database = {
           content: string
           created_at?: string
           deleted?: boolean | null
+          fb_ad_id?: string | null
+          fb_ad_name?: string | null
+          fb_adset_name?: string | null
+          fb_campaign_name?: string | null
           fbclid?: string | null
           id?: string
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
@@ -2688,6 +2720,10 @@ export type Database = {
           content?: string
           created_at?: string
           deleted?: boolean | null
+          fb_ad_id?: string | null
+          fb_ad_name?: string | null
+          fb_adset_name?: string | null
+          fb_campaign_name?: string | null
           fbclid?: string | null
           id?: string
           media_type?: Database["public"]["Enums"]["message_media_type"] | null

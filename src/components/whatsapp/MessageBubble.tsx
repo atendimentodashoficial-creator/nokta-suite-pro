@@ -31,6 +31,11 @@ interface MessageBubbleProps {
     utm_term?: string | null;
     fbclid?: string | null;
     ad_thumbnail_url?: string | null;
+    // Real Facebook campaign names
+    fb_ad_id?: string | null;
+    fb_campaign_name?: string | null;
+    fb_adset_name?: string | null;
+    fb_ad_name?: string | null;
   };
 }
 
@@ -71,7 +76,7 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
 
   // Check if this message has campaign attribution
   const hasAttribution = Boolean(
-    message.utm_source || message.utm_campaign || message.fbclid
+    message.utm_source || message.utm_campaign || message.fbclid || message.fb_campaign_name
   );
 
   const loadMedia = async () => {
@@ -269,10 +274,40 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
               </Badge>
             </div>
 
-            {/* Campaign name (title) */}
-            {message.utm_campaign && (
+            {/* Real Campaign Name from Facebook API */}
+            {message.fb_campaign_name && (
+              <div className="space-y-1">
+                <span className="text-sm text-muted-foreground">Campanha (Gerenciador):</span>
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <span className="text-sm font-semibold text-green-800">{message.fb_campaign_name}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Adset Name from Facebook API */}
+            {message.fb_adset_name && (
+              <div className="space-y-1">
+                <span className="text-sm text-muted-foreground">Conjunto de Anúncios:</span>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <span className="text-sm font-medium text-blue-800">{message.fb_adset_name}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Ad Name from Facebook API */}
+            {message.fb_ad_name && (
               <div className="space-y-1">
                 <span className="text-sm text-muted-foreground">Nome do Anúncio:</span>
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <span className="text-sm font-medium text-purple-800">{message.fb_ad_name}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Fallback: CTA/Title from webhook (if no real campaign name) */}
+            {!message.fb_campaign_name && message.utm_campaign && (
+              <div className="space-y-1">
+                <span className="text-sm text-muted-foreground">Título do Anúncio (CTA):</span>
                 <div className="p-3 bg-muted rounded-lg">
                   <span className="text-sm font-medium">{message.utm_campaign}</span>
                 </div>
@@ -290,12 +325,20 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             )}
 
             {/* Technical IDs - collapsed by default */}
-            {(message.utm_content || message.fbclid) && (
+            {(message.utm_content || message.fbclid || message.fb_ad_id) && (
               <div className="pt-3 border-t space-y-2">
                 <span className="text-xs text-muted-foreground">Dados Técnicos:</span>
-                {message.utm_content && (
+                {message.fb_ad_id && (
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">ID do Anúncio:</span>
+                    <span className="font-mono truncate max-w-[180px]" title={message.fb_ad_id}>
+                      {message.fb_ad_id}
+                    </span>
+                  </div>
+                )}
+                {!message.fb_ad_id && message.utm_content && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Source ID:</span>
                     <span className="font-mono truncate max-w-[180px]" title={message.utm_content}>
                       {message.utm_content}
                     </span>
