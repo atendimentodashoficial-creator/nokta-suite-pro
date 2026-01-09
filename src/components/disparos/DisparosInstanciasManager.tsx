@@ -21,7 +21,10 @@ import {
   X,
   Copy,
   Link,
-  Webhook
+  Webhook,
+  QrCode,
+  Smartphone,
+  Zap
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,6 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface DisparosInstancia {
   id: string;
@@ -66,6 +70,8 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingInstancia, setEditingInstancia] = useState<DisparosInstancia | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [creationMode, setCreationMode] = useState<"auto" | "manual">("auto");
+  const [adminConfigured, setAdminConfigured] = useState<boolean | null>(null);
 
   // Form state
   const [nome, setNome] = useState("");
@@ -77,6 +83,34 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const [connectionStatus, setConnectionStatus] = useState<Record<string, 'connected' | 'disconnected' | 'loading'>>({});
 
+  // QR Code state
+  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
+  const [qrCodeData, setQrCodeData] = useState<string | null>(null);
+  const [qrCodeLoading, setQrCodeLoading] = useState(false);
+  const [selectedInstanciaForQr, setSelectedInstanciaForQr] = useState<DisparosInstancia | null>(null);
+  const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [creatingInstance, setCreatingInstance] = useState(false);
+
+  // Check if admin API is configured
+  useEffect(() => {
+    checkAdminConfig();
+  }, []);
+
+  const checkAdminConfig = async () => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("uazapi-admin-list-instances", {
+        headers: {
+          Authorization: `Bearer ${session.session?.access_token}`,
+        },
+      });
+      
+      setAdminConfigured(response.data?.admin_configured || false);
+    } catch (error) {
+      setAdminConfigured(false);
+    }
+  };
+
   // Test all connections on mount
   useEffect(() => {
     if (instancias.length > 0) {
@@ -87,6 +121,15 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
       });
     }
   }, [instancias]);
+
+  // Cleanup QR polling on unmount
+  useEffect(() => {
+    return () => {
+      if (qrPollingInterval) {
+        clearInterval(qrPollingInterval);
+      }
+    };
+  }, [qrPollingInterval]);
 
   const checkConnectionStatus = async (instancia: DisparosInstancia) => {
     setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'loading' }));
@@ -129,6 +172,56 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
     setBaseUrl("");
     setApiKey("");
     setShowApiKey(false);
+  };
+
+  const handleCreateAutomatic = async () => {
+    if (!nome.trim()) {
+      toast.error("Digite um nome para a instância");
+      return;
+    }
+
+    setCreatingInstance(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke("uazapi-admin-create-instance", {
+        headers: {
+          Authorization: `Bearer ${session.session?.access_token}`,
+        },
+        body: {
+          instance_name: nome.trim(),
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || "Erro ao criar instância");
+      }
+
+      toast.success("Instância criada! Escaneie o QR Code para conectar.");
+      
+      setDialogOpen(false);
+      resetForm();
+      onInstanciasChange();
+
+      // If QR code was returned, show it
+      if (response.data.qrcode) {
+        setQrCodeData(response.data.qrcode);
+        setSelectedInstanciaForQr(response.data.instance);
+        setQrCodeDialogOpen(true);
+      } else if (response.data.instance) {
+        // Fetch QR code separately
+        fetchQrCode(response.data.instance);
+      }
+    } catch (error: any) {
+      console.error("Error creating instance:", error);
+      toast.error(error.message || "Erro ao criar instância");
+    } finally {
+      setCreatingInstance(false);
+    }
   };
 
   const handleSave = async () => {
@@ -257,6 +350,94 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
     }
   };
 
+  const fetchQrCode = async (instancia: DisparosInstancia) => {
+    setSelectedInstanciaForQr(instancia);
+    setQrCodeDialogOpen(true);
+    setQrCodeLoading(true);
+    setQrCodeData(null);
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+        headers: {
+          Authorization: `Bearer ${session.session?.access_token}`,
+        },
+        body: {
+          base_url: instancia.base_url,
+          api_key: instancia.api_key,
+        },
+      });
+
+      if (response.data?.connected) {
+        toast.success("WhatsApp já está conectado!");
+        setQrCodeDialogOpen(false);
+        checkConnectionStatus(instancia);
+        return;
+      }
+
+      if (response.data?.qrcode) {
+        setQrCodeData(response.data.qrcode);
+        startQrPolling(instancia);
+      } else {
+        toast.error(response.data?.error || "Não foi possível obter o QR Code");
+      }
+    } catch (error: any) {
+      toast.error("Erro ao obter QR Code");
+    } finally {
+      setQrCodeLoading(false);
+    }
+  };
+
+  const startQrPolling = (instancia: DisparosInstancia) => {
+    // Clear any existing interval
+    if (qrPollingInterval) {
+      clearInterval(qrPollingInterval);
+    }
+
+    // Poll every 5 seconds to check if connected
+    const interval = setInterval(async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        
+        const response = await supabase.functions.invoke("uazapi-test-connection", {
+          headers: {
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: {
+            base_url: instancia.base_url,
+            api_key: instancia.api_key,
+          },
+        });
+
+        if (response.data?.success) {
+          clearInterval(interval);
+          setQrPollingInterval(null);
+          setQrCodeDialogOpen(false);
+          setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
+          toast.success("WhatsApp conectado com sucesso!");
+          onInstanciasChange();
+        }
+      } catch (error) {
+        // Silent error - keep polling
+      }
+    }, 5000);
+
+    setQrPollingInterval(interval);
+
+    // Stop polling after 2 minutes
+    setTimeout(() => {
+      clearInterval(interval);
+      setQrPollingInterval(null);
+    }, 120000);
+  };
+
+  const refreshQrCode = async () => {
+    if (selectedInstanciaForQr) {
+      fetchQrCode(selectedInstanciaForQr);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -278,73 +459,197 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
               Nova Instância
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{editingInstancia ? "Editar Instância" : "Nova Instância"}</DialogTitle>
               <DialogDescription>
-                Configure uma instância UAZapi para disparos em massa
+                {editingInstancia 
+                  ? "Atualize os dados da instância UAZapi"
+                  : "Crie uma nova instância para disparos em massa"
+                }
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div>
-                <Label>Nome da Instância *</Label>
-                <Input
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Ex: Número Principal"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>URL Base *</Label>
-                <Input
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="https://api.uazapi.com"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>API Key *</Label>
-                <div className="flex gap-2 mt-1">
+            
+            {!editingInstancia && adminConfigured !== false ? (
+              <Tabs value={creationMode} onValueChange={(v) => setCreationMode(v as "auto" | "manual")} className="pt-2">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="auto" className="gap-2">
+                    <Zap className="h-4 w-4" />
+                    Automático
+                  </TabsTrigger>
+                  <TabsTrigger value="manual" className="gap-2">
+                    <Edit className="h-4 w-4" />
+                    Manual
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="auto" className="space-y-4 pt-4">
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <QrCode className="h-4 w-4 text-primary" />
+                      Criação rápida com QR Code
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      A instância será criada automaticamente. Você só precisa escanear o QR Code com seu celular.
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <Label>Nome da Instância *</Label>
+                    <Input
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      placeholder="Ex: Número Principal"
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => {
+                      setDialogOpen(false);
+                      resetForm();
+                    }}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleCreateAutomatic} disabled={creatingInstance || !nome.trim()}>
+                      {creatingInstance ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Criando...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-4 w-4 mr-2" />
+                          Criar Instância
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="manual" className="space-y-4 pt-4">
+                  <div>
+                    <Label>Nome da Instância *</Label>
+                    <Input
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      placeholder="Ex: Número Principal"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>URL Base *</Label>
+                    <Input
+                      value={baseUrl}
+                      onChange={(e) => setBaseUrl(e.target.value)}
+                      placeholder="https://api.uazapi.com"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>API Key *</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        type={showApiKey ? "text" : "password"}
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="Sua chave de API"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => {
+                      setDialogOpen(false);
+                      resetForm();
+                    }}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSave} disabled={saving}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Salvar
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              // Editing mode or admin not configured - show manual form only
+              <div className="space-y-4 pt-4">
+                <div>
+                  <Label>Nome da Instância *</Label>
                   <Input
-                    type={showApiKey ? "text" : "password"}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Sua chave de API"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder="Ex: Número Principal"
+                    className="mt-1"
                   />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </div>
+                <div>
+                  <Label>URL Base *</Label>
+                  <Input
+                    value={baseUrl}
+                    onChange={(e) => setBaseUrl(e.target.value)}
+                    placeholder="https://api.uazapi.com"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>API Key *</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type={showApiKey ? "text" : "password"}
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="Sua chave de API"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                    >
+                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => {
+                    setDialogOpen(false);
+                    setEditingInstancia(null);
+                    resetForm();
+                  }}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Salvar
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => {
-                  setDialogOpen(false);
-                  setEditingInstancia(null);
-                  resetForm();
-                }}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Salvar
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
@@ -407,7 +712,7 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
                         size="icon"
                         className="h-6 w-6"
                         onClick={() => {
-                          const webhookUrl = `https://qlynkchsfdccrjedwfyz.supabase.co/functions/v1/whatsapp-webhook?user_id=${user?.id}&instancia_id=${instancia.id}`;
+                          const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user?.id}&instancia_id=${instancia.id}`;
                           navigator.clipboard.writeText(webhookUrl);
                           toast.success("URL do webhook copiada!");
                         }}
@@ -451,6 +756,17 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* QR Code button for disconnected instances */}
+                    {connStatus === 'disconnected' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => fetchQrCode(instancia)}
+                        title="Escanear QR Code"
+                      >
+                        <QrCode className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -517,6 +833,70 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrCodeDialogOpen} onOpenChange={(open) => {
+        if (!open && qrPollingInterval) {
+          clearInterval(qrPollingInterval);
+          setQrPollingInterval(null);
+        }
+        setQrCodeDialogOpen(open);
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Conectar WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              {selectedInstanciaForQr?.nome}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center gap-4 py-4">
+            {qrCodeLoading ? (
+              <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-lg">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : qrCodeData ? (
+              <>
+                <div className="p-4 bg-white rounded-lg shadow-sm">
+                  <img 
+                    src={qrCodeData} 
+                    alt="QR Code" 
+                    className="w-56 h-56"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Smartphone className="h-4 w-4" />
+                  <span>Escaneie com seu WhatsApp</span>
+                </div>
+                {qrPollingInterval && (
+                  <div className="flex items-center gap-2 text-xs text-green-600">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Aguardando conexão...</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted rounded-lg gap-2">
+                <XCircle className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Erro ao carregar QR Code</span>
+              </div>
+            )}
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshQrCode}
+              disabled={qrCodeLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${qrCodeLoading ? 'animate-spin' : ''}`} />
+              Atualizar QR Code
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
