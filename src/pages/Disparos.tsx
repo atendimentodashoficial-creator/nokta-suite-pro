@@ -157,11 +157,11 @@ export default function Disparos() {
       
       const mainWhatsappId = uazapiConfig?.whatsapp_instancia_id || null;
       
-      // Check for active instances in disparos_instancias ONLY (excluding main WhatsApp)
+      // Check for instances in disparos_instancias (excluding main WhatsApp)
+      // Don't filter by is_active - all instances should be visible in manager
       let query = supabase
         .from('disparos_instancias')
-        .select('id')
-        .eq('is_active', true);
+        .select('id');
       
       // Exclude the main WhatsApp instance
       if (mainWhatsappId) {
@@ -275,11 +275,11 @@ export default function Disparos() {
       
       const mainWhatsappId = uazapiConfig?.whatsapp_instancia_id || null;
       
-      // Load all active instances
+      // Load ALL instances (regardless of is_active) to ensure visibility in manager
+      // Only the main WhatsApp instance is filtered out
       const { data } = await supabase
         .from("disparos_instancias")
-        .select("*")
-        .eq("is_active", true);
+        .select("*");
       
       if (data) {
         // Filter out the main WhatsApp instance - it should only appear in the WhatsApp tab
