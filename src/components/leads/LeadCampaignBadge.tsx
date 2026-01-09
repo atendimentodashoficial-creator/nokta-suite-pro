@@ -4,7 +4,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
 
 interface Lead {
   utm_source?: string | null;
@@ -48,20 +47,19 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
   const sourceInfo = getSourceInfo();
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 text-muted-foreground">
       <Popover>
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 gap-1.5"
+          <button
+            type="button"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             title="Ver detalhes da campanha"
           >
-            <Megaphone className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            <Megaphone className="h-4 w-4 flex-shrink-0 text-blue-500" />
             <span className={`text-xs px-2 py-0.5 rounded ${sourceInfo.bgColor} ${sourceInfo.textColor}`}>
               {sourceInfo.label}
             </span>
-          </Button>
+          </button>
         </PopoverTrigger>
         <PopoverContent className="w-80 p-4" align="start">
           <div className="space-y-4">
