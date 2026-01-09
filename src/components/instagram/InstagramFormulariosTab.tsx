@@ -12,7 +12,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, FileText, Copy, Eye, ExternalLink, Users } from "lucide-react";
+import { Plus, Trash2, Loader2, FileText, Copy, ExternalLink, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,7 +58,14 @@ interface Resposta {
 export function InstagramFormulariosTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
+  const [selectedCampos, setSelectedCampos] = useState<string[]>(["nome", "telefone", "email"]);
   const queryClient = useQueryClient();
+
+  const availableCampos = [
+    { id: "nome", label: "Nome" },
+    { id: "telefone", label: "Telefone" },
+    { id: "email", label: "Email" },
+  ];
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -115,6 +123,10 @@ export function InstagramFormulariosTab() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
 
+      if (selectedCampos.length === 0) {
+        throw new Error("Selecione ao menos um campo");
+      }
+
       const { error } = await supabase.from("instagram_formularios").insert({
         user_id: user.id,
         nome: data.nome,
@@ -124,7 +136,7 @@ export function InstagramFormulariosTab() {
         mensagem_sucesso: data.mensagem_sucesso,
         cor_primaria: data.cor_primaria || "#8B5CF6",
         imagem_url: data.imagem_url || null,
-        campos: ["nome", "telefone", "email"],
+        campos: selectedCampos,
       });
 
       if (error) throw error;
@@ -134,6 +146,7 @@ export function InstagramFormulariosTab() {
       toast.success("Formulário criado com sucesso!");
       setDialogOpen(false);
       form.reset();
+      setSelectedCampos(["nome", "telefone", "email"]);
     },
     onError: (error) => {
       console.error("Erro ao criar formulário:", error);
@@ -300,6 +313,36 @@ export function InstagramFormulariosTab() {
                     </FormItem>
                   )}
                 />
+
+                <div className="space-y-2">
+                  <FormLabel>Campos do Formulário</FormLabel>
+                  <div className="flex flex-wrap gap-4 p-3 border rounded-lg">
+                    {availableCampos.map((campo) => (
+                      <div key={campo.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={campo.id}
+                          checked={selectedCampos.includes(campo.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedCampos([...selectedCampos, campo.id]);
+                            } else {
+                              setSelectedCampos(selectedCampos.filter(c => c !== campo.id));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={campo.id}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {campo.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Selecione os campos que aparecerão no formulário
+                  </p>
+                </div>
 
                 <FormField
                   control={form.control}
