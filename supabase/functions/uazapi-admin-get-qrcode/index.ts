@@ -55,7 +55,12 @@ Deno.serve(async (req) => {
       }
       tokenHeader = { "admintoken": adminToken };
     } else if (api_key) {
-      tokenHeader = { "token": api_key };
+      // UAZapi uses "token" header for instance authentication
+      tokenHeader = { 
+        "token": api_key,
+        "Authorization": `Bearer ${api_key}`,
+      };
+      console.log("Using api_key for auth, length:", api_key.length);
     } else {
       return new Response(JSON.stringify({ 
         success: false, 
