@@ -1,0 +1,1013 @@
+import { useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { format, parseISO } from "date-fns";
+import { CalendarIcon, Check } from "lucide-react";
+import { formatPhone, normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, extractCountryCode } from "@/utils/phoneFormat";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { useCreateAgendamento, useAgendamentos } from "@/hooks/useAgendamentos";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
+import { useProfissionais } from "@/hooks/useProfissionais";
+import { useEscalas, useAusencias } from "@/hooks/useEscalas";
+import { useLeads } from "@/hooks/useLeads";
+import { useTiposAgendamento } from "@/hooks/useTiposAgendamento";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { formatInTimeZone } from "date-fns-tz";
+import { CountryCodeSelect, countries } from "@/components/whatsapp/CountryCodeSelect";
+
+// Calcular próxima data disponível para um profissional
+const calcularProximaDataDisponivel = (
+  profissionalId: string,
+  dataInicial: Date,
+  escalas: any[] | undefined,
+  ausencias: any[] | undefined,
+  agendamentos: any[] | undefined,
+  tempoAtendimento: number = 60
+): Date | null => {
+  if (!escalas) return null;
+  
+  const escalasProfissional = escalas.filter(e => e.profissional_id === profissionalId && e.ativo);
+  if (escalasProfissional.length === 0) return null;
+  
+  const ausenciasProfissional = ausencias?.filter(a => a.profissional_id === profissionalId) || [];
+  const agendamentosProfissional = agendamentos?.filter(
+    a => a.profissional_id === profissionalId && a.status !== "cancelado"
+  ) || [];
+  
+  // Buscar nos próximos 60 dias
+  for (let i = 1; i <= 60; i++) {
+    const dataTest = new Date(dataInicial);
+    dataTest.setDate(dataTest.getDate() + i);
+    const diaSemana = dataTest.getDay();
+    const dataStr = format(dataTest, 'yyyy-MM-dd');
+    
+    // Verificar se tem escala neste dia
+    const temEscala = escalasProfissional.some(e => e.dia_semana === diaSemana);
+    if (!temEscala) continue;
+    
+    // Verificar se está em ausência
+    const estaAusente = ausenciasProfissional.some(aus => {
+      return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
+    });
+    if (estaAusente) continue;
+    
+    // Gerar horários do dia
+    const horariosDay: string[] = [];
+    escalasProfissional.forEach(escala => {
+      if (escala.dia_semana === diaSemana) {
+        const horariosIntervalo = gerarHorariosIntervalo(
+          escala.hora_inicio,
+          escala.hora_fim,
+          tempoAtendimento
+        );
+        horariosDay.push(...horariosIntervalo);
+      }
+    });
+    
+    // Verificar horários ocupados
+    const horariosOcupados = agendamentosProfissional
+      .filter(ag => {
+        const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
+        return agData === dataStr;
+      })
+      .map(ag => formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm'));
+    
+    const horariosLivres = [...new Set(horariosDay)].filter(h => !horariosOcupados.includes(h));
+    
+    if (horariosLivres.length > 0) {
+      return dataTest;
+    }
+  }
+  
+  return null;
+};
+
+// Gerar horários baseado na escala do profissional
+const gerarHorariosDisponiveis = (
+  diaSemana: number,
+  escalas: any[] | undefined,
+  ausencias: any[] | undefined,
+  dataSelecionada: Date,
+  tempoAtendimento: number = 60
+) => {
+  if (!escalas || escalas.length === 0) {
+    // Se não houver escala, retornar horário comercial padrão
+    return gerarHorariosIntervalo("08:00", "18:00", tempoAtendimento);
+  }
+
+  // Verificar se está em período de ausência
+  const dataStr = format(dataSelecionada, 'yyyy-MM-dd');
+  const estaAusente = ausencias?.some(aus => {
+    const inicio = aus.data_inicio;
+    const fim = aus.data_fim;
+    return dataStr >= inicio && dataStr <= fim;
+  });
+
+  if (estaAusente) {
+    return []; // Profissional ausente
+  }
+
+  // Buscar escalas para o dia da semana
+  const escalasDay = escalas.filter(esc => esc.dia_semana === diaSemana && esc.ativo);
+  
+  if (escalasDay.length === 0) {
+    return []; // Profissional não trabalha neste dia
+  }
+
+  // Gerar horários para cada intervalo de escala
+  const horarios: string[] = [];
+  escalasDay.forEach(escala => {
+    const horariosIntervalo = gerarHorariosIntervalo(
+      escala.hora_inicio,
+      escala.hora_fim,
+      tempoAtendimento
+    );
+    horarios.push(...horariosIntervalo);
+  });
+
+  return [...new Set(horarios)].sort();
+};
+
+const gerarHorariosIntervalo = (
+  horaInicio: string,
+  horaFim: string,
+  intervaloMinutos: number = 15
+) => {
+  const horarios: string[] = [];
+  const [hInicio, mInicio] = horaInicio.split(':').map(Number);
+  const [hFim, mFim] = horaFim.split(':').map(Number);
+  
+  let minutoAtual = hInicio * 60 + mInicio;
+  const minutoFim = hFim * 60 + mFim;
+
+  while (minutoAtual < minutoFim) {
+    const h = Math.floor(minutoAtual / 60);
+    const m = minutoAtual % 60;
+    horarios.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+    minutoAtual += intervaloMinutos;
+  }
+
+  return horarios;
+};
+
+const agendamentoSchema = z.object({
+  nome: z.string().trim().min(1, "Nome é obrigatório").max(100),
+  telefone: z.string().trim().min(1, "Telefone é obrigatório").max(20),
+  email: z.string().trim().email("Email inválido").optional().or(z.literal("")),
+  tipo: z.string().optional(),
+  data_agendamento: z.date({
+    required_error: "Data é obrigatória",
+  }),
+  hora: z.string().min(1, "Selecione um horário"),
+  procedimento_id: z.string().min(1, "Selecione um procedimento"),
+  profissional_id: z.string().min(1, "Selecione um profissional e horário"),
+  observacoes: z.string().max(500).optional(),
+});
+
+type AgendamentoFormData = z.infer<typeof agendamentoSchema>;
+
+interface NovoAgendamentoDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  clienteId?: string; // ID do cliente para vincular diretamente
+  initialData?: {
+    nome?: string;
+    telefone?: string;
+    email?: string;
+  };
+  origem?: "WhatsApp" | "Disparos"; // Origem para segregação de leads
+  origemInstanciaNome?: string; // Nome da instância de Disparos (para roteamento de avisos)
+}
+
+export function NovoAgendamentoDialog({
+  open,
+  onOpenChange,
+  clienteId,
+  initialData,
+  origem,
+  origemInstanciaNome,
+}: NovoAgendamentoDialogProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clienteSuggestions, setClienteSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [countryCode, setCountryCode] = useState("55");
+  const queryClient = useQueryClient();
+  const createAgendamento = useCreateAgendamento();
+  const { data: procedimentos } = useProcedimentos();
+  const { data: profissionais } = useProfissionais();
+  const { data: todosAgendamentos } = useAgendamentos();
+  const { data: escalas } = useEscalas();
+  const { data: ausencias } = useAusencias();
+  const { data: todosClientes } = useLeads("cliente");
+  const { tiposAtivos, isLoading: isLoadingTipos } = useTiposAgendamento();
+
+  // Extrair código do país e número limpo do initialData
+  const initialPhoneData = useMemo(() => {
+    if (initialData?.telefone) {
+      return extractCountryCode(initialData.telefone);
+    }
+    return { countryCode: "55", phoneWithoutCountry: "" };
+  }, [initialData?.telefone]);
+
+  const form = useForm<AgendamentoFormData>({
+    resolver: zodResolver(agendamentoSchema),
+    defaultValues: {
+      nome: initialData?.nome || "",
+      telefone: initialPhoneData.phoneWithoutCountry,
+      email: initialData?.email || "",
+      tipo: "",
+      hora: "",
+      procedimento_id: "",
+      profissional_id: "",
+      observacoes: "",
+    },
+  });
+
+  // Atualizar valores quando initialData mudar
+  // Prioriza dados do cliente existente se houver um com o mesmo telefone
+  useEffect(() => {
+    const preencherDadosIniciais = async () => {
+      if (!initialData) return;
+      
+      // Primeiro, definir o telefone e código do país
+      if (initialData.telefone) {
+        const { countryCode: extractedCode, phoneWithoutCountry } = extractCountryCode(initialData.telefone);
+        form.setValue("telefone", phoneWithoutCountry);
+        setCountryCode(extractedCode);
+        
+        // Buscar cliente existente pelo telefone para usar nome correto
+        const last8Digits = getLast8Digits(initialData.telefone);
+        if (last8Digits && last8Digits.length >= 8) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              // Buscar clientes (status = cliente) para comparar pelos últimos 8 dígitos
+              const { data: allClientes } = await supabase
+                .from("leads")
+                .select("nome, email, telefone, status")
+                .eq("user_id", user.id)
+                .eq("status", "cliente")
+                .is("deleted_at", null);
+
+              // Encontrar cliente existente pelos últimos 8 dígitos
+              const clienteExistente = allClientes?.find(lead => 
+                getLast8Digits(lead.telefone) === last8Digits
+              );
+
+              if (clienteExistente) {
+                // Usar dados do cliente existente
+                form.setValue("nome", clienteExistente.nome);
+                if (clienteExistente.email) {
+                  form.setValue("email", clienteExistente.email);
+                }
+                return; // Dados preenchidos com cliente existente
+              }
+            }
+          } catch (error) {
+            // Se falhar, usar dados do initialData
+          }
+        }
+      }
+      
+      // Fallback: usar dados do initialData se não encontrar cliente existente
+      if (initialData.nome) form.setValue("nome", initialData.nome);
+      if (initialData.email) form.setValue("email", initialData.email);
+    };
+    
+    preencherDadosIniciais();
+  }, [initialData, form]);
+
+  // Buscar clientes para autocomplete
+  const handleNomeChange = (value: string) => {
+    form.setValue("nome", value);
+    
+    if (clienteId) return; // Não buscar se já tem cliente fixo
+    
+    if (value.length < 2) {
+      setClienteSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const filtered = todosClientes?.filter(c => 
+      c.nome.toLowerCase().includes(value.toLowerCase())
+    ).slice(0, 5) || [];
+    
+    setClienteSuggestions(filtered);
+    setShowSuggestions(filtered.length > 0);
+  };
+
+  const handleSelectCliente = (cliente: any) => {
+    form.setValue("nome", cliente.nome);
+    // Extrair código do país do telefone do cliente
+    const { countryCode: extractedCode, phoneWithoutCountry } = extractCountryCode(cliente.telefone);
+    form.setValue("telefone", phoneWithoutCountry);
+    setCountryCode(extractedCode);
+    form.setValue("email", cliente.email || "");
+    setShowSuggestions(false);
+    toast.info("Dados do cliente preenchidos!");
+  };
+
+  const dataWatch = form.watch("data_agendamento");
+  const profissionalWatch = form.watch("profissional_id");
+  const procedimentoWatch = form.watch("procedimento_id");
+  const telefoneWatch = form.watch("telefone");
+  
+  // Buscar cliente existente pelo telefone e preencher dados automaticamente
+  const handleTelefoneBlur = async () => {
+    const telefoneValue = form.getValues("telefone");
+    const last8Digits = getLast8Digits(telefoneValue);
+    if (!last8Digits || last8Digits.length < 8) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Buscar todos os leads do usuário para comparar pelos últimos 8 dígitos
+      const { data: allLeads } = await supabase
+        .from("leads")
+        .select("nome, email, telefone")
+        .eq("user_id", user.id)
+        .is("deleted_at", null);
+
+      // Encontrar cliente existente pelos últimos 8 dígitos
+      const clienteExistente = allLeads?.find(lead => 
+        getLast8Digits(lead.telefone) === last8Digits
+      );
+
+      if (clienteExistente) {
+        form.setValue("nome", clienteExistente.nome);
+        if (clienteExistente.email) {
+          form.setValue("email", clienteExistente.email);
+        }
+        toast.info("Cliente encontrado! Dados preenchidos automaticamente.");
+      }
+    } catch (error) {
+      // Silenciosamente ignora se não encontrar cliente
+    }
+  };
+  
+  // Obter tempo de atendimento do procedimento selecionado
+  const tempoAtendimento = useMemo(() => {
+    if (!procedimentoWatch) return 60;
+    const proc = procedimentos?.find(p => p.id === procedimentoWatch);
+    return proc?.tempo_atendimento_minutos || proc?.duracao_minutos || 60;
+  }, [procedimentoWatch, procedimentos]);
+
+  // Calcular profissionais disponíveis com seus horários para data e procedimento selecionados
+  const profissionaisDisponiveis = useMemo(() => {
+    if (!dataWatch || !procedimentoWatch) return [];
+    
+    const diaSemana = dataWatch.getDay();
+    const dataStr = format(dataWatch, 'yyyy-MM-dd');
+    
+    return profissionais?.filter(p => p.ativo).map(prof => {
+      // Buscar escalas do profissional para o dia da semana
+      const escalasProfissional = escalas?.filter(
+        e => e.profissional_id === prof.id && e.dia_semana === diaSemana && e.ativo
+      ) || [];
+      
+      // Verificar se está em ausência
+      const ausenciasProfissional = ausencias?.filter(a => a.profissional_id === prof.id) || [];
+      const estaAusente = ausenciasProfissional.some(aus => {
+        return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
+      });
+      
+      // Gerar todos os horários da escala
+      const todosHorarios: string[] = [];
+      if (!estaAusente && escalasProfissional.length > 0) {
+        escalasProfissional.forEach(escala => {
+          const horariosIntervalo = gerarHorariosIntervalo(
+            escala.hora_inicio,
+            escala.hora_fim,
+            tempoAtendimento
+          );
+          todosHorarios.push(...horariosIntervalo);
+        });
+      }
+      
+      // Remover horários já ocupados
+      const horariosOcupados = todosAgendamentos
+        ?.filter(ag => {
+          if (ag.profissional_id !== prof.id) return false;
+          if (ag.status === "cancelado") return false;
+          const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
+          return agData === dataStr;
+        })
+        .map(ag => formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+      
+      const horariosLivres = [...new Set(todosHorarios)]
+        .filter(h => !horariosOcupados.includes(h))
+        .sort();
+      
+      // Calcular próxima data disponível se não houver horários
+      let proximaData: Date | null = null;
+      if (horariosLivres.length === 0) {
+        proximaData = calcularProximaDataDisponivel(
+          prof.id,
+          dataWatch,
+          escalas,
+          ausencias,
+          todosAgendamentos,
+          tempoAtendimento
+        );
+      }
+      
+      return {
+        profissional: prof,
+        horarios: horariosLivres,
+        proximaDataDisponivel: proximaData,
+      };
+    }) || [];
+  }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, tempoAtendimento]);
+
+  // Função para atualizar nome em todos os registros relacionados
+  const atualizarNomeEmTodosRegistros = async (userId: string, last8Digits: string, novoNome: string) => {
+    try {
+      // Buscar todos os leads com mesmo telefone (últimos 8 dígitos)
+      const { data: allLeads } = await supabase
+        .from("leads")
+        .select("id, telefone")
+        .eq("user_id", userId)
+        .is("deleted_at", null);
+
+      const leadsParaAtualizar = allLeads?.filter(lead => 
+        getLast8Digits(lead.telefone) === last8Digits
+      ) || [];
+
+      // Atualizar todos os leads encontrados
+      for (const lead of leadsParaAtualizar) {
+        await supabase
+          .from("leads")
+          .update({ nome: novoNome })
+          .eq("id", lead.id);
+      }
+
+      // Atualizar chats do WhatsApp com mesmo número
+      const { data: whatsappChats } = await supabase
+        .from("whatsapp_chats")
+        .select("id, normalized_number")
+        .eq("user_id", userId)
+        .is("deleted_at", null);
+
+      const chatsWhatsappParaAtualizar = whatsappChats?.filter(chat => 
+        getLast8Digits(chat.normalized_number) === last8Digits
+      ) || [];
+
+      for (const chat of chatsWhatsappParaAtualizar) {
+        await supabase
+          .from("whatsapp_chats")
+          .update({ contact_name: novoNome })
+          .eq("id", chat.id);
+      }
+
+      // Atualizar chats de Disparos com mesmo número
+      const { data: disparosChats } = await supabase
+        .from("disparos_chats")
+        .select("id, normalized_number")
+        .eq("user_id", userId)
+        .is("deleted_at", null);
+
+      const chatsDisparosParaAtualizar = disparosChats?.filter(chat => 
+        getLast8Digits(chat.normalized_number) === last8Digits
+      ) || [];
+
+      for (const chat of chatsDisparosParaAtualizar) {
+        await supabase
+          .from("disparos_chats")
+          .update({ contact_name: novoNome })
+          .eq("id", chat.id);
+      }
+
+      // Invalidar queries para atualizar a UI
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-chats"] });
+      queryClient.invalidateQueries({ queryKey: ["disparos-chats"] });
+    } catch (error) {
+      console.error("Erro ao atualizar nome em registros relacionados:", error);
+    }
+  };
+
+  const onSubmit = async (data: AgendamentoFormData) => {
+    setIsSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      let finalClienteId: string | undefined = undefined;
+      
+      // Build full phone number with country code
+      let normalizedPhone = `${countryCode}${normalizePhone(data.telefone)}`;
+      
+      // Se tiver apenas 10 dígitos após o código do país (DDD + 8), adicionar 9 após o DDD (só para Brasil)
+      const phoneWithoutCountry = normalizePhone(data.telefone);
+      if (countryCode === "55" && phoneWithoutCountry.length === 10) {
+        normalizedPhone = `55${phoneWithoutCountry.slice(0, 2)}9${phoneWithoutCountry.slice(2)}`;
+      }
+
+      const last8Digits = getLast8Digits(normalizedPhone);
+
+      // Se tiver clienteId fornecido, verificar se existe
+      if (clienteId) {
+        const { data: leadExistente } = await supabase
+          .from("leads")
+          .select("id, status, nome, email, telefone, origem")
+          .eq("id", clienteId)
+          .maybeSingle();
+
+        if (leadExistente) {
+          finalClienteId = leadExistente.id;
+          
+          // Verificar se o nome foi alterado
+          const nomeAlterado = data.nome && data.nome !== leadExistente.nome;
+          
+          // Se o nome foi alterado, atualizar em TODOS os registros relacionados
+          if (nomeAlterado && last8Digits) {
+            await atualizarNomeEmTodosRegistros(user.id, last8Digits, data.nome);
+            toast.info("Nome atualizado em todos os registros!");
+          }
+          
+          // Atualizar outros dados do cliente se foram alterados
+          const updates: any = {};
+          
+          if (data.email !== undefined && data.email !== leadExistente.email) {
+            updates.email = data.email || null;
+          }
+          if (normalizedPhone && normalizedPhone !== leadExistente.telefone) {
+            updates.telefone = normalizedPhone;
+          }
+          
+          // Só atualizar status para "cliente" se:
+          // - origem não foi especificada (agendamento manual/genérico do calendário/aba clientes)
+          // - Leads de WhatsApp e Disparos permanecem como "lead" mesmo com agendamento
+          const leadOrigem = (leadExistente.origem || "").toLowerCase();
+          const origemParam = (origem || "").toLowerCase();
+          
+          // NÃO converter para cliente se veio de WhatsApp ou Disparos
+          // Isso mantém o card na subaba de Leads
+          const deveConverterParaCliente = !origem && leadExistente.status !== "cliente";
+          
+          if (deveConverterParaCliente) {
+            updates.status = "cliente";
+            updates.origem_tipo = "Manual";
+          }
+
+          if (Object.keys(updates).length > 0) {
+            const { error: updateError } = await supabase
+              .from("leads")
+              .update(updates)
+              .eq("id", leadExistente.id);
+
+            if (updateError) throw updateError;
+
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+
+            if (updates.status === "cliente") {
+              toast.success("Lead convertido para cliente!");
+            }
+          }
+        }
+        // Se clienteId foi fornecido mas não existe, seguir para criar novo
+      }
+
+      // Se ainda não temos um cliente válido, garantir lead/cliente via backend (restaura se estiver excluído)
+      if (!finalClienteId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("Sessão expirada. Faça login novamente.");
+
+        // Para agendamentos vindos de WhatsApp/Disparos, o lead deve continuar como "lead",
+        // MAS precisamos garantir/criar também o registro de "cliente" para aparecer na aba Clientes.
+        const statusParaEnsure = origem ? "lead" : "cliente";
+
+        const res = await supabase.functions.invoke("ensure-lead", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: {
+            telefone: normalizedPhone,
+            nome: data.nome,
+            email: data.email || null,
+            status: statusParaEnsure,
+            ensure_cliente: !!origem,
+            origem_tipo: origem || "Manual",
+            origem_lead: !!origem,
+            ...(origem ? { origem } : {}),
+          },
+        });
+
+        if (res.error) throw res.error;
+
+        const ensuredLeadId = (res.data as any)?.id as string | undefined;
+        const ensuredClienteId = (res.data as any)?.cliente_id as string | undefined;
+
+        // Quando veio de Leads (WhatsApp/Disparos), usamos o cliente_id para criar o agendamento.
+        // Quando é manual, usamos o id retornado.
+        const targetClienteId = origem ? ensuredClienteId : ensuredLeadId;
+        if (!targetClienteId) throw new Error("Não foi possível identificar o cliente.");
+
+        finalClienteId = targetClienteId;
+        
+        // Se criou novo registro, também atualizar nome em todos os relacionados (caso existam)
+        if (last8Digits) {
+          await atualizarNomeEmTodosRegistros(user.id, last8Digits, data.nome);
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ["leads"] });
+      }
+
+      // Combinar data e hora
+      const [hora, minuto] = data.hora.split(":").map(Number);
+      const dataHora = new Date(data.data_agendamento);
+      dataHora.setHours(hora, minuto, 0, 0);
+
+      // Criar o agendamento com origem
+      const origemAgendamento = origem || "Manual";
+      
+      await createAgendamento.mutateAsync({
+        cliente_id: finalClienteId,
+        tipo: data.tipo as any,
+        status: "agendado",
+        data_agendamento: dataHora.toISOString(),
+        procedimento_id: data.procedimento_id || null,
+        profissional_id: data.profissional_id || null,
+        observacoes: data.observacoes || null,
+        data_follow_up: null,
+        numero_reagendamentos: 0,
+        aviso_dia_anterior: false,
+        aviso_dia: false,
+        aviso_3dias: false,
+        origem_agendamento: origemAgendamento,
+        origem_instancia_nome: origemInstanciaNome || null,
+      });
+
+      toast.success("Agendamento criado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      onOpenChange(false);
+      form.reset();
+    } catch (error) {
+      console.error("Erro ao criar agendamento:", error);
+      toast.error("Erro ao criar agendamento");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Novo Agendamento</DialogTitle>
+        </DialogHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem className="relative">
+                  <FormLabel>Nome *</FormLabel>
+                  <FormControl>
+                    <Input 
+                      {...field} 
+                      placeholder="Nome completo" 
+                      onChange={(e) => handleNomeChange(e.target.value)}
+                      onFocus={() => {
+                        if (!clienteId && field.value.length >= 2) {
+                          setShowSuggestions(true);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  {showSuggestions && clienteSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-auto">
+                      {clienteSuggestions.map((cliente) => (
+                        <button
+                          key={cliente.id}
+                          type="button"
+                          className="w-full px-4 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                          onClick={() => handleSelectCliente(cliente)}
+                        >
+                          <div>
+                            <div className="font-medium">{cliente.nome}</div>
+                            <div className="text-sm text-muted-foreground">{formatPhone(cliente.telefone)}</div>
+                          </div>
+                          <Check className="h-4 w-4" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+            <FormField
+                control={form.control}
+                name="telefone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone *</FormLabel>
+                    <FormControl>
+                      <CountryCodeSelect 
+                        value={countryCode} 
+                        onChange={setCountryCode}
+                        phoneValue={formatPhoneByCountry(field.value, countryCode)}
+                        onPhoneChange={(val) => field.onChange(val.replace(/\D/g, ''))}
+                        onPhoneBlur={() => {
+                          field.onBlur();
+                          handleTelefoneBlur();
+                        }}
+                        placeholder={getPhonePlaceholder(countryCode)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="email" 
+                        placeholder="email@exemplo.com" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="tipo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo</FormLabel>
+                  <Select 
+                    onValueChange={(val) => field.onChange(val === "_none" ? "" : val)} 
+                    value={field.value || "_none"}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo (opcional)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="_none">Nenhum</SelectItem>
+                      {tiposAtivos.map((tipo) => (
+                        <SelectItem key={tipo.id} value={tipo.nome}>
+                          {tipo.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="procedimento_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Procedimento *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o procedimento" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {procedimentos?.filter(p => p.ativo).map((proc) => (
+                        <SelectItem key={proc.id} value={proc.id}>
+                          {proc.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="data_agendamento"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Data *</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "dd/MM/yyyy")
+                          ) : (
+                            <span>Selecione a data</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Mostrar profissionais disponíveis com horários */}
+            {dataWatch && procedimentoWatch && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <FormLabel>Selecione Profissional e Horário *</FormLabel>
+                  {profissionalWatch && form.watch("hora") && (
+                    <span className="text-xs text-primary">
+                      ✓ {profissionais?.find(p => p.id === profissionalWatch)?.nome} - {form.watch("hora")}
+                    </span>
+                  )}
+                </div>
+                
+                {profissionaisDisponiveis.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Carregando disponibilidade...
+                  </p>
+                ) : profissionaisDisponiveis.every(p => p.horarios.length === 0) ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhum profissional disponível nesta data
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto border rounded-lg p-3 bg-muted/20">
+                    {profissionaisDisponiveis.map(({ profissional, horarios, proximaDataDisponivel }) => (
+                      <div key={profissional.id} className="space-y-2">
+                        <div className="font-medium text-sm flex items-center gap-2">
+                          {profissional.nome}
+                          {profissional.especialidade && (
+                            <span className="text-xs text-muted-foreground">
+                              ({profissional.especialidade})
+                            </span>
+                          )}
+                        </div>
+                        
+                        {horarios.length === 0 ? (
+                          <p className="text-xs text-muted-foreground pl-4">
+                            Sem disponibilidade neste dia
+                            {proximaDataDisponivel && (
+                              <span className="text-primary">
+                                {" "}(Próxima data disponível: {format(proximaDataDisponivel, "dd/MM/yyyy")})
+                              </span>
+                            )}
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2 pl-4">
+                            {horarios.map((horario) => {
+                              const isSelected = 
+                                profissionalWatch === profissional.id && 
+                                form.watch("hora") === horario;
+                              
+                              return (
+                                <Button
+                                  key={horario}
+                                  type="button"
+                                  size="sm"
+                                  variant={isSelected ? "default" : "outline"}
+                                  className="h-8 px-3"
+                                  onClick={() => {
+                                    form.setValue("profissional_id", profissional.id);
+                                    form.setValue("hora", horario);
+                                  }}
+                                >
+                                  {horario}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Campos ocultos para profissional e hora (controlados pelos botões acima) */}
+            <FormField
+              control={form.control}
+              name="profissional_id"
+              render={({ field }) => (
+                <FormItem className="hidden">
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="hora"
+              render={({ field }) => (
+                <FormItem className="hidden">
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="observacoes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Observações</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Observações sobre o agendamento..."
+                      className="resize-none"
+                      rows={3}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Criando..." : "Criar Agendamento"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}

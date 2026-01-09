@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Nokta Clinic Brand Colors - Cyan (#00D4FF) */
+    --background: 0 0% 100%;
+    --foreground: 210 40% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 40% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 40% 15%;
+
+    /* Primary - Bright Cyan (#00D4FF) */
+    --primary: 191 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary - Deep Blue */
+    --secondary: 208 100% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 210 20% 45%;
+
+    --accent: 191 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 191 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Nokta Clinic Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(191 100% 50%) 0%, hsl(208 100% 30%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 98%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(191 20% 98%) 100%);
+    
+    /* Shadows */
+    --shadow-elegant: 0 10px 40px -10px hsl(191 100% 50% / 0.2);
+    --shadow-card: 0 2px 8px -2px hsl(191 100% 50% / 0.08);
+    --shadow-glow: 0 0 30px hsl(191 100% 50% / 0.4);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 208 100% 20%;
+    --sidebar-foreground: 210 25% 95%;
+    --sidebar-primary: 191 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 208 95% 25%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 208 90% 25%;
+    --sidebar-ring: 191 100% 50%;
+  }
+
+  .dark {
+    --background: 208 50% 8%;
+    --foreground: 210 25% 95%;
+
+    --card: 208 45% 12%;
+    --card-foreground: 210 25% 95%;
+
+    --popover: 208 45% 12%;
+    --popover-foreground: 210 25% 95%;
+
+    --primary: 191 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 208 100% 20%;
+    --secondary-foreground: 191 100% 50%;
+
+    --muted: 208 40% 18%;
+    --muted-foreground: 210 20% 60%;
+
+    --accent: 191 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 208 30% 22%;
+    --input: 208 30% 22%;
+    --ring: 191 100% 50%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(191 100% 50%) 0%, hsl(208 100% 30%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(208 50% 8%) 0%, hsl(208 45% 12%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(208 45% 12%) 0%, hsl(208 40% 15%) 100%);
+    
+    --shadow-elegant: 0 10px 40px -10px hsl(0 0% 0% / 0.5);
+    --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 0 30px hsl(191 100% 50% / 0.5);
+
+    --sidebar-background: 208 50% 8%;
+    --sidebar-foreground: 210 25% 95%;
+    --sidebar-primary: 191 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 208 40% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 208 35% 18%;
+    --sidebar-ring: 191 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* WhatsApp message formatting */
+  .inline-code {
+    @apply bg-muted px-1 py-0.5 rounded text-sm font-mono;
+  }
+  
+  pre code {
+    @apply block bg-muted p-2 rounded text-sm font-mono overflow-x-auto;
+  }
+}

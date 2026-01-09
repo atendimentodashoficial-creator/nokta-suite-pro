@@ -1,0 +1,374 @@
+import { useState } from "react";
+import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, Handshake, Phone } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { useFaturas, useDeleteFatura } from "@/hooks/useFaturas";
+import { useLeads } from "@/hooks/useLeads";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
+import { useProfissionais } from "@/hooks/useProfissionais";
+import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
+import { EditarFaturaDialog } from "@/components/clientes/EditarFaturaDialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { formatPhoneDisplay } from "@/utils/phoneFormat";
+import { navigateToChat } from "@/utils/chatRouting";
+export default function EmNegociacao() {
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dataInicial, setDataInicial] = useState<Date | undefined>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [dataFinal, setDataFinal] = useState<Date | undefined>(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0));
+  const [filtroProcedimento, setFiltroProcedimento] = useState<string>("all");
+  const [filtroProfissional, setFiltroProfissional] = useState<string>("all");
+  const [selecionarClienteOpen, setSelecionarClienteOpen] = useState(false);
+  const [clienteSelecionado, setClienteSelecionado] = useState<{
+    id: string;
+    nome: string;
+  } | null>(null);
+  const [novaFaturaOpen, setNovaFaturaOpen] = useState(false);
+  const [editarFatura, setEditarFatura] = useState<any>(null);
+  const [faturaParaExcluir, setFaturaParaExcluir] = useState<any>(null);
+  const {
+    data: todasFaturas,
+    isLoading
+  } = useFaturas("negociacao");
+  const deleteFatura = useDeleteFatura();
+  const {
+    data: clientes
+  } = useLeads("cliente");
+  const {
+    data: procedimentos
+  } = useProcedimentos();
+  const {
+    data: profissionais
+  } = useProfissionais();
+  const faturasFiltradas = todasFaturas?.filter(fatura => {
+    if (dataInicial || dataFinal) {
+      const faturaDate = new Date(fatura.created_at);
+      if (dataInicial && faturaDate < dataInicial) return false;
+      if (dataFinal && faturaDate > dataFinal) return false;
+    }
+    return true;
+  });
+  const totalNegociacao = faturasFiltradas?.reduce((sum, f) => sum + Number(f.valor), 0) || 0;
+  const contagemTotal = faturasFiltradas?.length || 0;
+  const filteredFaturas = faturasFiltradas?.filter(fatura => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = (fatura.leads as any)?.nome?.toLowerCase().includes(searchLower) || (fatura.leads as any)?.telefone?.includes(searchTerm) || fatura.valor.toString().includes(searchTerm);
+    if (!matchesSearch) return false;
+    if (filtroProcedimento !== "all" && fatura.procedimento_id !== filtroProcedimento) return false;
+    if (filtroProfissional !== "all" && fatura.profissional_id !== filtroProfissional) return false;
+    return true;
+  });
+  const handleWhatsAppClick = (e: React.MouseEvent, telefone: string, origem?: string | null) => {
+    e.stopPropagation();
+    navigateToChat(navigate, telefone, origem);
+  };
+  return <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          <Handshake className="w-6 h-6" />
+          <h1 className="text-2xl font-bold">Em Negociação</h1>
+        </div>
+        <Button onClick={() => setSelecionarClienteOpen(true)}>
+          + Nova Negociação
+        </Button>
+      </div>
+
+      {/* Filtros de Data */}
+      <Card className="p-4 shadow-card">
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-sm font-medium mb-2 block">Data Inicial</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dataInicial && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dataInicial ? format(dataInicial, "dd/MM/yyyy", {
+                  locale: ptBR
+                }) : "Selecione"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dataInicial} onSelect={setDataInicial} initialFocus className="pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-sm font-medium mb-2 block">Data Final</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dataFinal && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dataFinal ? format(dataFinal, "dd/MM/yyyy", {
+                  locale: ptBR
+                }) : "Selecione"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dataFinal} onSelect={setDataFinal} initialFocus className="pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-sm font-medium mb-2 block">Procedimento</label>
+            <Select value={filtroProcedimento} onValueChange={setFiltroProcedimento}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {procedimentos?.map(proc => <SelectItem key={proc.id} value={proc.id}>
+                    {proc.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-sm font-medium mb-2 block">Profissional</label>
+            <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {profissionais?.map(prof => <SelectItem key={prof.id} value={prof.id}>
+                    {prof.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(dataInicial || dataFinal || filtroProcedimento !== "all" || filtroProfissional !== "all") && <Button variant="outline" onClick={() => {
+          setDataInicial(undefined);
+          setDataFinal(undefined);
+          setFiltroProcedimento("all");
+          setFiltroProfissional("all");
+        }}>
+              Limpar Filtros
+            </Button>}
+        </div>
+      </Card>
+
+      {/* Stats */}
+      <Card className="p-4 shadow-card">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary">
+            <DollarSign className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-muted-foreground">Total em Negociação</p>
+            <p className="text-2xl font-bold text-blue-600">R$ {totalNegociacao.toLocaleString('pt-BR', {
+              minimumFractionDigits: 2
+            })}</p>
+            <p className="text-xs text-muted-foreground mt-1">{contagemTotal} faturas</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Search */}
+      <Card className="p-4 shadow-card">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar por cliente, telefone ou valor..." className="pl-9" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        </div>
+      </Card>
+
+      {/* Cards */}
+      <div className="mt-6">
+        {isLoading ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-64 rounded-xl" />)}
+          </div> : filteredFaturas && filteredFaturas.length > 0 ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredFaturas.map(fatura => <Card key={fatura.id} className="p-6 shadow-card hover:shadow-elegant transition-all animate-fade-in flex flex-col h-full">
+                <div className="flex flex-col flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-lg font-semibold text-foreground truncate">
+                        {(fatura.leads as any)?.nome || "Cliente não identificado"}
+                      </h3>
+                      <Badge className="bg-blue-500/20 text-blue-700 mt-1">
+                        Em Negociação
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3 text-sm mt-4">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <DollarSign className="h-4 w-4 flex-shrink-0" />
+                      <span className="font-semibold text-blue-600">
+                        R$ {Number(fatura.valor).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2
+                  })}
+                      </span>
+                    </div>
+
+                    {(fatura.leads as any)?.telefone && <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{formatPhoneDisplay((fatura.leads as any).telefone)}</span>
+                      </div>}
+
+                    {(fatura.profissionais as any)?.nome && <div className="flex items-center gap-2 text-muted-foreground">
+                        <User className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{(fatura.profissionais as any).nome}</span>
+                      </div>}
+
+                    {(fatura.procedimentos as any)?.nome && <div className="flex items-center gap-2 text-muted-foreground">
+                        <FileText className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{(fatura.procedimentos as any).nome}</span>
+                      </div>}
+
+                    {(fatura.fatura_upsells as any)?.length > 0 && <div className="flex items-start gap-2 text-muted-foreground">
+                        <ShoppingBag className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        <div className="flex flex-wrap gap-1">
+                          {(fatura.fatura_upsells as any).map((upsell: any) => <Badge key={upsell.id} variant="secondary" className="text-xs rounded">
+                              {upsell.descricao}
+                            </Badge>)}
+                        </div>
+                      </div>}
+                    
+                    {(fatura.fatura_agendamentos as any)?.[0]?.agendamentos?.data_agendamento && <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="h-4 w-4 flex-shrink-0" />
+                        <span>Atendido em: {new Date((fatura.fatura_agendamentos as any)[0].agendamentos.data_agendamento).toLocaleDateString('pt-BR')} às {new Date((fatura.fatura_agendamentos as any)[0].agendamentos.data_agendamento).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</span>
+                      </div>}
+
+                    {fatura.data_follow_up && <div className="flex items-center gap-2 text-muted-foreground">
+                        <CalendarIcon className="h-4 w-4 flex-shrink-0" />
+                        <span>Follow-up: {new Date(fatura.data_follow_up).toLocaleDateString('pt-BR')}</span>
+                      </div>}
+                  </div>
+
+                  {fatura.observacoes && <div className="pt-2 border-t border-border mt-4">
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {fatura.observacoes}
+                      </p>
+                    </div>}
+
+                  <div className="flex-1" />
+
+                  <div className="pt-3 border-t border-border grid grid-cols-3 gap-2 mt-4">
+                    <Button variant="outline" size="sm" onClick={() => setEditarFatura(fatura)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={e => handleWhatsAppClick(e, (fatura.leads as any)?.telefone, (fatura.leads as any)?.origem)} disabled={!(fatura.leads as any)?.telefone}>
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setFaturaParaExcluir(fatura)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>)}
+          </div> : <Card className="p-12">
+            <p className="text-center text-muted-foreground">
+              Nenhuma negociação encontrada
+            </p>
+          </Card>}
+      </div>
+
+      <Dialog open={selecionarClienteOpen} onOpenChange={setSelecionarClienteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Selecionar Cliente</DialogTitle>
+            <DialogDescription>
+              Escolha o cliente para criar a negociação
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select onValueChange={value => {
+            const cliente = clientes?.find(c => c.id === value);
+            if (cliente) {
+              setClienteSelecionado({
+                id: cliente.id,
+                nome: cliente.nome
+              });
+            }
+          }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clientes?.map(cliente => <SelectItem key={cliente.id} value={cliente.id}>
+                    {cliente.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => {
+              setSelecionarClienteOpen(false);
+              setClienteSelecionado(null);
+            }}>
+                Cancelar
+              </Button>
+              <Button onClick={() => {
+              if (clienteSelecionado) {
+                setSelecionarClienteOpen(false);
+                setNovaFaturaOpen(true);
+              }
+            }} disabled={!clienteSelecionado}>
+                Continuar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {clienteSelecionado && <NovaFaturaDialog clienteId={clienteSelecionado.id} clienteNome={clienteSelecionado.nome} open={novaFaturaOpen} onOpenChange={open => {
+      setNovaFaturaOpen(open);
+      if (!open) {
+        setClienteSelecionado(null);
+      }
+    }} />}
+
+      {editarFatura && <EditarFaturaDialog fatura={editarFatura} open={!!editarFatura} onOpenChange={open => {
+      if (!open) {
+        setEditarFatura(null);
+      }
+    }} />}
+
+      <AlertDialog open={!!faturaParaExcluir} onOpenChange={open => !open && setFaturaParaExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Negociação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta negociação de {(faturaParaExcluir?.leads as any)?.nome || "Cliente"}? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
+            if (faturaParaExcluir) {
+              deleteFatura.mutate(faturaParaExcluir.id, {
+                onSuccess: () => {
+                  toast.success("Negociação excluída com sucesso");
+                  setFaturaParaExcluir(null);
+                },
+                onError: () => {
+                  toast.error("Erro ao excluir negociação");
+                }
+              });
+            }
+          }}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>;
+}

@@ -1,0 +1,819 @@
+import { useState, useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { useCreateFatura } from "@/hooks/useFaturas";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
+import { useProfissionais } from "@/hooks/useProfissionais";
+import { useProdutos } from "@/hooks/useProdutos";
+import { format } from "date-fns";
+import { Plus, Trash2, Package, Stethoscope } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+const upsellSchema = z.object({
+  tipo: z.enum(["produto", "procedimento"]),
+  item_id: z.string().min(1, "Selecione um item"),
+  valor: z.string().min(1, "Valor é obrigatório"),
+});
+
+const faturaSchema = z.object({
+  valor: z.string().min(1, "Valor é obrigatório"),
+  status: z.enum(["negociacao", "fechado"], { required_error: "Selecione o status" }),
+  procedimento_id: z.string().optional(),
+  profissional_id: z.string().optional(),
+  data_follow_up: z.string().optional(),
+  observacoes: z.string().max(500).optional(),
+  upsells: z.array(upsellSchema).optional(),
+  meio_pagamento: z.string().optional(),
+  forma_pagamento: z.enum(["a_vista", "parcelado", "entrada_parcelado"]),
+  valor_entrada: z.string().optional(),
+  numero_parcelas: z.string().optional(),
+  taxa_parcelamento: z.string().optional(),
+  juros_pago_por: z.enum(["cliente", "empresa"]),
+});
+
+type FaturaFormData = z.infer<typeof faturaSchema>;
+
+interface NovaFaturaDialogProps {
+  clienteId: string;
+  clienteNome: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  procedimentoId?: string;
+  profissionalId?: string;
+  agendamentoId?: string;
+}
+
+export function NovaFaturaDialog({
+  clienteId,
+  clienteNome,
+  open,
+  onOpenChange,
+  procedimentoId,
+  profissionalId,
+  agendamentoId,
+}: NovaFaturaDialogProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createFatura = useCreateFatura();
+  const queryClient = useQueryClient();
+  const { data: procedimentos } = useProcedimentos();
+  const { data: profissionais } = useProfissionais();
+  const { data: produtos } = useProdutos(true);
+
+  const form = useForm<FaturaFormData>({
+    resolver: zodResolver(faturaSchema),
+    defaultValues: {
+      status: undefined,
+      observacoes: "",
+      data_follow_up: format(new Date(), "yyyy-MM-dd"),
+      procedimento_id: procedimentoId || undefined,
+      profissional_id: profissionalId || undefined,
+      upsells: [],
+      meio_pagamento: undefined,
+      forma_pagamento: "a_vista",
+      valor_entrada: "",
+      numero_parcelas: "1",
+      taxa_parcelamento: "0",
+      juros_pago_por: "cliente",
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "upsells",
+  });
+
+  // Preencher valor automaticamente quando procedimento for selecionado
+  const selectedProcedimentoId = form.watch("procedimento_id");
+  
+  useEffect(() => {
+    if (selectedProcedimentoId && procedimentos) {
+      const procedimento = procedimentos.find(p => p.id === selectedProcedimentoId);
+      if (procedimento?.valor_medio) {
+        form.setValue("valor", procedimento.valor_medio.toString().replace('.', ','));
+      }
+    }
+  }, [selectedProcedimentoId, procedimentos, form]);
+
+  // Calcular valor total incluindo upsells
+  const upsells = form.watch("upsells") || [];
+  const valorBase = form.watch("valor") || "0";
+  const valorBaseNumerico = parseFloat(valorBase.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+  const valorUpsells = upsells.reduce((acc, upsell) => {
+    const val = parseFloat((upsell.valor || "0").replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+    return acc + val;
+  }, 0);
+  const valorTotal = valorBaseNumerico + valorUpsells;
+
+  const onSubmit = async (data: FaturaFormData) => {
+    setIsSubmitting(true);
+    try {
+      // Converter valor de string para número
+      const valorNumerico = parseFloat(data.valor.replace(/[^\d,.-]/g, '').replace(',', '.'));
+
+      // Calcular valor total incluindo upsells
+      const valorUpsellsTotal = (data.upsells || []).reduce((acc, upsell) => {
+        const val = parseFloat(upsell.valor.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+        return acc + val;
+      }, 0);
+
+      const valorTotalFatura = valorNumerico + valorUpsellsTotal;
+
+      const valorEntrada = data.forma_pagamento !== "a_vista" && data.valor_entrada 
+        ? parseFloat(data.valor_entrada.replace(/[^\d,.-]/g, '').replace(',', '.')) 
+        : 0;
+      const numeroParcelas = data.forma_pagamento !== "a_vista" && data.numero_parcelas
+        ? parseInt(data.numero_parcelas)
+        : 1;
+      const taxaParcelamento = data.forma_pagamento !== "a_vista" && data.taxa_parcelamento
+        ? parseFloat(data.taxa_parcelamento.replace(/[^\d,.-]/g, '').replace(',', '.'))
+        : 0;
+      
+      // Calcular valor com taxa baseado em quem paga
+      const valorTaxa = valorTotalFatura * (taxaParcelamento / 100);
+      let valorFinal = valorTotalFatura;
+      
+      if (data.juros_pago_por === "cliente") {
+        // Cliente paga a taxa - adiciona ao valor total
+        valorFinal = valorTotalFatura + valorTaxa;
+      } else {
+        // Empresa paga a taxa - o valor permanece o mesmo (a taxa será descontada do recebimento)
+        valorFinal = valorTotalFatura;
+      }
+      
+      // Calcular valor da parcela
+      let valorParcela = 0;
+      if (data.forma_pagamento === "parcelado") {
+        valorParcela = valorFinal / numeroParcelas;
+      } else if (data.forma_pagamento === "entrada_parcelado") {
+        valorParcela = (valorFinal - valorEntrada) / numeroParcelas;
+      }
+
+      const faturaResult = await createFatura.mutateAsync({
+        cliente_id: clienteId,
+        valor: valorFinal,
+        status: data.status,
+        procedimento_id: data.procedimento_id || null,
+        profissional_id: data.profissional_id || null,
+        observacoes: data.observacoes || null,
+        data_follow_up: data.data_follow_up || null,
+        meio_pagamento: data.meio_pagamento || null,
+        forma_pagamento: data.forma_pagamento,
+        valor_entrada: valorEntrada,
+        numero_parcelas: numeroParcelas,
+        valor_parcela: valorParcela,
+        taxa_parcelamento: taxaParcelamento,
+        juros_pago_por: data.juros_pago_por,
+      });
+
+      const { supabase } = await import("@/integrations/supabase/client");
+
+      // Se houver agendamentoId, criar vínculo e atualizar status do agendamento
+      if (agendamentoId) {
+        // Criar vínculo na tabela fatura_agendamentos
+        if (faturaResult) {
+          await supabase.from("fatura_agendamentos").insert({
+            fatura_id: faturaResult.id,
+            agendamento_id: agendamentoId,
+          });
+        }
+
+        // Atualizar status do agendamento para "realizado"
+        await supabase
+          .from("agendamentos")
+          .update({ status: "realizado" })
+          .eq("id", agendamentoId);
+        
+        // Invalidar query de agendamentos para atualizar a lista
+        queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+      }
+
+      // Criar upsells
+      if (faturaResult && data.upsells && data.upsells.length > 0) {
+        const upsellsToInsert = data.upsells.map(upsell => {
+          const valorUpsell = parseFloat(upsell.valor.replace(/[^\d,.-]/g, '').replace(',', '.'));
+          const isProduto = upsell.tipo === "produto";
+          const item = isProduto 
+            ? produtos?.find(p => p.id === upsell.item_id)
+            : procedimentos?.find(p => p.id === upsell.item_id);
+          
+          return {
+            fatura_id: faturaResult.id,
+            tipo: upsell.tipo,
+            produto_id: isProduto ? upsell.item_id : null,
+            procedimento_id: !isProduto ? upsell.item_id : null,
+            descricao: item?.nome || "Item",
+            valor: valorUpsell,
+          };
+        });
+
+        await supabase.from("fatura_upsells").insert(upsellsToInsert);
+      }
+
+      toast.success("Fatura criada com sucesso!");
+      onOpenChange(false);
+      form.reset();
+    } catch (error) {
+      console.error("Erro ao criar fatura:", error);
+      toast.error("Erro ao criar fatura");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const addUpsell = () => {
+    append({ tipo: "produto", item_id: "", valor: "" });
+  };
+
+  // Atualizar valor do upsell quando item for selecionado
+  const handleItemChange = (index: number, itemId: string, tipo: "produto" | "procedimento") => {
+    if (tipo === "produto") {
+      const produto = produtos?.find(p => p.id === itemId);
+      if (produto?.valor) {
+        form.setValue(`upsells.${index}.valor`, produto.valor.toString().replace('.', ','));
+      }
+    } else {
+      const procedimento = procedimentos?.find(p => p.id === itemId);
+      if (procedimento?.valor_medio) {
+        form.setValue(`upsells.${index}.valor`, procedimento.valor_medio.toString().replace('.', ','));
+      }
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[650px] max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>Nova Fatura</DialogTitle>
+          <p className="text-sm text-muted-foreground">Cliente: {clienteNome}</p>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="valor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor Base *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="text"
+                          placeholder="R$ 0,00"
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            const formatted = value.replace(/[^\d,.-]/g, '');
+                            field.onChange(formatted);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="negociacao">Em Negociação</SelectItem>
+                          <SelectItem value="fechado">Fechado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Forma de Pagamento - apenas quando status é fechado */}
+              {form.watch("status") === "fechado" && (
+                <div className="space-y-3 border-t pt-4">
+                  <FormLabel className="text-base font-medium">Pagamento</FormLabel>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="meio_pagamento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Meio de Pagamento</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="pix">Pix</SelectItem>
+                              <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                              <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                              <SelectItem value="boleto">Boleto</SelectItem>
+                              <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="forma_pagamento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Condição</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="a_vista">À Vista</SelectItem>
+                              <SelectItem value="parcelado">Parcelado</SelectItem>
+                              <SelectItem value="entrada_parcelado">Entrada + Parcelado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {form.watch("forma_pagamento") === "entrada_parcelado" && (
+                    <FormField
+                      control={form.control}
+                      name="valor_entrada"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Valor da Entrada</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="text"
+                              placeholder="R$ 0,00"
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                const formatted = value.replace(/[^\d,.-]/g, '');
+                                field.onChange(formatted);
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {(form.watch("forma_pagamento") === "parcelado" || form.watch("forma_pagamento") === "entrada_parcelado") && (
+                    <FormField
+                      control={form.control}
+                      name="numero_parcelas"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Número de Parcelas</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                                <SelectItem key={n} value={n.toString()}>
+                                  {n}x
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {(form.watch("forma_pagamento") === "parcelado" || form.watch("forma_pagamento") === "entrada_parcelado") && (
+                    <FormField
+                      control={form.control}
+                      name="taxa_parcelamento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Taxa de Parcelamento (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="text"
+                              placeholder="0"
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                const formatted = value.replace(/[^\d,.-]/g, '');
+                                field.onChange(formatted);
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {(form.watch("forma_pagamento") === "parcelado" || form.watch("forma_pagamento") === "entrada_parcelado") && parseFloat((form.watch("taxa_parcelamento") || "0").replace(',', '.')) > 0 && (
+                    <FormField
+                      control={form.control}
+                      name="juros_pago_por"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quem paga os juros?</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="cliente">Cliente (valor é acrescido)</SelectItem>
+                              <SelectItem value="empresa">Empresa (valor é descontado)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {/* Resumo de Pagamento */}
+                  {form.watch("forma_pagamento") !== "a_vista" && (
+                    <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
+                      {form.watch("forma_pagamento") === "entrada_parcelado" && (
+                        <div className="flex justify-between">
+                          <span>Entrada:</span>
+                          <span className="font-medium">
+                            R$ {(parseFloat((form.watch("valor_entrada") || "0").replace(/[^\d,.-]/g, '').replace(',', '.')) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      )}
+                      {parseFloat((form.watch("taxa_parcelamento") || "0").replace(',', '.')) > 0 && (
+                        <div className="flex justify-between">
+                          <span>Taxa ({form.watch("juros_pago_por") === "empresa" ? "paga pela empresa" : "paga pelo cliente"}):</span>
+                          <span className={cn("font-medium", form.watch("juros_pago_por") === "empresa" ? "text-red-600" : "text-orange-600")}>
+                            {form.watch("juros_pago_por") === "empresa" ? "-" : "+"}{form.watch("taxa_parcelamento")}%
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>Parcelas:</span>
+                        <span className="font-medium">
+                          {form.watch("numero_parcelas") || 1}x de R$ {(() => {
+                            const total = valorTotal;
+                            const taxa = parseFloat((form.watch("taxa_parcelamento") || "0").replace(',', '.')) || 0;
+                            const jurosPagoPor = form.watch("juros_pago_por");
+                            const valorTaxa = total * (taxa / 100);
+                            const totalFinal = jurosPagoPor === "empresa" ? total : total + valorTaxa;
+                            const entrada = form.watch("forma_pagamento") === "entrada_parcelado" 
+                              ? parseFloat((form.watch("valor_entrada") || "0").replace(/[^\d,.-]/g, '').replace(',', '.')) || 0
+                              : 0;
+                            const parcelas = parseInt(form.watch("numero_parcelas") || "1") || 1;
+                            return ((totalFinal - entrada) / parcelas).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                          })()}
+                        </span>
+                      </div>
+                      {parseFloat((form.watch("taxa_parcelamento") || "0").replace(',', '.')) > 0 && (
+                        <div className="flex justify-between pt-1 border-t border-border">
+                          <span className="font-medium">{form.watch("juros_pago_por") === "empresa" ? "Valor a receber (após taxa):" : "Total com taxa:"}</span>
+                          <span className="font-bold">
+                            R$ {(() => {
+                              const total = valorTotal;
+                              const taxa = parseFloat((form.watch("taxa_parcelamento") || "0").replace(',', '.')) || 0;
+                              const jurosPagoPor = form.watch("juros_pago_por");
+                              const valorTaxa = total * (taxa / 100);
+                              if (jurosPagoPor === "empresa") {
+                                return (total - valorTaxa).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                              }
+                              return (total + valorTaxa).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                            })()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {form.watch("status") === "negociacao" && (
+                <FormField
+                  control={form.control}
+                  name="data_follow_up"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data de Follow-up</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <FormField
+                control={form.control}
+                name="procedimento_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Procedimento</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o procedimento" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {procedimentos?.filter(p => p.ativo).map((proc) => (
+                          <SelectItem key={proc.id} value={proc.id}>
+                            {proc.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="profissional_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Profissional</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o profissional" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {profissionais?.filter(p => p.ativo).map((prof) => (
+                          <SelectItem key={prof.id} value={prof.id}>
+                            {prof.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Seção de Upsells */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <FormLabel className="text-base font-medium">Upsells (Adicionais)</FormLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addUpsell}
+                    className="gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar
+                  </Button>
+                </div>
+
+
+                {fields.map((field, index) => {
+                  const tipoAtual = form.watch(`upsells.${index}.tipo`);
+                  
+                  return (
+                    <div key={field.id} className="border rounded-lg p-3 space-y-3 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium flex items-center gap-2">
+                          {tipoAtual === "produto" ? (
+                            <Package className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Stethoscope className="h-4 w-4 text-primary" />
+                          )}
+                          Upsell #{index + 1}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => remove(index)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <FormField
+                          control={form.control}
+                          name={`upsells.${index}.tipo`}
+                          render={({ field: tipoField }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Tipo</FormLabel>
+                              <Select 
+                                onValueChange={(value) => {
+                                  tipoField.onChange(value);
+                                  // Limpar item selecionado ao mudar tipo
+                                  form.setValue(`upsells.${index}.item_id`, "");
+                                  form.setValue(`upsells.${index}.valor`, "");
+                                }} 
+                                value={tipoField.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="produto">
+                                    <span className="flex items-center gap-2">
+                                      <Package className="h-3 w-3" />
+                                      Produto
+                                    </span>
+                                  </SelectItem>
+                                  <SelectItem value="procedimento">
+                                    <span className="flex items-center gap-2">
+                                      <Stethoscope className="h-3 w-3" />
+                                      Procedimento
+                                    </span>
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`upsells.${index}.item_id`}
+                          render={({ field: itemField }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">
+                                {tipoAtual === "produto" ? "Produto" : "Procedimento"}
+                              </FormLabel>
+                              <Select 
+                                onValueChange={(value) => {
+                                  itemField.onChange(value);
+                                  handleItemChange(index, value, tipoAtual);
+                                }} 
+                                value={itemField.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Selecione" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {tipoAtual === "produto" ? (
+                                    produtos?.map((prod) => (
+                                      <SelectItem key={prod.id} value={prod.id}>
+                                        {prod.nome}
+                                      </SelectItem>
+                                    ))
+                                  ) : (
+                                    procedimentos?.filter(p => p.ativo).map((proc) => (
+                                      <SelectItem key={proc.id} value={proc.id}>
+                                        {proc.nome}
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`upsells.${index}.valor`}
+                          render={({ field: valorField }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Valor</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...valorField}
+                                  type="text"
+                                  placeholder="0,00"
+                                  className="h-9"
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    const formatted = value.replace(/[^\d,.-]/g, '');
+                                    valorField.onChange(formatted);
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Resumo de valores */}
+                {(fields.length > 0 || valorBaseNumerico > 0) && (
+                  <div className="pt-3 mt-3 space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Valor base:</span>
+                      <span>R$ {valorBaseNumerico.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {valorUpsells > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Upsells ({fields.length}):</span>
+                        <span>R$ {valorUpsells.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-base font-semibold pt-1 border-t">
+                      <span>Valor Total:</span>
+                      <span className="text-primary">R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <FormField
+                control={form.control}
+                name="observacoes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observações</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Observações sobre a fatura..."
+                        className="resize-none"
+                        rows={3}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isSubmitting}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Criando..." : "Criar Fatura"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
