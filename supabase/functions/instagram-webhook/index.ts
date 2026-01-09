@@ -218,18 +218,18 @@ async function checkAndTrackInteraction(supabase: any, userId: string, instagram
   // Check if this user has interacted before
   const { data: existing } = await supabase
     .from('instagram_interacoes')
-    .select('id')
+    .select('id, total_mensagens')
     .eq('user_id', userId)
     .eq('instagram_user_id', instagramUserId)
-    .single();
+    .maybeSingle();
 
   if (existing) {
-    // Update last interaction
+    // Update last interaction - increment total_mensagens manually
     await supabase
       .from('instagram_interacoes')
       .update({ 
         ultima_interacao_em: new Date().toISOString(),
-        total_mensagens: supabase.raw('total_mensagens + 1')
+        total_mensagens: (existing.total_mensagens || 0) + 1
       })
       .eq('id', existing.id);
     return false;
