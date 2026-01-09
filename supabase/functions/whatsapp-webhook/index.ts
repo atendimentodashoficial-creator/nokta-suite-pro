@@ -429,9 +429,33 @@ Deno.serve(async (req) => {
             } else {
               console.log('Incremented WhatsApp unread_count to', newUnread, 'for chat', matchingChat.id);
             }
+
+            // Save message to whatsapp_messages for realtime updates
+            const anyMsg = normalizedPayload.message as any;
+            const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
+            const msgTime = new Date(
+              messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
+            ).toISOString();
+
+            const { error: msgInsertError } = await supabase
+              .from('whatsapp_messages')
+              .upsert({
+                chat_id: matchingChat.id,
+                message_id: messageId,
+                content: messageText || '',
+                sender_type: 'contact',
+                media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                timestamp: msgTime,
+              }, { onConflict: 'message_id' });
+
+            if (msgInsertError) {
+              console.error('Error saving WhatsApp message:', msgInsertError);
+            } else {
+              console.log('Saved WhatsApp message:', messageId);
+            }
           } else {
             // Chat doesn't exist yet - create it automatically so the UI can show it immediately
-            const chatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
+            const waChatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
             const msgTime = new Date(
               messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
             ).toISOString();
@@ -440,7 +464,7 @@ Deno.serve(async (req) => {
               .from('whatsapp_chats')
               .insert({
                 user_id: userId,
-                chat_id: chatId,
+                chat_id: waChatId,
                 contact_number: phone,
                 contact_name: name,
                 normalized_number: normalizedIncoming,
@@ -459,6 +483,27 @@ Deno.serve(async (req) => {
               }
             } else {
               console.log('Created new WhatsApp chat:', newChat.id, 'for', name);
+
+              // Save the first message to whatsapp_messages
+              const anyMsg = normalizedPayload.message as any;
+              const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
+
+              const { error: msgInsertError } = await supabase
+                .from('whatsapp_messages')
+                .upsert({
+                  chat_id: newChat.id,
+                  message_id: messageId,
+                  content: messageText || '',
+                  sender_type: 'contact',
+                  media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                  timestamp: msgTime,
+                }, { onConflict: 'message_id' });
+
+              if (msgInsertError) {
+                console.error('Error saving first WhatsApp message:', msgInsertError);
+              } else {
+                console.log('Saved first WhatsApp message:', messageId);
+              }
             }
           }
         }
@@ -511,6 +556,30 @@ Deno.serve(async (req) => {
                 instanciaId ? `(instancia: ${instanciaId})` : ''
               );
             }
+
+            // Save message to disparos_messages for realtime updates
+            const anyMsg = normalizedPayload.message as any;
+            const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
+            const msgTime = new Date(
+              messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
+            ).toISOString();
+
+            const { error: msgInsertError } = await supabase
+              .from('disparos_messages')
+              .upsert({
+                chat_id: matchingDisparosChat.id,
+                message_id: messageId,
+                content: messageText || '',
+                sender_type: 'contact',
+                media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                timestamp: msgTime,
+              }, { onConflict: 'message_id' });
+
+            if (msgInsertError) {
+              console.error('Error saving Disparos message:', msgInsertError);
+            } else {
+              console.log('Saved Disparos message:', messageId);
+            }
           } else if (instanciaId) {
             // Chat doesn't exist for this instance - create it automatically
             // Get instance info for the chat
@@ -520,7 +589,7 @@ Deno.serve(async (req) => {
               .eq('id', instanciaId)
               .maybeSingle();
 
-            const chatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
+            const disparosChatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
             const msgTime = new Date(
               messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
             ).toISOString();
@@ -529,7 +598,7 @@ Deno.serve(async (req) => {
               .from('disparos_chats')
               .insert({
                 user_id: userId,
-                chat_id: chatId,
+                chat_id: disparosChatId,
                 contact_number: phone,
                 contact_name: name,
                 normalized_number: normalizedIncoming,
@@ -549,6 +618,27 @@ Deno.serve(async (req) => {
               }
             } else {
               console.log('Created new Disparos chat:', newChat.id, 'for', name, `(instancia: ${instanciaId})`);
+
+              // Save the first message to disparos_messages
+              const anyMsg = normalizedPayload.message as any;
+              const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
+
+              const { error: msgInsertError } = await supabase
+                .from('disparos_messages')
+                .upsert({
+                  chat_id: newChat.id,
+                  message_id: messageId,
+                  content: messageText || '',
+                  sender_type: 'contact',
+                  media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                  timestamp: msgTime,
+                }, { onConflict: 'message_id' });
+
+              if (msgInsertError) {
+                console.error('Error saving first Disparos message:', msgInsertError);
+              } else {
+                console.log('Saved first Disparos message:', messageId);
+              }
             }
           }
         }
