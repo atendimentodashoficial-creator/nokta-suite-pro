@@ -295,6 +295,18 @@ Deno.serve(async (req) => {
 
     // Extract data from payload
     const chatId = normalizedPayload.chat?.wa_chatid || normalizedPayload.chat?.wa_chatid || '';
+    
+    // Check if this is a group message (chatId ends with @g.us)
+    const isGroupMessage = chatId.endsWith('@g.us');
+    if (isGroupMessage) {
+      console.log('Ignoring group message, chatId:', chatId);
+      await logEvent(userId, 'info', `Mensagem de grupo ignorada: ${chatId}`);
+      return new Response(
+        JSON.stringify({ message: 'Group messages are ignored' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const phone = normalizedPayload.chat?.phone?.trim() ||
       (normalizedPayload.message as any)?.sender_pn?.replace('@s.whatsapp.net', '') ||
       String((normalizedPayload.message as any)?.sender || '').replace(/\D/g, '') ||
