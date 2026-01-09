@@ -149,13 +149,26 @@ export default function Disparos() {
   // Check if user has Disparos config (check instancias first, fallback to config)
   const checkConfig = async () => {
     try {
-      // Check for active instances in disparos_instancias ONLY
-      // (disparos_config is legacy and should not be used for the Disparos tab)
-      const { data: instancias, error: instError } = await supabase
+      // First, get the main WhatsApp instance ID to exclude it
+      const { data: uazapiConfig } = await supabase
+        .from("uazapi_config")
+        .select("whatsapp_instancia_id")
+        .maybeSingle();
+      
+      const mainWhatsappId = uazapiConfig?.whatsapp_instancia_id || null;
+      
+      // Check for active instances in disparos_instancias ONLY (excluding main WhatsApp)
+      let query = supabase
         .from('disparos_instancias')
         .select('id')
-        .eq('is_active', true)
-        .limit(1);
+        .eq('is_active', true);
+      
+      // Exclude the main WhatsApp instance
+      if (mainWhatsappId) {
+        query = query.neq('id', mainWhatsappId);
+      }
+      
+      const { data: instancias, error: instError } = await query.limit(1);
       
       setHasConfig(!instError && instancias && instancias.length > 0);
     } catch {
@@ -251,24 +264,39 @@ export default function Disparos() {
   }, [searchTerm, chats, filterInstanciaId]);
 
   // Load instancias (just load data, don't auto-check connection status)
+  // IMPORTANT: Exclude the main WhatsApp instance (linked via uazapi_config.whatsapp_instancia_id)
   const loadInstancias = async () => {
     try {
+      // First, get the main WhatsApp instance ID to exclude it
+      const { data: uazapiConfig } = await supabase
+        .from("uazapi_config")
+        .select("whatsapp_instancia_id")
+        .maybeSingle();
+      
+      const mainWhatsappId = uazapiConfig?.whatsapp_instancia_id || null;
+      
+      // Load all active instances
       const { data } = await supabase
         .from("disparos_instancias")
         .select("*")
         .eq("is_active", true);
       
       if (data) {
+        // Filter out the main WhatsApp instance - it should only appear in the WhatsApp tab
+        const filteredInstancias = mainWhatsappId 
+          ? data.filter(inst => inst.id !== mainWhatsappId)
+          : data;
+        
         const map: Record<string, DisparosInstancia> = {};
-        data.forEach(inst => {
+        filteredInstancias.forEach(inst => {
           map[inst.id] = inst;
         });
         setInstanciasMap(map);
-        setInstanciasList(data);
-        setFullInstancias(data);
+        setInstanciasList(filteredInstancias);
+        setFullInstancias(filteredInstancias);
         // Set default selection to first instance
-        if (data.length > 0 && !selectedInstanciaId) {
-          setSelectedInstanciaId(data[0].id);
+        if (filteredInstancias.length > 0 && !selectedInstanciaId) {
+          setSelectedInstanciaId(filteredInstancias[0].id);
         }
         // DON'T auto-check connection status - only check when user opens manager
       }
