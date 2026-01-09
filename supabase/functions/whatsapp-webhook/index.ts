@@ -188,11 +188,12 @@ function extractUtmDataFromMessage(message: any, payload: any): ExtractedUtmData
     utmData.utm_source = 'facebook';
     utmData.utm_medium = 'cpc';
     utmData.utm_campaign = externalAdReply.title || null;
-    utmData.utm_content = externalAdReply.sourceId || externalAdReply.source_id || null;
+    // UAZAPI sends sourceID (uppercase D) - check both variants
+    utmData.utm_content = externalAdReply.sourceID || externalAdReply.sourceId || externalAdReply.source_id || null;
     utmData.utm_term = externalAdReply.body || null;
     utmData.fbclid = externalAdReply.ctwa_clid || null;
     utmData.ad_thumbnail_url = externalAdReply.thumbnailURL || externalAdReply.thumbnail_url || null;
-    utmData.fb_ad_id = externalAdReply.sourceId || externalAdReply.source_id || null;
+    utmData.fb_ad_id = externalAdReply.sourceID || externalAdReply.sourceId || externalAdReply.source_id || null;
 
     // Some UAZAPI payloads omit sourceId but include ctwaPayload/conversionData.
     if (!utmData.fb_ad_id || !utmData.utm_content || !utmData.fbclid) {
@@ -1060,10 +1061,11 @@ Deno.serve(async (req) => {
       await logEvent(userId, 'info', `Dados de anúncio CTWA (UAZAPI) detectados: ${JSON.stringify(externalAdReply)}`);
 
       // Map externalAdReply data to UTM-like fields
+      // UAZAPI sends sourceID (uppercase D) - check both variants
       utmData.utm_source = 'facebook';
       utmData.utm_medium = 'cpc';
       utmData.utm_campaign = externalAdReply.title || null;
-      utmData.utm_content = externalAdReply.sourceId || externalAdReply.source_id || null;
+      utmData.utm_content = externalAdReply.sourceID || externalAdReply.sourceId || externalAdReply.source_id || null;
       utmData.utm_term = externalAdReply.body || null;
       utmData.fbclid = externalAdReply.ctwa_clid || null;
 
