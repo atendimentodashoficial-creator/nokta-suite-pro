@@ -402,12 +402,9 @@ serve(async (req) => {
         nextProviderBaseline = providerUnread;
       }
 
-      // IMPORTANT: If chat doesn't exist and last message is before instance connection,
-      // skip it - don't create new chats for old conversations
-      if (!existingChat && lastMsgTime && lastMsgTime < instanceConnectedDate) {
-        console.log(`[SYNC] Skipping NEW chat ${chat.phone} - last message before instance connection (${lastMsgTime.toISOString()} < ${instanceConnectedDate.toISOString()})`);
-        continue;
-      }
+      // NOTE: We now import ALL old chats (even before instance connection)
+      // The user wants to see old conversations in the app
+      // Leads will ONLY be created via webhook for NEW messages after connection
 
       // Neste ponto, o chat não está deletado (ou não existe ainda mas tem mensagem recente)
       chatsToUpsert.push({
@@ -509,97 +506,10 @@ serve(async (req) => {
       if (newRows && newRows.length > 0) syncedChats.push(...newRows);
     }
 
-    // === Lead creation for WhatsApp ===
-    // Usar a MESMA lógica simplificada de Disparos: processar TODOS os chats ativos
-    try {
-      // Buscar todos os chats ativos de WhatsApp para este usuário
-      const { data: allActiveWhatsAppChats } = await supabase
-        .from("whatsapp_chats")
-        .select("*")
-        .eq("user_id", user.id)
-        .is("deleted_at", null);
-
-      console.log(`[LEADS] Processing ${allActiveWhatsAppChats?.length || 0} active WhatsApp chats for lead creation`);
-
-      // Buscar todos os leads do user para checar por last8 + origem
-      const { data: allLeads } = await (admin || supabase)
-        .from("leads")
-        .select("id, telefone, origem, deleted_at")
-        .eq("user_id", user.id);
-
-      const today = new Date().toISOString().split("T")[0];
-
-      // Map por chave: last8 + origem (WhatsApp)
-      const existingWhatsAppLeads = new Map<string, any>();
-      for (const lead of allLeads || []) {
-        const leadOrigem = (lead.origem || "").toLowerCase();
-        // Apenas considerar leads de WhatsApp ou sem origem (legado)
-        if (leadOrigem !== "whatsapp" && leadOrigem !== "") continue;
-        const k = getLast8Digits(lead.telefone);
-        if (k && !existingWhatsAppLeads.has(k)) {
-          existingWhatsAppLeads.set(k, lead);
-        }
-      }
-
-      // Processar TODOS os chats ativos de WhatsApp e criar/restaurar leads
-      for (const chat of allActiveWhatsAppChats || []) {
-        const phone = chat.normalized_number || (chat.contact_number ? chat.contact_number.replace(/\D/g, "") : "");
-        const k = getLast8Digits(phone);
-        if (!phone || !k) continue;
-
-        const existingLead = existingWhatsAppLeads.get(k);
-
-        if (existingLead) {
-          // Se estava deletado, restaurar
-          if (existingLead.deleted_at) {
-            const writer = admin || supabase;
-            await writer
-              .from("leads")
-              .update({
-                deleted_at: null,
-                created_at: new Date().toISOString(),
-                status: "lead",
-                origem: "WhatsApp",
-                origem_lead: true,
-                data_contato: today,
-              })
-              .eq("id", existingLead.id);
-            console.log(`[LEADS] Restored WhatsApp lead ${existingLead.id} for ${phone}`);
-            // Atualiza cache
-            existingWhatsAppLeads.set(k, { ...existingLead, deleted_at: null });
-          }
-        } else {
-          // Criar novo lead de WhatsApp
-          const writer = admin || supabase;
-          const { error: insertError } = await writer
-            .from("leads")
-            .insert({
-              user_id: user.id,
-              nome: chat.contact_name || "Contato WhatsApp",
-              telefone: phone,
-              procedimento_nome: "Contato via WhatsApp",
-              origem: "WhatsApp",
-              status: "lead",
-              origem_lead: true,
-              data_contato: today,
-              observacoes: chat.last_message ? `Primeira mensagem: ${chat.last_message}` : null,
-            });
-
-          if (insertError) {
-            // Ignora duplicação (pode ser por variação de telefone ou race condition)
-            if (!insertError.message?.includes("duplicate") && !insertError.message?.includes("unique")) {
-              console.error("[LEADS] Error inserting WhatsApp lead:", insertError);
-            }
-          } else {
-            console.log(`[LEADS] Created WhatsApp lead for ${phone}`);
-            // Atualiza cache para não tentar criar de novo
-            existingWhatsAppLeads.set(k, { telefone: phone, origem: "WhatsApp" });
-          }
-        }
-      }
-    } catch (leadError) {
-      console.error("[LEADS] Error in WhatsApp lead creation:", leadError);
-    }
+    // NOTE: Lead creation removed from sync.
+    // Leads are now ONLY created via webhook when new messages arrive after connection.
+    // This prevents creating leads for old conversations that were already in WhatsApp.
+    console.log(`[SYNC] Lead creation skipped - leads are created only via webhook for new messages`);
 
     // Update last sync time
     await supabase.from("uazapi_config").update({ last_sync_at: new Date().toISOString() }).eq("user_id", user.id);
