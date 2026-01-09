@@ -269,6 +269,48 @@ Deno.serve(async (req) => {
     const payload: WhatsAppWebhookPayload = await req.json();
     console.log('Payload received:', JSON.stringify(payload, null, 2));
 
+    // === UAZAPI sends instanceName inside payload; re-resolve instance if needed ===
+    const anyPayload: any = payload as any;
+    const payloadInstanceName = anyPayload?.instanceName || null;
+
+    // If we haven't resolved the instance from URL param, try using the payload's instanceName
+    if (!instanciaId && payloadInstanceName) {
+      console.log('Attempting to resolve instance from payload instanceName:', payloadInstanceName);
+      const { data: instanciaFromPayload } = await supabase
+        .from('disparos_instancias')
+        .select('id, nome, instance_name')
+        .eq('user_id', userId)
+        .or(`instance_name.eq.${payloadInstanceName},nome.eq.${payloadInstanceName}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (instanciaFromPayload?.id) {
+        instanciaId = instanciaFromPayload.id;
+        instanciaNomeFromDb = instanciaFromPayload.nome || payloadInstanceName;
+        console.log('Resolved instance from payload:', instanciaId, instanciaNomeFromDb);
+
+        // Re-check if this is the main WhatsApp instance
+        const isMain = uazapiConfig?.whatsapp_instancia_id === instanciaId;
+        // Update hasInstanceParam and isMainWhatsAppInstance for downstream logic
+        // We use a mutable approach here since we need to update these flags
+        (globalThis as any).__hasInstanceParam = true;
+        (globalThis as any).__isMainWhatsAppInstance = isMain;
+      } else {
+        // Even if not resolved, we know there IS an instance (from payload)
+        (globalThis as any).__hasInstanceParam = true;
+        (globalThis as any).__isMainWhatsAppInstance = false;
+        instanciaNomeFromDb = payloadInstanceName;
+        console.log('Could not resolve instance from payload, but treating as Disparos:', payloadInstanceName);
+      }
+    }
+
+    // Use global flags if they were set, otherwise use original values
+    const effectiveHasInstanceParam = (globalThis as any).__hasInstanceParam ?? hasInstanceParam;
+    const effectiveIsMainWhatsAppInstance = (globalThis as any).__isMainWhatsAppInstance ?? isMainWhatsAppInstance;
+    // Clean up global flags
+    delete (globalThis as any).__hasInstanceParam;
+    delete (globalThis as any).__isMainWhatsAppInstance;
+
     // Check if this is a deleted message event
     if (payload.type === 'DeletedMessage' && payload.event?.Type === 'Deleted') {
       console.log('Processing deleted message event');
@@ -298,7 +340,7 @@ Deno.serve(async (req) => {
 
     // Normalize payload differences between providers.
     // UAZAPI (observed) may send: { EventType: 'messages', message: { chatid, content, text, sender, sender_pn, ... } }
-    const anyPayload: any = payload as any;
+    // Re-use anyPayload defined above
     const hasMessage = Boolean(anyPayload?.message);
     const hasChat = Boolean(anyPayload?.chat) || Boolean(anyPayload?.message?.chatid) || Boolean(anyPayload?.message?.chatId);
 
@@ -423,8 +465,8 @@ Deno.serve(async (req) => {
 
         // If there's no instance param => WhatsApp.
         // If there IS an instance param => it's Disparos, unless it matches the configured main WhatsApp instance.
-        const shouldUpdateWhatsApp = !hasInstanceParam || isMainWhatsAppInstance;
-        const shouldUpdateDisparos = hasInstanceParam && !isMainWhatsAppInstance;
+        const shouldUpdateWhatsApp = !effectiveHasInstanceParam || effectiveIsMainWhatsAppInstance;
+        const shouldUpdateDisparos = effectiveHasInstanceParam && !effectiveIsMainWhatsAppInstance;
         if (shouldUpdateWhatsApp) {
           const { data: existingChats } = await supabase
             .from('whatsapp_chats')
@@ -739,7 +781,7 @@ Deno.serve(async (req) => {
     // Rule: if webhook includes an instance param, treat it as Disparos unless it matches the configured main WhatsApp instance.
     let instanciaNome: string | null = instanciaNomeFromDb;
 
-    if (hasInstanceParam && !instanciaNome && instanciaId) {
+    if (effectiveHasInstanceParam && !instanciaNome && instanciaId) {
       const { data: instanciaInfo } = await supabase
         .from('disparos_instancias')
         .select('nome')
@@ -749,10 +791,12 @@ Deno.serve(async (req) => {
       instanciaNome = instanciaInfo?.nome || null;
     }
 
-    const isDisparosInstance = hasInstanceParam && !isMainWhatsAppInstance;
+    const isDisparosInstance = effectiveHasInstanceParam && !effectiveIsMainWhatsAppInstance;
     const leadOrigem = isDisparosInstance ? 'Disparos' : 'WhatsApp';
+    console.log('Lead origin classification:', leadOrigem, 'effectiveHasInstanceParam:', effectiveHasInstanceParam, 'effectiveIsMainWhatsAppInstance:', effectiveIsMainWhatsAppInstance);
 
-    // Garantir que exista (ou seja RESTAURADO) um lead para o telefone (match por últimos 8 dígitos)
+    // Find leads matching phone AND origem (WhatsApp or Disparos are treated as separate "buckets")
+    // A contact can have a lead in WhatsApp AND a lead in Disparos (same phone, different origin)
     const { data: allLeads, error: searchError } = await supabase
       .from('leads')
       .select('id, status, telefone, nome, deleted_at, origem, utm_source, fbclid')
@@ -767,7 +811,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const matchingLead = allLeads?.find((lead) => phonesMatch(lead.telefone, phone));
+    // Match by phone AND origem - each origin is a separate bucket
+    const matchingLead = allLeads?.find((lead) => {
+      const phoneMatches = phonesMatch(lead.telefone, phone);
+      const origemMatches = (lead.origem || '').toLowerCase() === leadOrigem.toLowerCase();
+      return phoneMatches && origemMatches;
+    });
 
     // Se já é cliente, não mexe
     if (matchingLead && !matchingLead.deleted_at && matchingLead.status === 'cliente') {
