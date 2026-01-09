@@ -117,41 +117,6 @@ async function processMessage(supabase: any, event: any) {
 
   const config = configs[0];
 
-  // Check if follower verification is enabled
-  if (config.verificar_seguidor && config.mensagem_pedir_seguir) {
-    const followerInfo = await checkIfFollower(config.page_access_token, senderId);
-    
-    if (followerInfo && !followerInfo.is_user_follow_business) {
-      console.log('User does not follow business, sending follow request message');
-      
-      // Replace {nome} with username if available
-      let followMessage = config.mensagem_pedir_seguir;
-      if (followerInfo.username) {
-        followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
-      }
-
-      await sendInstagramMessage(
-        config.page_access_token,
-        config.instagram_account_id,
-        senderId,
-        followMessage
-      );
-
-      // Log the message
-      await supabase.from('instagram_mensagens').insert({
-        user_id: config.user_id,
-        instagram_user_id: senderId,
-        instagram_username: followerInfo.username,
-        tipo: 'dm_enviada',
-        conteudo: followMessage,
-        metadata: { tipo: 'pedir_seguir', follower_info: followerInfo },
-      });
-
-      // Don't process other triggers if user doesn't follow
-      return;
-    }
-  }
-
   // Check if this is first interaction
   const isFirstInteraction = await checkAndTrackInteraction(supabase, config.user_id, senderId);
 
@@ -216,6 +181,41 @@ async function processMessage(supabase: any, event: any) {
 
     if (triggered) {
       console.log('Trigger matched:', gatilho.nome);
+      
+      // Check if this trigger requires follower verification
+      if (gatilho.verificar_seguidor && gatilho.mensagem_pedir_seguir) {
+        const followerInfo = await checkIfFollower(config.page_access_token, senderId);
+        
+        if (followerInfo && !followerInfo.is_user_follow_business) {
+          console.log('User does not follow business, sending follow request for trigger:', gatilho.nome);
+          
+          // Replace {nome} with username if available
+          let followMessage = gatilho.mensagem_pedir_seguir;
+          if (followerInfo.username) {
+            followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
+          }
+
+          await sendInstagramMessage(
+            config.page_access_token,
+            config.instagram_account_id,
+            senderId,
+            followMessage
+          );
+
+          // Log the message
+          await supabase.from('instagram_mensagens').insert({
+            user_id: config.user_id,
+            instagram_user_id: senderId,
+            instagram_username: followerInfo.username,
+            tipo: 'dm_enviada',
+            conteudo: followMessage,
+            gatilho_id: gatilho.id,
+            metadata: { tipo: 'pedir_seguir', follower_info: followerInfo },
+          });
+
+          break; // Stop processing - user needs to follow first
+        }
+      }
       
       // Send text response
       if (gatilho.resposta_texto) {

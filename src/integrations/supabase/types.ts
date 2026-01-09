@@ -1685,6 +1685,7 @@ export type Database = {
           created_at: string
           fluxo_id: string | null
           id: string
+          mensagem_pedir_seguir: string | null
           nome: string
           palavras_chave: string[]
           resposta_botoes: Json | null
@@ -1696,12 +1697,14 @@ export type Database = {
           tipo: string
           updated_at: string
           user_id: string
+          verificar_seguidor: boolean | null
         }
         Insert: {
           ativo?: boolean | null
           created_at?: string
           fluxo_id?: string | null
           id?: string
+          mensagem_pedir_seguir?: string | null
           nome: string
           palavras_chave?: string[]
           resposta_botoes?: Json | null
@@ -1713,12 +1716,14 @@ export type Database = {
           tipo?: string
           updated_at?: string
           user_id: string
+          verificar_seguidor?: boolean | null
         }
         Update: {
           ativo?: boolean | null
           created_at?: string
           fluxo_id?: string | null
           id?: string
+          mensagem_pedir_seguir?: string | null
           nome?: string
           palavras_chave?: string[]
           resposta_botoes?: Json | null
@@ -1730,6 +1735,7 @@ export type Database = {
           tipo?: string
           updated_at?: string
           user_id?: string
+          verificar_seguidor?: boolean | null
         }
         Relationships: []
       }
