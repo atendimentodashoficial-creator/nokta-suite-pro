@@ -177,13 +177,20 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     }
 
     try {
+      console.log('[ChatWindow] Loading messages for chat.id:', chat.id, 'chat.chat_id:', chat.chat_id);
+      
       const { data: dbMessages, error } = await supabase
         .from('whatsapp_messages')
         .select('*')
         .eq('chat_id', chat.id)
         .order('timestamp', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[ChatWindow] Error loading messages:', error);
+        throw error;
+      }
+
+      console.log('[ChatWindow] Found', dbMessages?.length || 0, 'messages in database');
 
       const formattedMessages = (dbMessages || []).map(msg => ({
         id: msg.id,
@@ -198,6 +205,12 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       }));
 
       setMessages(formattedMessages);
+
+      // Se não há mensagens locais, tentar buscar da API imediatamente
+      if (formattedMessages.length === 0 && chat.chat_id) {
+        console.log('[ChatWindow] No local messages, triggering API sync...');
+        await syncMessagesFromApiSilent();
+      }
 
       const shouldScroll = forceScrollOnLoad || previousLength === 0 || formattedMessages.length > previousLength;
       if (shouldScroll) {
