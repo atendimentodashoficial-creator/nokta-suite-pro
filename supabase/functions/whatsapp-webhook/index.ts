@@ -754,7 +754,17 @@ Deno.serve(async (req) => {
 
     // === Lead creation for WhatsApp (same logic as Disparos) ===
     // Extract referral data from Click-to-WhatsApp ads FIRST (before lead creation/update)
-    const referral = payload.message?.referral || payload.referral;
+    // UAZAPI sends ad data in multiple possible locations:
+    // 1. message.referral or payload.referral (standard WhatsApp Business API format)
+    // 2. message.content.contextInfo.externalAdReply (UAZAPI format)
+    const anyMsg = normalizedPayload.message as any;
+    let referral = normalizedPayload.message?.referral || normalizedPayload.referral;
+    
+    // Check for UAZAPI format: message.content.contextInfo.externalAdReply
+    const contextInfo = anyMsg?.content?.contextInfo;
+    const externalAdReply = contextInfo?.externalAdReply;
+    const conversionSource = contextInfo?.conversionSource;
+    
     const utmData: Record<string, string | null> = {
       utm_source: null,
       utm_campaign: null,
@@ -764,8 +774,9 @@ Deno.serve(async (req) => {
       fbclid: null,
     };
 
+    // Handle standard referral format
     if (referral) {
-      console.log('Click-to-WhatsApp referral data detected:', JSON.stringify(referral));
+      console.log('Click-to-WhatsApp referral data detected (standard format):', JSON.stringify(referral));
       await logEvent(userId, 'info', `Dados de anúncio CTWA detectados: ${JSON.stringify(referral)}`);
       
       // Map referral data to UTM-like fields
@@ -775,6 +786,29 @@ Deno.serve(async (req) => {
       utmData.utm_content = referral.source_id || null;
       utmData.utm_term = referral.body || null;
       utmData.fbclid = referral.ctwa_clid || null;
+    }
+    // Handle UAZAPI format: externalAdReply in contextInfo
+    else if (externalAdReply && conversionSource === 'FB_Ads') {
+      console.log('Click-to-WhatsApp ad data detected (UAZAPI format):', JSON.stringify(externalAdReply));
+      await logEvent(userId, 'info', `Dados de anúncio CTWA (UAZAPI) detectados: ${JSON.stringify(externalAdReply)}`);
+      
+      // Map externalAdReply data to UTM-like fields
+      utmData.utm_source = 'facebook';
+      utmData.utm_medium = 'cpc';
+      utmData.utm_campaign = externalAdReply.title || null;
+      utmData.utm_content = externalAdReply.sourceId || externalAdReply.source_id || null;
+      utmData.utm_term = externalAdReply.body || null;
+      // UAZAPI may send conversionData which is base64 encoded - we can try to extract fbclid from it
+      // For now, we don't have a direct ctwa_clid, but we mark as from FB Ads
+      utmData.fbclid = externalAdReply.ctwa_clid || null;
+      
+      // Create a referral-like object for downstream compatibility checks
+      referral = {
+        headline: externalAdReply.title,
+        body: externalAdReply.body,
+        source_id: externalAdReply.sourceId || externalAdReply.source_id,
+        ctwa_clid: externalAdReply.ctwa_clid,
+      };
     }
 
     // Determine origin for lead based on instance.
