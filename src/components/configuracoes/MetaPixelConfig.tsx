@@ -318,68 +318,113 @@ export function MetaPixelConfig() {
                   </div>
                 ) : conversionEvents && conversionEvents.length > 0 ? (
                   <div className="p-4 space-y-3">
-                    {conversionEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className="p-3 border rounded-lg space-y-2 bg-muted/30"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={event.status === 'success' ? 'default' : event.status === 'error' ? 'destructive' : 'secondary'}>
-                              {event.event_name}
-                            </Badge>
-                            {event.status === 'success' ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                            ) : event.status === 'error' ? (
-                              <XCircle className="h-4 w-4 text-red-500" />
+                    {conversionEvents.map((event) => {
+                      const response = event.response as { events_received?: number; messages?: string[]; error?: { message?: string } } | null;
+                      const isSuccess = event.status === 'sent' && response?.events_received && response.events_received > 0;
+                      const isError = event.status === 'error' || (response?.error);
+                      
+                      return (
+                        <div
+                          key={event.id}
+                          className="p-3 border rounded-lg space-y-2 bg-muted/30"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={isSuccess ? 'default' : isError ? 'destructive' : 'secondary'}>
+                                {event.event_name}
+                              </Badge>
+                              {isSuccess ? (
+                                <div className="flex items-center gap-1 text-green-600">
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  <span className="text-xs font-medium">Recebido pelo Meta</span>
+                                </div>
+                              ) : isError ? (
+                                <div className="flex items-center gap-1 text-red-600">
+                                  <XCircle className="h-4 w-4" />
+                                  <span className="text-xs font-medium">Erro</span>
+                                </div>
+                              ) : (
+                                <Clock className="h-4 w-4 text-yellow-500" />
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(event.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+                            </span>
+                          </div>
+                          
+                          {/* Dados enviados */}
+                          <div className="p-2 bg-background rounded border">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Dados Enviados:</p>
+                            <div className="grid grid-cols-2 gap-1 text-xs">
+                              <div>
+                                <span className="text-muted-foreground">Evento:</span>{" "}
+                                <span className="font-medium">{event.event_name}</span>
+                              </div>
+                              {event.value && (
+                                <div>
+                                  <span className="text-muted-foreground">Valor:</span>{" "}
+                                  <span className="font-medium">R$ {Number(event.value).toFixed(2)}</span>
+                                </div>
+                              )}
+                              {event.lead_id && (
+                                <div className="col-span-2">
+                                  <span className="text-muted-foreground">Lead ID:</span>{" "}
+                                  <span className="font-mono text-xs">{event.lead_id.slice(0, 8)}...</span>
+                                </div>
+                              )}
+                              {event.utm_source && (
+                                <div>
+                                  <span className="text-muted-foreground">UTM Source:</span>{" "}
+                                  <span className="font-medium">{event.utm_source}</span>
+                                </div>
+                              )}
+                              {event.utm_campaign && (
+                                <div>
+                                  <span className="text-muted-foreground">UTM Campaign:</span>{" "}
+                                  <span className="font-medium">{event.utm_campaign}</span>
+                                </div>
+                              )}
+                              {event.fbclid && (
+                                <div className="col-span-2">
+                                  <span className="text-muted-foreground">FBCLID:</span>{" "}
+                                  <span className="font-mono text-xs">{event.fbclid.slice(0, 20)}...</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Resposta do Meta */}
+                          <div className="p-2 bg-background rounded border">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Resposta do Meta:</p>
+                            {isSuccess ? (
+                              <div className="text-xs text-green-600">
+                                ✓ {response?.events_received} evento(s) recebido(s) com sucesso
+                                {response?.messages && response.messages.length > 0 && (
+                                  <p className="text-yellow-600 mt-1">⚠️ {response.messages.join(", ")}</p>
+                                )}
+                              </div>
+                            ) : isError ? (
+                              <div className="text-xs text-red-600">
+                                ✗ {response?.error?.message || "Erro ao enviar evento"}
+                              </div>
                             ) : (
-                              <Clock className="h-4 w-4 text-yellow-500" />
+                              <div className="text-xs text-muted-foreground">Processando...</div>
                             )}
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(event.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
-                          </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {event.value && (
-                            <div>
-                              <span className="text-muted-foreground">Valor:</span>{" "}
-                              <span className="font-medium">R$ {event.value}</span>
-                            </div>
-                          )}
-                          {event.utm_source && (
-                            <div>
-                              <span className="text-muted-foreground">Origem:</span>{" "}
-                              <span className="font-medium">{event.utm_source}</span>
-                            </div>
-                          )}
-                          {event.utm_campaign && (
-                            <div>
-                              <span className="text-muted-foreground">Campanha:</span>{" "}
-                              <span className="font-medium">{event.utm_campaign}</span>
-                            </div>
-                          )}
-                          {event.fbclid && (
-                            <div className="col-span-2">
-                              <span className="text-muted-foreground">FBCLID:</span>{" "}
-                              <span className="font-mono text-xs">{event.fbclid.slice(0, 20)}...</span>
-                            </div>
-                          )}
-                        </div>
 
-                        {event.response && (
-                          <details className="text-xs">
-                            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                              Ver resposta do Meta
-                            </summary>
-                            <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
-                              {JSON.stringify(event.response, null, 2)}
-                            </pre>
-                          </details>
-                        )}
-                      </div>
-                    ))}
+                          {event.response && (
+                            <details className="text-xs">
+                              <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                Ver resposta completa (JSON)
+                              </summary>
+                              <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
+                                {JSON.stringify(event.response, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
