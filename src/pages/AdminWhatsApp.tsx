@@ -487,11 +487,21 @@ export default function AdminWhatsApp() {
         const loggedIn = details?.status?.loggedIn === true;
         const hasJid = Boolean(details?.status?.jid);
         const instanceStatus = details?.instance?.status;
-        const notConnecting = instanceStatus && !["connecting", "disconnected", "close"].includes(instanceStatus);
+        
+        console.log("Polling status check:", { 
+          pollCount, 
+          loggedIn, 
+          hasJid, 
+          instanceStatus, 
+          success: response.data?.success,
+          details 
+        });
 
-        const isReallyLoggedIn = loggedIn && hasJid && notConnecting;
+        // Connected if loggedIn is true and has a JID - don't require instanceStatus
+        const isReallyLoggedIn = loggedIn && hasJid;
 
         if (response.data?.success && pollCount >= minPollsBeforeConnect && isReallyLoggedIn) {
+          console.log("Connection confirmed! Closing dialog and configuring webhook...");
           clearInterval(interval);
           setQrPollingInterval(null);
           setQrCodeDialogOpen(false);
@@ -502,6 +512,8 @@ export default function AdminWhatsApp() {
           const instanciaId = instanciaRef?.id;
           if (instanciaId && user?.id) {
             const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${instanciaId}`;
+            console.log("Configuring webhook:", webhookUrl);
+            
             const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
               headers: { Authorization: `Bearer ${session.session?.access_token}` },
               body: {
@@ -512,6 +524,8 @@ export default function AdminWhatsApp() {
               },
             });
 
+            console.log("Webhook response:", webhookResponse.data);
+            
             if (webhookResponse.data?.success) {
               toast.success("Webhook configurado!");
             } else {
