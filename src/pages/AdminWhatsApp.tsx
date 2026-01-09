@@ -327,19 +327,18 @@ export default function AdminWhatsApp() {
   const handleDisconnect = async () => {
     if (!mainInstance) return;
     try {
-      const response = await fetch(`${mainInstance.base_url}/instance/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "token": mainInstance.api_key,
-        },
+      const { data: session } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke("uazapi-disconnect-instance", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: mainInstance.base_url, api_key: mainInstance.api_key },
       });
 
-      if (response.ok) {
+      if (response.data?.success) {
         toast.success("WhatsApp desconectado!");
         setConnectionStatus('disconnected');
       } else {
-        toast.error("Erro ao desconectar");
+        toast.error(response.data?.error || "Erro ao desconectar");
       }
     } catch {
       toast.error("Erro ao desconectar");
