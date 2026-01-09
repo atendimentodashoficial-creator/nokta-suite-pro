@@ -200,6 +200,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         utm_content: msg.utm_content,
         utm_term: msg.utm_term,
         fbclid: msg.fbclid,
+        ad_thumbnail_url: msg.ad_thumbnail_url,
       }));
 
       const dedupedFormatted = dedupeChatMessages(formattedMessages);
@@ -606,6 +607,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
             utm_content: payload.new.utm_content,
             utm_term: payload.new.utm_term,
             fbclid: payload.new.fbclid,
+            ad_thumbnail_url: payload.new.ad_thumbnail_url,
           };
           setMessages(prev => dedupeChatMessages([...prev, newMsg]));
           setShouldScrollToBottom(true);
@@ -635,6 +637,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
                     utm_content: payload.new.utm_content,
                     utm_term: payload.new.utm_term,
                     fbclid: payload.new.fbclid,
+                    ad_thumbnail_url: payload.new.ad_thumbnail_url,
                   }
                 : msg
             )

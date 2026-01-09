@@ -107,6 +107,7 @@ function extractUtmDataFromMessage(message: any, payload: any): Record<string, s
     utm_content: null,
     utm_term: null,
     fbclid: null,
+    ad_thumbnail_url: null,
   };
 
   if (!message) return utmData;
@@ -128,6 +129,7 @@ function extractUtmDataFromMessage(message: any, payload: any): Record<string, s
     utmData.utm_content = referral.source_id || null;
     utmData.utm_term = referral.body || null;
     utmData.fbclid = referral.ctwa_clid || null;
+    utmData.ad_thumbnail_url = referral.thumbnail_url || referral.thumbnailURL || null;
   }
   // Handle UAZAPI format: externalAdReply in contextInfo
   else if (externalAdReply && conversionSource === 'FB_Ads') {
@@ -138,6 +140,7 @@ function extractUtmDataFromMessage(message: any, payload: any): Record<string, s
     utmData.utm_content = externalAdReply.sourceId || externalAdReply.source_id || null;
     utmData.utm_term = externalAdReply.body || null;
     utmData.fbclid = externalAdReply.ctwa_clid || null;
+    utmData.ad_thumbnail_url = externalAdReply.thumbnailURL || externalAdReply.thumbnail_url || null;
   }
 
   return utmData;
@@ -576,6 +579,7 @@ Deno.serve(async (req) => {
                 utm_content: earlyUtmData.utm_content,
                 utm_term: earlyUtmData.utm_term,
                 fbclid: earlyUtmData.fbclid,
+                ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
               }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {
@@ -634,6 +638,7 @@ Deno.serve(async (req) => {
                   utm_content: earlyUtmData.utm_content,
                   utm_term: earlyUtmData.utm_term,
                   fbclid: earlyUtmData.fbclid,
+                  ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
                 }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
               if (msgInsertError) {
@@ -716,6 +721,7 @@ Deno.serve(async (req) => {
                 utm_content: earlyUtmData.utm_content,
                 utm_term: earlyUtmData.utm_term,
                 fbclid: earlyUtmData.fbclid,
+                ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
               }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {
@@ -782,6 +788,7 @@ Deno.serve(async (req) => {
                   utm_content: earlyUtmData.utm_content,
                   utm_term: earlyUtmData.utm_term,
                   fbclid: earlyUtmData.fbclid,
+                  ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
                 }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
               if (msgInsertError) {
