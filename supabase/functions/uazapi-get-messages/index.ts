@@ -147,6 +147,13 @@ Deno.serve(async (req) => {
 
     console.log(`Final result: ${messages.length} messages using chat_id: ${successfulChatId}`);
 
+    // Helper to extract the base message ID (after the colon if present)
+    // API returns "5521995466754:ABC123" but DB stores just "ABC123"
+    const extractBaseMessageId = (fullId: string): string => {
+      const colonIndex = fullId.indexOf(':');
+      return colonIndex >= 0 ? fullId.substring(colonIndex + 1) : fullId;
+    };
+
     // Process messages from UAZapi
     const processedMessages = messages.map((msg: any) => {
       let mediaType = 'text';
@@ -170,8 +177,13 @@ Deno.serve(async (req) => {
       // Check if message was deleted
       const isDeleted = msg.status === 'Deleted';
 
+      // Keep original full ID for frontend, but we'll use base ID for DB lookup
+      const fullMessageId = msg.id;
+      const baseMessageId = extractBaseMessageId(fullMessageId);
+
       return {
-        message_id: msg.id,
+        message_id: fullMessageId,
+        base_message_id: baseMessageId, // Used for DB lookup
         sender_type: msg.fromMe ? 'agent' : 'customer',
         content: isDeleted ? 'Mensagem apagada' : (msg.text || ''),
         media_type: mediaType,
@@ -188,34 +200,39 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Overlay deletion status from database (webhook can mark messages as deleted)
-    const messageIds = processedMessages.map((m: any) => m.message_id);
-    let finalMessages = processedMessages;
+    // Overlay deletion status and UTM data from database
+    // Use base message IDs for lookup since DB stores without owner prefix
+    const baseMessageIds = processedMessages.map((m: any) => m.base_message_id);
+    let finalMessages: any[] = processedMessages;
 
-    if (messageIds.length > 0) {
+    if (baseMessageIds.length > 0) {
       // Fetch ALL fields from database including UTM attribution data
       const { data: dbMessages, error: dbError } = await supabase
         .from('whatsapp_messages')
         .select('message_id, deleted, content, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name')
-        .in('message_id', messageIds)
+        .in('message_id', baseMessageIds)
         .eq('chat_id', existingChat.id);
 
       if (dbError) {
         console.error('Error loading message data from database:', dbError);
       } else if (dbMessages && dbMessages.length > 0) {
+        console.log(`Found ${dbMessages.length} messages in DB with UTM data to merge`);
         const dbMap = new Map<string, any>();
         dbMessages.forEach((m: any) => {
           dbMap.set(m.message_id, m);
         });
 
         finalMessages = processedMessages.map((msg: any) => {
-          const db = dbMap.get(msg.message_id);
+          const db = dbMap.get(msg.base_message_id);
+          // Remove the temporary base_message_id field before returning
+          const { base_message_id, ...cleanMsg } = msg;
+          
           if (db) {
             return {
-              ...msg,
+              ...cleanMsg,
               // Override deletion status
-              deleted: db.deleted || msg.deleted,
-              content: db.deleted ? (db.content || 'Mensagem apagada') : msg.content,
+              deleted: db.deleted || cleanMsg.deleted,
+              content: db.deleted ? (db.content || 'Mensagem apagada') : cleanMsg.content,
               // Include UTM attribution data from database
               utm_source: db.utm_source,
               utm_campaign: db.utm_campaign,
@@ -231,7 +248,13 @@ Deno.serve(async (req) => {
               fb_ad_name: db.fb_ad_name,
             };
           }
-          return msg;
+          return cleanMsg;
+        });
+      } else {
+        // Remove base_message_id from all messages even if no DB match
+        finalMessages = processedMessages.map((msg: any) => {
+          const { base_message_id, ...cleanMsg } = msg;
+          return cleanMsg;
         });
       }
     }
