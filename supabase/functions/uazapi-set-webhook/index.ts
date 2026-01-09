@@ -85,8 +85,16 @@ Deno.serve(async (req) => {
       ],
     };
 
+    // Some UAZAPI panels require the generic "messages" subscription instead of explicit event names.
+    const messagesOnlyPayloads = [
+      { url: webhook_url, enabled: true, addUrlEvents: true, addUrlTypesMessages: true, webhook_by_events: true, events: ["messages"] },
+      { url: webhook_url, enabled: true, addUrlEvents: true, addUrlTypesMessages: true, webhook_by_events: true, events: "messages" },
+      { url: webhook_url, enabled: true, addUrlEvents: true, addUrlTypesMessages: true, webhook_by_events: true, Events: "messages" },
+    ];
+
     // Also try simpler payloads as fallback
     const payloads = [
+      ...messagesOnlyPayloads,
       fullPayload,
       { url: webhook_url, enabled: true, addUrlEvents: true, addUrlTypesMessages: true, events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE"] },
       { url: webhook_url, enabled: true, addUrlEvents: true, addUrlTypesMessages: true },
