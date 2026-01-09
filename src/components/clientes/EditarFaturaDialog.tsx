@@ -33,6 +33,7 @@ import { Loader2, Trash2, Plus, X } from "lucide-react";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { useProdutos } from "@/hooks/useProdutos";
+import { sendPurchaseConversion } from "@/hooks/useMetaConversions";
 import type { Fatura } from "@/hooks/useFaturas";
 import {
   AlertDialog,
@@ -242,10 +243,23 @@ export function EditarFaturaDialog({
 
         if (upsellError) throw upsellError;
       }
+
+      // Return data for onSuccess handler
+      return { newStatus: data.status, valorFinal };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
       queryClient.invalidateQueries({ queryKey: ["fatura-upsells"] });
+      
+      // Send Purchase conversion if status changed to "fechado" (and was "negociacao" before)
+      if (result && fatura.status === "negociacao" && result.newStatus === "fechado") {
+        sendPurchaseConversion(fatura.id, fatura.cliente_id, result.valorFinal).then((convResult) => {
+          if (convResult.success) {
+            console.log("Meta Purchase conversion sent successfully");
+          }
+        });
+      }
+      
       toast.success("Fatura atualizada com sucesso!");
       onOpenChange(false);
     },
