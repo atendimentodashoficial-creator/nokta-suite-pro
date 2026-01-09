@@ -55,15 +55,24 @@ Deno.serve(async (req) => {
     const normalizedBaseUrl = base_url.replace(/\/+$/, '');
 
     // Try multiple endpoint variations (different UAZAPI servers expose different disconnect routes/methods)
+    // Based on similar APIs like Evolution API, CodeChat, 4Whats - they use DELETE, GET or POST
     const attempts: Array<{ url: string; method: string }> = [
+      // DELETE methods (common in Evolution API style)
+      { url: `${normalizedBaseUrl}/instance/logout`, method: "DELETE" },
+      { url: `${normalizedBaseUrl}/instance/disconnect`, method: "DELETE" },
+      // POST methods
       { url: `${normalizedBaseUrl}/instance/logout`, method: "POST" },
-      { url: `${normalizedBaseUrl}/instance/logout`, method: "GET" },
       { url: `${normalizedBaseUrl}/instance/disconnect`, method: "POST" },
+      // GET methods (some APIs use GET for logout)
+      { url: `${normalizedBaseUrl}/instance/logout`, method: "GET" },
       { url: `${normalizedBaseUrl}/instance/disconnect`, method: "GET" },
+      // PUT methods (some panels use PUT)
+      { url: `${normalizedBaseUrl}/instance/logout`, method: "PUT" },
     ];
 
     let lastStatus = 0;
     let lastBody = "";
+    let successfulAttempt: { url: string; method: string } | null = null;
 
     for (const attempt of attempts) {
       try {
@@ -75,27 +84,29 @@ Deno.serve(async (req) => {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "token": api_key,
+            // Some servers also accept Authorization header
+            "Authorization": `Bearer ${api_key}`,
           },
         });
 
         lastStatus = resp.status;
         lastBody = await resp.text().catch(() => "");
-        console.log("Disconnect response status:", resp.status);
+        console.log(`Disconnect response - Status: ${resp.status}, Body: ${lastBody.substring(0, 200)}`);
 
         if (resp.ok || resp.status === 200 || resp.status === 204) {
-          return new Response(
-            JSON.stringify({
-              success: true,
-              message: "WhatsApp desconectado com sucesso!",
-              endpoint_used: attempt.url,
-              method_used: attempt.method,
-            }),
-            {
-              status: 200,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+          successfulAttempt = attempt;
+          break;
         }
+
+        // Parse body to check for success flags
+        try {
+          const jsonBody = JSON.parse(lastBody);
+          // Some APIs return success in the body even with non-200 status
+          if (jsonBody.success === true || jsonBody.status === 'logged_out' || jsonBody.message?.toLowerCase().includes('logout')) {
+            successfulAttempt = attempt;
+            break;
+          }
+        } catch {}
 
         // If method is not allowed or not found, try next option
         if (resp.status === 404 || resp.status === 405) {
@@ -104,6 +115,22 @@ Deno.serve(async (req) => {
       } catch (e: any) {
         console.log("Disconnect attempt failed:", e?.message || e);
       }
+    }
+
+    if (successfulAttempt) {
+      console.log(`Successfully disconnected using ${successfulAttempt.method} ${successfulAttempt.url}`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "WhatsApp desconectado com sucesso!",
+          endpoint_used: successfulAttempt.url,
+          method_used: successfulAttempt.method,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     console.log("All disconnect attempts failed", { lastStatus, lastBody });
