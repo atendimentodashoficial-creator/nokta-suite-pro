@@ -96,79 +96,90 @@ Deno.serve(async (req) => {
       console.log("Status data:", JSON.stringify(statusData));
       
       // Check various status field patterns
-      // Common patterns: { state: "open" }, { status: "connected" }, { connected: true }
-      // UAZapi pattern: { instance: { status: "disconnected" }, status: { connected: false, loggedIn: false } }
+      // UAZapi pattern: { instance: { status: "disconnected" }, status: { connected: false, loggedIn: false, jid: null } }
       const instanceStatus = statusData?.instance?.status;
       const nestedStatus = statusData?.status;
       const state = statusData?.state || instanceStatus || statusData?.connection_status;
-      
-      // Check if connected - support both root level and nested status object
-      const isConnected = statusData?.connected === true || 
-                          nestedStatus?.connected === true ||
-                          nestedStatus?.loggedIn === true ||
-                          state === "open" || 
-                          state === "connected" || 
-                          state === "CONNECTED" ||
-                          statusData?.loggedIn === true ||
-                          statusData?.authenticated === true;
-      
+
+      // IMPORTANT:
+      // "connected: true" can mean only websocket/session is up.
+      // We only consider WhatsApp truly connected after authentication (loggedIn=true or jid present).
+      const isLoggedIn = nestedStatus?.loggedIn === true ||
+        statusData?.loggedIn === true ||
+        (nestedStatus?.jid != null && String(nestedStatus.jid).length > 0) ||
+        (statusData?.jid != null && String(statusData.jid).length > 0);
+
       // Check for banned/disconnected states
-      const isBanned = state === "BANNED" || 
-                       state === "banned" || 
-                       statusData?.banned === true ||
-                       instanceStatus === "banned";
-      const isDisconnected = state === "close" || 
-                             state === "disconnected" || 
-                             state === "DISCONNECTED" ||
-                             state === "UNPAIRED" ||
-                             instanceStatus === "disconnected" ||
-                             nestedStatus?.connected === false ||
-                             statusData?.connected === false;
-      
+      const isBanned = state === "BANNED" ||
+        state === "banned" ||
+        statusData?.banned === true ||
+        instanceStatus === "banned";
+
+      const isDisconnected = state === "close" ||
+        state === "disconnected" ||
+        state === "DISCONNECTED" ||
+        state === "UNPAIRED" ||
+        instanceStatus === "disconnected";
+
       if (isBanned) {
-        return new Response(JSON.stringify({ 
-          success: false, 
+        return new Response(JSON.stringify({
+          success: false,
           error: "Este número foi banido do WhatsApp. Não é possível utilizar esta instância.",
           details: {
             url_testada: statusEndpoint,
             status: "banned",
-            tipo_erro: "whatsapp_banned"
-          }
+            tipo_erro: "whatsapp_banned",
+          },
         }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
+
       if (isDisconnected) {
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: "WhatsApp desconectado. Reconecte o número escaneando o QR Code na plataforma UAZapi.",
+        return new Response(JSON.stringify({
+          success: false,
+          error: "WhatsApp desconectado. Escaneie o QR Code para conectar.",
           details: {
             url_testada: statusEndpoint,
             status: state || "disconnected",
-            tipo_erro: "whatsapp_disconnected"
-          }
+            tipo_erro: "whatsapp_disconnected",
+          },
         }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
-      if (isConnected) {
-        return new Response(JSON.stringify({ 
-          success: true, 
+
+      if (isLoggedIn) {
+        return new Response(JSON.stringify({
+          success: true,
           message: "WhatsApp conectado e funcionando!",
           details: {
             url_testada: statusEndpoint,
             status: state || "connected",
-            whatsapp_status: "connected"
-          }
+            whatsapp_status: "connected",
+          },
         }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      // Not logged in yet (waiting for QR scan)
+      return new Response(JSON.stringify({
+        success: false,
+        error: "WhatsApp ainda não autenticado. Escaneie o QR Code para conectar.",
+        details: {
+          url_testada: statusEndpoint,
+          status: state || "connecting",
+          whatsapp_status: "connecting",
+          tipo_erro: "waiting_qr_scan",
+        },
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Fallback: Test with /chat/find endpoint
@@ -237,15 +248,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // API is responding, but we couldn't verify WhatsApp status
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: "API respondendo. Status do WhatsApp não pôde ser verificado.",
+    // API is responding, but we couldn't verify WhatsApp as logged in.
+    // For UI/polling, treat as NOT connected.
+    return new Response(JSON.stringify({
+      success: false,
+      error: "API respondendo, mas o WhatsApp ainda não está autenticado. Escaneie o QR Code.",
       details: {
         url_testada: chatEndpoint,
         status: response.status,
-        whatsapp_status: "unknown"
-      }
+        whatsapp_status: "unknown",
+        tipo_erro: "waiting_qr_scan",
+      },
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
