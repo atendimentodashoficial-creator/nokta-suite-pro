@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
-import { MessageSquare, RefreshCw, Plus, LayoutList, Kanban, CheckCircle2, Trash2, CheckSquare, Square, X } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { MessageSquare, RefreshCw, Plus, LayoutList, Kanban, CheckCircle2, Trash2, CheckSquare, Square, X, QrCode, Unplug, Loader2, Smartphone, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -44,6 +44,14 @@ export default function AdminWhatsApp() {
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // WhatsApp connection state (QR code flow)
+  const [whatsAppConfig, setWhatsAppConfig] = useState<{ base_url: string; api_key: string } | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'loading'>('loading');
+  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
+  const [qrCodeData, setQrCodeData] = useState<string | null>(null);
+  const [qrCodeLoading, setQrCodeLoading] = useState(false);
+  const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const getChatLast8 = (chat: any) => {
     // Prefer explicit numbers, fallback to chat_id
     const candidates = [chat?.contact_number, chat?.normalized_number, chat?.chat_id].filter(Boolean);
@@ -99,18 +107,141 @@ export default function AdminWhatsApp() {
     }
   };
 
-  // Check if user has UAZapi config
+  // Check if user has UAZapi config and load credentials
   const checkConfig = async () => {
     try {
       const {
         data,
         error
-      } = await supabase.from('uazapi_config').select('id').single();
+      } = await supabase.from('uazapi_config').select('id, base_url, api_key').single();
       setHasConfig(!error && !!data);
+      if (!error && data) {
+        setWhatsAppConfig({ base_url: data.base_url, api_key: data.api_key });
+        // Check connection status
+        checkConnectionStatus(data.base_url, data.api_key);
+      } else {
+        setConnectionStatus('disconnected');
+      }
     } catch {
       setHasConfig(false);
+      setConnectionStatus('disconnected');
     }
   };
+
+  // Check WhatsApp connection status
+  const checkConnectionStatus = async (baseUrl: string, apiKey: string) => {
+    setConnectionStatus('loading');
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("uazapi-test-connection", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: baseUrl, api_key: apiKey },
+      });
+      setConnectionStatus(response.data?.success ? 'connected' : 'disconnected');
+    } catch {
+      setConnectionStatus('disconnected');
+    }
+  };
+
+  // Open QR Code dialog for connection
+  const handleOpenQrCode = async () => {
+    if (!whatsAppConfig) {
+      toast.error('Configure o WhatsApp em Conexões primeiro');
+      return;
+    }
+    setQrCodeDialogOpen(true);
+    setQrCodeLoading(true);
+    setQrCodeData(null);
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: whatsAppConfig.base_url, api_key: whatsAppConfig.api_key },
+      });
+
+      if (response.data?.connected) {
+        toast.success("WhatsApp já está conectado!");
+        setQrCodeDialogOpen(false);
+        setConnectionStatus('connected');
+        return;
+      }
+
+      if (response.data?.qrcode) {
+        setQrCodeData(response.data.qrcode);
+        startQrPolling();
+      } else {
+        toast.error(response.data?.error || "Não foi possível obter o QR Code");
+      }
+    } catch {
+      toast.error("Erro ao obter QR Code");
+    } finally {
+      setQrCodeLoading(false);
+    }
+  };
+
+  // Disconnect WhatsApp
+  const handleDisconnect = async () => {
+    if (!whatsAppConfig) return;
+    try {
+      const response = await fetch(`${whatsAppConfig.base_url}/instance/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "token": whatsAppConfig.api_key,
+        },
+      });
+
+      if (response.ok) {
+        toast.success("WhatsApp desconectado!");
+        setConnectionStatus('disconnected');
+      } else {
+        toast.error("Erro ao desconectar");
+      }
+    } catch {
+      toast.error("Erro ao desconectar");
+    }
+  };
+
+  // Start polling for QR code connection
+  const startQrPolling = () => {
+    if (qrPollingInterval) clearInterval(qrPollingInterval);
+
+    const interval = setInterval(async () => {
+      if (!whatsAppConfig) return;
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        const response = await supabase.functions.invoke("uazapi-test-connection", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { base_url: whatsAppConfig.base_url, api_key: whatsAppConfig.api_key },
+        });
+
+        if (response.data?.success) {
+          clearInterval(interval);
+          setQrPollingInterval(null);
+          setQrCodeDialogOpen(false);
+          setConnectionStatus('connected');
+          toast.success("WhatsApp conectado!");
+        }
+      } catch {}
+    }, 5000);
+
+    setQrPollingInterval(interval);
+    setTimeout(() => {
+      clearInterval(interval);
+      setQrPollingInterval(null);
+    }, 120000);
+  };
+
+  // Refresh QR Code
+  const refreshQrCode = () => handleOpenQrCode();
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (qrPollingInterval) clearInterval(qrPollingInterval);
+    };
+  }, [qrPollingInterval]);
 
   // Sync chats from UAZapi
   const syncChats = async () => {
@@ -738,34 +869,76 @@ export default function AdminWhatsApp() {
               <MessageSquare className="w-6 h-6" />
               <h1 className="text-2xl font-bold">WhatsApp</h1>
               
-              {/* Badge de status - Mobile: ao lado do título */}
+              {/* Status/Action Button - Mobile */}
               {isMobile && (
                 hasConfig ? (
-                  <Badge variant="outline" className="gap-1 text-green-600 border-green-600 h-6 px-2 text-xs rounded-md ml-auto">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Conectado
-                  </Badge>
+                  connectionStatus === 'connected' ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1 text-green-600 border-green-600 h-6 px-2 text-xs ml-auto"
+                      onClick={handleDisconnect}
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      Conectado
+                    </Button>
+                  ) : connectionStatus === 'loading' ? (
+                    <Badge variant="outline" className="gap-1 h-6 px-2 text-xs ml-auto">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    </Badge>
+                  ) : (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="gap-1 h-6 px-2 text-xs ml-auto"
+                      onClick={handleOpenQrCode}
+                    >
+                      <QrCode className="h-3 w-3" />
+                      Conectar
+                    </Button>
+                  )
                 ) : (
-                  <a href="/configuracoes" className="text-xs text-primary underline ml-auto">
+                  <Link to="/configuracoes" className="text-xs text-primary underline ml-auto">
                     Configurar
-                  </a>
+                  </Link>
                 )
               )}
             </div>
             
-            {/* Desktop: Badge na mesma linha */}
+            {/* Desktop: Status/Action Button */}
             <div className="flex items-center gap-3">
-              {/* Badge de status - Desktop */}
               {!isMobile && (
                 hasConfig ? (
-                  <Badge variant="outline" className="gap-1 text-green-600 border-green-600 h-8 px-3 rounded-md">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Conectado
-                  </Badge>
+                  connectionStatus === 'connected' ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1 text-green-600 border-green-600 h-8 px-3"
+                      onClick={handleDisconnect}
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      Conectado
+                    </Button>
+                  ) : connectionStatus === 'loading' ? (
+                    <Badge variant="outline" className="gap-1 h-8 px-3">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Verificando...
+                    </Badge>
+                  ) : (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="gap-1 h-8 px-3"
+                      onClick={handleOpenQrCode}
+                    >
+                      <QrCode className="h-4 w-4" />
+                      Conectar
+                    </Button>
+                  )
                 ) : (
-                  <a href="/configuracoes" className="text-sm text-primary underline">
+                  <Link to="/configuracoes" className="text-sm text-primary underline">
                     Configurar em Conexões
-                  </a>
+                  </Link>
                 )
               )}
             </div>
@@ -1077,5 +1250,60 @@ export default function AdminWhatsApp() {
                   </div>
                 </ResizablePanel>
               </ResizablePanelGroup>))}
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrCodeDialogOpen} onOpenChange={(open) => {
+        if (!open && qrPollingInterval) {
+          clearInterval(qrPollingInterval);
+          setQrPollingInterval(null);
+        }
+        setQrCodeDialogOpen(open);
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Conectar WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              Escaneie o QR Code com seu WhatsApp
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center gap-4 py-4">
+            {qrCodeLoading ? (
+              <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-lg">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : qrCodeData ? (
+              <>
+                <div className="p-4 bg-white rounded-lg shadow-sm">
+                  <img src={qrCodeData} alt="QR Code" className="w-56 h-56" />
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Smartphone className="h-4 w-4" />
+                  <span>Escaneie com seu WhatsApp</span>
+                </div>
+                {qrPollingInterval && (
+                  <div className="flex items-center gap-2 text-xs text-green-600">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Aguardando conexão...</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted rounded-lg gap-2">
+                <XCircle className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Erro ao carregar</span>
+              </div>
+            )}
+            
+            <Button variant="outline" size="sm" onClick={refreshQrCode} disabled={qrCodeLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${qrCodeLoading ? 'animate-spin' : ''}`} />
+              Atualizar QR Code
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>;
 }
