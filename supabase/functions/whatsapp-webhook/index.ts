@@ -549,10 +549,45 @@ Deno.serve(async (req) => {
     }
 
     // === Lead creation for WhatsApp (same logic as Disparos) ===
+    // Extract referral data from Click-to-WhatsApp ads FIRST (before lead creation/update)
+    const referral = payload.message?.referral || payload.referral;
+    const utmData: Record<string, string | null> = {
+      utm_source: null,
+      utm_campaign: null,
+      utm_medium: null,
+      utm_content: null,
+      utm_term: null,
+      fbclid: null,
+    };
+
+    if (referral) {
+      console.log('Click-to-WhatsApp referral data detected:', JSON.stringify(referral));
+      await logEvent(userId, 'info', `Dados de anúncio CTWA detectados: ${JSON.stringify(referral)}`);
+      
+      // Map referral data to UTM-like fields
+      utmData.utm_source = 'facebook';
+      utmData.utm_medium = 'cpc';
+      utmData.utm_campaign = referral.headline || null;
+      utmData.utm_content = referral.source_id || null;
+      utmData.utm_term = referral.body || null;
+      utmData.fbclid = referral.ctwa_clid || null;
+    }
+
+    // Get instance name for tracking
+    let instanciaNome: string | null = null;
+    if (instanciaId) {
+      const { data: instanciaInfo } = await supabase
+        .from('disparos_instancias')
+        .select('nome')
+        .eq('id', instanciaId)
+        .single();
+      instanciaNome = instanciaInfo?.nome || null;
+    }
+
     // Garantir que exista (ou seja RESTAURADO) um lead para o telefone (match por últimos 8 dígitos)
     const { data: allLeads, error: searchError } = await supabase
       .from('leads')
-      .select('id, status, telefone, nome, deleted_at, origem')
+      .select('id, status, telefone, nome, deleted_at, origem, utm_source, fbclid')
       .eq('user_id', userId);
 
     if (searchError) {
@@ -594,6 +629,21 @@ Deno.serve(async (req) => {
         updateData.nome = name;
       }
 
+      // Add UTM data from Click-to-WhatsApp if available (overwrite even if lead had previous data)
+      if (referral) {
+        updateData.utm_source = utmData.utm_source;
+        updateData.utm_medium = utmData.utm_medium;
+        updateData.utm_campaign = utmData.utm_campaign;
+        updateData.utm_content = utmData.utm_content;
+        updateData.utm_term = utmData.utm_term;
+        updateData.fbclid = utmData.fbclid;
+      }
+
+      // Add instance name if available
+      if (instanciaNome) {
+        updateData.instancia_nome = instanciaNome;
+      }
+
       const { error: restoreError } = await supabase
         .from('leads')
         .update(updateData)
@@ -628,6 +678,23 @@ Deno.serve(async (req) => {
         updateData.status = 'lead';
       }
 
+      // Add UTM data from Click-to-WhatsApp if lead doesn't have attribution yet
+      if (referral && !matchingLead.utm_source && !matchingLead.fbclid) {
+        updateData.utm_source = utmData.utm_source;
+        updateData.utm_medium = utmData.utm_medium;
+        updateData.utm_campaign = utmData.utm_campaign;
+        updateData.utm_content = utmData.utm_content;
+        updateData.utm_term = utmData.utm_term;
+        updateData.fbclid = utmData.fbclid;
+        console.log('Adding UTM data to existing lead:', utmData);
+        await logEvent(userId, 'info', `Dados UTM adicionados ao lead existente: ${JSON.stringify(utmData)}`);
+      }
+
+      // Add instance name if available and not set
+      if (instanciaNome) {
+        updateData.instancia_nome = instanciaNome;
+      }
+
       const { error: updateError } = await supabase
         .from('leads')
         .update(updateData)
@@ -653,28 +720,6 @@ Deno.serve(async (req) => {
     console.log('No matching lead found, creating new lead...');
     await logEvent(userId, 'info', `Criando novo lead para ${name} (${phone})`);
 
-    // Extract referral data from Click-to-WhatsApp ads
-    const referral = payload.message?.referral || payload.referral;
-    const utmData: Record<string, string | null> = {
-      utm_source: null,
-      utm_campaign: null,
-      utm_medium: null,
-      utm_content: null,
-      fbclid: null,
-    };
-
-    if (referral) {
-      console.log('Click-to-WhatsApp referral data detected:', JSON.stringify(referral));
-      await logEvent(userId, 'info', `Dados de anúncio CTWA detectados: ${JSON.stringify(referral)}`);
-      
-      // Map referral data to UTM-like fields
-      utmData.utm_source = 'facebook';
-      utmData.utm_medium = 'cpc';
-      utmData.utm_campaign = referral.headline || referral.source_id || null;
-      utmData.utm_content = referral.source_id || null;
-      utmData.fbclid = referral.ctwa_clid || null;
-    }
-
     const { data: newLead, error: insertError } = await supabase
       .from('leads')
       .insert({
@@ -687,11 +732,13 @@ Deno.serve(async (req) => {
         status: 'lead',
         origem_lead: true,
         data_contato: today,
+        instancia_nome: instanciaNome,
         // UTM data from Click-to-WhatsApp ads
         utm_source: utmData.utm_source,
         utm_campaign: utmData.utm_campaign,
         utm_medium: utmData.utm_medium,
         utm_content: utmData.utm_content,
+        utm_term: utmData.utm_term,
         fbclid: utmData.fbclid,
       })
       .select()
