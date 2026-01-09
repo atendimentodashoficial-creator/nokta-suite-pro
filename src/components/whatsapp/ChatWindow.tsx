@@ -260,20 +260,42 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     return incomingMessages.map((m) => mergeAttributionFields(currentById.get(m.message_id), m));
   };
 
+  // Helper function to invoke edge functions with retry
+  const invokeWithRetry = async (
+    functionName: string,
+    options: { headers: Record<string, string>; body: any },
+    retries = 2
+  ): Promise<any> => {
+    let lastError: any;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await supabase.functions.invoke(functionName, options);
+        if (response.error) throw response.error;
+        return response;
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[${functionName}] Attempt ${attempt + 1} failed:`, error.message);
+        if (attempt < retries) {
+          // Wait before retrying (exponential backoff: 1s, 2s)
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
+      }
+    }
+    throw lastError;
+  };
+
   // Background sync with UAZapi (silent, catches missed webhook messages)
   const syncMessagesFromApiSilent = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const response = await supabase.functions.invoke('uazapi-get-messages', {
+      const response = await invokeWithRetry('uazapi-get-messages', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: { chatid: chat.chat_id }
-      });
-
-      if (response.error) return;
+      }, 1); // 1 retry for silent sync
 
       const incoming = response.data.messages || [];
       if (incoming.length > messages.length) {
@@ -296,14 +318,12 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         return;
       }
 
-      const response = await supabase.functions.invoke('uazapi-get-messages', {
+      const response = await invokeWithRetry('uazapi-get-messages', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: { chatid: chat.chat_id }
-      });
-
-      if (response.error) throw response.error;
+      }, 2); // 2 retries for manual sync
 
       const incoming = response.data.messages || [];
       setMessages(mergeMessagesPreservingAttribution(incoming));
@@ -311,7 +331,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       toast.success('Mensagens sincronizadas');
     } catch (error: any) {
       console.error('Error syncing messages:', error);
-      toast.error('Erro ao sincronizar mensagens');
+      toast.error('Erro ao sincronizar. Tente novamente.');
     } finally {
       setIsLoadingMessages(false);
     }
