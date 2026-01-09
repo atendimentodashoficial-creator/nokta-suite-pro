@@ -235,7 +235,7 @@ export default function AdminWhatsApp() {
       // Get QR code for the new instance
       if (createResponse.data.qrcode) {
         setQrCodeData(createResponse.data.qrcode);
-        startQrPolling(newInstance.base_url, newInstance.api_key);
+        startQrPolling(newInstance.base_url, newInstance.api_key, newInstance);
       } else {
         // Fetch QR code separately
         const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
@@ -245,7 +245,7 @@ export default function AdminWhatsApp() {
 
         if (qrResponse.data?.qrcode) {
           setQrCodeData(qrResponse.data.qrcode);
-          startQrPolling(newInstance.base_url, newInstance.api_key);
+          startQrPolling(newInstance.base_url, newInstance.api_key, newInstance);
         } else {
           toast.error("Instância criada, mas não foi possível obter QR Code");
         }
@@ -289,7 +289,7 @@ export default function AdminWhatsApp() {
 
       if (response.data?.qrcode) {
         setQrCodeData(response.data.qrcode);
-        startQrPolling(mainInstance.base_url, mainInstance.api_key);
+        startQrPolling(mainInstance.base_url, mainInstance.api_key, mainInstance);
       } else {
         toast.error(response.data?.error || "Não foi possível obter o QR Code");
       }
@@ -391,8 +391,11 @@ export default function AdminWhatsApp() {
   };
 
   // Start polling for QR code connection
-  const startQrPolling = (baseUrl: string, apiKey: string) => {
+  const startQrPolling = (baseUrl: string, apiKey: string, instanceData?: { id: string; nome: string; base_url: string; api_key: string }) => {
     if (qrPollingInterval) clearInterval(qrPollingInterval);
+
+    // Use passed instanceData or fallback to mainInstance
+    const instanciaRef = instanceData || mainInstance;
 
     const interval = setInterval(async () => {
       try {
@@ -410,15 +413,17 @@ export default function AdminWhatsApp() {
           toast.success("WhatsApp conectado!");
           
           // Configure webhook after successful connection
-          if (mainInstance?.id && user?.id) {
-            const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${mainInstance.id}`;
+          const instanciaId = instanciaRef?.id;
+          if (instanciaId && user?.id) {
+            console.log("Configuring webhook for instance:", instanciaId);
+            const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${instanciaId}`;
             const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
               headers: { Authorization: `Bearer ${session.session?.access_token}` },
               body: {
                 base_url: baseUrl,
                 api_key: apiKey,
                 webhook_url: webhookUrl,
-                instancia_id: mainInstance.id,
+                instancia_id: instanciaId,
               },
             });
 
@@ -426,10 +431,15 @@ export default function AdminWhatsApp() {
               toast.success("Webhook configurado!");
             } else {
               console.error("Webhook config failed:", webhookResponse.data);
+              toast.error("Erro ao configurar webhook: " + (webhookResponse.data?.error || "Erro desconhecido"));
             }
+          } else {
+            console.warn("Missing instance ID or user ID for webhook config", { instanciaId, userId: user?.id });
           }
         }
-      } catch {}
+      } catch (e) {
+        console.error("Polling error:", e);
+      }
     }, 5000);
 
     setQrPollingInterval(interval);
