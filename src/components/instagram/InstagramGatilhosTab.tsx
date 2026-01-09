@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload, UserCheck } from "lucide-react";
+import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload, UserCheck, Pencil } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -64,6 +64,7 @@ interface QuickReplyButton {
 
 export function InstagramGatilhosTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingGatilho, setEditingGatilho] = useState<Gatilho | null>(null);
   const [uploading, setUploading] = useState(false);
   const [buttons, setButtons] = useState<QuickReplyButton[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -195,14 +196,50 @@ export function InstagramGatilhosTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["instagram-gatilhos"] });
       toast.success("Gatilho criado com sucesso!");
-      setDialogOpen(false);
-      form.reset();
-      setButtons([]);
-      setPreviewImage(null);
+      closeDialog();
     },
     onError: (error) => {
       console.error("Erro ao criar gatilho:", error);
       toast.error("Erro ao criar gatilho");
+    },
+  });
+
+  const updateGatilho = useMutation({
+    mutationFn: async (data: GatilhoFormData & { id: string }) => {
+      const palavrasArray = data.palavras_chave
+        .split(",")
+        .map((p) => p.trim().toLowerCase())
+        .filter((p) => p.length > 0);
+
+      const updateData: any = {
+        nome: data.nome,
+        palavras_chave: palavrasArray,
+        tipo: data.tipo,
+        resposta_texto: data.resposta_texto || null,
+        resposta_midia_url: data.resposta_midia_url || null,
+        resposta_midia_tipo: data.resposta_midia_tipo || null,
+        resposta_link_url: data.resposta_link_url || null,
+        resposta_link_texto: data.resposta_link_texto || null,
+        resposta_botoes: buttons.length > 0 ? buttons : null,
+        verificar_seguidor: data.verificar_seguidor || false,
+        mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
+      };
+
+      const { error } = await supabase
+        .from("instagram_gatilhos")
+        .update(updateData)
+        .eq("id", data.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["instagram-gatilhos"] });
+      toast.success("Gatilho atualizado com sucesso!");
+      closeDialog();
+    },
+    onError: (error) => {
+      console.error("Erro ao atualizar gatilho:", error);
+      toast.error("Erro ao atualizar gatilho");
     },
   });
 
@@ -230,6 +267,41 @@ export function InstagramGatilhosTab() {
     },
   });
 
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setEditingGatilho(null);
+    form.reset();
+    setButtons([]);
+    setPreviewImage(null);
+  };
+
+  const openEditDialog = (gatilho: Gatilho) => {
+    setEditingGatilho(gatilho);
+    form.reset({
+      nome: gatilho.nome,
+      palavras_chave: gatilho.palavras_chave.join(", "),
+      tipo: gatilho.tipo as "dm" | "comentario",
+      resposta_texto: gatilho.resposta_texto || "",
+      resposta_midia_url: gatilho.resposta_midia_url || "",
+      resposta_midia_tipo: gatilho.resposta_midia_tipo as any || undefined,
+      resposta_link_url: gatilho.resposta_link_url || "",
+      resposta_link_texto: gatilho.resposta_link_texto || "",
+      verificar_seguidor: gatilho.verificar_seguidor || false,
+      mensagem_pedir_seguir: gatilho.mensagem_pedir_seguir || "",
+    });
+    setButtons(gatilho.resposta_botoes || []);
+    setPreviewImage(gatilho.resposta_midia_tipo === "image" ? gatilho.resposta_midia_url : null);
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = (data: GatilhoFormData) => {
+    if (editingGatilho) {
+      updateGatilho.mutate({ ...data, id: editingGatilho.id });
+    } else {
+      createGatilho.mutate(data);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -249,25 +321,21 @@ export function InstagramGatilhosTab() {
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) {
-            form.reset();
-            setButtons([]);
-            setPreviewImage(null);
-          }
+          if (!open) closeDialog();
+          else setDialogOpen(open);
         }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => setEditingGatilho(null)}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Gatilho
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Criar Novo Gatilho</DialogTitle>
+              <DialogTitle>{editingGatilho ? "Editar Gatilho" : "Criar Novo Gatilho"}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((data) => createGatilho.mutate(data))} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="nome"
@@ -593,12 +661,12 @@ export function InstagramGatilhosTab() {
                 </Tabs>
 
                 <div className="flex gap-2 justify-end pt-4">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={closeDialog}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={createGatilho.isPending}>
-                    {createGatilho.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                    Criar Gatilho
+                  <Button type="submit" disabled={createGatilho.isPending || updateGatilho.isPending}>
+                    {(createGatilho.isPending || updateGatilho.isPending) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                    {editingGatilho ? "Salvar Alterações" : "Criar Gatilho"}
                   </Button>
                 </div>
               </form>
@@ -654,6 +722,13 @@ export function InstagramGatilhosTab() {
                         toggleGatilho.mutate({ id: gatilho.id, ativo })
                       }
                     />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(gatilho)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
