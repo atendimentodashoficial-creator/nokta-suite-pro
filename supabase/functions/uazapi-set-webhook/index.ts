@@ -72,6 +72,8 @@ Deno.serve(async (req) => {
       url: webhook_url,
       enabled: true,
       webhook_by_events: false,
+      addUrlEvents: true,
+      addUrlTypesMessages: true,
       events: [
         "QRCODE_UPDATED",
         "MESSAGES_UPSERT",
@@ -86,9 +88,9 @@ Deno.serve(async (req) => {
     // Also try simpler payloads as fallback
     const payloads = [
       fullPayload,
-      { url: webhook_url, enabled: true, events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE"] },
+      { url: webhook_url, enabled: true, addUrlEvents: true, addUrlTypesMessages: true, events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE"] },
+      { url: webhook_url, enabled: true, addUrlEvents: true, addUrlTypesMessages: true },
       { url: webhook_url, enabled: true },
-      { webhook: { url: webhook_url, enabled: true } },
     ];
 
     let success = false;
