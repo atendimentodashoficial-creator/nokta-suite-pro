@@ -125,17 +125,28 @@ export default function AdminWhatsApp() {
     }
   };
 
-  // Check if user has a main WhatsApp instance (from uazapi_config link or disparos_instancias)
+  // Check if user has a main WhatsApp instance (ONLY via uazapi_config)
+  // IMPORTANT: WhatsApp tab must NOT reuse Disparos instances.
   const checkConfig = async () => {
     try {
-      // First check uazapi_config for linked instance
-      const { data: uazapiConfig } = await supabase
+      if (!user?.id) {
+        setMainInstance(null);
+        setHasConfig(false);
+        setConnectionStatus('disconnected');
+        return;
+      }
+
+      // Only check uazapi_config for linked instance
+      const { data: uazapiConfig, error: cfgError } = await supabase
         .from('uazapi_config')
         .select('whatsapp_instancia_id, base_url, api_key')
-        .single();
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (cfgError) throw cfgError;
 
       if (uazapiConfig?.whatsapp_instancia_id) {
-        // Load the linked instance from disparos_instancias
+        // Load the linked instance from disparos_instancias (shared storage, but logically WhatsApp-owned)
         const { data: instance } = await supabase
           .from('disparos_instancias')
           .select('id, nome, base_url, api_key')
@@ -150,23 +161,7 @@ export default function AdminWhatsApp() {
         }
       }
 
-      // Fallback: check if any instance exists in disparos_instancias (first one = main)
-      const { data: instances } = await supabase
-        .from('disparos_instancias')
-        .select('id, nome, base_url, api_key')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: true })
-        .limit(1);
-
-      if (instances && instances.length > 0) {
-        const inst = instances[0];
-        setMainInstance(inst);
-        setHasConfig(true);
-        checkConnectionStatus(inst.base_url, inst.api_key);
-        return;
-      }
-
-      // No instance configured
+      // No WhatsApp instance configured
       setMainInstance(null);
       setHasConfig(false);
       setConnectionStatus('disconnected');
