@@ -359,6 +359,26 @@ export default function AdminWhatsApp() {
           setQrCodeDialogOpen(false);
           setConnectionStatus('connected');
           toast.success("WhatsApp conectado!");
+          
+          // Configure webhook after successful connection
+          if (mainInstance?.id && user?.id) {
+            const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${mainInstance.id}`;
+            const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+              headers: { Authorization: `Bearer ${session.session?.access_token}` },
+              body: {
+                base_url: baseUrl,
+                api_key: apiKey,
+                webhook_url: webhookUrl,
+                instancia_id: mainInstance.id,
+              },
+            });
+
+            if (webhookResponse.data?.success) {
+              toast.success("Webhook configurado!");
+            } else {
+              console.error("Webhook config failed:", webhookResponse.data);
+            }
+          }
         }
       } catch {}
     }, 5000);
