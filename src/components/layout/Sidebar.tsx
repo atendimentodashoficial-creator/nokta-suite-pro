@@ -1,4 +1,4 @@
-import { Calendar, DollarSign, Activity, Settings, UserCog, FileText, LogOut, MessageSquare, UserX, Handshake, UserPlus, Users, ChevronLeft, ChevronRight, Send, Database } from "lucide-react";
+import { Calendar, DollarSign, Activity, Settings, UserCog, FileText, LogOut, MessageSquare, UserX, Handshake, UserPlus, Users, ChevronLeft, ChevronRight, Send, Database, Instagram } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import { NavLink } from "react-router-dom";
@@ -20,6 +20,7 @@ export const navigation = [
   { name: "Relatórios", href: "/relatorios", icon: Activity },
   { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, separator: true },
   { name: "Disparos", href: "/disparos", icon: Send },
+  { name: "Instagram", href: "/instagram", icon: Instagram },
   { name: "Extrator", href: "/extrator", icon: Database },
   { name: "Meta Ads", href: "/metricas-campanhas", icon: MetaIcon },
   { name: "Google Ads", href: "/google-ads", icon: GoogleAdsIcon },
