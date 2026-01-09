@@ -193,27 +193,42 @@ Deno.serve(async (req) => {
     let finalMessages = processedMessages;
 
     if (messageIds.length > 0) {
+      // Fetch ALL fields from database including UTM attribution data
       const { data: dbMessages, error: dbError } = await supabase
         .from('whatsapp_messages')
-        .select('message_id, deleted, content')
+        .select('message_id, deleted, content, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name')
         .in('message_id', messageIds)
         .eq('chat_id', existingChat.id);
 
       if (dbError) {
-        console.error('Error loading message deletion status:', dbError);
+        console.error('Error loading message data from database:', dbError);
       } else if (dbMessages && dbMessages.length > 0) {
-        const dbMap = new Map<string, { deleted: boolean | null; content: string | null }>();
+        const dbMap = new Map<string, any>();
         dbMessages.forEach((m: any) => {
-          dbMap.set(m.message_id, { deleted: m.deleted, content: m.content });
+          dbMap.set(m.message_id, m);
         });
 
         finalMessages = processedMessages.map((msg: any) => {
           const db = dbMap.get(msg.message_id);
-          if (db?.deleted) {
+          if (db) {
             return {
               ...msg,
-              deleted: true,
-              content: db.content || 'Mensagem apagada',
+              // Override deletion status
+              deleted: db.deleted || msg.deleted,
+              content: db.deleted ? (db.content || 'Mensagem apagada') : msg.content,
+              // Include UTM attribution data from database
+              utm_source: db.utm_source,
+              utm_campaign: db.utm_campaign,
+              utm_medium: db.utm_medium,
+              utm_content: db.utm_content,
+              utm_term: db.utm_term,
+              fbclid: db.fbclid,
+              ad_thumbnail_url: db.ad_thumbnail_url,
+              // Include real Facebook campaign names
+              fb_ad_id: db.fb_ad_id,
+              fb_campaign_name: db.fb_campaign_name,
+              fb_adset_name: db.fb_adset_name,
+              fb_ad_name: db.fb_ad_name,
             };
           }
           return msg;
@@ -244,6 +259,19 @@ Deno.serve(async (req) => {
           timestamp: m.timestamp,
           status: m.status,
           deleted: m.deleted || false,
+          // Include UTM attribution data
+          utm_source: m.utm_source,
+          utm_campaign: m.utm_campaign,
+          utm_medium: m.utm_medium,
+          utm_content: m.utm_content,
+          utm_term: m.utm_term,
+          fbclid: m.fbclid,
+          ad_thumbnail_url: m.ad_thumbnail_url,
+          // Include real Facebook campaign names
+          fb_ad_id: m.fb_ad_id,
+          fb_campaign_name: m.fb_campaign_name,
+          fb_adset_name: m.fb_adset_name,
+          fb_ad_name: m.fb_ad_name,
         }));
       }
     }
