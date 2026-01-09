@@ -8,40 +8,60 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, GitBranch, Edit2 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { 
+  Plus, Trash2, Loader2, GitBranch, Edit2, Play, 
+  MessageCircle, Clock, ArrowRight, X, Save
+} from "lucide-react";
 
-const fluxoSchema = z.object({
-  nome: z.string().min(1, "Nome é obrigatório"),
-  descricao: z.string().optional(),
-});
+interface FluxoNode {
+  id: string;
+  type: "start" | "message" | "delay" | "condition" | "end";
+  data: {
+    label?: string;
+    text?: string;
+    delaySeconds?: number;
+    condition?: string;
+  };
+  position: { x: number; y: number };
+}
 
-type FluxoFormData = z.infer<typeof fluxoSchema>;
+interface FluxoEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
 
 interface Fluxo {
   id: string;
   nome: string;
   descricao: string | null;
-  etapas: any[];
   ativo: boolean;
+  nodes: FluxoNode[];
+  edges: FluxoEdge[];
+  etapas: any[];
   created_at: string;
 }
 
+const nodeTypes = {
+  start: { label: "Início", icon: Play, color: "bg-green-500" },
+  message: { label: "Mensagem", icon: MessageCircle, color: "bg-blue-500" },
+  delay: { label: "Aguardar", icon: Clock, color: "bg-yellow-500" },
+  condition: { label: "Condição", icon: GitBranch, color: "bg-purple-500" },
+  end: { label: "Fim", icon: ArrowRight, color: "bg-red-500" },
+};
+
 export function InstagramFluxosTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingFluxo, setEditingFluxo] = useState<Fluxo | null>(null);
+  const [fluxoNome, setFluxoNome] = useState("");
+  const [fluxoDescricao, setFluxoDescricao] = useState("");
+  const [nodes, setNodes] = useState<FluxoNode[]>([]);
+  const [edges, setEdges] = useState<FluxoEdge[]>([]);
+  const [selectedNode, setSelectedNode] = useState<FluxoNode | null>(null);
   const queryClient = useQueryClient();
-
-  const form = useForm<FluxoFormData>({
-    resolver: zodResolver(fluxoSchema),
-    defaultValues: {
-      nome: "",
-      descricao: "",
-    },
-  });
 
   const { data: fluxos, isLoading } = useQuery({
     queryKey: ["instagram-fluxos"],
@@ -56,34 +76,91 @@ export function InstagramFluxosTab() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as Fluxo[];
+      
+      return (data || []).map((f: any) => ({
+        ...f,
+        nodes: Array.isArray(f.nodes) ? f.nodes : [],
+        edges: Array.isArray(f.edges) ? f.edges : [],
+      })) as Fluxo[];
     },
   });
 
   const createFluxo = useMutation({
-    mutationFn: async (data: FluxoFormData) => {
+    mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
 
-      const { error } = await supabase.from("instagram_fluxos").insert({
+      const initialNodes: FluxoNode[] = [
+        {
+          id: "start-1",
+          type: "start",
+          data: { label: "Início" },
+          position: { x: 250, y: 50 },
+        },
+      ];
+
+      const insertData: any = {
         user_id: user.id,
-        nome: data.nome,
-        descricao: data.descricao || null,
+        nome: fluxoNome,
+        descricao: fluxoDescricao || null,
+        ativo: false,
+        nodes: initialNodes,
+        edges: [],
         etapas: [],
-        ativo: true,
-      });
+      };
+
+      const { data, error } = await supabase
+        .from("instagram_fluxos")
+        .insert([insertData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["instagram-fluxos"] });
+      toast.success("Fluxo criado com sucesso!");
+      setDialogOpen(false);
+      setFluxoNome("");
+      setFluxoDescricao("");
+      
+      const fluxo: Fluxo = {
+        ...data,
+        nodes: Array.isArray(data.nodes) ? (data.nodes as unknown as FluxoNode[]) : [],
+        edges: Array.isArray(data.edges) ? (data.edges as unknown as FluxoEdge[]) : [],
+        etapas: Array.isArray(data.etapas) ? data.etapas : [],
+      };
+      openEditor(fluxo);
+    },
+    onError: (error) => {
+      console.error("Erro ao criar fluxo:", error);
+      toast.error("Erro ao criar fluxo");
+    },
+  });
+
+  const saveFluxo = useMutation({
+    mutationFn: async () => {
+      if (!editingFluxo) throw new Error("Nenhum fluxo selecionado");
+
+      const { error } = await supabase
+        .from("instagram_fluxos")
+        .update({
+          nodes: nodes as any,
+          edges: edges as any,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", editingFluxo.id);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["instagram-fluxos"] });
-      toast.success("Fluxo criado com sucesso!");
-      setDialogOpen(false);
-      form.reset();
+      toast.success("Fluxo salvo!");
     },
     onError: (error) => {
-      console.error("Erro ao criar fluxo:", error);
-      toast.error("Erro ao criar fluxo");
+      console.error("Erro ao salvar fluxo:", error);
+      toast.error("Erro ao salvar fluxo");
     },
   });
 
@@ -111,6 +188,56 @@ export function InstagramFluxosTab() {
     },
   });
 
+  const openEditor = (fluxo: Fluxo) => {
+    setEditingFluxo(fluxo);
+    setNodes(fluxo.nodes || []);
+    setEdges(fluxo.edges || []);
+    setSelectedNode(null);
+    setEditorOpen(true);
+  };
+
+  const addNode = (type: FluxoNode["type"]) => {
+    const newNode: FluxoNode = {
+      id: `${type}-${Date.now()}`,
+      type,
+      data: {
+        label: nodeTypes[type].label,
+        text: type === "message" ? "" : undefined,
+        delaySeconds: type === "delay" ? 5 : undefined,
+        condition: type === "condition" ? "" : undefined,
+      },
+      position: { x: 250, y: (nodes.length + 1) * 100 },
+    };
+    setNodes([...nodes, newNode]);
+
+    if (nodes.length > 0) {
+      const lastNode = nodes[nodes.length - 1];
+      const newEdge: FluxoEdge = {
+        id: `edge-${Date.now()}`,
+        source: lastNode.id,
+        target: newNode.id,
+      };
+      setEdges([...edges, newEdge]);
+    }
+  };
+
+  const updateNodeData = (nodeId: string, data: Partial<FluxoNode["data"]>) => {
+    setNodes(nodes.map(n => 
+      n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n
+    ));
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode({ ...selectedNode, data: { ...selectedNode.data, ...data } });
+    }
+  };
+
+  const removeNode = (nodeId: string) => {
+    setNodes(nodes.filter(n => n.id !== nodeId));
+    setEdges(edges.filter(e => e.source !== nodeId && e.target !== nodeId));
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -125,7 +252,7 @@ export function InstagramFluxosTab() {
         <div>
           <h2 className="text-lg font-semibold">Fluxos de Conversa</h2>
           <p className="text-sm text-muted-foreground">
-            Crie jornadas automatizadas com múltiplas etapas
+            Crie sequências automatizadas de mensagens
           </p>
         </div>
 
@@ -136,66 +263,221 @@ export function InstagramFluxosTab() {
               Novo Fluxo
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Criar Novo Fluxo</DialogTitle>
             </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit((data) => createFluxo.mutate(data))} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="nome"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Fluxo</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: Boas-vindas novos seguidores" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Nome do Fluxo</label>
+                <Input
+                  placeholder="Ex: Onboarding de novos seguidores"
+                  value={fluxoNome}
+                  onChange={(e) => setFluxoNome(e.target.value)}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="descricao"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição (opcional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Descreva o objetivo deste fluxo..."
-                          rows={3}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              </div>
+              <div>
+                <label className="text-sm font-medium">Descrição (opcional)</label>
+                <Textarea
+                  placeholder="Descreva o objetivo deste fluxo..."
+                  value={fluxoDescricao}
+                  onChange={(e) => setFluxoDescricao(e.target.value)}
+                  rows={3}
                 />
-
-                <div className="flex gap-2 justify-end">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={createFluxo.isPending}>
-                    {createFluxo.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                    Criar Fluxo
-                  </Button>
-                </div>
-              </form>
-            </Form>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={() => createFluxo.mutate()}
+                  disabled={!fluxoNome || createFluxo.isPending}
+                >
+                  {createFluxo.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Criar e Editar
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Flow Editor Dialog */}
+      <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+        <DialogContent className="max-w-5xl h-[80vh]">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Editor de Fluxo: {editingFluxo?.nome}</DialogTitle>
+              <Button onClick={() => saveFluxo.mutate()} disabled={saveFluxo.isPending}>
+                {saveFluxo.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Salvar
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="flex gap-4 h-full">
+            {/* Node Palette */}
+            <div className="w-48 border-r pr-4">
+              <p className="text-sm font-medium mb-3">Adicionar Etapa</p>
+              <div className="space-y-2">
+                {(Object.entries(nodeTypes) as [FluxoNode["type"], typeof nodeTypes.start][]).map(([type, config]) => {
+                  const Icon = config.icon;
+                  return (
+                    <Button
+                      key={type}
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => addNode(type)}
+                      disabled={type === "start" && nodes.some(n => n.type === "start")}
+                    >
+                      <div className={`w-3 h-3 rounded-full ${config.color} mr-2`} />
+                      <Icon className="h-4 w-4 mr-2" />
+                      {config.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Canvas */}
+            <div className="flex-1 bg-muted/30 rounded-lg p-4 overflow-auto">
+              <div className="space-y-2">
+                {nodes.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <GitBranch className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Adicione etapas ao seu fluxo</p>
+                    <p className="text-sm">Comece adicionando um nó de Início</p>
+                  </div>
+                ) : (
+                  nodes.map((node, index) => {
+                    const config = nodeTypes[node.type];
+                    const Icon = config.icon;
+                    const hasConnection = index > 0;
+
+                    return (
+                      <div key={node.id}>
+                        {hasConnection && (
+                          <div className="flex justify-center py-1">
+                            <ArrowRight className="h-4 w-4 text-muted-foreground rotate-90" />
+                          </div>
+                        )}
+                        <div
+                          className={`
+                            border rounded-lg p-3 cursor-pointer transition-all
+                            ${selectedNode?.id === node.id ? "ring-2 ring-primary" : ""}
+                            bg-background hover:shadow-md
+                          `}
+                          onClick={() => setSelectedNode(node)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded-full ${config.color}`} />
+                              <Icon className="h-4 w-4" />
+                              <span className="font-medium text-sm">{config.label}</span>
+                            </div>
+                            {node.type !== "start" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeNode(node.id);
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {node.type === "message" && node.data.text && (
+                            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                              {node.data.text}
+                            </p>
+                          )}
+                          {node.type === "delay" && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Aguardar {node.data.delaySeconds}s
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Properties Panel */}
+            <div className="w-64 border-l pl-4">
+              <p className="text-sm font-medium mb-3">Propriedades</p>
+              {selectedNode ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Tipo</label>
+                    <p className="font-medium">{nodeTypes[selectedNode.type].label}</p>
+                  </div>
+
+                  {selectedNode.type === "message" && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">Mensagem</label>
+                      <Textarea
+                        value={selectedNode.data.text || ""}
+                        onChange={(e) => updateNodeData(selectedNode.id, { text: e.target.value })}
+                        placeholder="Digite a mensagem..."
+                        rows={4}
+                      />
+                    </div>
+                  )}
+
+                  {selectedNode.type === "delay" && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">Segundos de espera</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={3600}
+                        value={selectedNode.data.delaySeconds || 5}
+                        onChange={(e) => updateNodeData(selectedNode.id, { 
+                          delaySeconds: parseInt(e.target.value) || 5 
+                        })}
+                      />
+                    </div>
+                  )}
+
+                  {selectedNode.type === "condition" && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">Condição</label>
+                      <Input
+                        value={selectedNode.data.condition || ""}
+                        onChange={(e) => updateNodeData(selectedNode.id, { condition: e.target.value })}
+                        placeholder="Ex: contém 'sim'"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Selecione uma etapa para editar
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Flows List */}
       {fluxos?.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <GitBranch className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium">Nenhum fluxo criado</h3>
             <p className="text-sm text-muted-foreground">
-              Crie fluxos para automatizar conversas complexas
+              Crie seu primeiro fluxo de conversa automatizada
             </p>
           </CardContent>
         </Card>
@@ -205,9 +487,11 @@ export function InstagramFluxosTab() {
             <Card key={fluxo.id} className={!fluxo.ativo ? "opacity-60" : ""}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center gap-3">
                     <CardTitle className="text-base">{fluxo.nome}</CardTitle>
+                    <Badge variant={fluxo.ativo ? "default" : "secondary"}>
+                      {fluxo.ativo ? "Ativo" : "Inativo"}
+                    </Badge>
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch
@@ -219,50 +503,36 @@ export function InstagramFluxosTab() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => openEditor(fluxo)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => deleteFluxo.mutate(fluxo.id)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
-                {fluxo.descricao && (
-                  <CardDescription>{fluxo.descricao}</CardDescription>
-                )}
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">
-                      {fluxo.etapas?.length || 0} etapas
-                    </Badge>
-                    <Badge variant={fluxo.ativo ? "default" : "secondary"}>
-                      {fluxo.ativo ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </div>
-                  <Button variant="outline" size="sm" disabled>
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Editar Fluxo
-                  </Button>
+                {fluxo.descricao && (
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {fluxo.descricao}
+                  </p>
+                )}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline">
+                    {fluxo.nodes?.length || 0} etapas
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
-
-      {/* Info sobre editor de fluxos */}
-      <Card className="border-dashed">
-        <CardContent className="py-6">
-          <div className="text-center space-y-2">
-            <p className="text-sm text-muted-foreground">
-              O editor visual de fluxos está em desenvolvimento.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Por enquanto, use os gatilhos por palavra-chave para respostas automáticas.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
