@@ -1679,11 +1679,110 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_formularios: {
+        Row: {
+          ativo: boolean | null
+          campos: Json
+          cor_primaria: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          imagem_url: string | null
+          mensagem_sucesso: string
+          nome: string
+          subtitulo_pagina: string | null
+          texto_botao: string
+          titulo_pagina: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          campos?: Json
+          cor_primaria?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          imagem_url?: string | null
+          mensagem_sucesso?: string
+          nome: string
+          subtitulo_pagina?: string | null
+          texto_botao?: string
+          titulo_pagina?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          campos?: Json
+          cor_primaria?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          imagem_url?: string | null
+          mensagem_sucesso?: string
+          nome?: string
+          subtitulo_pagina?: string | null
+          texto_botao?: string
+          titulo_pagina?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      instagram_formularios_respostas: {
+        Row: {
+          created_at: string
+          dados_extras: Json | null
+          email: string | null
+          formulario_id: string
+          id: string
+          instagram_user_id: string | null
+          nome: string | null
+          telefone: string | null
+          tracking_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dados_extras?: Json | null
+          email?: string | null
+          formulario_id: string
+          id?: string
+          instagram_user_id?: string | null
+          nome?: string | null
+          telefone?: string | null
+          tracking_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dados_extras?: Json | null
+          email?: string | null
+          formulario_id?: string
+          id?: string
+          instagram_user_id?: string | null
+          nome?: string | null
+          telefone?: string | null
+          tracking_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_formularios_respostas_formulario_id_fkey"
+            columns: ["formulario_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_formularios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instagram_gatilhos: {
         Row: {
           ativo: boolean | null
           created_at: string
           fluxo_id: string | null
+          formulario_id: string | null
           id: string
           mensagem_pedir_seguir: string | null
           nome: string
@@ -1703,6 +1802,7 @@ export type Database = {
           ativo?: boolean | null
           created_at?: string
           fluxo_id?: string | null
+          formulario_id?: string | null
           id?: string
           mensagem_pedir_seguir?: string | null
           nome: string
@@ -1722,6 +1822,7 @@ export type Database = {
           ativo?: boolean | null
           created_at?: string
           fluxo_id?: string | null
+          formulario_id?: string | null
           id?: string
           mensagem_pedir_seguir?: string | null
           nome?: string
@@ -1737,7 +1838,15 @@ export type Database = {
           user_id?: string
           verificar_seguidor?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instagram_gatilhos_formulario_id_fkey"
+            columns: ["formulario_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_formularios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       instagram_interacoes: {
         Row: {

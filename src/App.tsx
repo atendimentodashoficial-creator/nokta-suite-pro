@@ -24,6 +24,7 @@ import GoogleAdsMetrics from "./pages/GoogleAdsMetrics";
 import Disparos from "./pages/Disparos";
 import Extrator from "./pages/Extrator";
 import Instagram from "./pages/Instagram";
+import FormularioCaptura from "./pages/FormularioCaptura";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
         <PersonalizacaoProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/f/:formId" element={<FormularioCaptura />} />
             <Route
               path="/"
               element={
