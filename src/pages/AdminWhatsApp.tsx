@@ -110,21 +110,37 @@ export default function AdminWhatsApp() {
   // Check if user has UAZapi config and load credentials
   const checkConfig = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('uazapi_config').select('id, base_url, api_key').single();
-      setHasConfig(!error && !!data);
-      if (!error && data) {
-        setWhatsAppConfig({ base_url: data.base_url, api_key: data.api_key });
-        // Check connection status
-        checkConnectionStatus(data.base_url, data.api_key);
-      } else {
+      const { data, error } = await supabase
+        .from('uazapi_config')
+        .select('id, base_url, api_key')
+        .single();
+
+      const ok = !error && !!data;
+      setHasConfig(ok);
+
+      if (!ok || !data) {
         setConnectionStatus('disconnected');
+        setWhatsAppConfig(null);
+        return;
       }
+
+      const baseUrl = (data.base_url || '').trim();
+      const apiKey = (data.api_key || '').trim();
+
+      // Quick guard: invalid/placeholder tokens cause 401 on QR generation
+      if (apiKey.length < 10 || !baseUrl) {
+        setWhatsAppConfig({ base_url: baseUrl, api_key: apiKey });
+        setConnectionStatus('disconnected');
+        toast.error('Token do WhatsApp inválido. Atualize em Configurações → Conexões.');
+        return;
+      }
+
+      setWhatsAppConfig({ base_url: baseUrl, api_key: apiKey });
+      checkConnectionStatus(baseUrl, apiKey);
     } catch {
       setHasConfig(false);
       setConnectionStatus('disconnected');
+      setWhatsAppConfig(null);
     }
   };
 
