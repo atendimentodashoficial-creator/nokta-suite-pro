@@ -997,6 +997,7 @@ export type Database = {
           content: string
           created_at: string
           deleted: boolean | null
+          fbclid: string | null
           id: string
           media_type: Database["public"]["Enums"]["message_media_type"] | null
           media_url: string | null
@@ -1004,6 +1005,11 @@ export type Database = {
           sender_type: Database["public"]["Enums"]["sender_type"]
           status: Database["public"]["Enums"]["message_status"] | null
           timestamp: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
           admin_id?: string | null
@@ -1011,6 +1017,7 @@ export type Database = {
           content: string
           created_at?: string
           deleted?: boolean | null
+          fbclid?: string | null
           id?: string
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
           media_url?: string | null
@@ -1018,6 +1025,11 @@ export type Database = {
           sender_type: Database["public"]["Enums"]["sender_type"]
           status?: Database["public"]["Enums"]["message_status"] | null
           timestamp: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
           admin_id?: string | null
@@ -1025,6 +1037,7 @@ export type Database = {
           content?: string
           created_at?: string
           deleted?: boolean | null
+          fbclid?: string | null
           id?: string
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
           media_url?: string | null
@@ -1032,6 +1045,11 @@ export type Database = {
           sender_type?: Database["public"]["Enums"]["sender_type"]
           status?: Database["public"]["Enums"]["message_status"] | null
           timestamp?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: [
           {
@@ -2624,6 +2642,7 @@ export type Database = {
           content: string
           created_at: string
           deleted: boolean | null
+          fbclid: string | null
           id: string
           media_type: Database["public"]["Enums"]["message_media_type"] | null
           media_url: string | null
@@ -2631,6 +2650,11 @@ export type Database = {
           sender_type: Database["public"]["Enums"]["sender_type"]
           status: Database["public"]["Enums"]["message_status"] | null
           timestamp: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
           admin_id?: string | null
@@ -2638,6 +2662,7 @@ export type Database = {
           content: string
           created_at?: string
           deleted?: boolean | null
+          fbclid?: string | null
           id?: string
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
           media_url?: string | null
@@ -2645,6 +2670,11 @@ export type Database = {
           sender_type: Database["public"]["Enums"]["sender_type"]
           status?: Database["public"]["Enums"]["message_status"] | null
           timestamp: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
           admin_id?: string | null
@@ -2652,6 +2682,7 @@ export type Database = {
           content?: string
           created_at?: string
           deleted?: boolean | null
+          fbclid?: string | null
           id?: string
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
           media_url?: string | null
@@ -2659,6 +2690,11 @@ export type Database = {
           sender_type?: Database["public"]["Enums"]["sender_type"]
           status?: Database["public"]["Enums"]["message_status"] | null
           timestamp?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: [
           {
