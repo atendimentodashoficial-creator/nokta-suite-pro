@@ -137,9 +137,9 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
 
       // Auto-configure webhook
       if (data?.id && user?.id) {
-        const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${data.id}`;
+        const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook/${user.id}/${data.id}`;
         const { data: session } = await supabase.auth.getSession();
-        
+
         await supabase.functions.invoke("uazapi-set-webhook", {
           headers: { Authorization: `Bearer ${session.session?.access_token}` },
           body: {
