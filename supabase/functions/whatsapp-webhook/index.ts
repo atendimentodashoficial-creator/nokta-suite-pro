@@ -642,7 +642,7 @@ Deno.serve(async (req) => {
                 sender_type: 'contact',
                 media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                 timestamp: msgTime,
-              }, { onConflict: 'message_id' });
+              }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {
               console.error('Error saving Disparos message:', msgInsertError);
@@ -701,7 +701,7 @@ Deno.serve(async (req) => {
                   sender_type: 'contact',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
-                }, { onConflict: 'message_id' });
+                }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
               if (msgInsertError) {
                 console.error('Error saving first Disparos message:', msgInsertError);
