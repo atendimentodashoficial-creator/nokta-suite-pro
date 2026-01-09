@@ -411,6 +411,26 @@ export default function Disparos() {
             setQrCodeDialogOpen(false);
             setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'connected' }));
             toast.success("WhatsApp conectado!");
+            
+            // Configure webhook after successful connection
+            const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${instancia.id}`;
+            const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+              headers: { Authorization: `Bearer ${session.session?.access_token}` },
+              body: {
+                base_url: instancia.base_url,
+                api_key: instancia.api_key,
+                webhook_url: webhookUrl,
+                instancia_id: instancia.id,
+              },
+            });
+
+            if (webhookResponse.data?.success) {
+              toast.success("Webhook configurado automaticamente!");
+            } else {
+              console.error("Webhook config failed:", webhookResponse.data);
+              toast.warning("Webhook não foi configurado. Configure manualmente em 'Gerenciar Instâncias'.");
+            }
+            
             loadInstancias();
             checkConfig();
           }
