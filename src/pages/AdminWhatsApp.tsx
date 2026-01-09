@@ -45,13 +45,14 @@ export default function AdminWhatsApp() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // WhatsApp connection state (QR code flow)
-  const [whatsAppConfig, setWhatsAppConfig] = useState<{ base_url: string; api_key: string } | null>(null);
+  // WhatsApp connection state (QR code flow) - based on disparos_instancias
+  const [mainInstance, setMainInstance] = useState<{ id: string; nome: string; base_url: string; api_key: string } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'loading'>('loading');
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const getChatLast8 = (chat: any) => {
     // Prefer explicit numbers, fallback to chat_id
     const candidates = [chat?.contact_number, chat?.normalized_number, chat?.chat_id].filter(Boolean);
@@ -107,40 +108,55 @@ export default function AdminWhatsApp() {
     }
   };
 
-  // Check if user has UAZapi config and load credentials
+  // Check if user has a main WhatsApp instance (from uazapi_config link or disparos_instancias)
   const checkConfig = async () => {
     try {
-      const { data, error } = await supabase
+      // First check uazapi_config for linked instance
+      const { data: uazapiConfig } = await supabase
         .from('uazapi_config')
-        .select('id, base_url, api_key')
+        .select('whatsapp_instancia_id, base_url, api_key')
         .single();
 
-      const ok = !error && !!data;
-      setHasConfig(ok);
+      if (uazapiConfig?.whatsapp_instancia_id) {
+        // Load the linked instance from disparos_instancias
+        const { data: instance } = await supabase
+          .from('disparos_instancias')
+          .select('id, nome, base_url, api_key')
+          .eq('id', uazapiConfig.whatsapp_instancia_id)
+          .single();
 
-      if (!ok || !data) {
-        setConnectionStatus('disconnected');
-        setWhatsAppConfig(null);
+        if (instance) {
+          setMainInstance(instance);
+          setHasConfig(true);
+          checkConnectionStatus(instance.base_url, instance.api_key);
+          return;
+        }
+      }
+
+      // Fallback: check if any instance exists in disparos_instancias (first one = main)
+      const { data: instances } = await supabase
+        .from('disparos_instancias')
+        .select('id, nome, base_url, api_key')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: true })
+        .limit(1);
+
+      if (instances && instances.length > 0) {
+        const inst = instances[0];
+        setMainInstance(inst);
+        setHasConfig(true);
+        checkConnectionStatus(inst.base_url, inst.api_key);
         return;
       }
 
-      const baseUrl = (data.base_url || '').trim();
-      const apiKey = (data.api_key || '').trim();
-
-      // Quick guard: invalid/placeholder tokens cause 401 on QR generation
-      if (apiKey.length < 10 || !baseUrl) {
-        setWhatsAppConfig({ base_url: baseUrl, api_key: apiKey });
-        setConnectionStatus('disconnected');
-        toast.error('Token do WhatsApp inválido. Atualize em Configurações → Conexões.');
-        return;
-      }
-
-      setWhatsAppConfig({ base_url: baseUrl, api_key: apiKey });
-      checkConnectionStatus(baseUrl, apiKey);
-    } catch {
+      // No instance configured
+      setMainInstance(null);
       setHasConfig(false);
       setConnectionStatus('disconnected');
-      setWhatsAppConfig(null);
+    } catch {
+      setMainInstance(null);
+      setHasConfig(false);
+      setConnectionStatus('disconnected');
     }
   };
 
@@ -159,52 +175,101 @@ export default function AdminWhatsApp() {
     }
   };
 
-  // Open QR Code dialog for connection
+  // Create new instance and open QR Code dialog
   const handleOpenQrCode = async () => {
-    if (!whatsAppConfig) {
-      toast.error('Configure o WhatsApp em Conexões primeiro');
-      return;
-    }
     setQrCodeDialogOpen(true);
     setQrCodeLoading(true);
     setQrCodeData(null);
 
     try {
       const { data: session } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
-        headers: { Authorization: `Bearer ${session.session?.access_token}` },
-        body: { base_url: whatsAppConfig.base_url, api_key: whatsAppConfig.api_key },
-      });
 
-      if (response.data?.connected) {
-        toast.success("WhatsApp já está conectado!");
-        setQrCodeDialogOpen(false);
-        setConnectionStatus('connected');
-        return;
-      }
+      // If we already have an instance, just get QR code
+      if (mainInstance) {
+        const response = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { base_url: mainInstance.base_url, api_key: mainInstance.api_key },
+        });
 
-      if (response.data?.qrcode) {
-        setQrCodeData(response.data.qrcode);
-        startQrPolling();
+        if (response.data?.connected) {
+          toast.success("WhatsApp já está conectado!");
+          setQrCodeDialogOpen(false);
+          setConnectionStatus('connected');
+          return;
+        }
+
+        if (response.data?.qrcode) {
+          setQrCodeData(response.data.qrcode);
+          startQrPolling(mainInstance.base_url, mainInstance.api_key);
+        } else {
+          toast.error(response.data?.error || "Não foi possível obter o QR Code");
+        }
       } else {
-        toast.error(response.data?.error || "Não foi possível obter o QR Code");
+        // Create new instance via admin API
+        setIsCreatingInstance(true);
+        const instanceName = `WhatsApp-${Date.now()}`;
+        
+        const createResponse = await supabase.functions.invoke("uazapi-admin-create-instance", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { instance_name: instanceName },
+        });
+
+        if (!createResponse.data?.success) {
+          toast.error(createResponse.data?.error || "Erro ao criar instância");
+          setQrCodeDialogOpen(false);
+          return;
+        }
+
+        const newInstance = createResponse.data.instance;
+        setMainInstance(newInstance);
+        setHasConfig(true);
+
+        // Link to uazapi_config
+        await supabase.from('uazapi_config').upsert({
+          user_id: user?.id,
+          base_url: newInstance.base_url,
+          api_key: newInstance.api_key,
+          whatsapp_instancia_id: newInstance.id,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+        // Get QR code for the new instance
+        if (createResponse.data.qrcode) {
+          setQrCodeData(createResponse.data.qrcode);
+          startQrPolling(newInstance.base_url, newInstance.api_key);
+        } else {
+          // Fetch QR code separately
+          const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+            body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
+          });
+
+          if (qrResponse.data?.qrcode) {
+            setQrCodeData(qrResponse.data.qrcode);
+            startQrPolling(newInstance.base_url, newInstance.api_key);
+          } else {
+            toast.error("Instância criada, mas não foi possível obter QR Code");
+          }
+        }
       }
-    } catch {
-      toast.error("Erro ao obter QR Code");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao conectar WhatsApp");
     } finally {
       setQrCodeLoading(false);
+      setIsCreatingInstance(false);
     }
   };
 
   // Disconnect WhatsApp
   const handleDisconnect = async () => {
-    if (!whatsAppConfig) return;
+    if (!mainInstance) return;
     try {
-      const response = await fetch(`${whatsAppConfig.base_url}/instance/logout`, {
+      const response = await fetch(`${mainInstance.base_url}/instance/logout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "token": whatsAppConfig.api_key,
+          "token": mainInstance.api_key,
         },
       });
 
@@ -220,16 +285,15 @@ export default function AdminWhatsApp() {
   };
 
   // Start polling for QR code connection
-  const startQrPolling = () => {
+  const startQrPolling = (baseUrl: string, apiKey: string) => {
     if (qrPollingInterval) clearInterval(qrPollingInterval);
 
     const interval = setInterval(async () => {
-      if (!whatsAppConfig) return;
       try {
         const { data: session } = await supabase.auth.getSession();
         const response = await supabase.functions.invoke("uazapi-test-connection", {
           headers: { Authorization: `Bearer ${session.session?.access_token}` },
-          body: { base_url: whatsAppConfig.base_url, api_key: whatsAppConfig.api_key },
+          body: { base_url: baseUrl, api_key: apiKey },
         });
 
         if (response.data?.success) {
@@ -250,7 +314,11 @@ export default function AdminWhatsApp() {
   };
 
   // Refresh QR Code
-  const refreshQrCode = () => handleOpenQrCode();
+  const refreshQrCode = () => {
+    if (mainInstance) {
+      handleOpenQrCode();
+    }
+  };
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -887,36 +955,35 @@ export default function AdminWhatsApp() {
               
               {/* Status/Action Button - Mobile */}
               {isMobile && (
-                hasConfig ? (
-                  connectionStatus === 'connected' ? (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-1 text-green-600 border-green-600 h-6 px-2 text-xs ml-auto"
-                      onClick={handleDisconnect}
-                    >
-                      <CheckCircle2 className="h-3 w-3" />
-                      Conectado
-                    </Button>
-                  ) : connectionStatus === 'loading' ? (
-                    <Badge variant="outline" className="gap-1 h-6 px-2 text-xs ml-auto">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    </Badge>
-                  ) : (
-                    <Button 
-                      variant="default" 
-                      size="sm" 
-                      className="gap-1 h-6 px-2 text-xs ml-auto"
-                      onClick={handleOpenQrCode}
-                    >
-                      <QrCode className="h-3 w-3" />
-                      Conectar
-                    </Button>
-                  )
+                connectionStatus === 'connected' ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-1 text-green-600 border-green-600 h-6 px-2 text-xs ml-auto"
+                    onClick={handleDisconnect}
+                  >
+                    <CheckCircle2 className="h-3 w-3" />
+                    Conectado
+                  </Button>
+                ) : connectionStatus === 'loading' ? (
+                  <Badge variant="outline" className="gap-1 h-6 px-2 text-xs ml-auto">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  </Badge>
                 ) : (
-                  <Link to="/configuracoes" className="text-xs text-primary underline ml-auto">
-                    Configurar
-                  </Link>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="gap-1 h-6 px-2 text-xs ml-auto"
+                    onClick={handleOpenQrCode}
+                    disabled={isCreatingInstance}
+                  >
+                    {isCreatingInstance ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <QrCode className="h-3 w-3" />
+                    )}
+                    Conectar
+                  </Button>
                 )
               )}
             </div>
@@ -924,37 +991,36 @@ export default function AdminWhatsApp() {
             {/* Desktop: Status/Action Button */}
             <div className="flex items-center gap-3">
               {!isMobile && (
-                hasConfig ? (
-                  connectionStatus === 'connected' ? (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-1 text-green-600 border-green-600 h-8 px-3"
-                      onClick={handleDisconnect}
-                    >
-                      <CheckCircle2 className="h-3 w-3" />
-                      Conectado
-                    </Button>
-                  ) : connectionStatus === 'loading' ? (
-                    <Badge variant="outline" className="gap-1 h-8 px-3">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Verificando...
-                    </Badge>
-                  ) : (
-                    <Button 
-                      variant="default" 
-                      size="sm" 
-                      className="gap-1 h-8 px-3"
-                      onClick={handleOpenQrCode}
-                    >
-                      <QrCode className="h-4 w-4" />
-                      Conectar
-                    </Button>
-                  )
+                connectionStatus === 'connected' ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-1 text-green-600 border-green-600 h-8 px-3"
+                    onClick={handleDisconnect}
+                  >
+                    <CheckCircle2 className="h-3 w-3" />
+                    Conectado
+                  </Button>
+                ) : connectionStatus === 'loading' ? (
+                  <Badge variant="outline" className="gap-1 h-8 px-3">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Verificando...
+                  </Badge>
                 ) : (
-                  <Link to="/configuracoes" className="text-sm text-primary underline">
-                    Configurar em Conexões
-                  </Link>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="gap-1 h-8 px-3"
+                    onClick={handleOpenQrCode}
+                    disabled={isCreatingInstance}
+                  >
+                    {isCreatingInstance ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <QrCode className="h-4 w-4" />
+                    )}
+                    Conectar
+                  </Button>
                 )
               )}
             </div>
