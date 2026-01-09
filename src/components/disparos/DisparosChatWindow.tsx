@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MessageBubble } from "@/components/whatsapp/MessageBubble";
 import { DateSeparator, isDifferentDay } from "@/components/whatsapp/DateSeparator";
+import { CampaignAttributionBadge } from "@/components/whatsapp/CampaignAttributionBadge";
 import { getInitials, normalizePhoneNumber, formatPhoneNumber, getLast8Digits } from "@/utils/whatsapp";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
 import { useMensagensPredefinidas } from "@/hooks/useMensagensPredefinidas";
@@ -882,6 +883,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </Button>
+                <CampaignAttributionBadge contactNumber={chat.contact_number} />
               </div>
             )}
             <p className="text-xs text-muted-foreground truncate">
