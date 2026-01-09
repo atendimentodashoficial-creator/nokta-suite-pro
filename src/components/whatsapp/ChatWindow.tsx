@@ -231,6 +231,35 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     }
   };
 
+  const mergeAttributionFields = (base: any, incoming: any) => {
+    const merged = { ...incoming };
+    const keys = [
+      'utm_source',
+      'utm_campaign',
+      'utm_medium',
+      'utm_content',
+      'utm_term',
+      'fbclid',
+      'ad_thumbnail_url',
+      'fb_ad_id',
+      'fb_campaign_name',
+      'fb_adset_name',
+      'fb_ad_name',
+    ];
+
+    for (const k of keys) {
+      if (merged[k] == null && base?.[k] != null) merged[k] = base[k];
+    }
+
+    return merged;
+  };
+
+  const mergeMessagesPreservingAttribution = (incomingMessages: any[]) => {
+    const currentById = new Map<string, any>();
+    for (const m of messages) currentById.set(m.message_id, m);
+    return incomingMessages.map((m) => mergeAttributionFields(currentById.get(m.message_id), m));
+  };
+
   // Background sync with UAZapi (silent, catches missed webhook messages)
   const syncMessagesFromApiSilent = async () => {
     try {
@@ -246,9 +275,9 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
 
       if (response.error) return;
 
-      const newMessages = response.data.messages || [];
-      if (newMessages.length > messages.length) {
-        setMessages(newMessages);
+      const incoming = response.data.messages || [];
+      if (incoming.length > messages.length) {
+        setMessages(mergeMessagesPreservingAttribution(incoming));
         setShouldScrollToBottom(true);
       }
     } catch (error) {
@@ -276,8 +305,8 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
 
       if (response.error) throw response.error;
 
-      const newMessages = response.data.messages || [];
-      setMessages(newMessages);
+      const incoming = response.data.messages || [];
+      setMessages(mergeMessagesPreservingAttribution(incoming));
       setShouldScrollToBottom(true);
       toast.success('Mensagens sincronizadas');
     } catch (error: any) {
