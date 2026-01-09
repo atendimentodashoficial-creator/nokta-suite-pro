@@ -98,6 +98,51 @@ function getMediaPlaceholder(message: WhatsAppWebhookPayload['message']): string
   return null;
 }
 
+// Helper function to extract UTM data from message payload EARLY (before saving messages)
+function extractUtmDataFromMessage(message: any, payload: any): Record<string, string | null> {
+  const utmData: Record<string, string | null> = {
+    utm_source: null,
+    utm_campaign: null,
+    utm_medium: null,
+    utm_content: null,
+    utm_term: null,
+    fbclid: null,
+  };
+
+  if (!message) return utmData;
+
+  // Check for standard referral format (message.referral or payload.referral)
+  let referral = message?.referral || payload?.referral;
+  
+  // Check for UAZAPI format: message.content.contextInfo.externalAdReply
+  const contextInfo = message?.content?.contextInfo;
+  const externalAdReply = contextInfo?.externalAdReply;
+  const conversionSource = contextInfo?.conversionSource;
+
+  // Handle standard referral format
+  if (referral) {
+    console.log('UTM extraction: standard referral format detected:', JSON.stringify(referral));
+    utmData.utm_source = 'facebook';
+    utmData.utm_medium = 'cpc';
+    utmData.utm_campaign = referral.headline || null;
+    utmData.utm_content = referral.source_id || null;
+    utmData.utm_term = referral.body || null;
+    utmData.fbclid = referral.ctwa_clid || null;
+  }
+  // Handle UAZAPI format: externalAdReply in contextInfo
+  else if (externalAdReply && conversionSource === 'FB_Ads') {
+    console.log('UTM extraction: UAZAPI format detected:', JSON.stringify(externalAdReply));
+    utmData.utm_source = 'facebook';
+    utmData.utm_medium = 'cpc';
+    utmData.utm_campaign = externalAdReply.title || null;
+    utmData.utm_content = externalAdReply.sourceId || externalAdReply.source_id || null;
+    utmData.utm_term = externalAdReply.body || null;
+    utmData.fbclid = externalAdReply.ctwa_clid || null;
+  }
+
+  return utmData;
+}
+
 // Function to normalize phone numbers for comparison
 function normalizePhone(phone: string): string {
   if (!phone) return '';
@@ -454,6 +499,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    // === Extract UTM data EARLY before saving messages ===
+    const earlyUtmData = extractUtmDataFromMessage(normalizedPayload.message, normalizedPayload);
+    const hasEarlyUtm = Boolean(earlyUtmData.utm_source || earlyUtmData.utm_campaign || earlyUtmData.fbclid);
+    if (hasEarlyUtm) {
+      console.log('Early UTM extraction successful:', earlyUtmData);
+    }
+
     // Increment unread_count for the chat (both WhatsApp and Disparos tables)
     // Only if this is NOT a duplicate event
     if (last8Incoming && !isDuplicate) {
@@ -507,8 +559,7 @@ Deno.serve(async (req) => {
               messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
             ).toISOString();
 
-            // Note: utmData is extracted later in the code, so we save message first without UTM
-            // and will update with UTM data after extraction
+            // Include UTM data directly in the insert (extracted earlier)
             const { error: msgInsertError } = await supabase
               .from('whatsapp_messages')
               .upsert({
@@ -518,15 +569,19 @@ Deno.serve(async (req) => {
                 sender_type: 'customer',
                 media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                 timestamp: msgTime,
+                // Include UTM attribution directly
+                utm_source: earlyUtmData.utm_source,
+                utm_campaign: earlyUtmData.utm_campaign,
+                utm_medium: earlyUtmData.utm_medium,
+                utm_content: earlyUtmData.utm_content,
+                utm_term: earlyUtmData.utm_term,
+                fbclid: earlyUtmData.fbclid,
               }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {
               console.error('Error saving WhatsApp message:', msgInsertError);
             } else {
-              console.log('Saved WhatsApp message:', messageId);
-              // Store messageId and chatId for later UTM update
-              (globalThis as any).__savedWhatsAppMsgId = messageId;
-              (globalThis as any).__savedWhatsAppChatId = matchingChat.id;
+              console.log('Saved WhatsApp message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
             }
           } else {
             // Chat doesn't exist yet - create it automatically so the UI can show it immediately
@@ -572,15 +627,19 @@ Deno.serve(async (req) => {
                   sender_type: 'customer',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
+                  // Include UTM attribution directly
+                  utm_source: earlyUtmData.utm_source,
+                  utm_campaign: earlyUtmData.utm_campaign,
+                  utm_medium: earlyUtmData.utm_medium,
+                  utm_content: earlyUtmData.utm_content,
+                  utm_term: earlyUtmData.utm_term,
+                  fbclid: earlyUtmData.fbclid,
                 }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
               if (msgInsertError) {
                 console.error('Error saving first WhatsApp message:', msgInsertError);
               } else {
-                console.log('Saved first WhatsApp message:', messageId);
-                // Store messageId and chatId for later UTM update
-                (globalThis as any).__savedWhatsAppMsgId = messageId;
-                (globalThis as any).__savedWhatsAppChatId = newChat.id;
+                console.log('Saved first WhatsApp message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
               }
             }
           }
@@ -650,12 +709,19 @@ Deno.serve(async (req) => {
                 sender_type: 'contact',
                 media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                 timestamp: msgTime,
+                // Include UTM attribution directly
+                utm_source: earlyUtmData.utm_source,
+                utm_campaign: earlyUtmData.utm_campaign,
+                utm_medium: earlyUtmData.utm_medium,
+                utm_content: earlyUtmData.utm_content,
+                utm_term: earlyUtmData.utm_term,
+                fbclid: earlyUtmData.fbclid,
               }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {
               console.error('Error saving Disparos message:', msgInsertError);
             } else {
-              console.log('Saved Disparos message:', messageId);
+              console.log('Saved Disparos message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
             }
           } else if (instanciaId) {
             // Chat doesn't exist for this instance - create it automatically
@@ -709,12 +775,19 @@ Deno.serve(async (req) => {
                   sender_type: 'contact',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
+                  // Include UTM attribution directly
+                  utm_source: earlyUtmData.utm_source,
+                  utm_campaign: earlyUtmData.utm_campaign,
+                  utm_medium: earlyUtmData.utm_medium,
+                  utm_content: earlyUtmData.utm_content,
+                  utm_term: earlyUtmData.utm_term,
+                  fbclid: earlyUtmData.fbclid,
                 }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
               if (msgInsertError) {
                 console.error('Error saving first Disparos message:', msgInsertError);
               } else {
-                console.log('Saved first Disparos message:', messageId);
+                console.log('Saved first Disparos message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
               }
             }
           }
@@ -819,39 +892,7 @@ Deno.serve(async (req) => {
       };
     }
 
-    // === Update the saved message with UTM data if we have attribution ===
-    const savedMsgId = (globalThis as any).__savedWhatsAppMsgId;
-    const savedChatId = (globalThis as any).__savedWhatsAppChatId;
-    delete (globalThis as any).__savedWhatsAppMsgId;
-    delete (globalThis as any).__savedWhatsAppChatId;
-
-    if (savedMsgId && savedChatId && referral) {
-      console.log('Updating message with campaign attribution:', { 
-        messageId: savedMsgId, 
-        chatId: savedChatId,
-        campaign: utmData.utm_campaign,
-        source: utmData.utm_source 
-      });
-      
-      const { error: utmUpdateError } = await supabase
-        .from('whatsapp_messages')
-        .update({
-          utm_source: utmData.utm_source,
-          utm_campaign: utmData.utm_campaign,
-          utm_medium: utmData.utm_medium,
-          utm_content: utmData.utm_content,
-          utm_term: utmData.utm_term,
-          fbclid: utmData.fbclid,
-        })
-        .eq('chat_id', savedChatId)
-        .eq('message_id', savedMsgId);
-
-      if (utmUpdateError) {
-        console.error('Error updating message with UTM data:', utmUpdateError);
-      } else {
-        console.log('Successfully added campaign attribution to message:', savedMsgId);
-      }
-    }
+    // NOTE: UTM data is now included directly in message inserts (above), so no post-update needed
 
     // Rule: if webhook includes an instance param, treat it as Disparos unless it matches the configured main WhatsApp instance.
     let instanciaNome: string | null = instanciaNomeFromDb;
