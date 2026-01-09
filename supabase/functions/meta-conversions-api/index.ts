@@ -67,6 +67,13 @@ serve(async (req) => {
       customer_phone,
       customer_email,
       customer_name,
+      // Additional customer data
+      customer_gender,
+      customer_date_of_birth,
+      customer_city,
+      customer_state,
+      customer_zip,
+      // Attribution
       utm_source,
       utm_campaign,
       fbclid,
@@ -115,6 +122,37 @@ serve(async (req) => {
       if (nameParts.length > 1) {
         // Last name - last word
         userData.ln = await sha256Hash(nameParts[nameParts.length - 1].toLowerCase());
+      }
+    }
+
+    // Gender (ge) - m or f
+    if (customer_gender) {
+      userData.ge = await sha256Hash(customer_gender.toLowerCase());
+    }
+
+    // Date of birth (db) - format YYYYMMDD
+    if (customer_date_of_birth) {
+      // Convert from YYYY-MM-DD to YYYYMMDD
+      const dbFormatted = customer_date_of_birth.replace(/-/g, "");
+      userData.db = await sha256Hash(dbFormatted);
+    }
+
+    // City (ct)
+    if (customer_city) {
+      // Remove spaces and lowercase
+      userData.ct = await sha256Hash(customer_city.toLowerCase().replace(/\s/g, ""));
+    }
+
+    // State (st) - 2 letter code
+    if (customer_state) {
+      userData.st = await sha256Hash(customer_state.toLowerCase());
+    }
+
+    // Zip/Postal Code (zp) - digits only
+    if (customer_zip) {
+      const zipDigits = customer_zip.replace(/\D/g, "");
+      if (zipDigits) {
+        userData.zp = await sha256Hash(zipDigits);
       }
     }
 

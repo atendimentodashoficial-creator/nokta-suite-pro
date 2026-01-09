@@ -1595,14 +1595,20 @@ export type Database = {
       leads: {
         Row: {
           avaliacao: number | null
+          cep: string | null
+          cidade: string | null
           created_at: string | null
           data_agendamento: string | null
           data_comparecimento: string | null
           data_contato: string | null
+          data_nascimento: string | null
           deleted_at: string | null
           email: string | null
+          endereco: string | null
+          estado: string | null
           fbclid: string | null
           gclid: string | null
+          genero: string | null
           id: string
           instancia_nome: string | null
           nome: string
@@ -1626,14 +1632,20 @@ export type Database = {
         }
         Insert: {
           avaliacao?: number | null
+          cep?: string | null
+          cidade?: string | null
           created_at?: string | null
           data_agendamento?: string | null
           data_comparecimento?: string | null
           data_contato?: string | null
+          data_nascimento?: string | null
           deleted_at?: string | null
           email?: string | null
+          endereco?: string | null
+          estado?: string | null
           fbclid?: string | null
           gclid?: string | null
+          genero?: string | null
           id?: string
           instancia_nome?: string | null
           nome: string
@@ -1657,14 +1669,20 @@ export type Database = {
         }
         Update: {
           avaliacao?: number | null
+          cep?: string | null
+          cidade?: string | null
           created_at?: string | null
           data_agendamento?: string | null
           data_comparecimento?: string | null
           data_contato?: string | null
+          data_nascimento?: string | null
           deleted_at?: string | null
           email?: string | null
+          endereco?: string | null
+          estado?: string | null
           fbclid?: string | null
           gclid?: string | null
+          genero?: string | null
           id?: string
           instancia_nome?: string | null
           nome?: string

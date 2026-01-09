@@ -10,6 +10,13 @@ export interface ConversionEventData {
   customer_phone?: string;
   customer_email?: string;
   customer_name?: string;
+  // Additional customer data for better Meta matching
+  customer_gender?: string;
+  customer_date_of_birth?: string;
+  customer_city?: string;
+  customer_state?: string;
+  customer_zip?: string;
+  // Attribution
   utm_source?: string;
   utm_campaign?: string;
   fbclid?: string;
@@ -100,10 +107,10 @@ export async function sendPurchaseConversion(
   valor: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Fetch lead data for customer info and attribution
+    // Fetch lead data for customer info and attribution (including new fields)
     const { data: lead } = await supabase
       .from("leads")
-      .select("nome, telefone, email, utm_source, utm_campaign, fbclid")
+      .select("nome, telefone, email, utm_source, utm_campaign, fbclid, genero, data_nascimento, cidade, estado, cep")
       .eq("id", clienteId)
       .single();
 
@@ -120,6 +127,11 @@ export async function sendPurchaseConversion(
       customer_phone: lead?.telefone,
       customer_email: lead?.email || undefined,
       customer_name: lead?.nome,
+      customer_gender: (lead as any)?.genero || undefined,
+      customer_date_of_birth: (lead as any)?.data_nascimento || undefined,
+      customer_city: (lead as any)?.cidade || undefined,
+      customer_state: (lead as any)?.estado || undefined,
+      customer_zip: (lead as any)?.cep || undefined,
       utm_source: lead?.utm_source || undefined,
       utm_campaign: lead?.utm_campaign || undefined,
       fbclid: lead?.fbclid || undefined,
