@@ -1804,7 +1804,13 @@ export default function Disparos() {
                           throw new Error(response.data?.error || "Erro ao criar instância");
                         }
 
-                        const { base_url, api_key, instance } = response.data;
+                        const instance = response.data.instance as DisparosInstancia | undefined;
+                        const base_url = instance?.base_url;
+                        const api_key = instance?.api_key;
+
+                        if (!instance || !base_url || !api_key) {
+                          throw new Error("Instância criada, mas credenciais não retornaram (base_url/api_key). Tente novamente.");
+                        }
                         
                         // Get pairing code
                         const pairingResponse = await supabase.functions.invoke("uazapi-get-pairing-code", {
