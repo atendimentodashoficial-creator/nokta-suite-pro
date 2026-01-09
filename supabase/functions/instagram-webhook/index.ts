@@ -140,6 +140,7 @@ async function processMessage(supabase: any, event: any) {
       // Send response via Instagram API
       await sendInstagramMessage(
         config.page_access_token,
+        config.instagram_account_id,
         senderId,
         gatilho.resposta_texto
       );
@@ -202,6 +203,7 @@ async function processComment(supabase: any, comment: any) {
       // Send DM to commenter
       await sendInstagramMessage(
         config.page_access_token,
+        config.instagram_account_id,
         comment.from.id,
         gatilho.resposta_texto
       );
@@ -221,28 +223,49 @@ async function processComment(supabase: any, comment: any) {
   }
 }
 
-async function sendInstagramMessage(accessToken: string, recipientId: string, text: string) {
-  try {
-    const response = await fetch(
-      `https://graph.facebook.com/v18.0/me/messages`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          recipient: { id: recipientId },
-          message: { text },
-          access_token: accessToken,
-        }),
-      }
-    );
+async function sendInstagramMessage(
+  accessToken: string,
+  instagramAccountId: string | null,
+  recipientId: string,
+  text: string,
+) {
+  // Alguns fluxos do Meta geram token começando com "IG..." (Instagram Graph).
+  // Outros geram token de página começando com "EA..." (Graph do Facebook).
+  const trimmed = (accessToken || "").trim();
+  const isInstagramGraphToken = trimmed.startsWith("IG");
 
-    const result = await response.json();
-    console.log('Message sent result:', result);
-    return result;
-  } catch (error) {
-    console.error('Error sending message:', error);
-    throw error;
+  const url = isInstagramGraphToken
+    ? `https://graph.instagram.com/v24.0/${instagramAccountId ?? 'me'}/messages`
+    : `https://graph.facebook.com/v18.0/me/messages`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (isInstagramGraphToken) {
+    headers['Authorization'] = `Bearer ${trimmed}`;
   }
+
+  const body = isInstagramGraphToken
+    ? {
+        recipient: { id: recipientId },
+        message: { text },
+      }
+    : {
+        recipient: { id: recipientId },
+        message: { text },
+        access_token: trimmed,
+      };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  console.log('Message sent result:', { url, status: response.status, result });
+
+  if (!response.ok) {
+    throw new Error(`Send message failed (${response.status}): ${JSON.stringify(result)}`);
+  }
+
+  return result;
 }
