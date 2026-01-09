@@ -265,26 +265,29 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   };
 
   const handleDisconnect = async (instancia: DisparosInstancia) => {
+    setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'loading' }));
+    
     try {
       const { data: session } = await supabase.auth.getSession();
       
-      // Call disconnect endpoint
-      const response = await fetch(`${instancia.base_url}/instance/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "token": instancia.api_key,
-        },
+      // Use edge function to disconnect
+      const response = await supabase.functions.invoke("uazapi-disconnect-instance", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: instancia.base_url, api_key: instancia.api_key },
       });
 
-      if (response.ok) {
+      if (response.data?.success) {
         toast.success("WhatsApp desconectado!");
         setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'disconnected' }));
       } else {
-        toast.error("Erro ao desconectar");
+        toast.error(response.data?.error || "Erro ao desconectar");
+        // Recheck actual status
+        checkConnectionStatus(instancia);
       }
-    } catch {
+    } catch (error) {
+      console.error("Disconnect error:", error);
       toast.error("Erro ao desconectar");
+      checkConnectionStatus(instancia);
     }
   };
 
