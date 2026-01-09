@@ -299,6 +299,21 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Final fallback: if still no messages but chat has last_message, create a virtual message
+    if (finalMessages.length === 0 && existingChat.last_message && existingChat.last_message_time) {
+      console.log('No messages found anywhere, creating virtual message from chat preview');
+      finalMessages = [{
+        message_id: `virtual-${existingChat.id}`,
+        sender_type: 'customer',
+        content: existingChat.last_message,
+        media_type: 'text',
+        media_url: null,
+        timestamp: existingChat.last_message_time,
+        status: 'received',
+        deleted: false,
+      }];
+    }
+
     // Sort by timestamp (oldest first)
     finalMessages.sort((a: any, b: any) =>
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
