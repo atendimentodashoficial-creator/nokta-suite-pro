@@ -170,6 +170,11 @@ Deno.serve(async (req) => {
             url_testada: statusEndpoint,
             status: state || "connected",
             whatsapp_status: "connected",
+            // expose these so the frontend can reliably decide when to close the QR dialog
+            loggedIn: true,
+            jid: String(jid),
+            instance_status: instanceStatus,
+            raw_state: state,
           },
         }), {
           status: 200,
@@ -185,6 +190,10 @@ Deno.serve(async (req) => {
           url_testada: statusEndpoint,
           status: state || "connecting",
           whatsapp_status: isTransitional ? "connecting" : "not_logged_in",
+          loggedIn: Boolean(loggedInFlag),
+          jid: jid == null ? null : String(jid),
+          instance_status: instanceStatus,
+          raw_state: state,
           tipo_erro: "waiting_qr_scan",
         },
       }), {
