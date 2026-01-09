@@ -224,6 +224,11 @@ export function NovoAgendamentoDialog({
   const [clienteSuggestions, setClienteSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [countryCode, setCountryCode] = useState("55");
+  
+  // Track if name was manually edited by user - prevents auto-fill from overwriting
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
+  // Track last phone used for auto-fill to only trigger on phone change
+  const [lastAutoFilledPhone, setLastAutoFilledPhone] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const createAgendamento = useCreateAgendamento();
   const { data: procedimentos } = useProcedimentos();
@@ -258,6 +263,14 @@ export function NovoAgendamentoDialog({
 
   // Atualizar valores quando initialData mudar
   // Prioriza dados do cliente existente se houver um com o mesmo telefone
+  // Reset manual edit flag when dialog opens with new data
+  useEffect(() => {
+    if (open) {
+      setNameManuallyEdited(false);
+      setLastAutoFilledPhone(null);
+    }
+  }, [open]);
+
   useEffect(() => {
     const preencherDadosIniciais = async () => {
       if (!initialData) return;
@@ -268,8 +281,12 @@ export function NovoAgendamentoDialog({
         form.setValue("telefone", phoneWithoutCountry);
         setCountryCode(extractedCode);
         
-        // Buscar cliente existente pelo telefone para usar nome correto
         const last8Digits = getLast8Digits(initialData.telefone);
+        
+        // Mark this phone as auto-filled so handleTelefoneBlur doesn't trigger again
+        setLastAutoFilledPhone(last8Digits || null);
+        
+        // Buscar cliente existente pelo telefone para usar nome correto
         if (last8Digits && last8Digits.length >= 8) {
           try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -314,6 +331,9 @@ export function NovoAgendamentoDialog({
   const handleNomeChange = (value: string) => {
     form.setValue("nome", value);
     
+    // Mark as manually edited when user types in the name field
+    setNameManuallyEdited(true);
+    
     if (clienteId) return; // Não buscar se já tem cliente fixo
     
     if (value.length < 2) {
@@ -338,6 +358,9 @@ export function NovoAgendamentoDialog({
     setCountryCode(extractedCode);
     form.setValue("email", cliente.email || "");
     setShowSuggestions(false);
+    // When selecting from suggestions, reset manual edit flag (user chose this name)
+    setNameManuallyEdited(false);
+    setLastAutoFilledPhone(getLast8Digits(cliente.telefone) || null);
     toast.info("Dados do cliente preenchidos!");
   };
 
@@ -347,10 +370,17 @@ export function NovoAgendamentoDialog({
   const telefoneWatch = form.watch("telefone");
   
   // Buscar cliente existente pelo telefone e preencher dados automaticamente
+  // Only auto-fill if: name wasn't manually edited AND phone changed from last auto-fill
   const handleTelefoneBlur = async () => {
+    // If user manually edited the name, don't overwrite it
+    if (nameManuallyEdited) return;
+    
     const telefoneValue = form.getValues("telefone");
     const last8Digits = getLast8Digits(telefoneValue);
     if (!last8Digits || last8Digits.length < 8) return;
+    
+    // If this phone was already used for auto-fill, don't do it again
+    if (lastAutoFilledPhone === last8Digits) return;
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -373,6 +403,7 @@ export function NovoAgendamentoDialog({
         if (clienteExistente.email) {
           form.setValue("email", clienteExistente.email);
         }
+        setLastAutoFilledPhone(last8Digits);
         toast.info("Cliente encontrado! Dados preenchidos automaticamente.");
       }
     } catch (error) {
