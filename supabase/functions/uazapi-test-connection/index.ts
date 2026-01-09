@@ -102,12 +102,21 @@ Deno.serve(async (req) => {
       const state = statusData?.state || instanceStatus || statusData?.connection_status;
 
       // IMPORTANT:
-      // "connected: true" can mean only websocket/session is up.
-      // We only consider WhatsApp truly connected after authentication (loggedIn=true or jid present).
-      const isLoggedIn = nestedStatus?.loggedIn === true ||
-        statusData?.loggedIn === true ||
-        (nestedStatus?.jid != null && String(nestedStatus.jid).length > 0) ||
-        (statusData?.jid != null && String(statusData.jid).length > 0);
+      // Some providers may return "jid" even while still connecting.
+      // We only consider WhatsApp truly connected when loggedIn === true
+      // AND the instance is not in a transitional state like "connecting".
+      const loggedInFlag = nestedStatus?.loggedIn === true || statusData?.loggedIn === true;
+      const jid = nestedStatus?.jid ?? statusData?.jid;
+      const stateLower = String(state || "").toLowerCase();
+      const instanceStatusLower = String(instanceStatus || "").toLowerCase();
+
+      const isTransitional =
+        stateLower === "connecting" ||
+        stateLower === "starting" ||
+        instanceStatusLower === "connecting" ||
+        instanceStatusLower === "starting";
+
+      const isLoggedIn = loggedInFlag === true && jid != null && String(jid).length > 0 && !isTransitional;
 
       // Check for banned/disconnected states
       const isBanned = state === "BANNED" ||
@@ -128,6 +137,7 @@ Deno.serve(async (req) => {
           details: {
             url_testada: statusEndpoint,
             status: "banned",
+            whatsapp_status: "banned",
             tipo_erro: "whatsapp_banned",
           },
         }), {
@@ -143,6 +153,7 @@ Deno.serve(async (req) => {
           details: {
             url_testada: statusEndpoint,
             status: state || "disconnected",
+            whatsapp_status: "disconnected",
             tipo_erro: "whatsapp_disconnected",
           },
         }), {
@@ -173,7 +184,7 @@ Deno.serve(async (req) => {
         details: {
           url_testada: statusEndpoint,
           status: state || "connecting",
-          whatsapp_status: "connecting",
+          whatsapp_status: isTransitional ? "connecting" : "not_logged_in",
           tipo_erro: "waiting_qr_scan",
         },
       }), {
