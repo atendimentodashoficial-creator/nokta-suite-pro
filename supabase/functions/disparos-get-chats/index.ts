@@ -234,10 +234,18 @@ serve(async (req) => {
         const last8 = getLast8(contactNumber);
         const chatId = chat.wa_chatid || chat.id || `${normalizedNumber}@s.whatsapp.net`;
         
-        // Determine contact name: only use provider name if it's a REAL name (not just phone number)
-        const providerName = chat.name || chat.pushName || null;
-        const isProviderNameJustPhone = providerName && providerName.replace(/\D/g, '').length >= 8 && 
-          normalizedNumber.includes(providerName.replace(/\D/g, '').slice(-8));
+        // Determine contact name: use provider name when available and valid
+        // Provider may return: wa_name (contact name in address book), name, pushName, wa_contactName
+        const providerName = chat.wa_name || chat.name || chat.pushName || chat.wa_contactName || null;
+        
+        // Check if the provider name is just the phone number formatted
+        const isProviderNameJustPhone = providerName && (
+          providerName.replace(/\D/g, '').length >= 8 && 
+          getLast8(providerName) === last8
+        );
+        
+        // Format phone number for display when no name is available
+        const formattedPhone = chat.phone || contactNumber;
         
         // Use instance-specific key for deduplication (need to check existing chat first)
         const instanciaId = config.id === "legacy_config" ? null : config.id;
@@ -246,17 +254,14 @@ serve(async (req) => {
         // Get existing chat to preserve name if needed
         const existingChatForName = existingByInstanciaLast8.get(dedupeKey);
         
-        // Priority: real provider name > existing DB name > phone number fallback
+        // Priority: real provider name > formatted phone number
         let contactName: string;
-        if (providerName && !isProviderNameJustPhone) {
+        if (providerName && !isProviderNameJustPhone && providerName.trim() !== '') {
           // Provider has a real name (not just phone), use it
-          contactName = providerName;
-        } else if (existingChatForName?.contact_name && existingChatForName.contact_name !== contactNumber) {
-          // Preserve existing name from DB (e.g., from campaign list)
-          contactName = existingChatForName.contact_name;
+          contactName = providerName.trim();
         } else {
-          // Fallback to phone number
-          contactName = contactNumber;
+          // Use the phone number as fallback
+          contactName = formattedPhone;
         }
 
         // Skip if already processed in this sync
@@ -298,12 +303,8 @@ serve(async (req) => {
           continue;
         }
 
-        // IMPORTANT: If chat doesn't exist and last message is before instance connection,
-        // skip it - don't create new chats for old conversations
-        if (!existingChat && lastMsgTime && lastMsgTime < instanceConnectedDate) {
-          console.log(`[SYNC] Skipping NEW chat ${chat.phone} - last message before instance connection (${lastMsgTime.toISOString()} < ${instanceConnectedDate.toISOString()})`);
-          continue;
-        }
+        // NOTE: We no longer filter by instance connection date
+        // Old conversations are now imported, leads are only created by webhook for new messages
 
         // If there's a new message after deletion, create a NEW chat (don't restore old one)
         // The old chat stays deleted with its old messages
@@ -417,93 +418,9 @@ serve(async (req) => {
       }
     }
 
-    // === Lead creation for Disparos ===
-    // Criar leads separados para Disparos (mesmo que exista lead de WhatsApp)
-    // IMPORTANTE: Usar todos os chats ATIVOS (não apenas chatsToUpsert)
-    try {
-      // Buscar todos os chats ativos de Disparos para este usuário
-      const { data: allActiveDisparosChats } = await supabase
-        .from("disparos_chats")
-        .select("*")
-        .eq("user_id", user.id)
-        .is("deleted_at", null);
-
-      console.log(`[LEADS] Processing ${allActiveDisparosChats?.length || 0} active Disparos chats for lead creation`);
-
-      // Buscar todos os leads do user para checar por last8 + origem
-      const { data: allLeads } = await supabase
-        .from("leads")
-        .select("id, telefone, origem, instancia_nome, deleted_at")
-        .eq("user_id", user.id);
-
-      const today = new Date().toISOString().split("T")[0];
-
-      // Map por chave: last8 + origem (Disparos)
-      const existingDisparosLeads = new Map<string, any>();
-      for (const lead of allLeads || []) {
-        if ((lead.origem || "").toLowerCase() !== "disparos") continue;
-        const k = getLast8(lead.telefone);
-        if (k && !existingDisparosLeads.has(k)) {
-          existingDisparosLeads.set(k, lead);
-        }
-      }
-
-      // Processar TODOS os chats ativos de Disparos e criar/restaurar leads
-      for (const chat of allActiveDisparosChats || []) {
-        const phone = chat.normalized_number || (chat.contact_number ? chat.contact_number.replace(/\D/g, "") : "");
-        const k = getLast8(phone);
-        if (!phone || !k) continue;
-
-        const instanciaNome = chat.instancia_nome || "Instância";
-        const existingLead = existingDisparosLeads.get(k);
-
-        if (existingLead) {
-          // Se estava deletado, restaurar
-          if (existingLead.deleted_at) {
-            await supabase
-              .from("leads")
-              .update({
-                deleted_at: null,
-                created_at: new Date().toISOString(),
-                status: "lead",
-                data_contato: today,
-                instancia_nome: instanciaNome,
-              })
-              .eq("id", existingLead.id);
-            console.log(`[LEADS] Restored Disparos lead ${existingLead.id} for ${phone}`);
-          }
-        } else {
-          // Criar novo lead de Disparos
-          const { error: insertError } = await supabase
-            .from("leads")
-            .insert({
-              user_id: user.id,
-              nome: chat.contact_name || "Contato Disparos",
-              telefone: phone,
-              procedimento_nome: "Contato via Disparos",
-              origem: "Disparos",
-              status: "lead",
-              origem_lead: true,
-              data_contato: today,
-              instancia_nome: instanciaNome,
-              observacoes: chat.last_message ? `Primeira mensagem: ${chat.last_message}` : null,
-            });
-
-          if (insertError) {
-            // Ignora duplicação (pode ser por variação de telefone ou race condition)
-            if (!insertError.message?.includes("duplicate") && !insertError.message?.includes("unique")) {
-              console.error("[LEADS] Error inserting Disparos lead:", insertError);
-            }
-          } else {
-            console.log(`[LEADS] Created Disparos lead for ${phone} (instancia: ${instanciaNome})`);
-            // Atualiza cache para não tentar criar de novo
-            existingDisparosLeads.set(k, { telefone: phone, origem: "Disparos" });
-          }
-        }
-      }
-    } catch (leadError) {
-      console.error("[LEADS] Error in Disparos lead creation:", leadError);
-    }
+    // NOTE: Lead creation is now handled ONLY by webhook for new incoming messages
+    // Old conversations synced here should NOT create leads
+    console.log("[SYNC] Lead creation skipped - leads are created only via webhook for new messages");
 
     return new Response(JSON.stringify({ success: true, count: chatsToUpsert.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
