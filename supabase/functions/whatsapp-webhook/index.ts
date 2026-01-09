@@ -99,8 +99,19 @@ function getMediaPlaceholder(message: WhatsAppWebhookPayload['message']): string
 }
 
 // Helper function to extract UTM data from message payload EARLY (before saving messages)
-function extractUtmDataFromMessage(message: any, payload: any): Record<string, string | null> {
-  const utmData: Record<string, string | null> = {
+interface ExtractedUtmData {
+  utm_source: string | null;
+  utm_campaign: string | null;
+  utm_medium: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  fbclid: string | null;
+  ad_thumbnail_url: string | null;
+  fb_ad_id: string | null;
+}
+
+function extractUtmDataFromMessage(message: any, payload: any): ExtractedUtmData {
+  const utmData: ExtractedUtmData = {
     utm_source: null,
     utm_campaign: null,
     utm_medium: null,
@@ -108,6 +119,7 @@ function extractUtmDataFromMessage(message: any, payload: any): Record<string, s
     utm_term: null,
     fbclid: null,
     ad_thumbnail_url: null,
+    fb_ad_id: null,
   };
 
   if (!message) return utmData;
@@ -130,6 +142,7 @@ function extractUtmDataFromMessage(message: any, payload: any): Record<string, s
     utmData.utm_term = referral.body || null;
     utmData.fbclid = referral.ctwa_clid || null;
     utmData.ad_thumbnail_url = referral.thumbnail_url || referral.thumbnailURL || null;
+    utmData.fb_ad_id = referral.source_id || null;
   }
   // Handle UAZAPI format: externalAdReply in contextInfo
   else if (externalAdReply && conversionSource === 'FB_Ads') {
@@ -141,9 +154,61 @@ function extractUtmDataFromMessage(message: any, payload: any): Record<string, s
     utmData.utm_term = externalAdReply.body || null;
     utmData.fbclid = externalAdReply.ctwa_clid || null;
     utmData.ad_thumbnail_url = externalAdReply.thumbnailURL || externalAdReply.thumbnail_url || null;
+    utmData.fb_ad_id = externalAdReply.sourceId || externalAdReply.source_id || null;
   }
 
   return utmData;
+}
+
+// Helper function to fetch campaign name from Facebook Ads API
+async function fetchFacebookCampaignInfo(
+  supabase: any,
+  userId: string,
+  adId: string
+): Promise<{ campaign_name: string | null; adset_name: string | null; ad_name: string | null }> {
+  try {
+    if (!adId) {
+      return { campaign_name: null, adset_name: null, ad_name: null };
+    }
+
+    // Get user's Facebook access token
+    const { data: fbConfig, error: configError } = await supabase
+      .from('facebook_config')
+      .select('access_token')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (configError || !fbConfig?.access_token) {
+      console.log('No Facebook config found for user, skipping campaign name fetch');
+      return { campaign_name: null, adset_name: null, ad_name: null };
+    }
+
+    const accessToken = fbConfig.access_token;
+
+    // Fetch ad info including campaign and adset names
+    const adUrl = `https://graph.facebook.com/v22.0/${adId}?fields=name,campaign{name},adset{name}&access_token=${accessToken}`;
+    console.log('Fetching Facebook ad info for:', adId);
+
+    const response = await fetch(adUrl);
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('Facebook API error fetching ad info:', data.error);
+      return { campaign_name: null, adset_name: null, ad_name: null };
+    }
+
+    const result = {
+      campaign_name: data.campaign?.name || null,
+      adset_name: data.adset?.name || null,
+      ad_name: data.name || null,
+    };
+
+    console.log('Facebook campaign info fetched:', result);
+    return result;
+  } catch (error) {
+    console.error('Error fetching Facebook campaign info:', error);
+    return { campaign_name: null, adset_name: null, ad_name: null };
+  }
 }
 
 // Function to normalize phone numbers for comparison
@@ -505,8 +570,16 @@ Deno.serve(async (req) => {
     // === Extract UTM data EARLY before saving messages ===
     const earlyUtmData = extractUtmDataFromMessage(normalizedPayload.message, normalizedPayload);
     const hasEarlyUtm = Boolean(earlyUtmData.utm_source || earlyUtmData.utm_campaign || earlyUtmData.fbclid);
+    
+    // Fetch real campaign name from Facebook if we have an ad ID
+    let fbCampaignInfo = { campaign_name: null as string | null, adset_name: null as string | null, ad_name: null as string | null };
+    if (hasEarlyUtm && earlyUtmData.fb_ad_id) {
+      console.log('Fetching Facebook campaign info for ad:', earlyUtmData.fb_ad_id);
+      fbCampaignInfo = await fetchFacebookCampaignInfo(supabase, userId, earlyUtmData.fb_ad_id);
+    }
+    
     if (hasEarlyUtm) {
-      console.log('Early UTM extraction successful:', earlyUtmData);
+      console.log('Early UTM extraction successful:', earlyUtmData, 'FB Campaign:', fbCampaignInfo);
     }
 
     // Increment unread_count for the chat (both WhatsApp and Disparos tables)
@@ -580,6 +653,11 @@ Deno.serve(async (req) => {
                 utm_term: earlyUtmData.utm_term,
                 fbclid: earlyUtmData.fbclid,
                 ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
+                // Include real Facebook campaign names
+                fb_ad_id: earlyUtmData.fb_ad_id,
+                fb_campaign_name: fbCampaignInfo.campaign_name,
+                fb_adset_name: fbCampaignInfo.adset_name,
+                fb_ad_name: fbCampaignInfo.ad_name,
               }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {
@@ -639,6 +717,11 @@ Deno.serve(async (req) => {
                   utm_term: earlyUtmData.utm_term,
                   fbclid: earlyUtmData.fbclid,
                   ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
+                  // Include real Facebook campaign names
+                  fb_ad_id: earlyUtmData.fb_ad_id,
+                  fb_campaign_name: fbCampaignInfo.campaign_name,
+                  fb_adset_name: fbCampaignInfo.adset_name,
+                  fb_ad_name: fbCampaignInfo.ad_name,
                 }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
               if (msgInsertError) {
@@ -722,6 +805,11 @@ Deno.serve(async (req) => {
                 utm_term: earlyUtmData.utm_term,
                 fbclid: earlyUtmData.fbclid,
                 ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
+                // Include real Facebook campaign names
+                fb_ad_id: earlyUtmData.fb_ad_id,
+                fb_campaign_name: fbCampaignInfo.campaign_name,
+                fb_adset_name: fbCampaignInfo.adset_name,
+                fb_ad_name: fbCampaignInfo.ad_name,
               }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {
@@ -789,6 +877,11 @@ Deno.serve(async (req) => {
                   utm_term: earlyUtmData.utm_term,
                   fbclid: earlyUtmData.fbclid,
                   ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
+                  // Include real Facebook campaign names
+                  fb_ad_id: earlyUtmData.fb_ad_id,
+                  fb_campaign_name: fbCampaignInfo.campaign_name,
+                  fb_adset_name: fbCampaignInfo.adset_name,
+                  fb_ad_name: fbCampaignInfo.ad_name,
                 }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
               if (msgInsertError) {
