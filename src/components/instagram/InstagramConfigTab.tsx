@@ -13,6 +13,7 @@ import { Eye, EyeOff, Save, CheckCircle2, XCircle, Loader2, Copy, ExternalLink }
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IceBreakersConfig } from "./IceBreakersConfig";
 import { PrimeiraInteracaoConfig } from "./PrimeiraInteracaoConfig";
+import { VerificarSeguidorConfig } from "./VerificarSeguidorConfig";
 
 const configSchema = z.object({
   app_id: z.string().min(1, "App ID é obrigatório"),
@@ -340,6 +341,9 @@ export function InstagramConfigTab() {
 
       {/* First Interaction Welcome Message */}
       <PrimeiraInteracaoConfig />
+
+      {/* Follower Check Configuration */}
+      <VerificarSeguidorConfig />
     </div>
   );
 }
