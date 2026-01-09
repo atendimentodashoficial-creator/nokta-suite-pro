@@ -95,14 +95,8 @@ export function WhatsAppInstanceManager({
     ? instances.filter(inst => inst.id === mainInstanceId || !mainInstanceId)
     : instances.filter(inst => inst.id !== mainInstanceId);
 
-  // Check connection status on mount
-  useEffect(() => {
-    instances.forEach(inst => {
-      if (inst.is_active) {
-        checkConnectionStatus(inst);
-      }
-    });
-  }, [instances]);
+  // DON'T auto-check connection status on mount - it causes "auto-connect" appearance
+  // Only check when user explicitly clicks to connect or refresh
 
   // Cleanup polling on unmount
   useEffect(() => {
