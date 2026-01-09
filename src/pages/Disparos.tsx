@@ -428,11 +428,28 @@ export default function Disparos() {
   };
 
 
-  // Delete instance
+  // Delete instance (also disconnect from UAZapi)
   const handleDeleteInstance = async (id: string) => {
     try {
+      // Get instance data before deleting
+      const instancia = fullInstancias.find(i => i.id === id);
+      
+      // Call UAZapi to disconnect/delete the instance
+      if (instancia?.base_url && instancia?.api_key) {
+        try {
+          await fetch(`${instancia.base_url}/instance/disconnect`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "token": instancia.api_key },
+          });
+        } catch (e) {
+          console.log("UAZapi disconnect call failed (instance may already be disconnected):", e);
+        }
+      }
+
+      // Delete from database
       const { error } = await supabase.from("disparos_instancias").delete().eq("id", id);
       if (error) throw error;
+      
       toast.success("Instância removida!");
       loadInstancias();
       checkConfig();
