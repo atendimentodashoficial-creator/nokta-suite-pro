@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter, QrCode, Loader2, Smartphone, Unplug, Settings } from "lucide-react";
+import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter, QrCode, Loader2, Smartphone, Unplug, Settings, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -69,17 +69,24 @@ export default function Disparos() {
   const [fullInstancias, setFullInstancias] = useState<DisparosInstancia[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<Record<string, 'connected' | 'disconnected' | 'loading'>>({});
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   const [selectedQrInstancia, setSelectedQrInstancia] = useState<DisparosInstancia | null>(null);
   const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+
   const [showInstanceManager, setShowInstanceManager] = useState(false);
-  const [addInstanceDialogOpen, setAddInstanceDialogOpen] = useState(false);
+
+  // Create instance (name only)
+  const [createInstanceDialogOpen, setCreateInstanceDialogOpen] = useState(false);
   const [newInstanciaNome, setNewInstanciaNome] = useState("");
-  const [newInstanciaUrl, setNewInstanciaUrl] = useState("");
-  const [newInstanciaToken, setNewInstanciaToken] = useState("");
-  const [savingInstance, setSavingInstance] = useState(false);
+
+  // Edit instance name
+  const [editInstanceNameOpen, setEditInstanceNameOpen] = useState(false);
+  const [editingInstancia, setEditingInstancia] = useState<DisparosInstancia | null>(null);
+  const [editingNome, setEditingNome] = useState("");
+  const [savingEditName, setSavingEditName] = useState(false);
   const getChatLast8 = (chat: any) => {
     const candidates = [chat?.contact_number, chat?.normalized_number, chat?.chat_id].filter(Boolean);
     for (const c of candidates) {
@@ -164,7 +171,7 @@ export default function Disparos() {
     if (isSyncing) return;
 
     if (!hasConfig) {
-      if (!silent) toast.error('Configure os Disparos em Configurações → Conexões');
+      if (!silent) toast.error('Nenhuma instância conectada. Crie uma instância e escaneie o QR Code.');
       return;
     }
 
@@ -290,16 +297,21 @@ export default function Disparos() {
     }
   };
 
-  // Create new instance and get QR code
-  const handleCreateAndConnect = async () => {
+  // Create new instance and get QR code (only after user requests)
+  const handleCreateAndConnect = async (instanceName: string) => {
+    const name = instanceName.trim();
+    if (!name) {
+      toast.error("Informe um nome para a instância");
+      return;
+    }
+
     setIsCreatingInstance(true);
     try {
       const { data: session } = await supabase.auth.getSession();
-      const instanceName = `WhatsApp-${Date.now()}`;
-      
+
       const response = await supabase.functions.invoke("uazapi-admin-create-instance", {
         headers: { Authorization: `Bearer ${session.session?.access_token}` },
-        body: { instance_name: instanceName },
+        body: { instance_name: name },
       });
 
       if (!response.data?.success) {
@@ -307,17 +319,20 @@ export default function Disparos() {
       }
 
       toast.success("Instância criada!");
+      setCreateInstanceDialogOpen(false);
+      setNewInstanciaNome("");
+
       await loadInstancias();
       checkConfig();
 
-      // Open QR code if available
+      // Always show QR flow (connection only happens after QR scan)
       if (response.data?.qrcode) {
         setQrCodeData(response.data.qrcode);
         setSelectedQrInstancia(response.data.instance);
         setQrCodeDialogOpen(true);
         startQrPolling(response.data.instance);
       } else if (response.data?.instance) {
-        // No QR yet, need to fetch it
+        // No QR yet, fetch it
         handleConnectInstance(response.data.instance);
       }
     } catch (error: any) {
@@ -412,56 +427,6 @@ export default function Disparos() {
     }
   };
 
-  // Add manual instance
-  const handleAddManualInstance = async () => {
-    if (!newInstanciaNome.trim() || !newInstanciaUrl.trim() || !newInstanciaToken.trim()) {
-      toast.error("Preencha todos os campos");
-      return;
-    }
-    setSavingInstance(true);
-    try {
-      const { data, error } = await supabase
-        .from("disparos_instancias")
-        .insert({
-          user_id: user?.id,
-          nome: newInstanciaNome.trim(),
-          base_url: newInstanciaUrl.trim(),
-          api_key: newInstanciaToken.trim(),
-          is_active: true,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Auto-configure webhook
-      if (data?.id && user?.id) {
-        const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${data.id}`;
-        const { data: session } = await supabase.auth.getSession();
-        await supabase.functions.invoke("uazapi-set-webhook", {
-          headers: { Authorization: `Bearer ${session.session?.access_token}` },
-          body: {
-            base_url: newInstanciaUrl.trim(),
-            api_key: newInstanciaToken.trim(),
-            webhook_url: webhookUrl,
-            instancia_id: data.id,
-          },
-        });
-      }
-
-      toast.success("Instância adicionada!");
-      setAddInstanceDialogOpen(false);
-      setNewInstanciaNome("");
-      setNewInstanciaUrl("");
-      setNewInstanciaToken("");
-      loadInstancias();
-      checkConfig();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao adicionar");
-    } finally {
-      setSavingInstance(false);
-    }
-  };
 
   // Delete instance
   const handleDeleteInstance = async (id: string) => {
@@ -1061,15 +1026,8 @@ export default function Disparos() {
                         Crie uma instância e escaneie o QR Code para começar
                       </p>
                       <div className="flex flex-col gap-2 w-full max-w-xs">
-                        <Button onClick={handleCreateAndConnect} disabled={isCreatingInstance}>
-                          {isCreatingInstance ? (
-                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</>
-                          ) : (
-                            <><QrCode className="h-4 w-4 mr-2" />Criar e Conectar</>
-                          )}
-                        </Button>
-                        <Button variant="outline" onClick={() => setAddInstanceDialogOpen(true)}>
-                          <Plus className="h-4 w-4 mr-2" />Adicionar Manualmente
+                        <Button onClick={() => setCreateInstanceDialogOpen(true)}>
+                          <QrCode className="h-4 w-4 mr-2" />Criar Instância
                         </Button>
                       </div>
                     </div>
@@ -1158,15 +1116,8 @@ export default function Disparos() {
                       Crie uma instância e escaneie o QR Code para começar
                     </p>
                     <div className="flex flex-col gap-2 w-full max-w-xs">
-                      <Button onClick={handleCreateAndConnect} disabled={isCreatingInstance}>
-                        {isCreatingInstance ? (
-                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</>
-                        ) : (
-                          <><QrCode className="h-4 w-4 mr-2" />Criar e Conectar</>
-                        )}
-                      </Button>
-                      <Button variant="outline" onClick={() => setAddInstanceDialogOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />Adicionar Manualmente
+                      <Button onClick={() => setCreateInstanceDialogOpen(true)}>
+                        <QrCode className="h-4 w-4 mr-2" />Criar Instância
                       </Button>
                     </div>
                   </div>
@@ -1236,15 +1187,8 @@ export default function Disparos() {
                           Crie uma instância e escaneie o QR Code para começar
                         </p>
                         <div className="flex flex-col gap-2 w-full max-w-xs">
-                          <Button onClick={handleCreateAndConnect} disabled={isCreatingInstance}>
-                            {isCreatingInstance ? (
-                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</>
-                            ) : (
-                              <><QrCode className="h-4 w-4 mr-2" />Criar e Conectar</>
-                            )}
-                          </Button>
-                          <Button variant="outline" onClick={() => setAddInstanceDialogOpen(true)}>
-                            <Plus className="h-4 w-4 mr-2" />Adicionar Manualmente
+                          <Button onClick={() => setCreateInstanceDialogOpen(true)}>
+                            <QrCode className="h-4 w-4 mr-2" />Criar Instância
                           </Button>
                         </div>
                       </div>
@@ -1469,19 +1413,19 @@ export default function Disparos() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Instance Dialog */}
-      <Dialog open={addInstanceDialogOpen} onOpenChange={setAddInstanceDialogOpen}>
+      {/* Create Instance Dialog */}
+      <Dialog open={createInstanceDialogOpen} onOpenChange={setCreateInstanceDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Adicionar Instância</DialogTitle>
+            <DialogTitle>Nova Instância</DialogTitle>
             <DialogDescription>
-              Adicione os dados da sua instância UAZapi
+              Defina um nome e depois escaneie o QR Code para conectar.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 pt-4">
             <div>
-              <Label>Nome</Label>
+              <Label>Nome da instância</Label>
               <Input
                 value={newInstanciaNome}
                 onChange={(e) => setNewInstanciaNome(e.target.value)}
@@ -1489,31 +1433,84 @@ export default function Disparos() {
                 className="mt-1"
               />
             </div>
-            <div>
-              <Label>URL Base</Label>
-              <Input
-                value={newInstanciaUrl}
-                onChange={(e) => setNewInstanciaUrl(e.target.value)}
-                placeholder="https://sua-instancia.uazapi.com"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Token da Instância</Label>
-              <Input
-                type="password"
-                value={newInstanciaToken}
-                onChange={(e) => setNewInstanciaToken(e.target.value)}
-                placeholder="Token de autenticação"
-                className="mt-1"
-              />
-            </div>
+
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setAddInstanceDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleAddManualInstance} disabled={savingInstance}>
-                {savingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Adicionar"}
+              <Button
+                onClick={() => handleCreateAndConnect(newInstanciaNome)}
+                disabled={isCreatingInstance}
+              >
+                {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Instance Name Dialog */}
+      <Dialog
+        open={editInstanceNameOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingInstancia(null);
+            setEditingNome("");
+          }
+          setEditInstanceNameOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar nome da instância</DialogTitle>
+            <DialogDescription>
+              Altere apenas o nome exibido no sistema.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Novo nome</Label>
+              <Input
+                value={editingNome}
+                onChange={(e) => setEditingNome(e.target.value)}
+                placeholder="Ex: WhatsApp Clínica"
+                className="mt-1"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditInstanceNameOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={async () => {
+                  const inst = editingInstancia;
+                  const nome = editingNome.trim();
+                  if (!inst?.id) return;
+                  if (!nome) {
+                    toast.error("Informe um nome");
+                    return;
+                  }
+                  setSavingEditName(true);
+                  try {
+                    const { error } = await supabase
+                      .from("disparos_instancias")
+                      .update({ nome })
+                      .eq("id", inst.id);
+                    if (error) throw error;
+                    toast.success("Nome atualizado!");
+                    setEditInstanceNameOpen(false);
+                    loadInstancias();
+                  } catch (e: any) {
+                    toast.error(e?.message || "Erro ao atualizar");
+                  } finally {
+                    setSavingEditName(false);
+                  }
+                }}
+                disabled={savingEditName}
+              >
+                {savingEditName ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </Button>
             </div>
           </div>
@@ -1532,7 +1529,7 @@ export default function Disparos() {
           
           <div className="space-y-4 pt-4">
             <div className="flex justify-end">
-              <Button size="sm" onClick={() => { setShowInstanceManager(false); setAddInstanceDialogOpen(true); }}>
+              <Button size="sm" onClick={() => { setShowInstanceManager(false); setCreateInstanceDialogOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Instância
               </Button>
@@ -1565,6 +1562,19 @@ export default function Disparos() {
                         </div>
                         
                         <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingInstancia(instancia);
+                              setEditingNome(instancia.nome || "");
+                              setEditInstanceNameOpen(true);
+                            }}
+                            title="Editar nome"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+
                           {isConnected ? (
                             <Button
                               variant="outline"
