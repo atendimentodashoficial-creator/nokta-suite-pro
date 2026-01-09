@@ -109,15 +109,16 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
 
     try {
       const { data: session } = await supabase.auth.getSession();
-      
-      const response = await supabase.functions.invoke("uazapi-test-connection", {
+
+      // IMPORTANT: use lightweight status check to avoid interfering with QR pairing
+      const response = await supabase.functions.invoke("uazapi-check-status", {
         headers: { Authorization: `Bearer ${session.session?.access_token}` },
         body: { base_url: instancia.base_url, api_key: instancia.api_key },
       });
 
-      setConnectionStatus(prev => ({ 
-        ...prev, 
-        [instancia.id]: response.data?.success ? 'connected' : 'disconnected' 
+      setConnectionStatus(prev => ({
+        ...prev,
+        [instancia.id]: response.data?.status === 'connected' ? 'connected' : 'disconnected',
       }));
     } catch {
       setConnectionStatus(prev => ({ ...prev, [instancia.id]: 'disconnected' }));
