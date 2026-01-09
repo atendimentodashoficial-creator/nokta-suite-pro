@@ -12,6 +12,7 @@ import Produtos from "./Produtos";
 import Personalizacao from "./Personalizacao";
 import Conexoes from "./Conexoes";
 import TiposAgendamento from "./TiposAgendamento";
+import { MetaPixelConfig } from "@/components/configuracoes/MetaPixelConfig";
 
 const tabOptions = [
   { value: "procedimentos", label: "Procedimentos" },
@@ -23,6 +24,7 @@ const tabOptions = [
   { value: "mensagens", label: "Mensagens" },
   { value: "personalizacao", label: "Personalização" },
   { value: "conexoes", label: "Conexões" },
+  { value: "pixel", label: "Meta Pixel" },
 ];
 
 export default function Configuracoes() {
@@ -100,6 +102,10 @@ export default function Configuracoes() {
 
         <TabsContent value="conexoes">
           <Conexoes />
+        </TabsContent>
+
+        <TabsContent value="pixel">
+          <MetaPixelConfig />
         </TabsContent>
       </Tabs>
     </div>
