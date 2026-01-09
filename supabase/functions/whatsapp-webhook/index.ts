@@ -110,6 +110,44 @@ interface ExtractedUtmData {
   fb_ad_id: string | null;
 }
 
+function base64ToUtf8(input: string): string | null {
+  try {
+    const normalized = input.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '==='.slice((normalized.length + 3) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function extractCtwaIdsFromDecodedText(decodedText: string): { adId: string | null; fbclid: string | null } {
+  const adIdMatch = decodedText.match(/(?:ad[_-]?id|source[_-]?id)["'=:\\s]*([0-9]{10,})/i);
+  const fbclidMatch = decodedText.match(/fbclid["'=:\\s]*([A-Za-z0-9._-]{10,})/i);
+
+  let adId = adIdMatch?.[1] ?? null;
+  const fbclid = fbclidMatch?.[1] ?? null;
+
+  // If we didn't find a tagged key, fall back to the first long numeric token.
+  if (!adId) {
+    const longNumbers = decodedText.match(/[0-9]{10,}/g);
+    adId = longNumbers?.[0] ?? null;
+  }
+
+  return { adId, fbclid };
+}
+
+function extractCtwaIdsFromContextInfo(contextInfo: any): { adId: string | null; fbclid: string | null } {
+  const payload = contextInfo?.ctwaPayload || contextInfo?.conversionData;
+  if (!payload || typeof payload !== 'string') return { adId: null, fbclid: null };
+
+  const decoded = base64ToUtf8(payload);
+  if (!decoded) return { adId: null, fbclid: null };
+
+  return extractCtwaIdsFromDecodedText(decoded);
+}
+
 function extractUtmDataFromMessage(message: any, payload: any): ExtractedUtmData {
   const utmData: ExtractedUtmData = {
     utm_source: null,
@@ -125,8 +163,8 @@ function extractUtmDataFromMessage(message: any, payload: any): ExtractedUtmData
   if (!message) return utmData;
 
   // Check for standard referral format (message.referral or payload.referral)
-  let referral = message?.referral || payload?.referral;
-  
+  const referral = message?.referral || payload?.referral;
+
   // Check for UAZAPI format: message.content.contextInfo.externalAdReply
   const contextInfo = message?.content?.contextInfo;
   const externalAdReply = contextInfo?.externalAdReply;
@@ -155,6 +193,14 @@ function extractUtmDataFromMessage(message: any, payload: any): ExtractedUtmData
     utmData.fbclid = externalAdReply.ctwa_clid || null;
     utmData.ad_thumbnail_url = externalAdReply.thumbnailURL || externalAdReply.thumbnail_url || null;
     utmData.fb_ad_id = externalAdReply.sourceId || externalAdReply.source_id || null;
+
+    // Some UAZAPI payloads omit sourceId but include ctwaPayload/conversionData.
+    if (!utmData.fb_ad_id || !utmData.utm_content || !utmData.fbclid) {
+      const { adId, fbclid } = extractCtwaIdsFromContextInfo(contextInfo);
+      utmData.utm_content = utmData.utm_content || adId;
+      utmData.fb_ad_id = utmData.fb_ad_id || adId;
+      utmData.fbclid = utmData.fbclid || fbclid;
+    }
   }
 
   return utmData;
@@ -1012,23 +1058,32 @@ Deno.serve(async (req) => {
     else if (externalAdReply && conversionSource === 'FB_Ads') {
       console.log('Click-to-WhatsApp ad data detected (UAZAPI format):', JSON.stringify(externalAdReply));
       await logEvent(userId, 'info', `Dados de anúncio CTWA (UAZAPI) detectados: ${JSON.stringify(externalAdReply)}`);
-      
+
       // Map externalAdReply data to UTM-like fields
       utmData.utm_source = 'facebook';
       utmData.utm_medium = 'cpc';
       utmData.utm_campaign = externalAdReply.title || null;
       utmData.utm_content = externalAdReply.sourceId || externalAdReply.source_id || null;
       utmData.utm_term = externalAdReply.body || null;
-      // UAZAPI may send conversionData which is base64 encoded - we can try to extract fbclid from it
-      // For now, we don't have a direct ctwa_clid, but we mark as from FB Ads
       utmData.fbclid = externalAdReply.ctwa_clid || null;
-      
+
+      // Fallback: some UAZAPI payloads omit sourceId but include ctwaPayload/conversionData.
+      if (!utmData.utm_content || !utmData.fbclid) {
+        const { adId, fbclid } = extractCtwaIdsFromContextInfo(contextInfo);
+        utmData.utm_content = utmData.utm_content || adId;
+        utmData.fbclid = utmData.fbclid || fbclid;
+
+        if (adId) {
+          await logEvent(userId, 'info', `CTWA payload decodificado: adId=${adId}`);
+        }
+      }
+
       // Create a referral-like object for downstream compatibility checks
       referral = {
         headline: externalAdReply.title,
         body: externalAdReply.body,
-        source_id: externalAdReply.sourceId || externalAdReply.source_id,
-        ctwa_clid: externalAdReply.ctwa_clid,
+        source_id: utmData.utm_content || undefined,
+        ctwa_clid: utmData.fbclid || undefined,
       };
     }
 
