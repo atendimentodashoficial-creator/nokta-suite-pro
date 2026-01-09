@@ -86,12 +86,11 @@ Deno.serve(async (req) => {
       console.error("Error checking status:", e);
     }
 
-    // Try to get pairing code via POST /instance/connect with phone number
-    // Evolution/UAZAPI returns pairingCode when phone is provided
+    // Try to get pairing code via different UAZAPI endpoints
     let pairingCode: string | null = null;
     let lastError = "";
 
-    // Method 1: POST /instance/connect with number in body
+    // Method 1: POST /instance/connect with number in body (Evolution API style)
     try {
       console.log("Trying POST /instance/connect with phone number");
       
@@ -114,7 +113,7 @@ Deno.serve(async (req) => {
         const connectData = await connectResponse.json().catch(() => ({}));
         console.log("Connect response:", JSON.stringify(connectData));
 
-        pairingCode = connectData.pairingCode || connectData.pairing_code || connectData.code;
+        pairingCode = connectData.pairingCode || connectData.pairing_code || connectData.code || connectData.paircode;
         
         if (pairingCode) {
           // Format pairing code with dash for readability (XXXX-XXXX)
@@ -143,11 +142,11 @@ Deno.serve(async (req) => {
       lastError = e.message;
     }
 
-    // Method 2: Try /instance/pairingcode endpoint
+    // Method 2: Try /instance/paircode (UAZAPI specific)
     try {
-      console.log("Trying POST /instance/pairingcode");
+      console.log("Trying POST /instance/paircode (UAZAPI)");
       
-      const pairingResponse = await fetch(`${normalizedBaseUrl}/instance/pairingcode`, {
+      const pairingResponse = await fetch(`${normalizedBaseUrl}/instance/paircode`, {
         method: "POST",
         headers: {
           "Accept": "application/json",
@@ -156,15 +155,18 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({ 
           number: cleanPhone,
+          phone: cleanPhone,
           phoneNumber: cleanPhone,
         }),
       });
 
+      console.log("Paircode response status:", pairingResponse.status);
+
       if (pairingResponse.ok) {
         const pairingData = await pairingResponse.json().catch(() => ({}));
-        console.log("Pairing code response:", JSON.stringify(pairingData));
+        console.log("Paircode response:", JSON.stringify(pairingData));
 
-        pairingCode = pairingData.pairingCode || pairingData.pairing_code || pairingData.code;
+        pairingCode = pairingData.pairingCode || pairingData.pairing_code || pairingData.code || pairingData.paircode;
         
         if (pairingCode) {
           const formattedCode = pairingCode.length === 8 
@@ -182,16 +184,19 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+      } else {
+        const errorText = await pairingResponse.text().catch(() => "");
+        console.error("Paircode error:", errorText);
       }
     } catch (e: any) {
-      console.error("Error calling /instance/pairingcode:", e.message);
+      console.error("Error calling /instance/paircode:", e.message);
     }
 
-    // Method 3: Try GET with query parameter
+    // Method 3: Try GET /instance/paircode/{phone} (alternative UAZAPI format)
     try {
-      console.log("Trying GET /instance/connect with query param");
+      console.log("Trying GET /instance/paircode/" + cleanPhone);
       
-      const connectResponse = await fetch(`${normalizedBaseUrl}/instance/connect?number=${cleanPhone}`, {
+      const pairingResponse = await fetch(`${normalizedBaseUrl}/instance/paircode/${cleanPhone}`, {
         method: "GET",
         headers: {
           "Accept": "application/json",
@@ -199,11 +204,13 @@ Deno.serve(async (req) => {
         },
       });
 
-      if (connectResponse.ok) {
-        const connectData = await connectResponse.json().catch(() => ({}));
-        console.log("GET Connect response:", JSON.stringify(connectData));
+      console.log("GET Paircode response status:", pairingResponse.status);
 
-        pairingCode = connectData.pairingCode || connectData.pairing_code || connectData.code;
+      if (pairingResponse.ok) {
+        const pairingData = await pairingResponse.json().catch(() => ({}));
+        console.log("GET Paircode response:", JSON.stringify(pairingData));
+
+        pairingCode = pairingData.pairingCode || pairingData.pairing_code || pairingData.code || pairingData.paircode;
         
         if (pairingCode) {
           const formattedCode = pairingCode.length === 8 
@@ -223,7 +230,48 @@ Deno.serve(async (req) => {
         }
       }
     } catch (e: any) {
-      console.error("Error with GET /instance/connect:", e.message);
+      console.error("Error with GET /instance/paircode:", e.message);
+    }
+
+    // Method 4: Try GET /instance/connect?paircode=true&phone={number}
+    try {
+      console.log("Trying GET /instance/connect with paircode param");
+      
+      const connectResponse = await fetch(`${normalizedBaseUrl}/instance/connect?paircode=true&number=${cleanPhone}&phone=${cleanPhone}`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          ...tokenHeader,
+        },
+      });
+
+      console.log("GET connect paircode response status:", connectResponse.status);
+
+      if (connectResponse.ok) {
+        const connectData = await connectResponse.json().catch(() => ({}));
+        console.log("GET Connect paircode response:", JSON.stringify(connectData));
+
+        pairingCode = connectData.pairingCode || connectData.pairing_code || connectData.code || connectData.paircode;
+        
+        if (pairingCode) {
+          const formattedCode = pairingCode.length === 8 
+            ? `${pairingCode.substring(0, 4)}-${pairingCode.substring(4)}`
+            : pairingCode;
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            pairingCode: formattedCode,
+            rawCode: pairingCode,
+            connected: false,
+            message: "Use este código no WhatsApp para conectar"
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    } catch (e: any) {
+      console.error("Error with GET /instance/connect paircode:", e.message);
     }
 
     return new Response(JSON.stringify({ 
