@@ -618,16 +618,37 @@ Deno.serve(async (req) => {
       utmData.fbclid = referral.ctwa_clid || null;
     }
 
-    // Get instance name for tracking
+    // Get instance name for tracking and determine origin
     let instanciaNome: string | null = null;
+    let isDisparosInstance = false;
+    
     if (instanciaId) {
+      // Check if this instance is a Disparos instance (not the main WhatsApp instance)
       const { data: instanciaInfo } = await supabase
         .from('disparos_instancias')
         .select('nome')
         .eq('id', instanciaId)
         .single();
-      instanciaNome = instanciaInfo?.nome || null;
+      
+      if (instanciaInfo) {
+        instanciaNome = instanciaInfo.nome || null;
+        
+        // Check if this is the main WhatsApp instance
+        const { data: uazapiConfig } = await supabase
+          .from('uazapi_config')
+          .select('whatsapp_instancia_id')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .maybeSingle();
+        
+        // If the instancia_id is NOT the main WhatsApp instance, it's a Disparos instance
+        isDisparosInstance = uazapiConfig?.whatsapp_instancia_id !== instanciaId;
+        console.log('Instance classification:', isDisparosInstance ? 'Disparos' : 'WhatsApp', 'instancia_id:', instanciaId);
+      }
     }
+    
+    // Determine the origin based on instance type
+    const leadOrigem = isDisparosInstance ? 'Disparos' : 'WhatsApp';
 
     // Garantir que exista (ou seja RESTAURADO) um lead para o telefone (match por últimos 8 dígitos)
     const { data: allLeads, error: searchError } = await supabase
@@ -663,7 +684,7 @@ Deno.serve(async (req) => {
       const updateData: any = {
         deleted_at: null,
         status: 'lead',
-        origem: 'WhatsApp',
+        origem: leadOrigem,
         origem_lead: true,
         data_contato: today,
         updated_at: new Date().toISOString(),
@@ -771,9 +792,9 @@ Deno.serve(async (req) => {
         user_id: userId,
         nome: name,
         telefone: normalizedIncoming,
-        procedimento_nome: 'Contato via WhatsApp',
-        origem: 'WhatsApp',
-        observacoes: messageText ? `Primeira mensagem: ${messageText}` : 'Contato recebido via WhatsApp',
+        procedimento_nome: `Contato via ${leadOrigem}`,
+        origem: leadOrigem,
+        observacoes: messageText ? `Primeira mensagem: ${messageText}` : `Contato recebido via ${leadOrigem}`,
         status: 'lead',
         origem_lead: true,
         data_contato: today,
