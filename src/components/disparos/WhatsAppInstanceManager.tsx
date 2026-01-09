@@ -329,12 +329,11 @@ export function WhatsAppInstanceManager({
     if (selectedInstance) handleConnect(selectedInstance);
   };
 
-  // For whatsapp type with existing main instance, show only that instance
-  const displayInstances = instanceType === "whatsapp" && mainInstanceId
-    ? instances.filter(inst => inst.id === mainInstanceId)
-    : instanceType === "disparos"
-    ? instances.filter(inst => inst.id !== mainInstanceId)
-    : instances;
+  // For whatsapp type, show only the main instance (if exists)
+  // For disparos type, show all instances except the main one
+  const displayInstances = instanceType === "whatsapp" 
+    ? (mainInstanceId ? instances.filter(inst => inst.id === mainInstanceId) : [])
+    : instances.filter(inst => !mainInstanceId || inst.id !== mainInstanceId);
 
   return (
     <div className="space-y-4">
