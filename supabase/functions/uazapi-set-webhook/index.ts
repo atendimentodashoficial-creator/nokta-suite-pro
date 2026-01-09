@@ -59,37 +59,36 @@ Deno.serve(async (req) => {
 
     // Try multiple webhook endpoints (different UAZapi versions)
     const webhookEndpoints = [
+      { url: `${normalizedBaseUrl}/webhook/set`, method: "PUT" },
       { url: `${normalizedBaseUrl}/webhook/set`, method: "POST" },
+      { url: `${normalizedBaseUrl}/webhook`, method: "PUT" },
       { url: `${normalizedBaseUrl}/webhook`, method: "POST" },
+      { url: `${normalizedBaseUrl}/instance/webhook`, method: "PUT" },
       { url: `${normalizedBaseUrl}/instance/webhook`, method: "POST" },
-      { url: `${normalizedBaseUrl}/config/webhook`, method: "POST" },
     ];
 
     // Complete payload with all necessary fields for UAZAPI
     const fullPayload = {
       url: webhook_url,
       enabled: true,
+      webhook_by_events: false,
       events: [
-        "messages.upsert",
-        "messages.update",
-        "message",
-        "message.any",
-        "connection.update",
-        "send.message",
-        "status.instance",
+        "QRCODE_UPDATED",
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "MESSAGES_DELETE",
+        "SEND_MESSAGE",
+        "CONNECTION_UPDATE",
+        "CALL",
       ],
-      addUrlEvents: true,
-      addUrlTypesMessages: true,
     };
 
     // Also try simpler payloads as fallback
     const payloads = [
       fullPayload,
-      { url: webhook_url, enabled: true, events: ["messages.upsert", "message", "message.any"] },
+      { url: webhook_url, enabled: true, events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "SEND_MESSAGE"] },
       { url: webhook_url, enabled: true },
-      { webhook: webhook_url, enabled: true },
-      { webhookUrl: webhook_url, enabled: true },
-      { webhook_url: webhook_url, enabled: true },
+      { webhook: { url: webhook_url, enabled: true } },
     ];
 
     let success = false;
