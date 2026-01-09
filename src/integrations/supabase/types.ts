@@ -1601,6 +1601,8 @@ export type Database = {
           data_contato: string | null
           deleted_at: string | null
           email: string | null
+          fbclid: string | null
+          gclid: string | null
           id: string
           instancia_nome: string | null
           nome: string
@@ -1615,6 +1617,11 @@ export type Database = {
           telefone: string
           updated_at: string | null
           user_id: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           valor_tratamento: number | null
         }
         Insert: {
@@ -1625,6 +1632,8 @@ export type Database = {
           data_contato?: string | null
           deleted_at?: string | null
           email?: string | null
+          fbclid?: string | null
+          gclid?: string | null
           id?: string
           instancia_nome?: string | null
           nome: string
@@ -1639,6 +1648,11 @@ export type Database = {
           telefone: string
           updated_at?: string | null
           user_id: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           valor_tratamento?: number | null
         }
         Update: {
@@ -1649,6 +1663,8 @@ export type Database = {
           data_contato?: string | null
           deleted_at?: string | null
           email?: string | null
+          fbclid?: string | null
+          gclid?: string | null
           id?: string
           instancia_nome?: string | null
           nome?: string
@@ -1663,6 +1679,11 @@ export type Database = {
           telefone?: string
           updated_at?: string | null
           user_id?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           valor_tratamento?: number | null
         }
         Relationships: [
@@ -1768,6 +1789,132 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meta_conversion_events: {
+        Row: {
+          agendamento_id: string | null
+          created_at: string
+          currency: string | null
+          event_id: string
+          event_name: string
+          event_time: string
+          fatura_id: string | null
+          fbclid: string | null
+          id: string
+          lead_id: string | null
+          response: Json | null
+          status: string | null
+          user_id: string
+          utm_campaign: string | null
+          utm_source: string | null
+          value: number | null
+        }
+        Insert: {
+          agendamento_id?: string | null
+          created_at?: string
+          currency?: string | null
+          event_id: string
+          event_name: string
+          event_time?: string
+          fatura_id?: string | null
+          fbclid?: string | null
+          id?: string
+          lead_id?: string | null
+          response?: Json | null
+          status?: string | null
+          user_id: string
+          utm_campaign?: string | null
+          utm_source?: string | null
+          value?: number | null
+        }
+        Update: {
+          agendamento_id?: string | null
+          created_at?: string
+          currency?: string | null
+          event_id?: string
+          event_name?: string
+          event_time?: string
+          fatura_id?: string | null
+          fbclid?: string | null
+          id?: string
+          lead_id?: string | null
+          response?: Json | null
+          status?: string | null
+          user_id?: string
+          utm_campaign?: string | null
+          utm_source?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_conversion_events_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_conversion_events_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos_completos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_conversion_events_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_horarios"
+            referencedColumns: ["agendamento_id"]
+          },
+          {
+            foreignKeyName: "meta_conversion_events_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "faturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_conversion_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_pixel_config: {
+        Row: {
+          access_token: string
+          created_at: string
+          eventos_ativos: Json | null
+          id: string
+          pixel_id: string
+          test_event_code: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          eventos_ativos?: Json | null
+          id?: string
+          pixel_id: string
+          test_event_code?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          eventos_ativos?: Json | null
+          id?: string
+          pixel_id?: string
+          test_event_code?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       metricas_preferencias: {
         Row: {

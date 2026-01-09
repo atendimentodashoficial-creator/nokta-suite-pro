@@ -23,6 +23,13 @@ export interface Lead {
   origem: string | null;
   origem_lead: boolean;
   instancia_nome: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  fbclid: string | null;
+  gclid: string | null;
   created_at: string;
   updated_at: string;
 }
