@@ -689,21 +689,41 @@ Deno.serve(async (req) => {
               .select('id')
               .single();
 
+            let chatIdForMessage: string | null = null;
+
             if (createError) {
-              if (createError.code !== '23505') {
+              if (createError.code === '23505') {
+                // Chat already exists (race condition) - fetch the existing chat ID
+                console.log('Chat already exists (race condition), fetching existing chat...');
+                const { data: existingChat } = await supabase
+                  .from('whatsapp_chats')
+                  .select('id')
+                  .eq('user_id', userId)
+                  .eq('normalized_number', normalizedIncoming)
+                  .is('deleted_at', null)
+                  .maybeSingle();
+                
+                if (existingChat) {
+                  chatIdForMessage = existingChat.id;
+                  console.log('Found existing chat:', chatIdForMessage);
+                }
+              } else {
                 console.error('Error creating WhatsApp chat:', createError);
               }
             } else {
               console.log('Created new WhatsApp chat:', newChat.id, 'for', name);
+              chatIdForMessage = newChat.id;
+            }
 
-              // Save the first message to whatsapp_messages
+            // Save the first message to whatsapp_messages (even if chat was created by another request)
+            if (chatIdForMessage) {
               const anyMsg = normalizedPayload.message as any;
               const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
 
               const { error: msgInsertError } = await supabase
                 .from('whatsapp_messages')
                 .upsert({
-                  chat_id: newChat.id,
+                  chat_id: chatIdForMessage,
                   message_id: messageId,
                   content: messageText || '',
                   sender_type: 'customer',
@@ -848,22 +868,42 @@ Deno.serve(async (req) => {
               .select('id')
               .single();
 
+            let disparosChatIdForMessage: string | null = null;
+
             if (createError) {
-              // Might be a duplicate - ignore
-              if (createError.code !== '23505') {
+              if (createError.code === '23505') {
+                // Chat already exists (race condition) - fetch the existing chat ID
+                console.log('Disparos chat already exists (race condition), fetching existing chat...');
+                const { data: existingChat } = await supabase
+                  .from('disparos_chats')
+                  .select('id')
+                  .eq('user_id', userId)
+                  .eq('normalized_number', normalizedIncoming)
+                  .eq('instancia_id', instanciaId)
+                  .is('deleted_at', null)
+                  .maybeSingle();
+                
+                if (existingChat) {
+                  disparosChatIdForMessage = existingChat.id;
+                  console.log('Found existing Disparos chat:', disparosChatIdForMessage);
+                }
+              } else {
                 console.error('Error creating Disparos chat:', createError);
               }
             } else {
               console.log('Created new Disparos chat:', newChat.id, 'for', name, `(instancia: ${instanciaId})`);
+              disparosChatIdForMessage = newChat.id;
+            }
 
-              // Save the first message to disparos_messages
+            // Save the first message to disparos_messages (even if chat was created by another request)
+            if (disparosChatIdForMessage) {
               const anyMsg = normalizedPayload.message as any;
               const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
 
               const { error: msgInsertError } = await supabase
                 .from('disparos_messages')
                 .upsert({
-                  chat_id: newChat.id,
+                  chat_id: disparosChatIdForMessage,
                   message_id: messageId,
                   content: messageText || '',
                   sender_type: 'contact',
