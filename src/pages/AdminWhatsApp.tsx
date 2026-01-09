@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { MessageSquare, RefreshCw, Plus, LayoutList, Kanban, CheckCircle2, Trash2, CheckSquare, Square, X, QrCode, Unplug, Loader2, Smartphone, XCircle } from "lucide-react";
+import { MessageSquare, RefreshCw, Plus, LayoutList, Kanban, CheckCircle2, Trash2, CheckSquare, Square, X, QrCode, Unplug, Loader2, Smartphone, XCircle, Pencil, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -53,6 +53,15 @@ export default function AdminWhatsApp() {
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+
+  // Create instance dialog (name first, then QR)
+  const [createInstanceDialogOpen, setCreateInstanceDialogOpen] = useState(false);
+  const [newInstanceName, setNewInstanceName] = useState("");
+
+  // Edit instance name dialog
+  const [editNameDialogOpen, setEditNameDialogOpen] = useState(false);
+  const [editingName, setEditingName] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const getChatLast8 = (chat: any) => {
     // Prefer explicit numbers, fallback to chat_id
     const candidates = [chat?.contact_number, chat?.normalized_number, chat?.chat_id].filter(Boolean);
@@ -175,8 +184,84 @@ export default function AdminWhatsApp() {
     }
   };
 
-  // Create new instance and open QR Code dialog
+  // Create new instance with user-provided name and open QR Code dialog
+  const handleCreateInstance = async (instanceName: string) => {
+    const name = instanceName.trim();
+    if (!name) {
+      toast.error("Informe um nome para a instância");
+      return;
+    }
+
+    setCreateInstanceDialogOpen(false);
+    setNewInstanceName("");
+    setQrCodeDialogOpen(true);
+    setQrCodeLoading(true);
+    setQrCodeData(null);
+    setIsCreatingInstance(true);
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+
+      const createResponse = await supabase.functions.invoke("uazapi-admin-create-instance", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { instance_name: name },
+      });
+
+      if (!createResponse.data?.success) {
+        toast.error(createResponse.data?.error || "Erro ao criar instância");
+        setQrCodeDialogOpen(false);
+        return;
+      }
+
+      const newInstance = createResponse.data.instance;
+      setMainInstance(newInstance);
+      setHasConfig(true);
+
+      // Link to uazapi_config
+      await supabase.from('uazapi_config').upsert({
+        user_id: user?.id,
+        base_url: newInstance.base_url,
+        api_key: newInstance.api_key,
+        whatsapp_instancia_id: newInstance.id,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+
+      // Get QR code for the new instance
+      if (createResponse.data.qrcode) {
+        setQrCodeData(createResponse.data.qrcode);
+        startQrPolling(newInstance.base_url, newInstance.api_key);
+      } else {
+        // Fetch QR code separately
+        const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
+        });
+
+        if (qrResponse.data?.qrcode) {
+          setQrCodeData(qrResponse.data.qrcode);
+          startQrPolling(newInstance.base_url, newInstance.api_key);
+        } else {
+          toast.error("Instância criada, mas não foi possível obter QR Code");
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao criar instância");
+      setQrCodeDialogOpen(false);
+    } finally {
+      setQrCodeLoading(false);
+      setIsCreatingInstance(false);
+    }
+  };
+
+  // Open QR code for existing instance
   const handleOpenQrCode = async () => {
+    if (!mainInstance) {
+      // No instance - open create dialog
+      setCreateInstanceDialogOpen(true);
+      return;
+    }
+
     setQrCodeDialogOpen(true);
     setQrCodeLoading(true);
     setQrCodeData(null);
@@ -184,80 +269,52 @@ export default function AdminWhatsApp() {
     try {
       const { data: session } = await supabase.auth.getSession();
 
-      // If we already have an instance, just get QR code
-      if (mainInstance) {
-        const response = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
-          headers: { Authorization: `Bearer ${session.session?.access_token}` },
-          body: { base_url: mainInstance.base_url, api_key: mainInstance.api_key },
-        });
+      const response = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: mainInstance.base_url, api_key: mainInstance.api_key },
+      });
 
-        if (response.data?.connected) {
-          toast.success("WhatsApp já está conectado!");
-          setQrCodeDialogOpen(false);
-          setConnectionStatus('connected');
-          return;
-        }
-
-        if (response.data?.qrcode) {
-          setQrCodeData(response.data.qrcode);
-          startQrPolling(mainInstance.base_url, mainInstance.api_key);
-        } else {
-          toast.error(response.data?.error || "Não foi possível obter o QR Code");
-        }
-      } else {
-        // Create new instance via admin API
-        setIsCreatingInstance(true);
-        const instanceName = `WhatsApp-${Date.now()}`;
-        
-        const createResponse = await supabase.functions.invoke("uazapi-admin-create-instance", {
-          headers: { Authorization: `Bearer ${session.session?.access_token}` },
-          body: { instance_name: instanceName },
-        });
-
-        if (!createResponse.data?.success) {
-          toast.error(createResponse.data?.error || "Erro ao criar instância");
-          setQrCodeDialogOpen(false);
-          return;
-        }
-
-        const newInstance = createResponse.data.instance;
-        setMainInstance(newInstance);
-        setHasConfig(true);
-
-        // Link to uazapi_config
-        await supabase.from('uazapi_config').upsert({
-          user_id: user?.id,
-          base_url: newInstance.base_url,
-          api_key: newInstance.api_key,
-          whatsapp_instancia_id: newInstance.id,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-
-        // Get QR code for the new instance
-        if (createResponse.data.qrcode) {
-          setQrCodeData(createResponse.data.qrcode);
-          startQrPolling(newInstance.base_url, newInstance.api_key);
-        } else {
-          // Fetch QR code separately
-          const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
-            headers: { Authorization: `Bearer ${session.session?.access_token}` },
-            body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
-          });
-
-          if (qrResponse.data?.qrcode) {
-            setQrCodeData(qrResponse.data.qrcode);
-            startQrPolling(newInstance.base_url, newInstance.api_key);
-          } else {
-            toast.error("Instância criada, mas não foi possível obter QR Code");
-          }
-        }
+      if (response.data?.connected) {
+        toast.success("WhatsApp já está conectado!");
+        setQrCodeDialogOpen(false);
+        setConnectionStatus('connected');
+        return;
       }
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao conectar WhatsApp");
+
+      if (response.data?.qrcode) {
+        setQrCodeData(response.data.qrcode);
+        startQrPolling(mainInstance.base_url, mainInstance.api_key);
+      } else {
+        toast.error(response.data?.error || "Não foi possível obter o QR Code");
+      }
+    } catch {
+      toast.error("Erro ao obter QR Code");
     } finally {
       setQrCodeLoading(false);
-      setIsCreatingInstance(false);
+    }
+  };
+
+  // Save edited instance name
+  const handleSaveInstanceName = async () => {
+    const nome = editingName.trim();
+    if (!mainInstance?.id || !nome) {
+      toast.error("Informe um nome");
+      return;
+    }
+    setSavingName(true);
+    try {
+      const { error } = await supabase
+        .from("disparos_instancias")
+        .update({ nome })
+        .eq("id", mainInstance.id);
+      if (error) throw error;
+      setMainInstance(prev => prev ? { ...prev, nome } : null);
+      toast.success("Nome atualizado!");
+      setEditNameDialogOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar");
+    } finally {
+      setSavingName(false);
     }
   };
 
@@ -952,6 +1009,23 @@ export default function AdminWhatsApp() {
             <div className="flex items-center gap-2">
               <MessageSquare className="w-6 h-6" />
               <h1 className="text-2xl font-bold">WhatsApp</h1>
+              {mainInstance && (
+                <div className="flex items-center gap-1 ml-2">
+                  <span className="text-sm text-muted-foreground">({mainInstance.nome})</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      setEditingName(mainInstance.nome || "");
+                      setEditNameDialogOpen(true);
+                    }}
+                    title="Editar nome"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
               
               {/* Status/Action Button - Mobile */}
               {isMobile && (
@@ -1384,6 +1458,81 @@ export default function AdminWhatsApp() {
               <RefreshCw className={`h-4 w-4 mr-2 ${qrCodeLoading ? 'animate-spin' : ''}`} />
               Atualizar QR Code
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Instance Dialog (name first) */}
+      <Dialog open={createInstanceDialogOpen} onOpenChange={setCreateInstanceDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nova Instância WhatsApp</DialogTitle>
+            <DialogDescription>
+              Defina um nome e depois escaneie o QR Code para conectar.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Nome da instância</Label>
+              <Input
+                value={newInstanceName}
+                onChange={(e) => setNewInstanceName(e.target.value)}
+                placeholder="Ex: WhatsApp Principal"
+                className="mt-1"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => handleCreateInstance(newInstanceName)}
+                disabled={isCreatingInstance}
+              >
+                {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Instance Name Dialog */}
+      <Dialog
+        open={editNameDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) setEditingName("");
+          setEditNameDialogOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar nome da instância</DialogTitle>
+            <DialogDescription>
+              Altere o nome exibido para esta conexão.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Novo nome</Label>
+              <Input
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                placeholder="Ex: WhatsApp Clínica"
+                className="mt-1"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditNameDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveInstanceName} disabled={savingName}>
+                {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
