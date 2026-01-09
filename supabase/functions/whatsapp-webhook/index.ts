@@ -392,6 +392,9 @@ Deno.serve(async (req) => {
       } else {
         // Could not resolve to a known record; keep it as "hasInstanceParam" and classify as Disparos later.
         instanciaId = null;
+        // Store the raw instance key as the name for display purposes
+        instanciaNomeFromDb = rawInstanciaKey;
+        console.log('Instance not found in DB, will classify as Disparos:', rawInstanciaKey);
       }
     }
 
