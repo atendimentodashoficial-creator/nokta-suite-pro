@@ -305,7 +305,14 @@ export function WhatsAppInstanceManager({
   const startPolling = (instance: WhatsAppInstance) => {
     if (qrPollingInterval) clearInterval(qrPollingInterval);
 
+    // Skip initial polls to give user time to scan QR (avoid false positives)
+    let pollCount = 0;
+    const minPollsBeforeConnect = 2; // ~10s
+    let confirmedCount = 0;
+    const requiredConfirmations = 3; // require stability for ~15s
+
     const interval = setInterval(async () => {
+      pollCount++;
       try {
         const { data: session } = await supabase.auth.getSession();
         
@@ -314,7 +321,35 @@ export function WhatsAppInstanceManager({
           body: { base_url: instance.base_url, api_key: instance.api_key },
         });
 
-        if (response.data?.success) {
+        const details = response.data?.details;
+        const apiSaysLoggedIn = details?.loggedIn === true;
+        const apiJid = details?.jid;
+        const apiConnected = details?.connected === true;
+
+        // Only accept a STRONG, stable signal
+        const strongSignal = apiSaysLoggedIn && Boolean(apiJid) && apiConnected;
+
+        console.log("Polling status check:", {
+          pollCount,
+          confirmedCount,
+          success: response.data?.success,
+          apiSaysLoggedIn,
+          apiJid,
+          apiConnected,
+          details,
+        });
+
+        // Wait for minimum polls before considering connection
+        if (pollCount < minPollsBeforeConnect) return;
+
+        if (strongSignal) {
+          confirmedCount++;
+        } else {
+          confirmedCount = 0;
+        }
+
+        if (confirmedCount >= requiredConfirmations) {
+          console.log("Connection confirmed (stable)! Closing dialog and configuring webhook...");
           clearInterval(interval);
           setQrPollingInterval(null);
           setQrCodeDialogOpen(false);
@@ -337,11 +372,14 @@ export function WhatsAppInstanceManager({
             toast.success("Webhook configurado!");
           } else {
             console.error("Webhook config failed:", webhookResponse.data);
+            toast.warning("Webhook não configurado automaticamente");
           }
           
           onInstancesChange();
         }
-      } catch {}
+      } catch (error) {
+        console.error("Polling error:", error);
+      }
     }, 5000);
 
     setQrPollingInterval(interval);
