@@ -354,7 +354,7 @@ export function MetaPixelConfig() {
                           
                           {/* Dados enviados */}
                           <div className="p-2 bg-background rounded border">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Dados Enviados:</p>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Dados do Evento:</p>
                             <div className="grid grid-cols-2 gap-1 text-xs">
                               <div>
                                 <span className="text-muted-foreground">Evento:</span>{" "}
@@ -392,6 +392,84 @@ export function MetaPixelConfig() {
                               )}
                             </div>
                           </div>
+
+                          {/* Dados do cliente enviados */}
+                          {(event as any).customer_data_sent && (
+                            <div className="p-2 bg-background rounded border">
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Dados do Cliente Enviados:</p>
+                              <div className="grid grid-cols-2 gap-1 text-xs">
+                                {(event as any).customer_data_sent?.values?.phone && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">Telefone:</span>{" "}
+                                    <span className="font-medium">{(event as any).customer_data_sent.values.phone}</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.values?.email && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">Email:</span>{" "}
+                                    <span className="font-medium">{(event as any).customer_data_sent.values.email}</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.values?.name && (
+                                  <div className="col-span-2">
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">Nome:</span>{" "}
+                                    <span className="font-medium">{(event as any).customer_data_sent.values.name}</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.values?.gender && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">Gênero:</span>{" "}
+                                    <span className="font-medium">{(event as any).customer_data_sent.values.gender}</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.values?.date_of_birth && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">Data Nasc.:</span>{" "}
+                                    <span className="font-medium">{(event as any).customer_data_sent.values.date_of_birth}</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.values?.city && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">Cidade:</span>{" "}
+                                    <span className="font-medium">{(event as any).customer_data_sent.values.city}</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.values?.state && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">Estado:</span>{" "}
+                                    <span className="font-medium">{(event as any).customer_data_sent.values.state}</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.values?.zip && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">CEP:</span>{" "}
+                                    <span className="font-medium">{(event as any).customer_data_sent.values.zip}</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.country && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">País:</span>{" "}
+                                    <span className="font-medium">BR</span>
+                                  </div>
+                                )}
+                                {(event as any).customer_data_sent?.external_id && (
+                                  <div>
+                                    <span className="text-green-600">✓</span>{" "}
+                                    <span className="text-muted-foreground">External ID</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Resposta do Meta */}
                           <div className="p-2 bg-background rounded border">

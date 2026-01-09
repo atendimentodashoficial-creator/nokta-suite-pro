@@ -239,6 +239,32 @@ serve(async (req) => {
     const metaResult = await metaResponse.json();
     console.log("Meta response:", JSON.stringify(metaResult, null, 2));
 
+    // Build customer data summary for logging (what was actually sent)
+    const customerDataSent = {
+      phone: customer_phone ? true : false,
+      email: customer_email ? true : false,
+      name: customer_name ? true : false,
+      gender: customer_gender ? true : false,
+      date_of_birth: customer_date_of_birth ? true : false,
+      city: customer_city ? true : false,
+      state: customer_state ? true : false,
+      zip: customer_zip ? true : false,
+      country: true, // Always sent as 'br'
+      external_id: external_id || lead_id ? true : false,
+      fbclid: fbclid ? true : false,
+      // Store actual values (not hashed) for display
+      values: {
+        phone: customer_phone || null,
+        email: customer_email || null,
+        name: customer_name || null,
+        gender: customer_gender || null,
+        date_of_birth: customer_date_of_birth || null,
+        city: customer_city || null,
+        state: customer_state || null,
+        zip: customer_zip || null,
+      }
+    };
+
     // Log the event in our database
     const { error: logError } = await supabase
       .from("meta_conversion_events")
@@ -257,6 +283,7 @@ serve(async (req) => {
         fbclid,
         status: metaResponse.ok ? "sent" : "error",
         response: metaResult,
+        customer_data_sent: customerDataSent,
       });
 
     if (logError) {
