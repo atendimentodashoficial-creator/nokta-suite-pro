@@ -96,17 +96,24 @@ Deno.serve(async (req) => {
       console.log("Status data:", JSON.stringify(statusData));
       
       // Check various status field patterns
-      // UAZapi pattern: { instance: { status: "disconnected" }, status: { connected: false, loggedIn: false, jid: null } }
+      // UAZapi pattern (observed):
+      // {
+      //   instance: { status: "connected" },
+      //   status: { connected: false, loggedIn: true, jid: null }
+      // }
       const instanceStatus = statusData?.instance?.status;
       const nestedStatus = statusData?.status;
       const state = statusData?.state || instanceStatus || statusData?.connection_status;
 
-      // IMPORTANT:
-      // Some providers may return "jid" even while still connecting.
-      // We only consider WhatsApp truly connected when loggedIn === true
-      // AND the instance is not in a transitional state like "connecting".
+      // Some providers flip fields during pairing; we only accept "really connected" when:
+      // - loggedIn === true
+      // - jid is present
+      // - nestedStatus.connected is NOT false (if provided)
+      // - not in transitional state
       const loggedInFlag = nestedStatus?.loggedIn === true || statusData?.loggedIn === true;
       const jid = nestedStatus?.jid ?? statusData?.jid;
+      const connectedFlag = nestedStatus?.connected;
+
       const stateLower = String(state || "").toLowerCase();
       const instanceStatusLower = String(instanceStatus || "").toLowerCase();
 
@@ -116,7 +123,10 @@ Deno.serve(async (req) => {
         instanceStatusLower === "connecting" ||
         instanceStatusLower === "starting";
 
-      const isLoggedIn = loggedInFlag === true && jid != null && String(jid).length > 0 && !isTransitional;
+      const hasJid = jid != null && String(jid).length > 0;
+      const connectedIsOk = connectedFlag === undefined || connectedFlag === true;
+
+      const isReallyConnected = loggedInFlag === true && hasJid && connectedIsOk && !isTransitional;
 
       // Check for banned/disconnected states
       const isBanned = state === "BANNED" ||
@@ -162,7 +172,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (isLoggedIn) {
+      if (isReallyConnected) {
         return new Response(JSON.stringify({
           success: true,
           message: "WhatsApp conectado e funcionando!",
@@ -170,9 +180,9 @@ Deno.serve(async (req) => {
             url_testada: statusEndpoint,
             status: state || "connected",
             whatsapp_status: "connected",
-            // expose these so the frontend can reliably decide when to close the QR dialog
             loggedIn: true,
             jid: String(jid),
+            connected: true,
             instance_status: instanceStatus,
             raw_state: state,
           },
@@ -182,7 +192,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Not logged in yet (waiting for QR scan)
+      // Not connected yet (waiting for QR scan / pairing)
       return new Response(JSON.stringify({
         success: false,
         error: "WhatsApp ainda não autenticado. Escaneie o QR Code para conectar.",
@@ -191,7 +201,8 @@ Deno.serve(async (req) => {
           status: state || "connecting",
           whatsapp_status: isTransitional ? "connecting" : "not_logged_in",
           loggedIn: Boolean(loggedInFlag),
-          jid: jid == null ? null : String(jid),
+          jid: hasJid ? String(jid) : null,
+          connected: connectedFlag === undefined ? null : Boolean(connectedFlag),
           instance_status: instanceStatus,
           raw_state: state,
           tipo_erro: "waiting_qr_scan",

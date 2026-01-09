@@ -487,12 +487,10 @@ export default function AdminWhatsApp() {
         const details = response.data?.details;
         const apiSaysLoggedIn = details?.loggedIn === true;
         const apiJid = details?.jid;
-        const apiStatus = String(details?.status || details?.whatsapp_status || "").toLowerCase();
+        const apiConnected = details?.connected === true; // strict
 
-        // Some providers don't expose loggedIn/jid consistently; treat "connected" as a weak signal.
-        // We only close after N consecutive confirmations.
-        const strongSignal = apiSaysLoggedIn && Boolean(apiJid);
-        const weakSignal = apiStatus === "connected";
+        // Only accept a STRONG, stable signal; avoid "connected" UI flapping while phone still says not connected.
+        const strongSignal = apiSaysLoggedIn && Boolean(apiJid) && apiConnected;
 
         console.log("Polling status check:", {
           pollCount,
@@ -500,11 +498,11 @@ export default function AdminWhatsApp() {
           success: response.data?.success,
           apiSaysLoggedIn,
           apiJid,
-          apiStatus,
+          apiConnected,
           details,
         });
 
-        const isConfirmedNow = response.data?.success === true || strongSignal || weakSignal;
+        const isConfirmedNow = strongSignal;
 
         if (pollCount < minPollsBeforeConnect) return;
 
