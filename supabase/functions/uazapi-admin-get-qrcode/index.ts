@@ -66,51 +66,95 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Try multiple QR code endpoints (different UAZapi versions)
-    const qrEndpoints = [
-      `${normalizedBaseUrl}/instance/qrcode`,
-      `${normalizedBaseUrl}/instance/qr`,
-      `${normalizedBaseUrl}/qrcode`,
-    ];
-
+    // First, call POST /instance/connect to initiate connection and get QR code
+    // According to UAZapi docs: POST /instance/connect without phone param generates QR code
     let qrCode: string | null = null;
     let lastError = "";
+    let pairingCode: string | null = null;
 
-    for (const endpoint of qrEndpoints) {
-      try {
-        console.log("Trying endpoint:", endpoint);
+    try {
+      console.log("Calling POST /instance/connect to generate QR code");
+      
+      const connectResponse = await fetch(`${normalizedBaseUrl}/instance/connect`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          ...tokenHeader,
+        },
+        body: JSON.stringify({}), // Empty body = generate QR code (no phone = QR mode)
+      });
+
+      console.log("Connect response status:", connectResponse.status);
+
+      if (connectResponse.ok) {
+        const connectData = await connectResponse.json();
+        console.log("Connect response data keys:", Object.keys(connectData));
+        console.log("Connect response:", JSON.stringify(connectData));
         
-        const response = await fetch(endpoint, {
-          method: "GET",
-          headers: {
-            "Accept": "application/json",
-            ...tokenHeader,
-          },
-        });
-
-        console.log("Response status:", response.status);
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("QR response data keys:", Object.keys(data));
-          
-          // Extract QR code from various response formats
-          qrCode = data.qrcode || data.qr || data.qr_code || data.base64 || data.data?.qrcode || data.data?.base64;
-          
-          if (qrCode) {
-            // Ensure it's a valid base64 image
-            if (!qrCode.startsWith("data:image")) {
-              qrCode = `data:image/png;base64,${qrCode}`;
-            }
-            break;
-          }
-        } else {
-          const text = await response.text().catch(() => "");
-          lastError = text || `Status ${response.status}`;
+        // Extract QR code from response
+        qrCode = connectData.qrcode || connectData.qr || connectData.qr_code || 
+                 connectData.base64 || connectData.data?.qrcode || connectData.data?.base64 ||
+                 connectData.code;
+        
+        // Also check for pairing code
+        pairingCode = connectData.pairingCode || connectData.pairing_code || connectData.code;
+        
+        if (qrCode && !qrCode.startsWith("data:image")) {
+          qrCode = `data:image/png;base64,${qrCode}`;
         }
-      } catch (e: any) {
-        lastError = e.message;
-        console.error("Error fetching QR from", endpoint, e.message);
+      } else {
+        const errorText = await connectResponse.text().catch(() => "");
+        console.error("Connect error:", errorText);
+        lastError = errorText || `Status ${connectResponse.status}`;
+      }
+    } catch (e: any) {
+      console.error("Error calling /instance/connect:", e.message);
+      lastError = e.message;
+    }
+
+    // If /instance/connect didn't return QR, try GET endpoints as fallback
+    if (!qrCode) {
+      const qrEndpoints = [
+        `${normalizedBaseUrl}/instance/qrcode`,
+        `${normalizedBaseUrl}/instance/qr`,
+        `${normalizedBaseUrl}/qrcode`,
+      ];
+
+      for (const endpoint of qrEndpoints) {
+        try {
+          console.log("Trying GET endpoint:", endpoint);
+          
+          const response = await fetch(endpoint, {
+            method: "GET",
+            headers: {
+              "Accept": "application/json",
+              ...tokenHeader,
+            },
+          });
+
+          console.log("Response status:", response.status);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log("QR response data keys:", Object.keys(data));
+            
+            qrCode = data.qrcode || data.qr || data.qr_code || data.base64 || data.data?.qrcode || data.data?.base64;
+            
+            if (qrCode) {
+              if (!qrCode.startsWith("data:image")) {
+                qrCode = `data:image/png;base64,${qrCode}`;
+              }
+              break;
+            }
+          } else {
+            const text = await response.text().catch(() => "");
+            if (!lastError) lastError = text || `Status ${response.status}`;
+          }
+        } catch (e: any) {
+          if (!lastError) lastError = e.message;
+          console.error("Error fetching QR from", endpoint, e.message);
+        }
       }
     }
 
