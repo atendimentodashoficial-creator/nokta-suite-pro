@@ -30,6 +30,8 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
 
   useEffect(() => {
     const loadAttribution = async () => {
+      // Important: don't clear existing attribution while reloading,
+      // otherwise the megaphone flickers (appears then disappears).
       setIsLoading(true);
       try {
         const last8Digits = getLast8Digits(contactNumber);
@@ -51,7 +53,8 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
         });
 
         if (leadWithAttribution) {
-          setAttribution({
+          setAttribution(prev => ({
+            ...(prev || {}),
             utm_source: leadWithAttribution.utm_source,
             utm_campaign: leadWithAttribution.utm_campaign,
             utm_medium: leadWithAttribution.utm_medium,
@@ -59,13 +62,14 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
             utm_term: leadWithAttribution.utm_term,
             fbclid: leadWithAttribution.fbclid,
             gclid: leadWithAttribution.gclid,
-          });
+          }));
         } else {
+          // Don't unset attribution during reload; only unset if we truly have none.
           setAttribution(null);
         }
       } catch (error) {
         console.error('Error loading campaign attribution:', error);
-        setAttribution(null);
+        // Keep previous attribution on transient errors.
       } finally {
         setIsLoading(false);
       }
@@ -75,7 +79,7 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
   }, [contactNumber]);
 
   // Não mostrar nada se não há dados de atribuição
-  if (isLoading || !attribution) {
+  if (!attribution) {
     return null;
   }
 
