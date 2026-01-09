@@ -144,7 +144,7 @@ serve(async (req) => {
         customData = {
           ...customData,
           content_type: "product",
-          contents: [{ id: fatura_id || lead_id, quantity: 1 }],
+          contents: [{ id: fatura_id || lead_id || "product", quantity: 1, item_price: parseFloat(value) }],
         };
       }
     }
