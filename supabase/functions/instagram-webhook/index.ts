@@ -111,6 +111,9 @@ async function processMessage(supabase: any, event: any) {
 
   const config = configs[0];
 
+  // Check if this is first interaction
+  const isFirstInteraction = await checkAndTrackInteraction(supabase, config.user_id, senderId);
+
   // Log the message
   await supabase.from('instagram_mensagens').insert({
     user_id: config.user_id,
@@ -120,7 +123,43 @@ async function processMessage(supabase: any, event: any) {
     metadata: event,
   });
 
-  // Check triggers
+  // If first interaction, check for welcome trigger
+  if (isFirstInteraction) {
+    console.log('First interaction detected for user:', senderId);
+    
+    const { data: welcomeGatilho } = await supabase
+      .from('instagram_gatilhos')
+      .select('*')
+      .eq('user_id', config.user_id)
+      .eq('ativo', true)
+      .eq('tipo', 'primeira_interacao')
+      .single();
+
+    if (welcomeGatilho?.resposta_texto) {
+      console.log('Sending welcome message');
+      
+      await sendInstagramMessage(
+        config.page_access_token,
+        config.instagram_account_id,
+        senderId,
+        welcomeGatilho.resposta_texto
+      );
+
+      // Log response
+      await supabase.from('instagram_mensagens').insert({
+        user_id: config.user_id,
+        instagram_user_id: senderId,
+        tipo: 'dm_enviada',
+        conteudo: welcomeGatilho.resposta_texto,
+        gatilho_id: welcomeGatilho.id,
+      });
+
+      // Don't process other triggers for first interaction
+      return;
+    }
+  }
+
+  // Check keyword triggers
   const { data: gatilhos } = await supabase
     .from('instagram_gatilhos')
     .select('*')
@@ -134,27 +173,126 @@ async function processMessage(supabase: any, event: any) {
       messageText.includes(kw.toLowerCase())
     );
 
-    if (triggered && gatilho.resposta_texto) {
+    if (triggered) {
       console.log('Trigger matched:', gatilho.nome);
       
-      // Send response via Instagram API
-      await sendInstagramMessage(
-        config.page_access_token,
-        config.instagram_account_id,
-        senderId,
-        gatilho.resposta_texto
-      );
+      // Send text response
+      if (gatilho.resposta_texto) {
+        await sendInstagramMessage(
+          config.page_access_token,
+          config.instagram_account_id,
+          senderId,
+          gatilho.resposta_texto
+        );
 
-      // Log response
-      await supabase.from('instagram_mensagens').insert({
-        user_id: config.user_id,
-        instagram_user_id: senderId,
-        tipo: 'dm_enviada',
-        conteudo: gatilho.resposta_texto,
-        gatilho_id: gatilho.id,
-      });
+        // Log response
+        await supabase.from('instagram_mensagens').insert({
+          user_id: config.user_id,
+          instagram_user_id: senderId,
+          tipo: 'dm_enviada',
+          conteudo: gatilho.resposta_texto,
+          gatilho_id: gatilho.id,
+        });
+      }
+
+      // Send media if configured
+      if (gatilho.resposta_midia_url && gatilho.resposta_midia_tipo) {
+        await sendInstagramMedia(
+          config.page_access_token,
+          config.instagram_account_id,
+          senderId,
+          gatilho.resposta_midia_url,
+          gatilho.resposta_midia_tipo
+        );
+      }
 
       break; // Only one response per message
+    }
+  }
+
+  // Also check ice breaker payloads
+  await checkIceBreakerPayload(supabase, config, senderId, message.text);
+}
+
+async function checkAndTrackInteraction(supabase: any, userId: string, instagramUserId: string): Promise<boolean> {
+  // Check if this user has interacted before
+  const { data: existing } = await supabase
+    .from('instagram_interacoes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('instagram_user_id', instagramUserId)
+    .single();
+
+  if (existing) {
+    // Update last interaction
+    await supabase
+      .from('instagram_interacoes')
+      .update({ 
+        ultima_interacao_em: new Date().toISOString(),
+        total_mensagens: supabase.raw('total_mensagens + 1')
+      })
+      .eq('id', existing.id);
+    return false;
+  }
+
+  // First interaction - insert new record
+  await supabase
+    .from('instagram_interacoes')
+    .insert({
+      user_id: userId,
+      instagram_user_id: instagramUserId,
+    });
+
+  return true;
+}
+
+async function checkIceBreakerPayload(supabase: any, config: any, senderId: string, messageText: string) {
+  if (!messageText) return;
+
+  const iceBreakers = config.ice_breakers || [];
+  
+  for (const ib of iceBreakers) {
+    // Check if the message matches the ice breaker question or payload
+    const normalizedMessage = messageText.toLowerCase().trim();
+    const normalizedQuestion = (ib.question || '').toLowerCase().trim();
+    const normalizedPayload = (ib.payload || '').toLowerCase().trim();
+
+    if (normalizedMessage === normalizedQuestion || normalizedMessage === normalizedPayload) {
+      console.log('Ice breaker matched:', ib.question);
+
+      // Look for a trigger that matches this payload
+      const { data: gatilhos } = await supabase
+        .from('instagram_gatilhos')
+        .select('*')
+        .eq('user_id', config.user_id)
+        .eq('ativo', true);
+
+      for (const gatilho of gatilhos || []) {
+        const triggered = gatilho.palavras_chave.some((kw: string) => 
+          normalizedPayload.includes(kw.toLowerCase()) || 
+          normalizedQuestion.includes(kw.toLowerCase())
+        );
+
+        if (triggered && gatilho.resposta_texto) {
+          await sendInstagramMessage(
+            config.page_access_token,
+            config.instagram_account_id,
+            senderId,
+            gatilho.resposta_texto
+          );
+
+          await supabase.from('instagram_mensagens').insert({
+            user_id: config.user_id,
+            instagram_user_id: senderId,
+            tipo: 'dm_enviada',
+            conteudo: gatilho.resposta_texto,
+            gatilho_id: gatilho.id,
+          });
+
+          break;
+        }
+      }
+      break;
     }
   }
 }
@@ -229,8 +367,6 @@ async function sendInstagramMessage(
   recipientId: string,
   text: string,
 ) {
-  // Alguns fluxos do Meta geram token começando com "IG..." (Instagram Graph).
-  // Outros geram token de página começando com "EA..." (Graph do Facebook).
   const trimmed = (accessToken || "").trim();
   const isInstagramGraphToken = trimmed.startsWith("IG");
 
@@ -266,6 +402,63 @@ async function sendInstagramMessage(
   if (!response.ok) {
     throw new Error(`Send message failed (${response.status}): ${JSON.stringify(result)}`);
   }
+
+  return result;
+}
+
+async function sendInstagramMedia(
+  accessToken: string,
+  instagramAccountId: string | null,
+  recipientId: string,
+  mediaUrl: string,
+  mediaType: string,
+) {
+  const trimmed = (accessToken || "").trim();
+  const isInstagramGraphToken = trimmed.startsWith("IG");
+
+  const url = isInstagramGraphToken
+    ? `https://graph.instagram.com/v24.0/${instagramAccountId ?? 'me'}/messages`
+    : `https://graph.facebook.com/v18.0/me/messages`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (isInstagramGraphToken) {
+    headers['Authorization'] = `Bearer ${trimmed}`;
+  }
+
+  // Map media type to Instagram API format
+  const attachmentType = mediaType === 'video' ? 'video' 
+    : mediaType === 'audio' ? 'audio' 
+    : 'image';
+
+  const messagePayload = {
+    attachment: {
+      type: attachmentType,
+      payload: {
+        url: mediaUrl,
+        is_reusable: true,
+      },
+    },
+  };
+
+  const body = isInstagramGraphToken
+    ? {
+        recipient: { id: recipientId },
+        message: messagePayload,
+      }
+    : {
+        recipient: { id: recipientId },
+        message: messagePayload,
+        access_token: trimmed,
+      };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  console.log('Media sent result:', { url, status: response.status, mediaType, result });
 
   return result;
 }
