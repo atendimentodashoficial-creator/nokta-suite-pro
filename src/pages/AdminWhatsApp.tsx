@@ -397,7 +397,12 @@ export default function AdminWhatsApp() {
     // Use passed instanceData or fallback to mainInstance
     const instanciaRef = instanceData || mainInstance;
 
+    // Skip initial polls to give user time to scan QR (avoid false positives)
+    let pollCount = 0;
+    const minPollsBeforeConnect = 2; // ~10s
+
     const interval = setInterval(async () => {
+      pollCount++;
       try {
         const { data: session } = await supabase.auth.getSession();
         const response = await supabase.functions.invoke("uazapi-test-connection", {
@@ -405,17 +410,25 @@ export default function AdminWhatsApp() {
           body: { base_url: baseUrl, api_key: apiKey },
         });
 
-        if (response.data?.success) {
+        // Only mark as connected when WhatsApp is REALLY logged in
+        const details = response.data?.details;
+        const loggedIn = details?.status?.loggedIn === true;
+        const hasJid = Boolean(details?.status?.jid);
+        const instanceStatus = details?.instance?.status;
+        const notConnecting = instanceStatus && !["connecting", "disconnected", "close"].includes(instanceStatus);
+
+        const isReallyLoggedIn = loggedIn && hasJid && notConnecting;
+
+        if (response.data?.success && pollCount >= minPollsBeforeConnect && isReallyLoggedIn) {
           clearInterval(interval);
           setQrPollingInterval(null);
           setQrCodeDialogOpen(false);
           setConnectionStatus('connected');
           toast.success("WhatsApp conectado!");
-          
+
           // Configure webhook after successful connection
           const instanciaId = instanciaRef?.id;
           if (instanciaId && user?.id) {
-            console.log("Configuring webhook for instance:", instanciaId);
             const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook?user_id=${user.id}&instancia_id=${instanciaId}`;
             const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
               headers: { Authorization: `Bearer ${session.session?.access_token}` },
@@ -433,8 +446,6 @@ export default function AdminWhatsApp() {
               console.error("Webhook config failed:", webhookResponse.data);
               toast.error("Erro ao configurar webhook: " + (webhookResponse.data?.error || "Erro desconhecido"));
             }
-          } else {
-            console.warn("Missing instance ID or user ID for webhook config", { instanciaId, userId: user?.id });
           }
         }
       } catch (e) {
