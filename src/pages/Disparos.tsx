@@ -794,45 +794,47 @@ export default function Disparos() {
 
   const handleBulkDelete = async () => {
     if (selectedChatIds.size === 0) return;
-    if (!user?.id) {
-      toast.error('Usuário não autenticado');
-      return;
-    }
+
     setIsDeleting(true);
     try {
-      const ids = Array.from(selectedChatIds);
-      const selectedRows = chats.filter((c) => selectedChatIds.has(c.id));
-      const normalizedNumbers = Array.from(
-        new Set(
-          selectedRows
-            .map((c) => (c.normalized_number || "").toString().trim())
-            .filter(Boolean)
-        )
-      );
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      const now = new Date().toISOString();
-
-      // Update by ID with user_id filter
-      const { error: byIdError } = await supabase
-        .from('disparos_chats')
-        .update({ deleted_at: now })
-        .in('id', ids)
-        .eq('user_id', user.id);
-      if (byIdError) throw byIdError;
-
-      // Also soft-delete by normalized_number to catch duplicates
-      if (normalizedNumbers.length > 0) {
-        const { error: byNumberError } = await supabase
-          .from('disparos_chats')
-          .update({ deleted_at: now })
-          .in('normalized_number', normalizedNumbers)
-          .eq('user_id', user.id);
-        if (byNumberError) throw byNumberError;
+      if (sessionError || !session) {
+        toast.error('Sua sessão expirou. Faça login novamente.');
+        setTimeout(() => (window.location.href = '/auth'), 1500);
+        return;
       }
 
-      setChats(prev => prev.filter(c => !selectedChatIds.has(c.id)));
-      setFilteredChats(prev => prev.filter(c => !selectedChatIds.has(c.id)));
-      toast.success(`${ids.length} chat(s) excluído(s)`);
+      const ids = Array.from(selectedChatIds);
+
+      // Avoid huge URLs (PostgREST .in(...) can exceed limits). Use backend function + chunking.
+      const chunkArray = <T,>(arr: T[], size: number) => {
+        const out: T[][] = [];
+        for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+        return out;
+      };
+
+      const BATCH_SIZE = 50;
+      const batches = chunkArray(ids, BATCH_SIZE);
+
+      let deletedTotal = 0;
+      for (const batch of batches) {
+        const resp = await supabase.functions.invoke('disparos-delete-chat', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: { chat_ids: batch },
+        });
+
+        if (resp.error) throw resp.error;
+        deletedTotal += (resp.data as any)?.deleted ?? batch.length;
+      }
+
+      setChats((prev) => prev.filter((c) => !selectedChatIds.has(c.id)));
+      setFilteredChats((prev) => prev.filter((c) => !selectedChatIds.has(c.id)));
+      toast.success(`${deletedTotal} chat(s) excluído(s)`);
+
       setSelectedChatIds(new Set());
       setIsSelectionMode(false);
       loadChats();
