@@ -1597,6 +1597,7 @@ export type Database = {
           app_id: string
           app_secret: string
           created_at: string
+          ice_breakers: Json | null
           id: string
           instagram_account_id: string | null
           is_active: boolean | null
@@ -1609,6 +1610,7 @@ export type Database = {
           app_id: string
           app_secret: string
           created_at?: string
+          ice_breakers?: Json | null
           id?: string
           instagram_account_id?: string | null
           is_active?: boolean | null
@@ -1621,6 +1623,7 @@ export type Database = {
           app_id?: string
           app_secret?: string
           created_at?: string
+          ice_breakers?: Json | null
           id?: string
           instagram_account_id?: string | null
           is_active?: boolean | null
@@ -1720,6 +1723,33 @@ export type Database = {
           resposta_texto?: string | null
           tipo?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      instagram_interacoes: {
+        Row: {
+          id: string
+          instagram_user_id: string
+          primeira_interacao_em: string
+          total_mensagens: number | null
+          ultima_interacao_em: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          instagram_user_id: string
+          primeira_interacao_em?: string
+          total_mensagens?: number | null
+          ultima_interacao_em?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          instagram_user_id?: string
+          primeira_interacao_em?: string
+          total_mensagens?: number | null
+          ultima_interacao_em?: string
           user_id?: string
         }
         Relationships: []

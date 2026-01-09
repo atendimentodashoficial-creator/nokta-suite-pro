@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Eye, EyeOff, Save, CheckCircle2, XCircle, Loader2, Copy, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { IceBreakersConfig } from "./IceBreakersConfig";
+import { PrimeiraInteracaoConfig } from "./PrimeiraInteracaoConfig";
 
 const configSchema = z.object({
   app_id: z.string().min(1, "App ID é obrigatório"),
@@ -325,6 +327,19 @@ export function InstagramConfigTab() {
           </Form>
         </CardContent>
       </Card>
+
+      {/* Ice Breakers Configuration */}
+      {config?.id && (
+        <IceBreakersConfig
+          configId={config.id}
+          iceBreakers={(config as any).ice_breakers || []}
+          pageAccessToken={config.page_access_token}
+          instagramAccountId={config.instagram_account_id}
+        />
+      )}
+
+      {/* First Interaction Welcome Message */}
+      <PrimeiraInteracaoConfig />
     </div>
   );
 }
