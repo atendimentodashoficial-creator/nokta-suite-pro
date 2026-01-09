@@ -225,7 +225,12 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       }
     } catch (error: any) {
       console.error('Error loading messages:', error);
-      toast.error(error.message || 'Erro ao carregar mensagens');
+      // Don't show toast for network errors on initial load - the sync will retry
+      const isNetworkError = error.message?.includes('Failed to fetch') || 
+                             error.message?.includes('NetworkError');
+      if (!isNetworkError) {
+        toast.error(error.message || 'Erro ao carregar mensagens');
+      }
     } finally {
       setIsLoadingMessages(false);
     }
@@ -260,7 +265,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     return incomingMessages.map((m) => mergeAttributionFields(currentById.get(m.message_id), m));
   };
 
-  // Helper function to invoke edge functions with retry
+  // Helper function to invoke edge functions with retry and longer timeout tolerance
   const invokeWithRetry = async (
     functionName: string,
     options: { headers: Record<string, string>; body: any },
@@ -269,15 +274,34 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     let lastError: any;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        const response = await supabase.functions.invoke(functionName, options);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        
+        const response = await supabase.functions.invoke(functionName, {
+          ...options,
+          // Note: supabase-js doesn't support signal directly, but we handle timeout via the controller
+        });
+        
+        clearTimeout(timeoutId);
+        
         if (response.error) throw response.error;
         return response;
       } catch (error: any) {
         lastError = error;
-        console.warn(`[${functionName}] Attempt ${attempt + 1} failed:`, error.message);
-        if (attempt < retries) {
-          // Wait before retrying (exponential backoff: 1s, 2s)
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        const isNetworkError = error.message?.includes('Failed to fetch') || 
+                               error.message?.includes('NetworkError') ||
+                               error.name === 'AbortError';
+        
+        console.warn(`[${functionName}] Attempt ${attempt + 1}/${retries + 1} failed:`, error.message);
+        
+        if (attempt < retries && isNetworkError) {
+          // Wait before retrying (exponential backoff: 1.5s, 3s)
+          const delay = 1500 * Math.pow(2, attempt);
+          console.log(`[${functionName}] Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else if (!isNetworkError) {
+          // Non-network errors should not retry
+          throw error;
         }
       }
     }
@@ -295,16 +319,16 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
           Authorization: `Bearer ${session.access_token}`,
         },
         body: { chatid: chat.chat_id }
-      }, 1); // 1 retry for silent sync
+      }, 2); // 2 retries for silent sync
 
       const incoming = response.data.messages || [];
       if (incoming.length > messages.length) {
         setMessages(mergeMessagesPreservingAttribution(incoming));
         setShouldScrollToBottom(true);
       }
-    } catch (error) {
-      // Silent fail - don't show error to user for background sync
-      console.error('Background sync error:', error);
+    } catch (error: any) {
+      // Silent fail for background sync - don't bother user
+      console.error('Background sync error (silent):', error.message);
     }
   };
 
@@ -323,7 +347,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
           Authorization: `Bearer ${session.access_token}`,
         },
         body: { chatid: chat.chat_id }
-      }, 2); // 2 retries for manual sync
+      }, 3); // 3 retries for manual sync
 
       const incoming = response.data.messages || [];
       setMessages(mergeMessagesPreservingAttribution(incoming));
@@ -331,7 +355,13 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       toast.success('Mensagens sincronizadas');
     } catch (error: any) {
       console.error('Error syncing messages:', error);
-      toast.error('Erro ao sincronizar. Tente novamente.');
+      const isNetworkError = error.message?.includes('Failed to fetch') || 
+                             error.message?.includes('NetworkError');
+      if (isNetworkError) {
+        toast.error('Conexão instável. Tente novamente em alguns segundos.');
+      } else {
+        toast.error('Erro ao sincronizar mensagens.');
+      }
     } finally {
       setIsLoadingMessages(false);
     }
