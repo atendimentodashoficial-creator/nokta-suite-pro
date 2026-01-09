@@ -276,24 +276,29 @@ export function WhatsAppInstanceManager({
   };
 
   const handleDisconnect = async (instance: WhatsAppInstance) => {
+    setConnectionStatus(prev => ({ ...prev, [instance.id]: 'loading' }));
+    
     try {
-      // Call disconnect endpoint
-      const response = await fetch(`${instance.base_url}/instance/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "token": instance.api_key,
-        },
+      const { data: session } = await supabase.auth.getSession();
+      
+      // Use edge function to disconnect
+      const response = await supabase.functions.invoke("uazapi-disconnect-instance", {
+        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+        body: { base_url: instance.base_url, api_key: instance.api_key },
       });
 
-      if (response.ok) {
+      if (response.data?.success) {
         toast.success("WhatsApp desconectado!");
         setConnectionStatus(prev => ({ ...prev, [instance.id]: 'disconnected' }));
       } else {
-        toast.error("Erro ao desconectar");
+        toast.error(response.data?.error || "Erro ao desconectar");
+        // Recheck actual status
+        checkConnectionStatus(instance);
       }
-    } catch {
+    } catch (error) {
+      console.error("Disconnect error:", error);
       toast.error("Erro ao desconectar");
+      checkConnectionStatus(instance);
     }
   };
 
