@@ -317,12 +317,34 @@ export default function Leads() {
                     </div>
                   )}
 
-                  {/* Mostrar instância apenas para leads de Disparos */}
-                  {origemFilter === "disparos" && lead.instancia_nome && (
+                  {/* Show all presences (instances where this contact appeared) */}
+                  {lead.allPresences && lead.allPresences.length > 0 && (
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <span className="text-xs bg-accent px-2 py-0.5 rounded">
-                        {lead.instancia_nome}
-                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {lead.allPresences.map((presence, idx) => {
+                          // For WhatsApp origin without instance, show "WhatsApp"
+                          // For Disparos, show instance name or "Disparos" if no name
+                          const label = presence.origem?.toLowerCase() === "whatsapp"
+                            ? "WhatsApp"
+                            : presence.instancia_nome || "Disparos";
+                          
+                          const isWhatsApp = presence.origem?.toLowerCase() === "whatsapp";
+                          
+                          return (
+                            <span
+                              key={`${presence.origem}-${presence.instancia_nome}-${idx}`}
+                              className={`text-xs px-2 py-0.5 rounded ${
+                                isWhatsApp
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                                  : "bg-accent text-accent-foreground"
+                              }`}
+                              title={`Primeiro contato: ${new Date(presence.created_at).toLocaleDateString('pt-BR')}`}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
