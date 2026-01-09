@@ -259,10 +259,11 @@ export default function AdminWhatsApp() {
     }
   };
 
-  // Open QR code for existing instance
+  // Open create instance dialog or QR code dialog
   const handleOpenQrCode = async () => {
     if (!mainInstance) {
-      // No instance - open create dialog
+      // No instance - open create dialog FIRST to get name
+      setNewInstanceName("");
       setCreateInstanceDialogOpen(true);
       return;
     }
@@ -1116,7 +1117,16 @@ export default function AdminWhatsApp() {
                     variant="default" 
                     size="sm" 
                     className="gap-1 h-6 px-2 text-xs ml-auto"
-                    onClick={handleOpenQrCode}
+                    onClick={() => {
+                      if (!mainInstance) {
+                        // No instance - open create dialog to set name first
+                        setNewInstanceName("");
+                        setCreateInstanceDialogOpen(true);
+                      } else {
+                        // Has instance but disconnected - open manage dialog
+                        setManageDialogOpen(true);
+                      }
+                    }}
                     disabled={isCreatingInstance}
                   >
                     {isCreatingInstance ? (
@@ -1153,7 +1163,16 @@ export default function AdminWhatsApp() {
                     variant="default" 
                     size="sm" 
                     className="gap-1 h-8 px-3"
-                    onClick={handleOpenQrCode}
+                    onClick={() => {
+                      if (!mainInstance) {
+                        // No instance - open create dialog to set name first
+                        setNewInstanceName("");
+                        setCreateInstanceDialogOpen(true);
+                      } else {
+                        // Has instance but disconnected - open manage dialog
+                        setManageDialogOpen(true);
+                      }
+                    }}
                     disabled={isCreatingInstance}
                   >
                     {isCreatingInstance ? (
