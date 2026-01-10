@@ -164,7 +164,7 @@ export function InstagramFormulariosTab() {
         subtitulo_pagina: data.subtitulo_pagina || null,
         texto_botao: data.texto_botao,
         mensagem_sucesso: data.mensagem_sucesso,
-        cor_primaria: data.cor_primaria || "#8B5CF6",
+        cor_primaria: data.cor_primaria || "#00D4FF",
         imagem_url: data.imagem_url || null,
         campos: todosCampos,
         ativo: true,
@@ -200,7 +200,7 @@ export function InstagramFormulariosTab() {
           subtitulo_pagina: data.subtitulo_pagina || null,
           texto_botao: data.texto_botao,
           mensagem_sucesso: data.mensagem_sucesso,
-          cor_primaria: data.cor_primaria || "#8B5CF6",
+          cor_primaria: data.cor_primaria || "#00D4FF",
           imagem_url: data.imagem_url || null,
           campos: todosCampos,
           botao_sucesso_texto: data.botao_sucesso_texto || null,
@@ -421,7 +421,7 @@ export function InstagramFormulariosTab() {
                         <FormControl>
                           <div className="flex gap-2">
                             <Input type="color" className="w-12 h-10 p-1" {...field} />
-                            <Input placeholder="#8B5CF6" {...field} />
+                            <Input placeholder="#00D4FF" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
