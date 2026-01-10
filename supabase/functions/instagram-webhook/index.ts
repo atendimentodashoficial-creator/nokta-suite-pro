@@ -522,26 +522,65 @@ async function processComment(supabase: any, comment: any) {
         });
       }
       
-      // 2. Send DM to commenter
-      if (gatilho.resposta_texto) {
-        const dmText = processSpintax(gatilho.resposta_texto);
-        
-        await sendInstagramMessage(
-          config.page_access_token,
-          config.instagram_account_id,
-          comment.from.id,
-          dmText
-        );
+      // 2. Send DM to commenter (with follower check if configured)
+      if (gatilho.resposta_texto || gatilho.verificar_seguidor) {
+        // Check if this trigger requires follower verification
+        if (gatilho.verificar_seguidor && gatilho.mensagem_pedir_seguir) {
+          const followerInfo = await checkIfFollower(config.page_access_token, comment.from.id);
+          console.log('Follower check for commenter:', followerInfo);
+          
+          if (followerInfo && !followerInfo.is_user_follow_business) {
+            console.log('Commenter does not follow business, sending follow request');
+            
+            // Replace {nome} with username if available and process spintax
+            let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
+            if (comment.from?.username) {
+              followMessage = followMessage.replace(/{nome}/g, comment.from.username);
+            }
 
-        // Log response
-        await supabase.from('instagram_mensagens').insert({
-          user_id: config.user_id,
-          instagram_user_id: comment.from.id,
-          instagram_username: comment.from.username,
-          tipo: 'dm_enviada',
-          conteudo: dmText,
-          gatilho_id: gatilho.id,
-        });
+            await sendInstagramMessage(
+              config.page_access_token,
+              config.instagram_account_id,
+              comment.from.id,
+              followMessage
+            );
+
+            // Log the message
+            await supabase.from('instagram_mensagens').insert({
+              user_id: config.user_id,
+              instagram_user_id: comment.from.id,
+              instagram_username: comment.from.username,
+              tipo: 'dm_enviada',
+              conteudo: followMessage,
+              gatilho_id: gatilho.id,
+              metadata: { tipo: 'pedir_seguir_comentario', follower_info: followerInfo },
+            });
+
+            break; // Stop processing - user needs to follow first
+          }
+        }
+        
+        // User follows or no verification required - send the actual DM
+        if (gatilho.resposta_texto) {
+          const dmText = processSpintax(gatilho.resposta_texto);
+          
+          await sendInstagramMessage(
+            config.page_access_token,
+            config.instagram_account_id,
+            comment.from.id,
+            dmText
+          );
+
+          // Log response
+          await supabase.from('instagram_mensagens').insert({
+            user_id: config.user_id,
+            instagram_user_id: comment.from.id,
+            instagram_username: comment.from.username,
+            tipo: 'dm_enviada',
+            conteudo: dmText,
+            gatilho_id: gatilho.id,
+          });
+        }
       }
 
       break;
