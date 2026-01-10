@@ -242,10 +242,11 @@ export function InstagramFormulariosTab() {
               Novo Formulário
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Criar Novo Formulário</DialogTitle>
             </DialogHeader>
+            <div className="flex-1 overflow-y-auto pr-2">
             <Form {...form}>
               <form onSubmit={form.handleSubmit((data) => createFormulario.mutate(data))} className="space-y-4">
                 <FormField
@@ -588,6 +589,7 @@ export function InstagramFormulariosTab() {
                 </div>
               </form>
             </Form>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
