@@ -496,8 +496,25 @@ serve(async (req) => {
         continue;
       }
 
-      // Não existe chat ativo para esse número -> inserir novo apenas se passou na verificação
-      // (chats com mensagem antes da conexão já foram filtrados acima)
+      // Não existe chat ativo para esse número.
+      // Verificar se há chat DELETADO - se sim, NÃO inserir novo (o chat foi excluído intencionalmente)
+      // Novos chats só devem ser criados via webhook quando chegar mensagem nova.
+      const { data: deletedChat } = await supabase
+        .from("whatsapp_chats")
+        .select("id, deleted_at")
+        .eq("user_id", user.id)
+        .eq("normalized_number", row.normalized_number)
+        .not("deleted_at", "is", null)
+        .limit(1)
+        .maybeSingle();
+
+      if (deletedChat) {
+        // Chat foi deletado - não recriar durante sync
+        console.log(`[SYNC] Skipping insert for ${row.normalized_number} - chat was deleted at ${deletedChat.deleted_at}`);
+        continue;
+      }
+
+      // Não existe nenhum chat (nem ativo, nem deletado) -> inserir novo
       const createdAt = row.last_message_time || new Date().toISOString();
       const { isExisting, ...rowWithoutFlag } = row;
       const { data: insertedRows, error: insertError } = await supabase
