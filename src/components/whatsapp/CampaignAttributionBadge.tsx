@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Megaphone, Calendar, ExternalLink } from "lucide-react";
+import { Megaphone, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { getLast8Digits } from "@/utils/whatsapp";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,17 +37,36 @@ interface CampaignAttributionBadgeProps {
 }
 
 export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttributionBadgeProps) {
-  const { user } = useAuth();
+  const [userId, setUserId] = useState<string | null>(null);
   const [attributions, setAttributions] = useState<AttributionEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  // Mantém o userId em sincronia com a sessão real (sem depender do AuthContext).
+  useEffect(() => {
+    let active = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      setUserId(data.session?.user?.id ?? null);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadAttributions = async () => {
-      // Sem usuário autenticado não dá pra ler as tabelas (RLS), então não renderiza.
-      if (!user?.id) {
+      // Sem sessão válida não dá pra ler as tabelas (RLS). Mantém o ícone, mas sem dados.
+      if (!userId) {
         if (isMounted) {
           setIsLoading(false);
           setHasLoadedOnce(true);
@@ -59,7 +77,6 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
 
       setIsLoading(true);
       try {
-        const userId = user.id;
 
         const last8Digits = getLast8Digits(contactNumber);
         if (!last8Digits || last8Digits.length < 8) {
@@ -222,7 +239,7 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
     return () => {
       isMounted = false;
     };
-  }, [contactNumber, chatId, user?.id]);
+  }, [contactNumber, chatId, userId]);
 
   // Sempre renderiza o ícone: quando não há atribuição, ele aparece em estado “neutro”.
   const hasAttribution = attributions.length > 0;
