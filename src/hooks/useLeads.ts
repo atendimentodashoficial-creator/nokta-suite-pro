@@ -66,10 +66,9 @@ export const useLeads = (status?: LeadStatus) => {
 
       if (status) {
         query = query.eq("status", status);
-      } else {
-        // Quando não há filtro, não mostrar clientes
-        query = query.neq("status", "cliente");
       }
+      // Sem filtro = retorna todos os status (incluindo clientes)
+      // Para análise, cliente é um lead que converteu
 
       const { data, error } = await query;
 
