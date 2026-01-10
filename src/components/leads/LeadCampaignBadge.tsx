@@ -78,16 +78,16 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
               </span>
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-[320px] sm:w-96 p-0 max-h-[70vh] overflow-hidden" align="start">
-            <div className="flex flex-col max-h-[70vh]">
+          <PopoverContent className="w-[300px] sm:w-96 p-0" align="start">
+            <div className="flex flex-col max-h-[60vh] sm:max-h-[70vh]">
               {/* Header fixo */}
-              <div className="flex items-center gap-2 p-3 border-b bg-background sticky top-0 z-10">
+              <div className="flex items-center gap-2 p-2 sm:p-3 border-b bg-background shrink-0">
                 <Megaphone className="w-4 h-4 text-blue-500" />
-                <span className="font-semibold text-sm">Origem do Anúncio</span>
+                <span className="font-semibold text-xs sm:text-sm">Origem do Anúncio</span>
               </div>
               
               {/* Conteúdo com scroll */}
-              <div className="overflow-y-auto flex-1 p-3 space-y-3">
+              <div className="overflow-y-auto overscroll-contain p-2 sm:p-3 space-y-2 sm:space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
                 {/* Thumbnail da imagem do anúncio */}
                 {lead.ad_thumbnail_url && (
                   <div className="relative group cursor-pointer" onClick={() => setIsImageModalOpen(true)}>
