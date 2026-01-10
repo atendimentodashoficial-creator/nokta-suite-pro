@@ -655,7 +655,9 @@ async function sendPrivateReplyToComment(
   console.log('Private reply result:', { url, status: response.status, result });
 
   if (!response.ok) {
-    throw new Error(`Private reply failed (${response.status}): ${JSON.stringify(result)}`);
+    console.error('Private reply failed:', result);
+    // Do not throw; private replies may be unavailable depending on permissions/token type.
+    return null;
   }
 
   return result;
