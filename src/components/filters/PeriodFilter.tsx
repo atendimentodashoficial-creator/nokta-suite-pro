@@ -162,11 +162,16 @@ export function usePeriodFilter(defaultPeriod: PeriodValue = "max") {
   const filterByPeriod = <T extends { created_at: string }>(items: T[] | undefined): T[] => {
     if (!items) return [];
     
-    const startOfPeriod = new Date(dateStart);
-    startOfPeriod.setHours(0, 0, 0, 0);
+    // Use UTC dates to match database filtering (Supabase stores in UTC)
+    const startYear = dateStart.getFullYear();
+    const startMonth = dateStart.getMonth();
+    const startDay = dateStart.getDate();
+    const startOfPeriod = new Date(Date.UTC(startYear, startMonth, startDay, 0, 0, 0, 0));
     
-    const endOfPeriod = new Date(dateEnd);
-    endOfPeriod.setHours(23, 59, 59, 999);
+    const endYear = dateEnd.getFullYear();
+    const endMonth = dateEnd.getMonth();
+    const endDay = dateEnd.getDate();
+    const endOfPeriod = new Date(Date.UTC(endYear, endMonth, endDay, 23, 59, 59, 999));
 
     return items.filter(item => {
       const itemDate = new Date(item.created_at);
