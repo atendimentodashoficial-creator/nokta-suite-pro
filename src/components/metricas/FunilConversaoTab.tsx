@@ -34,7 +34,8 @@ import {
   Receipt,
   Megaphone,
   HelpCircle,
-  Layers
+  Layers,
+  Settings2
 } from "lucide-react";
 import {
   Select,
@@ -58,6 +59,9 @@ import {
 } from "@/components/ui/collapsible";
 import { useAuth } from "@/contexts/AuthContext";
 import { FunilVisualDialog } from "./FunilVisualDialog";
+import { FunnelColumnOrderDialog, FUNNEL_COLUMNS, DEFAULT_FUNNEL_COLUMN_ORDER } from "./FunnelColumnOrderDialog";
+import { useMetricasPreferencias, type FunnelColumnKey } from "@/hooks/useMetricasPreferencias";
+import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
@@ -296,6 +300,7 @@ function AdItem({ item, index, numberBgClass, numberBgInactiveClass, numberTextC
 
 export function FunilConversaoTab() {
   const { user } = useAuth();
+  const { funnelColumnOrder, updateFunnelColumnOrder } = useMetricasPreferencias();
   const [periodFilter, setPeriodFilter] = useState("last_30_days");
   const [dateStart, setDateStart] = useState<Date>(subDays(new Date(), 29));
   const [dateEnd, setDateEnd] = useState<Date>(new Date());
@@ -305,6 +310,10 @@ export function FunilConversaoTab() {
   const [viewLevel, setViewLevel] = useState<"campaign" | "adset" | "ad">("campaign");
   const [selectedFunnel, setSelectedFunnel] = useState<SelectedFunnelData | null>(null);
   const [funnelDialogOpen, setFunnelDialogOpen] = useState(false);
+  const [columnOrderDialogOpen, setColumnOrderDialogOpen] = useState(false);
+  
+  // Ordem das colunas (usa o salvo ou padrão)
+  const columnOrder = funnelColumnOrder || DEFAULT_FUNNEL_COLUMN_ORDER;
   
   // State for expanding top performers lists
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -1351,13 +1360,26 @@ export function FunilConversaoTab() {
       {/* Tabela detalhada */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Funil por {viewLevel === "campaign" ? "Campanha" : viewLevel === "adset" ? "Conjunto" : "Anúncio"}
-          </CardTitle>
-          <CardDescription>
-            Acompanhe a jornada dos leads desde o primeiro contato até o fechamento
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Funil por {viewLevel === "campaign" ? "Campanha" : viewLevel === "adset" ? "Conjunto" : "Anúncio"}
+              </CardTitle>
+              <CardDescription>
+                Acompanhe a jornada dos leads desde o primeiro contato até o fechamento
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setColumnOrderDialogOpen(true)}
+              className="gap-2"
+            >
+              <Settings2 className="h-4 w-4" />
+              Ordenar Colunas
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -1377,20 +1399,24 @@ export function FunilConversaoTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[200px]">
-                      {viewLevel === "campaign" ? "Campanha" : viewLevel === "adset" ? "Conjunto" : "Anúncio"}
-                    </TableHead>
-                    <TableHead className="text-center">Gasto</TableHead>
-                    <TableHead className="text-center">Leads</TableHead>
-                    <TableHead className="text-center">CPL</TableHead>
-                    <TableHead className="text-center">Agendados</TableHead>
-                    <TableHead className="text-center">CPA Agend.</TableHead>
-                    <TableHead className="text-center">Faltou</TableHead>
-                    <TableHead className="text-center">Em Negoc.</TableHead>
-                    <TableHead className="text-center">Conversões</TableHead>
-                    <TableHead className="text-center">CAC</TableHead>
-                    <TableHead className="text-center">Faturado</TableHead>
-                    <TableHead className="text-center">ROAS</TableHead>
+                    {columnOrder.map((colKey) => {
+                      const colDef = FUNNEL_COLUMNS.find(c => c.key === colKey);
+                      if (!colDef) return null;
+                      
+                      if (colKey === "name") {
+                        return (
+                          <TableHead key={colKey} className="min-w-[200px]">
+                            {viewLevel === "campaign" ? "Campanha" : viewLevel === "adset" ? "Conjunto" : "Anúncio"}
+                          </TableHead>
+                        );
+                      }
+                      
+                      return (
+                        <TableHead key={colKey} className="text-center">
+                          {colDef.label}
+                        </TableHead>
+                      );
+                    })}
                     <TableHead className="text-center w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1419,72 +1445,116 @@ export function FunilConversaoTab() {
                       setFunnelDialogOpen(true);
                     };
 
+                    const renderCell = (colKey: FunnelColumnKey) => {
+                      switch (colKey) {
+                        case "name":
+                          return (
+                            <TableCell key={colKey} className="font-medium">
+                              <div className="max-w-[250px]">
+                                <p className="truncate" title={row.campaign_name}>{row.campaign_name}</p>
+                                {row.adset_name && (
+                                  <p className="text-xs text-muted-foreground truncate" title={row.adset_name}>
+                                    {row.adset_name}
+                                  </p>
+                                )}
+                                {row.ad_name && (
+                                  <p className="text-xs text-muted-foreground/70 truncate" title={row.ad_name}>
+                                    {row.ad_name}
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                          );
+                        case "spend":
+                          return (
+                            <TableCell key={colKey} className="text-center">
+                              {spend > 0 ? formatCurrency(spend) : "—"}
+                            </TableCell>
+                          );
+                        case "leads":
+                          return (
+                            <TableCell key={colKey} className="text-center">
+                              <Badge variant="secondary">{row.leads}</Badge>
+                            </TableCell>
+                          );
+                        case "cpl":
+                          return (
+                            <TableCell key={colKey} className="text-center text-sm">
+                              {cpl > 0 ? formatCurrency(cpl) : "—"}
+                            </TableCell>
+                          );
+                        case "agendados":
+                          return (
+                            <TableCell key={colKey} className="text-center">
+                              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+                                {row.agendados}
+                              </Badge>
+                            </TableCell>
+                          );
+                        case "cpa_agendado":
+                          return (
+                            <TableCell key={colKey} className="text-center text-sm">
+                              {cpaAgendado > 0 ? formatCurrency(cpaAgendado) : "—"}
+                            </TableCell>
+                          );
+                        case "faltou":
+                          return (
+                            <TableCell key={colKey} className="text-center">
+                              <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30">
+                                {row.nao_compareceu}
+                              </Badge>
+                            </TableCell>
+                          );
+                        case "em_negociacao":
+                          return (
+                            <TableCell key={colKey} className="text-center">
+                              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                                {row.em_negociacao}
+                              </Badge>
+                            </TableCell>
+                          );
+                        case "conversoes":
+                          return (
+                            <TableCell key={colKey} className="text-center">
+                              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                                {row.clientes}
+                              </Badge>
+                            </TableCell>
+                          );
+                        case "cac":
+                          return (
+                            <TableCell key={colKey} className="text-center text-sm font-medium">
+                              {cac > 0 ? formatCurrency(cac) : "—"}
+                            </TableCell>
+                          );
+                        case "faturado":
+                          return (
+                            <TableCell key={colKey} className="text-center text-sm font-medium text-green-600">
+                              {row.valor_fechado > 0 ? formatCurrency(row.valor_fechado) : "—"}
+                            </TableCell>
+                          );
+                        case "roas":
+                          return (
+                            <TableCell key={colKey} className="text-center">
+                              {roas > 0 ? (
+                                <Badge variant={roas >= 1 ? "default" : "destructive"}>
+                                  {roas.toFixed(2)}x
+                                </Badge>
+                              ) : "—"}
+                            </TableCell>
+                          );
+                        default:
+                          return null;
+                      }
+                    };
+
                     return (
                       <TableRow 
                         key={idx} 
                         className="cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={handleRowClick}
                       >
-                        <TableCell className="font-medium">
-                          <div className="max-w-[250px]">
-                            <p className="truncate" title={row.campaign_name}>{row.campaign_name}</p>
-                            {row.adset_name && (
-                              <p className="text-xs text-muted-foreground truncate" title={row.adset_name}>
-                                {row.adset_name}
-                              </p>
-                            )}
-                            {row.ad_name && (
-                              <p className="text-xs text-muted-foreground/70 truncate" title={row.ad_name}>
-                                {row.ad_name}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {spend > 0 ? formatCurrency(spend) : "—"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="secondary">{row.leads}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {cpl > 0 ? formatCurrency(cpl) : "—"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
-                            {row.agendados}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {cpaAgendado > 0 ? formatCurrency(cpaAgendado) : "—"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30">
-                            {row.nao_compareceu}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
-                            {row.em_negociacao}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-                            {row.clientes}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center text-sm font-medium">
-                          {cac > 0 ? formatCurrency(cac) : "—"}
-                        </TableCell>
-                        <TableCell className="text-center text-sm font-medium text-green-600">
-                          {row.valor_fechado > 0 ? formatCurrency(row.valor_fechado) : "—"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {roas > 0 ? (
-                            <Badge variant={roas >= 1 ? "default" : "destructive"}>
-                              {roas.toFixed(2)}x
-                            </Badge>
-                          ) : "—"}
-                        </TableCell>
+                        {columnOrder.map(renderCell)}
                         <TableCell className="text-center">
                           <TooltipProvider>
                             <Tooltip>
@@ -1505,28 +1575,36 @@ export function FunilConversaoTab() {
 
                   {/* Linha de totais */}
                   <TableRow className="bg-muted/50 border-t-2 font-bold">
-                    <TableCell>TOTAL</TableCell>
-                    <TableCell className="text-center">{formatCurrency(totals.spend)}</TableCell>
-                    <TableCell className="text-center">{totals.leads}</TableCell>
-                    <TableCell className="text-center">
-                      {totals.leads > 0 ? formatCurrency(totals.spend / totals.leads) : "—"}
-                    </TableCell>
-                    <TableCell className="text-center">{totals.agendados}</TableCell>
-                    <TableCell className="text-center">
-                      {totals.agendados > 0 ? formatCurrency(totals.spend / totals.agendados) : "—"}
-                    </TableCell>
-                    <TableCell className="text-center">{totals.nao_compareceu}</TableCell>
-                    <TableCell className="text-center">{totals.em_negociacao}</TableCell>
-                    <TableCell className="text-center">{totals.clientes}</TableCell>
-                    <TableCell className="text-center">
-                      {totals.clientes > 0 ? formatCurrency(totals.spend / totals.clientes) : "—"}
-                    </TableCell>
-                    <TableCell className="text-center text-green-600">
-                      {formatCurrency(totals.valor_fechado)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {totals.spend > 0 ? `${(totals.valor_fechado / totals.spend).toFixed(2)}x` : "—"}
-                    </TableCell>
+                    {columnOrder.map((colKey) => {
+                      switch (colKey) {
+                        case "name":
+                          return <TableCell key={colKey}>TOTAL</TableCell>;
+                        case "spend":
+                          return <TableCell key={colKey} className="text-center">{formatCurrency(totals.spend)}</TableCell>;
+                        case "leads":
+                          return <TableCell key={colKey} className="text-center">{totals.leads}</TableCell>;
+                        case "cpl":
+                          return <TableCell key={colKey} className="text-center">{totals.leads > 0 ? formatCurrency(totals.spend / totals.leads) : "—"}</TableCell>;
+                        case "agendados":
+                          return <TableCell key={colKey} className="text-center">{totals.agendados}</TableCell>;
+                        case "cpa_agendado":
+                          return <TableCell key={colKey} className="text-center">{totals.agendados > 0 ? formatCurrency(totals.spend / totals.agendados) : "—"}</TableCell>;
+                        case "faltou":
+                          return <TableCell key={colKey} className="text-center">{totals.nao_compareceu}</TableCell>;
+                        case "em_negociacao":
+                          return <TableCell key={colKey} className="text-center">{totals.em_negociacao}</TableCell>;
+                        case "conversoes":
+                          return <TableCell key={colKey} className="text-center">{totals.clientes}</TableCell>;
+                        case "cac":
+                          return <TableCell key={colKey} className="text-center">{totals.clientes > 0 ? formatCurrency(totals.spend / totals.clientes) : "—"}</TableCell>;
+                        case "faturado":
+                          return <TableCell key={colKey} className="text-center text-green-600">{formatCurrency(totals.valor_fechado)}</TableCell>;
+                        case "roas":
+                          return <TableCell key={colKey} className="text-center">{totals.spend > 0 ? `${(totals.valor_fechado / totals.spend).toFixed(2)}x` : "—"}</TableCell>;
+                        default:
+                          return null;
+                      }
+                    })}
                     <TableCell></TableCell>
                   </TableRow>
                 </TableBody>
@@ -1535,6 +1613,17 @@ export function FunilConversaoTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog para ordenar colunas */}
+      <FunnelColumnOrderDialog
+        open={columnOrderDialogOpen}
+        onOpenChange={setColumnOrderDialogOpen}
+        currentOrder={columnOrder}
+        onSave={async (order) => {
+          await updateFunnelColumnOrder(order);
+          toast.success("Ordem das colunas salva!");
+        }}
+      />
 
       {/* QUADRO 1: Melhores Desempenhos por Etapa do Funil - RESULTADOS */}
       {(funnelByAdset.length > 0 || funnelByAd.length > 0) && (
