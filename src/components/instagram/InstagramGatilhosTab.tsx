@@ -90,6 +90,7 @@ export function InstagramGatilhosTab() {
   const [uploading, setUploading] = useState(false);
   const [buttons, setButtons] = useState<QuickReplyButton[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [activeResponseTab, setActiveResponseTab] = useState<string>("texto");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -337,6 +338,7 @@ export function InstagramGatilhosTab() {
     form.reset();
     setButtons([]);
     setPreviewImage(null);
+    setActiveResponseTab("texto");
   };
 
   const openEditDialog = (gatilho: Gatilho) => {
@@ -363,6 +365,20 @@ export function InstagramGatilhosTab() {
     });
     setButtons(gatilho.resposta_botoes || []);
     setPreviewImage(gatilho.resposta_midia_tipo === "image" ? gatilho.resposta_midia_url : null);
+    
+    // Determinar aba ativa baseada no conteúdo configurado
+    if (gatilho.formulario_id) {
+      setActiveResponseTab("formulario");
+    } else if (gatilho.resposta_botoes && gatilho.resposta_botoes.length > 0) {
+      setActiveResponseTab("botoes");
+    } else if (gatilho.resposta_link_url) {
+      setActiveResponseTab("link");
+    } else if (gatilho.resposta_midia_url) {
+      setActiveResponseTab("midia");
+    } else {
+      setActiveResponseTab("texto");
+    }
+    
     setDialogOpen(true);
   };
 
@@ -485,27 +501,57 @@ export function InstagramGatilhosTab() {
                   />
                 </div>
 
-                <Tabs defaultValue="texto" className="w-full">
+                <Tabs value={activeResponseTab} onValueChange={setActiveResponseTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="texto" className="text-xs">
+                    <TabsTrigger 
+                      value="texto" 
+                      className={`text-xs relative ${form.watch("resposta_texto") ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    >
                       <MessageCircle className="h-3 w-3 mr-1" />
                       Texto
+                      {form.watch("resposta_texto") && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+                      )}
                     </TabsTrigger>
-                    <TabsTrigger value="midia" className="text-xs">
+                    <TabsTrigger 
+                      value="midia" 
+                      className={`text-xs relative ${form.watch("resposta_midia_url") ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    >
                       <Image className="h-3 w-3 mr-1" />
                       Mídia
+                      {form.watch("resposta_midia_url") && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+                      )}
                     </TabsTrigger>
-                    <TabsTrigger value="link" className="text-xs">
+                    <TabsTrigger 
+                      value="link" 
+                      className={`text-xs relative ${form.watch("resposta_link_url") ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    >
                       <Link2 className="h-3 w-3 mr-1" />
                       Link
+                      {form.watch("resposta_link_url") && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+                      )}
                     </TabsTrigger>
-                    <TabsTrigger value="botoes" className="text-xs">
+                    <TabsTrigger 
+                      value="botoes" 
+                      className={`text-xs relative ${buttons.length > 0 ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    >
                       <MousePointerClick className="h-3 w-3 mr-1" />
                       Botões
+                      {buttons.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+                      )}
                     </TabsTrigger>
-                    <TabsTrigger value="formulario" className="text-xs">
+                    <TabsTrigger 
+                      value="formulario" 
+                      className={`text-xs relative ${form.watch("formulario_id") ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    >
                       <FileText className="h-3 w-3 mr-1" />
                       Formulário
+                      {form.watch("formulario_id") && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+                      )}
                     </TabsTrigger>
                   </TabsList>
 
