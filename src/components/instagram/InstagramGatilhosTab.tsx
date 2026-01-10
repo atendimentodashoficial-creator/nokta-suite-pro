@@ -467,7 +467,13 @@ export function InstagramGatilhosTab() {
                         <FormControl>
                           <Switch
                             checked={field.value}
-                            onCheckedChange={field.onChange}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked);
+                              // Quando comentário é ativado, ativa resposta pública por padrão
+                              if (checked) {
+                                form.setValue("responder_comentario", true);
+                              }
+                            }}
                           />
                         </FormControl>
                         <FormLabel className="text-sm font-normal flex items-center gap-1 cursor-pointer">
@@ -480,7 +486,7 @@ export function InstagramGatilhosTab() {
                 </div>
 
                 <Tabs defaultValue="texto" className="w-full">
-                  <TabsList className={`grid w-full ${form.watch("ativo_em_comentario") ? "grid-cols-7" : "grid-cols-6"}`}>
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="texto" className="text-xs">
                       <MessageCircle className="h-3 w-3 mr-1" />
                       Texto
@@ -501,16 +507,6 @@ export function InstagramGatilhosTab() {
                       <FileText className="h-3 w-3 mr-1" />
                       Formulário
                     </TabsTrigger>
-                    <TabsTrigger value="seguidor" className="text-xs">
-                      <UserCheck className="h-3 w-3 mr-1" />
-                      Seguidor
-                    </TabsTrigger>
-                    {form.watch("ativo_em_comentario") && (
-                      <TabsTrigger value="resposta_publica" className="text-xs">
-                        <Reply className="h-3 w-3 mr-1" />
-                        Público
-                      </TabsTrigger>
-                    )}
                   </TabsList>
 
                   <TabsContent value="texto" className="mt-4">
@@ -720,52 +716,6 @@ export function InstagramGatilhosTab() {
                     </p>
                   </TabsContent>
 
-                  <TabsContent value="seguidor" className="mt-4 space-y-4">
-                    <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="verificar_seguidor"
-                        render={({ field }) => (
-                          <FormItem className="flex items-center justify-between">
-                            <div>
-                              <FormLabel>Verificar se segue</FormLabel>
-                              <FormDescription className="text-xs">
-                                Só envia a resposta se a pessoa te seguir
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="mensagem_pedir_seguir"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Mensagem se NÃO seguir</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Olá! 👋 Antes de continuar, me segue lá pra não perder nenhuma novidade! 💜"
-                                rows={3}
-                                disabled={!form.watch("verificar_seguidor")}
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormDescription className="text-xs">
-                              Enviada quando a pessoa não te segue. Use {"{nome}"} para incluir o nome.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </TabsContent>
 
                   <TabsContent value="formulario" className="mt-4 space-y-4">
                     <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
@@ -897,66 +847,109 @@ export function InstagramGatilhosTab() {
                     </div>
                   </TabsContent>
 
-                  {/* Tab de resposta pública no comentário - só aparece quando tipo = comentario */}
-                  {form.watch("tipo") === "comentario" && (
-                    <TabsContent value="resposta_publica" className="mt-4 space-y-4">
-                      <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
-                        <div className="flex items-start gap-3">
-                          <Reply className="h-5 w-5 text-primary mt-0.5" />
+                </Tabs>
+
+                {/* Seção de Verificar Seguidor - Toggle separado */}
+                <div className="p-4 border rounded-lg space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="verificar_seguidor"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <UserCheck className="h-5 w-5 text-primary" />
                           <div>
-                            <p className="font-medium">Responder publicamente no comentário</p>
-                            <p className="text-xs text-muted-foreground">
-                              Além de enviar a DM, responde diretamente no comentário da publicação
-                            </p>
+                            <FormLabel className="text-base font-medium">Verificar se segue</FormLabel>
+                            <FormDescription className="text-xs">
+                              Só envia a resposta se a pessoa te seguir
+                            </FormDescription>
                           </div>
                         </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
 
-                        <FormField
-                          control={form.control}
-                          name="responder_comentario"
-                          render={({ field }) => (
-                            <FormItem className="flex items-center justify-between">
-                              <div>
-                                <FormLabel>Ativar resposta pública</FormLabel>
-                                <FormDescription className="text-xs">
-                                  Responde ao comentário na publicação
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="resposta_comentario_texto"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Texto da resposta pública</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Olá! 👋 Enviamos uma mensagem no seu Direct com as informações!"
-                                  rows={3}
-                                  disabled={!form.watch("responder_comentario")}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs">
-                                Esta mensagem será postada como resposta ao comentário. Use {"{nome}"} para incluir o nome do usuário.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </TabsContent>
+                  {form.watch("verificar_seguidor") && (
+                    <FormField
+                      control={form.control}
+                      name="mensagem_pedir_seguir"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mensagem se NÃO seguir</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Olá! 👋 Antes de continuar, me segue lá pra não perder nenhuma novidade! 💜"
+                              rows={3}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Enviada quando a pessoa não te segue. Use {"{nome}"} para incluir o nome.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   )}
-                </Tabs>
+                </div>
+
+                {/* Seção de Resposta Pública - só aparece quando comentário está ativado */}
+                {form.watch("ativo_em_comentario") && (
+                  <div className="p-4 border rounded-lg space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="responder_comentario"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Reply className="h-5 w-5 text-primary" />
+                            <div>
+                              <FormLabel className="text-base font-medium">Resposta pública no comentário</FormLabel>
+                              <FormDescription className="text-xs">
+                                Além da DM, responde diretamente no comentário
+                              </FormDescription>
+                            </div>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch("responder_comentario") && (
+                      <FormField
+                        control={form.control}
+                        name="resposta_comentario_texto"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Texto da resposta pública</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Olá! 👋 Enviamos uma mensagem no seu Direct com as informações!"
+                                rows={3}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Esta mensagem será postada como resposta ao comentário. Use {"{nome}"} para incluir o nome.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-2 justify-end pt-4">
                   <Button type="button" variant="outline" onClick={closeDialog}>
