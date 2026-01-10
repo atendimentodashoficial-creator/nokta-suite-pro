@@ -686,115 +686,126 @@ export function InstagramFormulariosTab() {
             </div>
           </TabsContent>
 
-          <TabsContent value="respostas" className="mt-4">
-            {selectedFormId ? <div className="space-y-4">
-                {/* Header com título do formulário */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Users className="h-5 w-5" />
-                          Respostas: {formularios?.find(f => f.id === selectedFormId)?.nome}
-                        </CardTitle>
-                        <CardDescription>
-                          {respostas?.length || 0} resposta{respostas?.length !== 1 ? 's' : ''} recebida{respostas?.length !== 1 ? 's' : ''}
-                        </CardDescription>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {formularios?.find(f => f.id === selectedFormId)?.titulo_pagina}
-                      </Badge>
+          <TabsContent value="respostas" className="mt-3">
+            {selectedFormId ? <div className="space-y-3">
+                {/* Header compacto */}
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Users className="h-4 w-4 text-primary" />
                     </div>
-                  </CardHeader>
-                </Card>
+                    <div>
+                      <h3 className="font-medium text-sm">{formularios?.find(f => f.id === selectedFormId)?.nome}</h3>
+                      <p className="text-xs text-muted-foreground">{respostas?.length || 0} resposta{respostas?.length !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] h-5">
+                    {formularios?.find(f => f.id === selectedFormId)?.titulo_pagina}
+                  </Badge>
+                </div>
 
-                {loadingRespostas ? <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div> : respostas?.length === 0 ? <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                      <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                      <p className="text-muted-foreground">Nenhuma resposta ainda</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        As respostas aparecerão aqui quando alguém preencher o formulário
-                      </p>
+                {loadingRespostas ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : respostas?.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                        <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">Nenhuma resposta ainda</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">As respostas aparecerão aqui</p>
                     </CardContent>
-                  </Card> : <div className="grid gap-3">
+                  </Card>
+                ) : (
+                  <div className="grid gap-2">
                     {respostas?.map(resposta => {
-              const phoneFormatted = resposta.telefone ? formatPhoneDisplay(resposta.telefone) : null;
-              const {
-                countryCode
-              } = resposta.telefone ? extractCountryCode(resposta.telefone) : {
-                countryCode: "55"
-              };
-              const countryFlag = countries.find(c => c.dialCode === countryCode)?.flag || "🇧🇷";
-              return <Card key={resposta.id} className="group border-l-4 hover:shadow-lg transition-all duration-200" style={{
-                borderLeftColor: formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF'
-              }}>
-                          <CardContent className="p-5">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1 space-y-3">
-                                {/* Nome com avatar */}
-                                {resposta.nome && <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{
-                          backgroundColor: formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF'
-                        }}>
-                                      {resposta.nome.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold text-base">{resposta.nome}</span>
-                                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        <Calendar className="h-3 w-3" />
-                                        {format(new Date(resposta.created_at), "dd/MM/yyyy 'às' HH:mm", {
-                              locale: ptBR
-                            })}
-                                      </div>
-                                    </div>
-                                  </div>}
-                                
-                                <div className="flex flex-wrap gap-4 text-sm pl-[52px]">
-                                  {/* Telefone */}
-                                  {resposta.telefone && <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
-                                      <span className="text-base">{countryFlag}</span>
-                                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                                      <span className="font-medium">{phoneFormatted}</span>
-                                    </div>}
-                                  
-                                  {/* Email */}
-                                  {resposta.email && <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
-                                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                                      <span>{resposta.email}</span>
-                                    </div>}
+                      const phoneFormatted = resposta.telefone ? formatPhoneDisplay(resposta.telefone) : null;
+                      const { countryCode } = resposta.telefone ? extractCountryCode(resposta.telefone) : { countryCode: "55" };
+                      const countryFlag = countries.find(c => c.dialCode === countryCode)?.flag || "🇧🇷";
+                      const formColor = formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF';
+                      
+                      return (
+                        <Card key={resposta.id} className="group hover:shadow-md transition-all border-l-2" style={{ borderLeftColor: formColor }}>
+                          <CardContent className="p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
+                                {/* Avatar */}
+                                <div 
+                                  className="h-8 w-8 rounded-full flex items-center justify-center text-white font-medium text-xs flex-shrink-0" 
+                                  style={{ backgroundColor: formColor }}
+                                >
+                                  {resposta.nome?.charAt(0).toUpperCase() || <User className="h-3.5 w-3.5" />}
                                 </div>
                                 
-                                {/* Dados extras */}
-                                {resposta.dados_extras && Object.keys(resposta.dados_extras).length > 0 && <div className="pt-3 mt-3 border-t border-dashed space-y-2 pl-[52px]">
-                                    {Object.entries(resposta.dados_extras).map(([key, value]) => <div key={key} className="flex items-start gap-2 text-sm">
-                                        <Badge variant="secondary" className="text-xs font-normal shrink-0 rounded">
-                                          {key}
-                                        </Badge>
-                                        <span className="text-muted-foreground">{value}</span>
-                                      </div>)}
-                                  </div>}
+                                <div className="flex-1 min-w-0 space-y-1.5">
+                                  {/* Nome e data */}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium text-sm truncate">{resposta.nome || "Sem nome"}</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {format(new Date(resposta.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Contatos */}
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {resposta.telefone && (
+                                      <Badge variant="secondary" className="text-[10px] h-5 font-normal gap-1">
+                                        <span>{countryFlag}</span>
+                                        <Phone className="h-2.5 w-2.5" />
+                                        {phoneFormatted}
+                                      </Badge>
+                                    )}
+                                    {resposta.email && (
+                                      <Badge variant="secondary" className="text-[10px] h-5 font-normal gap-1 max-w-[180px]">
+                                        <Mail className="h-2.5 w-2.5 flex-shrink-0" />
+                                        <span className="truncate">{resposta.email}</span>
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Dados extras */}
+                                  {resposta.dados_extras && Object.keys(resposta.dados_extras).length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-dashed mt-1.5">
+                                      {Object.entries(resposta.dados_extras).map(([key, value]) => (
+                                        <div key={key} className="flex items-center gap-1 text-[10px]">
+                                          <span className="text-muted-foreground font-medium">{key}:</span>
+                                          <span className="text-foreground">{value}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               
                               {/* Botão de excluir */}
-                              <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => deleteResposta.mutate(resposta.id)}>
-                                <Trash2 className="h-4 w-4" />
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0" 
+                                onClick={() => deleteResposta.mutate(resposta.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </CardContent>
-                        </Card>;
-            })}
-                  </div>}
-              </div> : <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground">Selecione um formulário</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Clique em um formulário na aba "Formulários" para ver suas respostas
-                  </p>
-                </CardContent>
-              </Card>}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div> : (
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Selecione um formulário</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">Clique em um formulário para ver as respostas</p>
+                  </CardContent>
+                </Card>
+              )}
           </TabsContent>
         </Tabs>}
     </div>;
