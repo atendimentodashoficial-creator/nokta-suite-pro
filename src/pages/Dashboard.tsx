@@ -82,6 +82,10 @@ export default function Dashboard() {
         setDataInicial(startOfMonth(lastMonth));
         setDataFinal(endOfMonth(lastMonth));
         break;
+      case "max":
+        setDataInicial(new Date(2020, 0, 1));
+        setDataFinal(endOfDay(now));
+        break;
       case "custom":
         break;
     }
@@ -394,6 +398,7 @@ export default function Dashboard() {
               <SelectItem value="last_week">Semana passada</SelectItem>
               <SelectItem value="this_month">Este mês</SelectItem>
               <SelectItem value="last_month">Mês passado</SelectItem>
+              <SelectItem value="max">Máximo</SelectItem>
               <SelectItem value="custom">Personalizado</SelectItem>
             </SelectContent>
           </Select>

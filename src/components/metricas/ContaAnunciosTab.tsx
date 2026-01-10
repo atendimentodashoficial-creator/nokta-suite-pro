@@ -127,6 +127,10 @@ export function ContaAnunciosTab() {
         setDateStart(startOfMonth(lastMonth));
         setDateEnd(endOfMonth(lastMonth));
         break;
+      case "max":
+        setDateStart(new Date(2020, 0, 1));
+        setDateEnd(now);
+        break;
       case "custom":
         // Manter as datas atuais
         break;
@@ -311,6 +315,7 @@ export function ContaAnunciosTab() {
                       <SelectItem value="last_week">Semana passada</SelectItem>
                       <SelectItem value="this_month">Este mês</SelectItem>
                       <SelectItem value="last_month">Mês passado</SelectItem>
+                      <SelectItem value="max">Máximo</SelectItem>
                       <SelectItem value="custom">Personalizado</SelectItem>
                     </SelectContent>
                   </Select>
