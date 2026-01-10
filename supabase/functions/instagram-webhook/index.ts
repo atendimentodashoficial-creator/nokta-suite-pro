@@ -217,9 +217,9 @@ async function processMessage(supabase: any, event: any) {
     .eq('ativo_em_dm', true);
 
   for (const gatilho of gatilhos || []) {
-    const messageText = (message.text || '').toLowerCase();
+    const messageText = (message.text || '').toLowerCase().trim();
     const triggered = gatilho.palavras_chave.some((kw: string) => 
-      messageText.includes(kw.toLowerCase())
+      messageText === kw.toLowerCase().trim()
     );
 
     if (triggered) {
@@ -469,8 +469,8 @@ async function checkIceBreakerPayload(supabase: any, config: any, senderId: stri
 
       for (const gatilho of gatilhos || []) {
         const triggered = gatilho.palavras_chave.some((kw: string) => 
-          normalizedPayload.includes(kw.toLowerCase()) || 
-          normalizedQuestion.includes(kw.toLowerCase())
+          normalizedPayload === kw.toLowerCase().trim() || 
+          normalizedQuestion === kw.toLowerCase().trim()
         );
 
         if (triggered && gatilho.resposta_texto) {
@@ -547,9 +547,9 @@ async function processComment(supabase: any, comment: any) {
     .eq('ativo_em_comentario', true);
 
   for (const gatilho of gatilhos || []) {
-    const commentText = (comment.text || '').toLowerCase();
+    const commentText = (comment.text || '').toLowerCase().trim();
     const triggered = gatilho.palavras_chave.some((kw: string) => 
-      commentText.includes(kw.toLowerCase())
+      commentText === kw.toLowerCase().trim()
     );
 
     if (triggered && comment.from?.id) {
