@@ -21,7 +21,6 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatPhoneDisplay, extractCountryCode, formatPhoneByCountry } from "@/utils/phoneFormat";
 import { countries } from "@/components/whatsapp/CountryCodeSelect";
-
 const formSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   titulo_pagina: z.string().min(1, "Título é obrigatório"),
@@ -31,11 +30,9 @@ const formSchema = z.object({
   cor_primaria: z.string().optional(),
   imagem_url: z.string().optional(),
   botao_sucesso_texto: z.string().optional(),
-  botao_sucesso_url: z.string().optional(),
+  botao_sucesso_url: z.string().optional()
 });
-
 type FormData = z.infer<typeof formSchema>;
-
 interface Formulario {
   id: string;
   nome: string;
@@ -51,7 +48,6 @@ interface Formulario {
   ativo: boolean;
   created_at: string;
 }
-
 interface Resposta {
   id: string;
   nome: string | null;
@@ -62,7 +58,6 @@ interface Resposta {
   dados_extras: Record<string, string> | null;
   created_at: string;
 }
-
 interface CampoPersonalizado {
   id: string;
   label: string;
@@ -70,7 +65,6 @@ interface CampoPersonalizado {
   obrigatorio: boolean;
   opcoes?: string[]; // Para múltipla escolha
 }
-
 export function InstagramFormulariosTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingFormulario, setEditingFormulario] = useState<Formulario | null>(null);
@@ -83,13 +77,16 @@ export function InstagramFormulariosTab() {
   const [simNaoOpcoes, setSimNaoOpcoes] = useState<[string, string]>(["Sim", "Não"]);
   const [novaOpcaoTexto, setNovaOpcaoTexto] = useState("");
   const queryClient = useQueryClient();
-
-  const camposPadrao = [
-    { id: "nome", label: "Nome" },
-    { id: "telefone", label: "Telefone" },
-    { id: "email", label: "Email" },
-  ];
-
+  const camposPadrao = [{
+    id: "nome",
+    label: "Nome"
+  }, {
+    id: "telefone",
+    label: "Telefone"
+  }, {
+    id: "email",
+    label: "Email"
+  }];
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -101,63 +98,67 @@ export function InstagramFormulariosTab() {
       cor_primaria: "#00D4FF",
       imagem_url: "",
       botao_sucesso_texto: "",
-      botao_sucesso_url: "",
-    },
+      botao_sucesso_url: ""
+    }
   });
-
-  const { data: formularios, isLoading } = useQuery({
+  const {
+    data: formularios,
+    isLoading
+  } = useQuery({
     queryKey: ["instagram-formularios"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
-
-      const { data, error } = await supabase
-        .from("instagram_formularios")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from("instagram_formularios").select("*").eq("user_id", user.id).order("created_at", {
+        ascending: false
+      });
       if (error) throw error;
-      
       return (data || []).map(f => ({
         ...f,
         campos: Array.isArray(f.campos) ? f.campos : JSON.parse(f.campos as string)
       })) as Formulario[];
-    },
+    }
   });
-
-  const { data: respostas, isLoading: loadingRespostas } = useQuery({
+  const {
+    data: respostas,
+    isLoading: loadingRespostas
+  } = useQuery({
     queryKey: ["instagram-formularios-respostas", selectedFormId],
     queryFn: async () => {
       if (!selectedFormId) return [];
-
-      const { data, error } = await supabase
-        .from("instagram_formularios_respostas")
-        .select("*")
-        .eq("formulario_id", selectedFormId)
-        .order("created_at", { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from("instagram_formularios_respostas").select("*").eq("formulario_id", selectedFormId).order("created_at", {
+        ascending: false
+      });
       if (error) throw error;
       return data as Resposta[];
     },
-    enabled: !!selectedFormId,
+    enabled: !!selectedFormId
   });
-
   const createFormulario = useMutation({
     mutationFn: async (data: FormData) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
-
-      const todosCampos = [
-        ...selectedCampos,
-        ...camposPersonalizados.map(c => JSON.stringify(c))
-      ];
-
+      const todosCampos = [...selectedCampos, ...camposPersonalizados.map(c => JSON.stringify(c))];
       if (todosCampos.length === 0) {
         throw new Error("Selecione ao menos um campo");
       }
-
-      const { error } = await supabase.from("instagram_formularios").insert({
+      const {
+        error
+      } = await supabase.from("instagram_formularios").insert({
         user_id: user.id,
         nome: data.nome,
         titulo_pagina: data.titulo_pagina,
@@ -169,104 +170,114 @@ export function InstagramFormulariosTab() {
         campos: todosCampos,
         ativo: true,
         botao_sucesso_texto: data.botao_sucesso_texto || null,
-        botao_sucesso_url: data.botao_sucesso_url || null,
+        botao_sucesso_url: data.botao_sucesso_url || null
       });
-
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
+      queryClient.invalidateQueries({
+        queryKey: ["instagram-formularios"]
+      });
       toast.success("Formulário criado com sucesso!");
       closeDialog();
     },
-    onError: (error) => {
+    onError: error => {
       console.error("Erro ao criar formulário:", error);
       toast.error("Erro ao criar formulário");
-    },
+    }
   });
-
   const updateFormulario = useMutation({
-    mutationFn: async (data: FormData & { id: string }) => {
-      const todosCampos = [
-        ...selectedCampos,
-        ...camposPersonalizados.map(c => JSON.stringify(c))
-      ];
-
-      const { error } = await supabase
-        .from("instagram_formularios")
-        .update({
-          nome: data.nome,
-          titulo_pagina: data.titulo_pagina,
-          subtitulo_pagina: data.subtitulo_pagina || null,
-          texto_botao: data.texto_botao,
-          mensagem_sucesso: data.mensagem_sucesso,
-          cor_primaria: data.cor_primaria || "#00D4FF",
-          imagem_url: data.imagem_url || null,
-          campos: todosCampos,
-          botao_sucesso_texto: data.botao_sucesso_texto || null,
-          botao_sucesso_url: data.botao_sucesso_url || null,
-        })
-        .eq("id", data.id);
-
+    mutationFn: async (data: FormData & {
+      id: string;
+    }) => {
+      const todosCampos = [...selectedCampos, ...camposPersonalizados.map(c => JSON.stringify(c))];
+      const {
+        error
+      } = await supabase.from("instagram_formularios").update({
+        nome: data.nome,
+        titulo_pagina: data.titulo_pagina,
+        subtitulo_pagina: data.subtitulo_pagina || null,
+        texto_botao: data.texto_botao,
+        mensagem_sucesso: data.mensagem_sucesso,
+        cor_primaria: data.cor_primaria || "#00D4FF",
+        imagem_url: data.imagem_url || null,
+        campos: todosCampos,
+        botao_sucesso_texto: data.botao_sucesso_texto || null,
+        botao_sucesso_url: data.botao_sucesso_url || null
+      }).eq("id", data.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
+      queryClient.invalidateQueries({
+        queryKey: ["instagram-formularios"]
+      });
       toast.success("Formulário atualizado com sucesso!");
       closeDialog();
     },
-    onError: (error) => {
+    onError: error => {
       console.error("Erro ao atualizar formulário:", error);
       toast.error("Erro ao atualizar formulário");
-    },
+    }
   });
-
   const toggleFormulario = useMutation({
-    mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
-      const { error } = await supabase
-        .from("instagram_formularios")
-        .update({ ativo })
-        .eq("id", id);
+    mutationFn: async ({
+      id,
+      ativo
+    }: {
+      id: string;
+      ativo: boolean;
+    }) => {
+      const {
+        error
+      } = await supabase.from("instagram_formularios").update({
+        ativo
+      }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
-    },
+      queryClient.invalidateQueries({
+        queryKey: ["instagram-formularios"]
+      });
+    }
   });
-
   const deleteFormulario = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("instagram_formularios").delete().eq("id", id);
+      const {
+        error
+      } = await supabase.from("instagram_formularios").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
+      queryClient.invalidateQueries({
+        queryKey: ["instagram-formularios"]
+      });
       toast.success("Formulário excluído");
-    },
+    }
   });
-
   const deleteResposta = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("instagram_formularios_respostas").delete().eq("id", id);
+      const {
+        error
+      } = await supabase.from("instagram_formularios_respostas").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["instagram-formularios-respostas", selectedFormId] });
+      queryClient.invalidateQueries({
+        queryKey: ["instagram-formularios-respostas", selectedFormId]
+      });
       toast.success("Resposta excluída");
     },
     onError: () => {
       toast.error("Erro ao excluir resposta");
-    },
+    }
   });
-
   const openEditDialog = (formulario: Formulario) => {
     setEditingFormulario(formulario);
-    
+
     // Parse campos - separar padrão de personalizados
     const camposPadraoIds: string[] = [];
     const camposCustom: CampoPersonalizado[] = [];
-    
-    formulario.campos.forEach((c) => {
+    formulario.campos.forEach(c => {
       if (typeof c === "string") {
         // Tentar parse como JSON
         try {
@@ -283,10 +294,8 @@ export function InstagramFormulariosTab() {
         camposCustom.push(c);
       }
     });
-    
     setSelectedCampos(camposPadraoIds);
     setCamposPersonalizados(camposCustom);
-    
     form.reset({
       nome: formulario.nome,
       titulo_pagina: formulario.titulo_pagina,
@@ -296,12 +305,10 @@ export function InstagramFormulariosTab() {
       cor_primaria: formulario.cor_primaria,
       imagem_url: formulario.imagem_url || "",
       botao_sucesso_texto: formulario.botao_sucesso_texto || "",
-      botao_sucesso_url: formulario.botao_sucesso_url || "",
+      botao_sucesso_url: formulario.botao_sucesso_url || ""
     });
-    
     setDialogOpen(true);
   };
-
   const closeDialog = () => {
     setDialogOpen(false);
     setEditingFormulario(null);
@@ -313,34 +320,29 @@ export function InstagramFormulariosTab() {
     setNovasOpcoes(["", ""]);
     setSimNaoOpcoes(["Sim", "Não"]);
   };
-
   const handleFormSubmit = (data: FormData) => {
     if (editingFormulario) {
-      updateFormulario.mutate({ ...data, id: editingFormulario.id });
+      updateFormulario.mutate({
+        ...data,
+        id: editingFormulario.id
+      });
     } else {
       createFormulario.mutate(data);
     }
   };
-
   const getFormUrl = (formId: string) => {
     return `${window.location.origin}/f/${formId}`;
   };
-
   const copyFormUrl = (formId: string) => {
     navigator.clipboard.writeText(getFormUrl(formId));
     toast.success("Link copiado!");
   };
-
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
+    return <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Formulários de Captura</h2>
@@ -349,12 +351,14 @@ export function InstagramFormulariosTab() {
           </p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-          if (!open) closeDialog();
-          else setDialogOpen(true);
-        }}>
+        <Dialog open={dialogOpen} onOpenChange={open => {
+        if (!open) closeDialog();else setDialogOpen(true);
+      }}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditingFormulario(null); setDialogOpen(true); }}>
+            <Button onClick={() => {
+            setEditingFormulario(null);
+            setDialogOpen(true);
+          }}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Formulário
             </Button>
@@ -366,11 +370,9 @@ export function InstagramFormulariosTab() {
             <div className="flex-1 overflow-y-auto pr-2">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="nome"
-                  render={({ field }) => (
-                    <FormItem>
+                <FormField control={form.control} name="nome" render={({
+                  field
+                }) => <FormItem>
                       <FormLabel>Nome do Formulário</FormLabel>
                       <FormControl>
                         <Input placeholder="Ex: Captura E-book" {...field} />
@@ -379,58 +381,42 @@ export function InstagramFormulariosTab() {
                         Apenas para organização interna
                       </FormDescription>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    </FormItem>} />
 
-                <FormField
-                  control={form.control}
-                  name="titulo_pagina"
-                  render={({ field }) => (
-                    <FormItem>
+                <FormField control={form.control} name="titulo_pagina" render={({
+                  field
+                }) => <FormItem>
                       <FormLabel>Título da Página</FormLabel>
                       <FormControl>
                         <Input placeholder="Preencha seus dados" {...field} />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    </FormItem>} />
 
-                <FormField
-                  control={form.control}
-                  name="subtitulo_pagina"
-                  render={({ field }) => (
-                    <FormItem>
+                <FormField control={form.control} name="subtitulo_pagina" render={({
+                  field
+                }) => <FormItem>
                       <FormLabel>Subtítulo (opcional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Receba seu material exclusivo" {...field} />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    </FormItem>} />
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="texto_botao"
-                    render={({ field }) => (
-                      <FormItem>
+                  <FormField control={form.control} name="texto_botao" render={({
+                    field
+                  }) => <FormItem>
                         <FormLabel>Texto do Botão</FormLabel>
                         <FormControl>
                           <Input placeholder="Enviar" {...field} />
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </FormItem>} />
 
-                  <FormField
-                    control={form.control}
-                    name="cor_primaria"
-                    render={({ field }) => (
-                      <FormItem>
+                  <FormField control={form.control} name="cor_primaria" render={({
+                    field
+                  }) => <FormItem>
                         <FormLabel>Cor do Botão</FormLabel>
                         <FormControl>
                           <div className="flex gap-2">
@@ -439,35 +425,23 @@ export function InstagramFormulariosTab() {
                           </div>
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </FormItem>} />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="mensagem_sucesso"
-                  render={({ field }) => (
-                    <FormItem>
+                <FormField control={form.control} name="mensagem_sucesso" render={({
+                  field
+                }) => <FormItem>
                       <FormLabel>Mensagem de Sucesso</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Obrigado! Seus dados foram enviados com sucesso." 
-                          rows={2}
-                          {...field} 
-                        />
+                        <Textarea placeholder="Obrigado! Seus dados foram enviados com sucesso." rows={2} {...field} />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    </FormItem>} />
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="botao_sucesso_texto"
-                    render={({ field }) => (
-                      <FormItem>
+                  <FormField control={form.control} name="botao_sucesso_texto" render={({
+                    field
+                  }) => <FormItem>
                         <FormLabel>Texto do Botão de Sucesso</FormLabel>
                         <FormControl>
                           <Input placeholder="Ex: Acessar Material" {...field} />
@@ -476,15 +450,11 @@ export function InstagramFormulariosTab() {
                           Opcional - botão exibido após envio
                         </FormDescription>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </FormItem>} />
 
-                  <FormField
-                    control={form.control}
-                    name="botao_sucesso_url"
-                    render={({ field }) => (
-                      <FormItem>
+                  <FormField control={form.control} name="botao_sucesso_url" render={({
+                    field
+                  }) => <FormItem>
                         <FormLabel>Link do Botão</FormLabel>
                         <FormControl>
                           <Input placeholder="https://..." {...field} />
@@ -493,9 +463,7 @@ export function InstagramFormulariosTab() {
                           URL para onde o botão redireciona
                         </FormDescription>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </FormItem>} />
                 </div>
 
                 <div className="space-y-3">
@@ -503,74 +471,46 @@ export function InstagramFormulariosTab() {
                   
                   {/* Campos padrão */}
                   <div className="flex flex-wrap gap-4 p-3 border rounded-lg">
-                    {camposPadrao.map((campo) => (
-                      <div key={campo.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={campo.id}
-                          checked={selectedCampos.includes(campo.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedCampos([...selectedCampos, campo.id]);
-                            } else {
-                              setSelectedCampos(selectedCampos.filter(c => c !== campo.id));
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={campo.id}
-                          className="text-sm font-medium leading-none"
-                        >
+                    {camposPadrao.map(campo => <div key={campo.id} className="flex items-center space-x-2">
+                        <Checkbox id={campo.id} checked={selectedCampos.includes(campo.id)} onCheckedChange={checked => {
+                        if (checked) {
+                          setSelectedCampos([...selectedCampos, campo.id]);
+                        } else {
+                          setSelectedCampos(selectedCampos.filter(c => c !== campo.id));
+                        }
+                      }} />
+                        <label htmlFor={campo.id} className="text-sm font-medium leading-none">
                           {campo.label}
                         </label>
-                      </div>
-                    ))}
+                      </div>)}
                   </div>
 
                   {/* Campos personalizados */}
-                  {camposPersonalizados.length > 0 && (
-                    <div className="space-y-2">
+                  {camposPersonalizados.length > 0 && <div className="space-y-2">
                       <p className="text-sm font-medium">Perguntas adicionais:</p>
-                      {camposPersonalizados.map((campo, index) => (
-                        <div key={campo.id} className="flex items-center gap-2 p-2 border rounded-lg bg-muted/50">
+                      {camposPersonalizados.map((campo, index) => <div key={campo.id} className="flex items-center gap-2 p-2 border rounded-lg bg-muted/50">
                           <div className="flex-1">
                             <span className="text-sm">{campo.label}</span>
-                            {(campo.tipo === "multipla_escolha" || campo.tipo === "sim_nao") && campo.opcoes && (
-                              <p className="text-xs text-muted-foreground">
+                            {(campo.tipo === "multipla_escolha" || campo.tipo === "sim_nao") && campo.opcoes && <p className="text-xs text-muted-foreground">
                                 Opções: {campo.opcoes.join(", ")}
-                              </p>
-                            )}
+                              </p>}
                           </div>
                           <Badge variant="secondary" className="text-xs">
-                            {campo.tipo === "textarea" ? "Texto longo" : 
-                             campo.tipo === "multipla_escolha" ? "Múltipla escolha" : 
-                             campo.tipo === "sim_nao" ? "Sim/Não" : "Texto curto"}
+                            {campo.tipo === "textarea" ? "Texto longo" : campo.tipo === "multipla_escolha" ? "Múltipla escolha" : campo.tipo === "sim_nao" ? "Sim/Não" : "Texto curto"}
                           </Badge>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setCamposPersonalizados(camposPersonalizados.filter((_, i) => i !== index));
-                            }}
-                          >
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                        setCamposPersonalizados(camposPersonalizados.filter((_, i) => i !== index));
+                      }}>
                             <X className="h-3 w-3" />
                           </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        </div>)}
+                    </div>}
 
                   {/* Adicionar nova pergunta */}
                   <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
                     <p className="text-sm font-medium">Adicionar pergunta personalizada</p>
                     <div className="flex gap-2">
-                      <Input
-                        placeholder="Ex: Qual seu interesse?"
-                        value={novoCampoLabel}
-                        onChange={(e) => setNovoCampoLabel(e.target.value)}
-                        className="flex-1"
-                      />
+                      <Input placeholder="Ex: Qual seu interesse?" value={novoCampoLabel} onChange={e => setNovoCampoLabel(e.target.value)} className="flex-1" />
                       <Select value={novoCampoTipo} onValueChange={(v: "text" | "textarea" | "multipla_escolha" | "sim_nao") => {
                         setNovoCampoTipo(v);
                         if (v === "multipla_escolha") {
@@ -593,115 +533,68 @@ export function InstagramFormulariosTab() {
                     </div>
                     
                     {/* Opções para múltipla escolha */}
-                    {novoCampoTipo === "multipla_escolha" && (
-                      <div className="space-y-2 pl-2 border-l-2 border-muted">
+                    {novoCampoTipo === "multipla_escolha" && <div className="space-y-2 pl-2 border-l-2 border-muted">
                         <p className="text-xs text-muted-foreground">Adicione as opções de resposta:</p>
-                        {novasOpcoes.map((opcao, idx) => (
-                          <div key={idx} className="flex gap-2">
-                            <Input
-                              placeholder={`Opção ${idx + 1}`}
-                              value={opcao}
-                              onChange={(e) => {
-                                const updated = [...novasOpcoes];
-                                updated[idx] = e.target.value;
-                                setNovasOpcoes(updated);
-                              }}
-                              className="flex-1 h-8 text-sm"
-                            />
-                            {novasOpcoes.length > 2 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setNovasOpcoes(novasOpcoes.filter((_, i) => i !== idx));
-                                }}
-                              >
+                        {novasOpcoes.map((opcao, idx) => <div key={idx} className="flex gap-2">
+                            <Input placeholder={`Opção ${idx + 1}`} value={opcao} onChange={e => {
+                          const updated = [...novasOpcoes];
+                          updated[idx] = e.target.value;
+                          setNovasOpcoes(updated);
+                        }} className="flex-1 h-8 text-sm" />
+                            {novasOpcoes.length > 2 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                          setNovasOpcoes(novasOpcoes.filter((_, i) => i !== idx));
+                        }}>
                                 <X className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                        {novasOpcoes.length < 6 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => setNovasOpcoes([...novasOpcoes, ""])}
-                          >
+                              </Button>}
+                          </div>)}
+                        {novasOpcoes.length < 6 && <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setNovasOpcoes([...novasOpcoes, ""])}>
                             <Plus className="h-3 w-3 mr-1" />
                             Adicionar opção
-                          </Button>
-                        )}
-                      </div>
-                    )}
+                          </Button>}
+                      </div>}
 
                     {/* Opções para sim/não personalizadas */}
-                    {novoCampoTipo === "sim_nao" && (
-                      <div className="space-y-2 pl-2 border-l-2 border-muted">
+                    {novoCampoTipo === "sim_nao" && <div className="space-y-2 pl-2 border-l-2 border-muted">
                         <p className="text-xs text-muted-foreground">Personalize as opções (opcional):</p>
                         <div className="flex gap-2">
-                          <Input
-                            placeholder="Sim"
-                            value={simNaoOpcoes[0]}
-                            onChange={(e) => setSimNaoOpcoes([e.target.value, simNaoOpcoes[1]])}
-                            className="flex-1 h-8 text-sm"
-                          />
-                          <Input
-                            placeholder="Não"
-                            value={simNaoOpcoes[1]}
-                            onChange={(e) => setSimNaoOpcoes([simNaoOpcoes[0], e.target.value])}
-                            className="flex-1 h-8 text-sm"
-                          />
+                          <Input placeholder="Sim" value={simNaoOpcoes[0]} onChange={e => setSimNaoOpcoes([e.target.value, simNaoOpcoes[1]])} className="flex-1 h-8 text-sm" />
+                          <Input placeholder="Não" value={simNaoOpcoes[1]} onChange={e => setSimNaoOpcoes([simNaoOpcoes[0], e.target.value])} className="flex-1 h-8 text-sm" />
                         </div>
-                      </div>
-                    )}
+                      </div>}
                     
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => {
-                          if (!novoCampoLabel.trim()) {
-                            toast.error("Digite o texto da pergunta");
-                            return;
-                          }
-
-                          if (novoCampoTipo === "multipla_escolha") {
-                            const opcoesValidas = novasOpcoes.map(o => o.trim()).filter(Boolean);
-                            if (opcoesValidas.length < 2) {
-                              toast.error("Adicione pelo menos 2 opções");
-                              return;
-                            }
-                          }
-
-                          const novoId = `custom_${Date.now()}`;
-                          const novoCampo: CampoPersonalizado = {
-                            id: novoId,
-                            label: novoCampoLabel.trim(),
-                            tipo: novoCampoTipo as CampoPersonalizado["tipo"],
-                            obrigatorio: true,
-                          };
-
-                          if (novoCampoTipo === "multipla_escolha") {
-                            novoCampo.opcoes = novasOpcoes.map(o => o.trim()).filter(Boolean);
-                          }
-
-                          if (novoCampoTipo === "sim_nao") {
-                            const op1 = simNaoOpcoes[0].trim() || "Sim";
-                            const op2 = simNaoOpcoes[1].trim() || "Não";
-                            novoCampo.opcoes = [op1, op2];
-                          }
-
-                          setCamposPersonalizados((prev) => [...prev, novoCampo]);
-                          setNovoCampoLabel("");
-                          setNovoCampoTipo("text");
-                          setNovasOpcoes(["", ""]);
-                          setSimNaoOpcoes(["Sim", "Não"]);
-                        }}
-                      >
+                      <Button type="button" variant="outline" className="w-full" onClick={() => {
+                      if (!novoCampoLabel.trim()) {
+                        toast.error("Digite o texto da pergunta");
+                        return;
+                      }
+                      if (novoCampoTipo === "multipla_escolha") {
+                        const opcoesValidas = novasOpcoes.map(o => o.trim()).filter(Boolean);
+                        if (opcoesValidas.length < 2) {
+                          toast.error("Adicione pelo menos 2 opções");
+                          return;
+                        }
+                      }
+                      const novoId = `custom_${Date.now()}`;
+                      const novoCampo: CampoPersonalizado = {
+                        id: novoId,
+                        label: novoCampoLabel.trim(),
+                        tipo: novoCampoTipo as CampoPersonalizado["tipo"],
+                        obrigatorio: true
+                      };
+                      if (novoCampoTipo === "multipla_escolha") {
+                        novoCampo.opcoes = novasOpcoes.map(o => o.trim()).filter(Boolean);
+                      }
+                      if (novoCampoTipo === "sim_nao") {
+                        const op1 = simNaoOpcoes[0].trim() || "Sim";
+                        const op2 = simNaoOpcoes[1].trim() || "Não";
+                        novoCampo.opcoes = [op1, op2];
+                      }
+                      setCamposPersonalizados(prev => [...prev, novoCampo]);
+                      setNovoCampoLabel("");
+                      setNovoCampoTipo("text");
+                      setNovasOpcoes(["", ""]);
+                      setSimNaoOpcoes(["Sim", "Não"]);
+                    }}>
                         <Plus className="h-4 w-4 mr-1" />
                         Adicionar pergunta
                       </Button>
@@ -712,11 +605,9 @@ export function InstagramFormulariosTab() {
                   </p>
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="imagem_url"
-                  render={({ field }) => (
-                    <FormItem>
+                <FormField control={form.control} name="imagem_url" render={({
+                  field
+                }) => <FormItem>
                       <FormLabel>URL da Imagem (opcional)</FormLabel>
                       <FormControl>
                         <Input placeholder="https://..." {...field} />
@@ -725,9 +616,7 @@ export function InstagramFormulariosTab() {
                         Imagem exibida no topo do formulário
                       </FormDescription>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    </FormItem>} />
 
                 <div className="flex gap-2 justify-end pt-4">
                   <Button type="button" variant="outline" onClick={closeDialog}>
@@ -745,8 +634,7 @@ export function InstagramFormulariosTab() {
         </Dialog>
       </div>
 
-      {formularios?.length === 0 ? (
-        <Card>
+      {formularios?.length === 0 ? <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium">Nenhum formulário criado</h3>
@@ -754,9 +642,7 @@ export function InstagramFormulariosTab() {
               Crie seu primeiro formulário para capturar leads
             </p>
           </CardContent>
-        </Card>
-      ) : (
-        <Tabs defaultValue="formularios">
+        </Card> : <Tabs defaultValue="formularios">
           <TabsList>
             <TabsTrigger value="formularios">Formulários</TabsTrigger>
             <TabsTrigger value="respostas" disabled={!selectedFormId}>
@@ -767,14 +653,7 @@ export function InstagramFormulariosTab() {
 
           <TabsContent value="formularios" className="mt-4">
             <div className="grid gap-4">
-              {formularios?.map((formulario) => (
-                <Card 
-                  key={formulario.id} 
-                  className={`cursor-pointer transition-colors ${
-                    selectedFormId === formulario.id ? "ring-2 ring-primary" : ""
-                  } ${!formulario.ativo ? "opacity-60" : ""}`}
-                  onClick={() => setSelectedFormId(formulario.id)}
-                >
+              {formularios?.map(formulario => <Card key={formulario.id} className={`cursor-pointer transition-colors ${selectedFormId === formulario.id ? "ring-2 ring-primary" : ""} ${!formulario.ativo ? "opacity-60" : ""}`} onClick={() => setSelectedFormId(formulario.id)}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -783,42 +662,21 @@ export function InstagramFormulariosTab() {
                           {formulario.campos.length} campos
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(formulario)}
-                          title="Editar"
-                        >
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(formulario)} title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => copyFormUrl(formulario.id)}
-                          title="Copiar link"
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => copyFormUrl(formulario.id)} title="Copiar link">
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => window.open(getFormUrl(formulario.id), "_blank")}
-                          title="Visualizar"
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => window.open(getFormUrl(formulario.id), "_blank")} title="Visualizar">
                           <ExternalLink className="h-4 w-4" />
                         </Button>
-                        <Switch
-                          checked={formulario.ativo}
-                          onCheckedChange={(ativo) =>
-                            toggleFormulario.mutate({ id: formulario.id, ativo })
-                          }
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteFormulario.mutate(formulario.id)}
-                        >
+                        <Switch checked={formulario.ativo} onCheckedChange={ativo => toggleFormulario.mutate({
+                    id: formulario.id,
+                    ativo
+                  })} />
+                        <Button variant="ghost" size="icon" onClick={() => deleteFormulario.mutate(formulario.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -828,20 +686,17 @@ export function InstagramFormulariosTab() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span>Título: {formulario.titulo_pagina}</span>
                       <span>•</span>
-                      <span
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: formulario.cor_primaria }}
-                      />
+                      <span className="w-4 h-4 rounded-full" style={{
+                  backgroundColor: formulario.cor_primaria
+                }} />
                     </div>
                   </CardContent>
-                </Card>
-              ))}
+                </Card>)}
             </div>
           </TabsContent>
 
           <TabsContent value="respostas" className="mt-4">
-            {selectedFormId ? (
-              <div className="space-y-4">
+            {selectedFormId ? <div className="space-y-4">
                 {/* Header com título do formulário */}
                 <Card>
                   <CardHeader className="pb-3">
@@ -862,12 +717,9 @@ export function InstagramFormulariosTab() {
                   </CardHeader>
                 </Card>
 
-                {loadingRespostas ? (
-                  <div className="flex justify-center py-8">
+                {loadingRespostas ? <div className="flex justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
-                ) : respostas?.length === 0 ? (
-                  <Card>
+                  </div> : respostas?.length === 0 ? <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                       <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
                       <p className="text-muted-foreground">Nenhuma resposta ainda</p>
@@ -875,91 +727,75 @@ export function InstagramFormulariosTab() {
                         As respostas aparecerão aqui quando alguém preencher o formulário
                       </p>
                     </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid gap-3">
-                    {respostas?.map((resposta) => {
-                      const phoneFormatted = resposta.telefone ? formatPhoneDisplay(resposta.telefone) : null;
-                      const { countryCode } = resposta.telefone ? extractCountryCode(resposta.telefone) : { countryCode: "55" };
-                      const countryFlag = countries.find(c => c.dialCode === countryCode)?.flag || "🇧🇷";
-                      
-                      return (
-                        <Card key={resposta.id} className="group border-l-4 hover:shadow-lg transition-all duration-200" style={{ borderLeftColor: formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF' }}>
+                  </Card> : <div className="grid gap-3">
+                    {respostas?.map(resposta => {
+              const phoneFormatted = resposta.telefone ? formatPhoneDisplay(resposta.telefone) : null;
+              const {
+                countryCode
+              } = resposta.telefone ? extractCountryCode(resposta.telefone) : {
+                countryCode: "55"
+              };
+              const countryFlag = countries.find(c => c.dialCode === countryCode)?.flag || "🇧🇷";
+              return <Card key={resposta.id} className="group border-l-4 hover:shadow-lg transition-all duration-200" style={{
+                borderLeftColor: formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF'
+              }}>
                           <CardContent className="p-5">
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1 space-y-3">
                                 {/* Nome com avatar */}
-                                {resposta.nome && (
-                                  <div className="flex items-center gap-3">
-                                    <div 
-                                      className="h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-                                      style={{ backgroundColor: formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF' }}
-                                    >
+                                {resposta.nome && <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{
+                          backgroundColor: formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF'
+                        }}>
                                       {resposta.nome.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
                                       <span className="font-semibold text-base">{resposta.nome}</span>
                                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <Calendar className="h-3 w-3" />
-                                        {format(new Date(resposta.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                        {format(new Date(resposta.created_at), "dd/MM/yyyy 'às' HH:mm", {
+                              locale: ptBR
+                            })}
                                       </div>
                                     </div>
-                                  </div>
-                                )}
+                                  </div>}
                                 
                                 <div className="flex flex-wrap gap-4 text-sm pl-[52px]">
                                   {/* Telefone */}
-                                  {resposta.telefone && (
-                                    <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
+                                  {resposta.telefone && <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
                                       <span className="text-base">{countryFlag}</span>
                                       <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                                       <span className="font-medium">{phoneFormatted}</span>
-                                    </div>
-                                  )}
+                                    </div>}
                                   
                                   {/* Email */}
-                                  {resposta.email && (
-                                    <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
+                                  {resposta.email && <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
                                       <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                                       <span>{resposta.email}</span>
-                                    </div>
-                                  )}
+                                    </div>}
                                 </div>
                                 
                                 {/* Dados extras */}
-                                {resposta.dados_extras && Object.keys(resposta.dados_extras).length > 0 && (
-                                  <div className="pt-3 mt-3 border-t border-dashed space-y-2 pl-[52px]">
-                                    {Object.entries(resposta.dados_extras).map(([key, value]) => (
-                                      <div key={key} className="flex items-start gap-2 text-sm">
-                                        <Badge variant="secondary" className="text-xs font-normal shrink-0">
+                                {resposta.dados_extras && Object.keys(resposta.dados_extras).length > 0 && <div className="pt-3 mt-3 border-t border-dashed space-y-2 pl-[52px]">
+                                    {Object.entries(resposta.dados_extras).map(([key, value]) => <div key={key} className="flex items-start gap-2 text-sm">
+                                        <Badge variant="secondary" className="text-xs font-normal shrink-0 rounded">
                                           {key}
                                         </Badge>
                                         <span className="text-muted-foreground">{value}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                                      </div>)}
+                                  </div>}
                               </div>
                               
                               {/* Botão de excluir */}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => deleteResposta.mutate(resposta.id)}
-                              >
+                              <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => deleteResposta.mutate(resposta.id)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Card>
+                        </Card>;
+            })}
+                  </div>}
+              </div> : <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                   <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground">Selecione um formulário</p>
@@ -967,11 +803,8 @@ export function InstagramFormulariosTab() {
                     Clique em um formulário na aba "Formulários" para ver suas respostas
                   </p>
                 </CardContent>
-              </Card>
-            )}
+              </Card>}
           </TabsContent>
-        </Tabs>
-      )}
-    </div>
-  );
+        </Tabs>}
+    </div>;
 }
