@@ -708,13 +708,13 @@ export function FunilConversaoTab() {
 
       {/* Cards de resumo do funil */}
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Leads</CardTitle>
+        <Card className="text-center">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Leads</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.leads)}</div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-1">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger className="flex items-center gap-1">
@@ -742,13 +742,13 @@ export function FunilConversaoTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Agendados</CardTitle>
+        <Card className="text-center">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Agendados</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.agendados)}</div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-1">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger className="flex items-center gap-1">
@@ -776,27 +776,27 @@ export function FunilConversaoTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Comparecimento</CardTitle>
+        <Card className="text-center">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Comparecimento</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex-1">
-                <div className="text-lg font-bold text-green-600">{formatNumber(totals.compareceu)}</div>
-                <p className="text-xs text-muted-foreground">
+          <CardContent className="pt-0">
+            <div className="flex items-center justify-center gap-4 mb-2">
+              <div className="text-center">
+                <div className="text-xl font-bold text-green-600">{formatNumber(totals.compareceu)}</div>
+                <p className="text-[10px] text-muted-foreground">
                   {formatPercentage(totals.compareceu, totals.agendados)}
                 </p>
               </div>
               <div className="w-px h-8 bg-border" />
-              <div className="flex-1">
-                <div className="text-lg font-bold text-red-600">{formatNumber(totals.nao_compareceu)}</div>
-                <p className="text-xs text-muted-foreground">
+              <div className="text-center">
+                <div className="text-xl font-bold text-red-600">{formatNumber(totals.nao_compareceu)}</div>
+                <p className="text-[10px] text-muted-foreground">
                   {formatPercentage(totals.nao_compareceu, totals.agendados)}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground border-t pt-2">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground border-t pt-2">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger className="flex items-center gap-1">
@@ -824,13 +824,13 @@ export function FunilConversaoTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Em Negociação</CardTitle>
+        <Card className="text-center">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Em Negociação</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.em_negociacao)}</div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-1">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger className="flex items-center gap-1">
@@ -858,13 +858,13 @@ export function FunilConversaoTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Conversões</CardTitle>
+        <Card className="text-center">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Conversões</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.clientes)}</div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-1">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger className="flex items-center gap-1">
@@ -892,13 +892,13 @@ export function FunilConversaoTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Taxa Conversão</CardTitle>
+        <Card className="text-center">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Taxa Conversão</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="text-2xl font-bold text-emerald-600">{formatPercentage(totals.clientes, totals.leads)}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               Lead → Conversão
             </p>
           </CardContent>
