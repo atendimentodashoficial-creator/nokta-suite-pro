@@ -24,7 +24,8 @@ import {
   Target,
   Loader2,
   BarChart3,
-  Eye
+  Eye,
+  UserX
 } from "lucide-react";
 import {
   Select,
@@ -57,6 +58,7 @@ interface FunnelData {
   ad_id: string | null;
   leads: number;
   agendados: number;
+  nao_compareceu: number;
   em_negociacao: number;
   clientes: number;
   valor_fechado: number;
@@ -73,6 +75,7 @@ interface SelectedFunnelData {
   ad_name: string | null;
   leads: number;
   agendados: number;
+  nao_compareceu: number;
   em_negociacao: number;
   clientes: number;
   valor_fechado: number;
@@ -201,7 +204,7 @@ export function FunilConversaoTab() {
         return createdAt >= start && createdAt <= end;
       });
 
-      // Buscar TODOS os agendamentos do usuário
+      // Buscar TODOS os agendamentos do usuário com status
       const { data: agendamentos, error: agendamentosError } = await supabase
         .from("agendamentos")
         .select("cliente_id, status, created_at")
@@ -209,11 +212,17 @@ export function FunilConversaoTab() {
 
       if (agendamentosError) throw agendamentosError;
 
-      // Criar set de clientes com agendamento (por ID e por telefone normalizado)
+      // Criar set de clientes com agendamento e mapa de status
       const clientesComAgendamento = new Set<string>();
+      const clientesNaoCompareceram = new Set<string>();
+      
       agendamentos?.forEach(a => {
         if (a.cliente_id) {
           clientesComAgendamento.add(a.cliente_id);
+          // Status "cancelado" = não compareceu/desmarcou
+          if (a.status === "cancelado") {
+            clientesNaoCompareceram.add(a.cliente_id);
+          }
         }
       });
 
@@ -277,6 +286,7 @@ export function FunilConversaoTab() {
             ad_id: adId,
             leads: 0,
             agendados: 0,
+            nao_compareceu: 0,
             em_negociacao: 0,
             clientes: 0,
             valor_fechado: 0,
@@ -294,11 +304,18 @@ export function FunilConversaoTab() {
         // Verificar se QUALQUER lead com este telefone tem agendamento
         const allLeadIds = leadIdsByPhone[normalizedPhone] || [lead.id];
         const hasAgendamento = allLeadIds.some(id => clientesComAgendamento.has(id));
+        const naoCompareceu = allLeadIds.some(id => clientesNaoCompareceram.has(id));
         
         // Se está em negociação ou é cliente, obrigatoriamente passou pelo agendamento
         // Então conta como agendado mesmo se não tiver registro na tabela de agendamentos
         if (hasAgendamento || bestStatus === "follow_up" || bestStatus === "cliente") {
           grouped[key].agendados++;
+        }
+        
+        // Não compareceu = tinha agendamento mas cancelou/faltou
+        // Só conta se não evoluiu para negociação ou cliente
+        if (naoCompareceu && bestStatus !== "follow_up" && bestStatus !== "cliente") {
+          grouped[key].nao_compareceu++;
         }
         
         // Em negociação = já agendou mas ainda NÃO fechou (apenas follow_up)
@@ -393,18 +410,19 @@ export function FunilConversaoTab() {
 
   // Calcular totais
   const totals = useMemo(() => {
-    if (!funnelData) return { leads: 0, agendados: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: 0 };
+    if (!funnelData) return { leads: 0, agendados: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: 0 };
     
     const totalSpend = Object.values(spendByCampaign).reduce((a, b) => a + b, 0);
     
     return funnelData.reduce((acc, item) => ({
       leads: acc.leads + item.leads,
       agendados: acc.agendados + item.agendados,
+      nao_compareceu: acc.nao_compareceu + item.nao_compareceu,
       em_negociacao: acc.em_negociacao + item.em_negociacao,
       clientes: acc.clientes + item.clientes,
       valor_fechado: acc.valor_fechado + item.valor_fechado,
       spend: totalSpend,
-    }), { leads: 0, agendados: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: totalSpend });
+    }), { leads: 0, agendados: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: totalSpend });
   }, [funnelData, spendByCampaign]);
 
   const formatCurrency = (value: number) => {
@@ -536,7 +554,7 @@ export function FunilConversaoTab() {
       </Card>
 
       {/* Cards de resumo do funil */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Leads</CardTitle>
@@ -558,7 +576,20 @@ export function FunilConversaoTab() {
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.agendados)}</div>
             <p className="text-xs text-muted-foreground">
-              {formatPercentage(totals.agendados, totals.leads)} dos leads • CPA: {totals.agendados > 0 ? formatCurrency(totals.spend / totals.agendados) : "—"}
+              {formatPercentage(totals.agendados, totals.leads)} • CPA: {totals.agendados > 0 ? formatCurrency(totals.spend / totals.agendados) : "—"}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Não Compareceu</CardTitle>
+            <UserX className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatNumber(totals.nao_compareceu)}</div>
+            <p className="text-xs text-muted-foreground">
+              {formatPercentage(totals.nao_compareceu, totals.agendados)} dos agendados
             </p>
           </CardContent>
         </Card>
@@ -571,7 +602,7 @@ export function FunilConversaoTab() {
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.em_negociacao)}</div>
             <p className="text-xs text-muted-foreground">
-              {formatPercentage(totals.em_negociacao, totals.leads)} dos leads
+              {formatPercentage(totals.em_negociacao, totals.agendados)} dos agendados
             </p>
           </CardContent>
         </Card>
@@ -584,7 +615,7 @@ export function FunilConversaoTab() {
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.clientes)}</div>
             <p className="text-xs text-muted-foreground">
-              {formatPercentage(totals.clientes, totals.leads)} dos leads • CAC: {totals.clientes > 0 ? formatCurrency(totals.spend / totals.clientes) : "—"}
+              {formatPercentage(totals.clientes, totals.leads)} • CAC: {totals.clientes > 0 ? formatCurrency(totals.spend / totals.clientes) : "—"}
             </p>
           </CardContent>
         </Card>
@@ -640,6 +671,7 @@ export function FunilConversaoTab() {
                     <TableHead className="text-center">CPL</TableHead>
                     <TableHead className="text-center">Agendados</TableHead>
                     <TableHead className="text-center">CPA Agend.</TableHead>
+                    <TableHead className="text-center">Faltou</TableHead>
                     <TableHead className="text-center">Em Negoc.</TableHead>
                     <TableHead className="text-center">Clientes</TableHead>
                     <TableHead className="text-center">CAC</TableHead>
@@ -663,6 +695,7 @@ export function FunilConversaoTab() {
                         ad_name: row.ad_name,
                         leads: row.leads,
                         agendados: row.agendados,
+                        nao_compareceu: row.nao_compareceu,
                         em_negociacao: row.em_negociacao,
                         clientes: row.clientes,
                         valor_fechado: row.valor_fechado,
@@ -708,6 +741,11 @@ export function FunilConversaoTab() {
                         </TableCell>
                         <TableCell className="text-center text-sm">
                           {cpaAgendado > 0 ? formatCurrency(cpaAgendado) : "—"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30">
+                            {row.nao_compareceu}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
@@ -762,6 +800,7 @@ export function FunilConversaoTab() {
                     <TableCell className="text-center">
                       {totals.agendados > 0 ? formatCurrency(totals.spend / totals.agendados) : "—"}
                     </TableCell>
+                    <TableCell className="text-center">{totals.nao_compareceu}</TableCell>
                     <TableCell className="text-center">{totals.em_negociacao}</TableCell>
                     <TableCell className="text-center">{totals.clientes}</TableCell>
                     <TableCell className="text-center">

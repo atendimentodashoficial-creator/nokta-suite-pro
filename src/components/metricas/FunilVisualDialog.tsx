@@ -7,7 +7,8 @@ import {
   DollarSign,
   TrendingUp,
   TrendingDown,
-  ArrowDown
+  ArrowDown,
+  UserX
 } from "lucide-react";
 
 interface FunnelData {
@@ -16,6 +17,7 @@ interface FunnelData {
   ad_name: string | null;
   leads: number;
   agendados: number;
+  nao_compareceu: number;
   em_negociacao: number;
   clientes: number;
   valor_fechado: number;
@@ -61,9 +63,21 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       bgColor: "bg-blue-500",
       textColor: "text-blue-600",
       bgLight: "bg-blue-100 dark:bg-blue-900/50",
-      width: 85,
+      width: 88,
       metric: data.spend > 0 && data.agendados > 0 ? `CPA: ${formatCurrency(data.spend / data.agendados)}` : null,
       conversionRate: data.leads > 0 ? formatPercentage(data.agendados, data.leads) : null,
+    },
+    {
+      name: "Não Compareceu",
+      value: data.nao_compareceu,
+      icon: UserX,
+      bgColor: "bg-red-500",
+      textColor: "text-red-600",
+      bgLight: "bg-red-100 dark:bg-red-900/50",
+      width: 76,
+      metric: null,
+      conversionRate: data.agendados > 0 ? formatPercentage(data.nao_compareceu, data.agendados) : null,
+      isNegative: true,
     },
     {
       name: "Em Negociação",
@@ -72,7 +86,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       bgColor: "bg-yellow-500",
       textColor: "text-yellow-600",
       bgLight: "bg-yellow-100 dark:bg-yellow-900/50",
-      width: 70,
+      width: 64,
       metric: null,
       conversionRate: data.agendados > 0 ? formatPercentage(data.em_negociacao, data.agendados) : null,
     },
@@ -83,7 +97,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       bgColor: "bg-green-500",
       textColor: "text-green-600",
       bgLight: "bg-green-100 dark:bg-green-900/50",
-      width: 55,
+      width: 52,
       metric: data.spend > 0 && data.clientes > 0 ? `CAC: ${formatCurrency(data.spend / data.clientes)}` : null,
       conversionRate: data.leads > 0 ? formatPercentage(data.clientes, data.leads) : null,
     },
