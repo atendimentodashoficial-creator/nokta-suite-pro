@@ -5,7 +5,8 @@ import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone } from "lucid
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 type PixelStatus = "pendente" | "formulario_enviado" | "dados_completos" | "evento_enviado";
 
@@ -29,8 +30,24 @@ export function PixelStatusBadge({
   const [sendingForm, setSendingForm] = useState(false);
   const [sendingEvent, setSendingEvent] = useState(false);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   const status = pixelStatus || "pendente";
+
+  // Fetch the custom message from meta_pixel_config
+  const { data: pixelConfig } = useQuery({
+    queryKey: ["meta-pixel-config", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from("meta_pixel_config")
+        .select("mensagem_formulario")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const sendFormMessage = async () => {
     setSendingForm(true);
@@ -38,28 +55,38 @@ export function PixelStatusBadge({
       // Get the form URL
       const formUrl = `${window.location.origin}/conversao/${faturaId}`;
       
-      // Send WhatsApp message
-      const message = `Olá! Para finalizar seu cadastro, precisamos de algumas informações adicionais. Por favor, preencha o formulário abaixo:\n\n${formUrl}`;
+      // Use custom message or default
+      const customMessage = pixelConfig?.mensagem_formulario || 
+        "Olá! Para finalizar seu cadastro, precisamos de algumas informações adicionais. Por favor, preencha o formulário abaixo:";
+      const message = `${customMessage}\n\n${formUrl}`;
       
       // Determine which config to use based on origem
       const isDisparos = clienteOrigem?.toLowerCase() === "disparos";
       
       const { data: session } = await supabase.auth.getSession();
+      if (!session.session) throw new Error("Não autenticado");
       
-      const response = await supabase.functions.invoke(
-        isDisparos ? "disparos-send-message" : "uazapi-send-message",
+      // Use fetch directly to get more details on error
+      const functionName = isDisparos ? "disparos-send-message" : "uazapi-send-message";
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`,
         {
-          body: {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({
             phone: clienteTelefone,
             message,
-          },
-          headers: {
-            Authorization: `Bearer ${session.session?.access_token}`,
-          },
+          }),
         }
       );
 
-      if (response.error) throw response.error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Erro ${response.status}`);
+      }
 
       // Update fatura status
       const { error: updateError } = await supabase
@@ -74,9 +101,9 @@ export function PixelStatusBadge({
 
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
       toast.success("Formulário enviado para o cliente!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending form:", error);
-      toast.error("Erro ao enviar formulário");
+      toast.error(error.message || "Erro ao enviar formulário");
     } finally {
       setSendingForm(false);
     }
