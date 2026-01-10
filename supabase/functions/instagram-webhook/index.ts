@@ -445,30 +445,102 @@ async function processComment(supabase: any, comment: any) {
       commentText.includes(kw.toLowerCase())
     );
 
-    if (triggered && gatilho.resposta_texto && comment.from?.id) {
+    if (triggered && comment.from?.id) {
       console.log('Comment trigger matched:', gatilho.nome);
       
-      // Send DM to commenter
-      await sendInstagramMessage(
-        config.page_access_token,
-        config.instagram_account_id,
-        comment.from.id,
-        gatilho.resposta_texto
-      );
+      // 1. Reply publicly to the comment if configured
+      if (gatilho.responder_comentario && gatilho.resposta_comentario_texto && comment.id) {
+        console.log('Replying to comment publicly:', comment.id);
+        
+        let replyText = gatilho.resposta_comentario_texto;
+        // Replace {nome} with username if available
+        if (comment.from?.username) {
+          replyText = replyText.replace(/{nome}/g, comment.from.username);
+        }
+        
+        await replyToComment(
+          config.page_access_token,
+          comment.id,
+          replyText
+        );
 
-      // Log response
-      await supabase.from('instagram_mensagens').insert({
-        user_id: config.user_id,
-        instagram_user_id: comment.from.id,
-        instagram_username: comment.from.username,
-        tipo: 'dm_enviada',
-        conteudo: gatilho.resposta_texto,
-        gatilho_id: gatilho.id,
-      });
+        // Log the public reply
+        await supabase.from('instagram_mensagens').insert({
+          user_id: config.user_id,
+          instagram_user_id: comment.from.id,
+          instagram_username: comment.from.username,
+          tipo: 'resposta_comentario',
+          conteudo: replyText,
+          post_id: comment.media?.id,
+          gatilho_id: gatilho.id,
+        });
+      }
+      
+      // 2. Send DM to commenter
+      if (gatilho.resposta_texto) {
+        await sendInstagramMessage(
+          config.page_access_token,
+          config.instagram_account_id,
+          comment.from.id,
+          gatilho.resposta_texto
+        );
+
+        // Log response
+        await supabase.from('instagram_mensagens').insert({
+          user_id: config.user_id,
+          instagram_user_id: comment.from.id,
+          instagram_username: comment.from.username,
+          tipo: 'dm_enviada',
+          conteudo: gatilho.resposta_texto,
+          gatilho_id: gatilho.id,
+        });
+      }
 
       break;
     }
   }
+}
+
+async function replyToComment(
+  accessToken: string,
+  commentId: string,
+  text: string,
+) {
+  const trimmed = (accessToken || "").trim();
+  const isInstagramGraphToken = trimmed.startsWith("IG");
+
+  // Use the comment ID to reply to the comment
+  const url = isInstagramGraphToken
+    ? `https://graph.instagram.com/v24.0/${commentId}/replies`
+    : `https://graph.facebook.com/v18.0/${commentId}/replies`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (isInstagramGraphToken) {
+    headers['Authorization'] = `Bearer ${trimmed}`;
+  }
+
+  const body = isInstagramGraphToken
+    ? { message: text }
+    : { message: text, access_token: trimmed };
+
+  console.log('Replying to comment:', { commentId, text, url });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  console.log('Reply to comment result:', { url, status: response.status, result });
+
+  if (!response.ok) {
+    console.error('Failed to reply to comment:', result);
+    // Don't throw - we still want to send the DM even if the comment reply fails
+    return null;
+  }
+
+  return result;
 }
 
 async function sendInstagramMessage(
