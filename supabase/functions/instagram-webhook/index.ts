@@ -194,6 +194,9 @@ async function processMessage(supabase: any, event: any) {
            if (followerInfo?.username) {
              followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
            }
+           if (gatilho.instagram_seguir) {
+             followMessage = followMessage.replace(/{instagram}/g, gatilho.instagram_seguir);
+           }
 
            const buttonText = gatilho.botao_liberar_texto || 'Já sigo! Liberar material';
            const releasePayload = `release_content_${gatilho.id}`;
@@ -301,10 +304,13 @@ async function processMessage(supabase: any, event: any) {
         if (!isFollower) {
           console.log('User is not confirmed follower (or follower check failed), sending follow request with button for trigger:', gatilho.nome);
 
-          // Replace {nome} with username if available and process spintax
+          // Replace {nome} with username if available, {instagram} with @ and process spintax
           let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
           if (followerInfo?.username) {
             followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
+          }
+          if (gatilho.instagram_seguir) {
+            followMessage = followMessage.replace(/{instagram}/g, gatilho.instagram_seguir);
           }
 
           // Get button text (default if not set)
@@ -819,6 +825,9 @@ async function processComment(supabase: any, comment: any) {
             let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
             if (comment.from?.username) {
               followMessage = followMessage.replace(/{nome}/g, comment.from.username);
+            }
+            if (gatilho.instagram_seguir) {
+              followMessage = followMessage.replace(/{instagram}/g, gatilho.instagram_seguir);
             }
 
             // Get button text (default if not set)
