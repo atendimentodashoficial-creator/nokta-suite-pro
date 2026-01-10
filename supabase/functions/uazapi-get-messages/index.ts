@@ -29,12 +29,16 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { chatid } = await req.json();
+    const body = await req.json();
+    const { chatid, limit = 50, offset = 0 } = body;
     if (!chatid) {
       throw new Error('chatid is required');
     }
 
-    console.log('Fetching messages for chat:', chatid);
+    const pageLimit = Math.min(Math.max(1, limit), 200); // max 200 per page
+    const pageOffset = Math.max(0, offset);
+
+    console.log(`Fetching messages for chat: ${chatid} (limit=${pageLimit}, offset=${pageOffset})`);
 
     // Get user's UAZapi configuration
     const { data: config, error: configError } = await supabase
@@ -259,20 +263,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If UAZapi returned no messages, fallback to database messages
+    // If UAZapi returned no messages, fallback to database messages with pagination
     if (finalMessages.length === 0) {
       console.log('No messages from UAZapi, falling back to database messages');
+      
+      // First get total count
+      const { count: totalCount } = await supabase
+        .from('whatsapp_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('chat_id', existingChat.id);
       
       const { data: dbOnlyMessages, error: dbOnlyError } = await supabase
         .from('whatsapp_messages')
         .select('*')
         .eq('chat_id', existingChat.id)
-        .order('timestamp', { ascending: true });
+        .order('timestamp', { ascending: false }) // newest first for pagination
+        .range(pageOffset, pageOffset + pageLimit - 1);
       
       if (dbOnlyError) {
         console.error('Error loading database messages:', dbOnlyError);
       } else if (dbOnlyMessages && dbOnlyMessages.length > 0) {
-        console.log(`Found ${dbOnlyMessages.length} messages in database`);
+        console.log(`Found ${dbOnlyMessages.length} messages in database (offset=${pageOffset})`);
         finalMessages = dbOnlyMessages.map((m: any) => ({
           message_id: m.message_id,
           sender_type: m.sender_type,
@@ -282,7 +293,6 @@ Deno.serve(async (req) => {
           timestamp: m.timestamp,
           status: m.status,
           deleted: m.deleted || false,
-          // Include UTM attribution data
           utm_source: m.utm_source,
           utm_campaign: m.utm_campaign,
           utm_medium: m.utm_medium,
@@ -290,12 +300,22 @@ Deno.serve(async (req) => {
           utm_term: m.utm_term,
           fbclid: m.fbclid,
           ad_thumbnail_url: m.ad_thumbnail_url,
-          // Include real Facebook campaign names
           fb_ad_id: m.fb_ad_id,
           fb_campaign_name: m.fb_campaign_name,
           fb_adset_name: m.fb_adset_name,
           fb_ad_name: m.fb_ad_name,
         }));
+        
+        // Reverse to get oldest first for display
+        finalMessages.reverse();
+        
+        // Calculate hasMore
+        const hasMore = (totalCount || 0) > pageOffset + dbOnlyMessages.length;
+        
+        return new Response(
+          JSON.stringify({ messages: finalMessages, hasMore, total: totalCount || 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
       }
     }
 
@@ -320,7 +340,7 @@ Deno.serve(async (req) => {
     );
 
     return new Response(
-      JSON.stringify({ messages: finalMessages }),
+      JSON.stringify({ messages: finalMessages, hasMore: false, total: finalMessages.length }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
 
