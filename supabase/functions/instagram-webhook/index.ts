@@ -31,6 +31,15 @@ function processSpintax(input: string): string {
   return result;
 }
 
+// Remove accents/diacritics from text for fuzzy matching
+function normalizeAccents(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 function normalizeBaseUrl(raw: string | null | undefined): string | null {
   const value = (raw ?? "").trim();
   if (!value) return null;
@@ -284,9 +293,9 @@ async function processMessage(supabase: any, event: any) {
     .eq('ativo_em_dm', true);
 
   for (const gatilho of gatilhos || []) {
-    const messageText = (message.text || '').toLowerCase().trim();
+    const messageText = normalizeAccents(message.text || '');
     const triggered = gatilho.palavras_chave.some((kw: string) => 
-      messageText === kw.toLowerCase().trim()
+      messageText === normalizeAccents(kw)
     );
 
     if (triggered) {
@@ -651,8 +660,8 @@ async function checkIceBreakerPayload(supabase: any, config: any, senderId: stri
 
       for (const gatilho of gatilhos || []) {
         const triggered = gatilho.palavras_chave.some((kw: string) => 
-          normalizedPayload === kw.toLowerCase().trim() || 
-          normalizedQuestion === kw.toLowerCase().trim()
+          normalizeAccents(normalizedPayload) === normalizeAccents(kw) || 
+          normalizeAccents(normalizedQuestion) === normalizeAccents(kw)
         );
 
         if (triggered && gatilho.resposta_texto) {
@@ -729,9 +738,9 @@ async function processComment(supabase: any, comment: any) {
     .eq('ativo_em_comentario', true);
 
   for (const gatilho of gatilhos || []) {
-    const commentText = (comment.text || '').toLowerCase().trim();
+    const commentText = normalizeAccents(comment.text || '');
     const triggered = gatilho.palavras_chave.some((kw: string) => 
-      commentText === kw.toLowerCase().trim()
+      commentText === normalizeAccents(kw)
     );
 
     if (triggered && comment.from?.id) {
