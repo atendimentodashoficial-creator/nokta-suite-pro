@@ -162,8 +162,10 @@ export default function Conexoes() {
     setSavingOpenAI(true);
     try {
       const { data: session } = await supabase.auth.getSession();
+      
+      // Use the "save" action which validates AND saves the key
       const response = await supabase.functions.invoke("save-openai-key", {
-        body: { action: "validate", api_key: newOpenAIKey.trim() },
+        body: { action: "save", api_key: newOpenAIKey.trim() },
         headers: {
           Authorization: `Bearer ${session.session?.access_token}`,
         },
@@ -173,7 +175,7 @@ export default function Conexoes() {
         throw new Error(response.error.message);
       }
 
-      if (!response.data?.valid) {
+      if (!response.data?.success) {
         setOpenAITestResult({ success: false, message: response.data?.error || "API Key inválida" });
         toast({
           title: "API Key inválida",
@@ -183,18 +185,21 @@ export default function Conexoes() {
         return;
       }
 
-      // Key is valid - inform user they need to configure it as a secret
-      setOpenAITestResult({ success: true, message: "API Key validada! Configure-a como secret OPENAI_API_KEY." });
+      // Key is valid and saved
+      setHasOpenAIKey(true);
+      setOpenAIKey("sk-••••••••••••••••••••••••••••••••");
+      setNewOpenAIKey("");
+      setOpenAITestResult({ success: true, message: response.data.message });
       toast({
-        title: "API Key válida!",
-        description: "A chave foi validada. Configure-a nas variáveis de ambiente do projeto.",
+        title: "API Key salva!",
+        description: "A chave foi validada e está ativa.",
       });
 
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erro ao validar API Key";
+      const errorMessage = error instanceof Error ? error.message : "Erro ao salvar API Key";
       setOpenAITestResult({ success: false, message: errorMessage });
       toast({
-        title: "Erro ao validar",
+        title: "Erro ao salvar",
         description: errorMessage,
         variant: "destructive",
       });
@@ -234,15 +239,28 @@ export default function Conexoes() {
   const removeOpenAIKey = async () => {
     setRemovingOpenAI(true);
     try {
-      // Clear local state - the actual secret removal needs to be done via project settings
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("save-openai-key", {
+        body: { action: "clear_info" },
+        headers: {
+          Authorization: `Bearer ${session.session?.access_token}`,
+        },
+      });
+
       setHasOpenAIKey(false);
       setOpenAIKey("");
       setNewOpenAIKey("");
       setOpenAITestResult(null);
       
       toast({
-        title: "Chave removida localmente",
-        description: "Para remover permanentemente, delete o secret OPENAI_API_KEY nas configurações do projeto Lovable.",
+        title: "Chave removida",
+        description: response.data?.message || "API Key removida com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao remover",
+        description: "Não foi possível remover a chave.",
+        variant: "destructive",
       });
     } finally {
       setRemovingOpenAI(false);
