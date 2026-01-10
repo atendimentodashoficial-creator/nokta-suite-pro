@@ -19,6 +19,7 @@ const configSchema = z.object({
   app_secret: z.string().min(1, "App Secret é obrigatório"),
   page_access_token: z.string().min(1, "Page Access Token é obrigatório"),
   instagram_account_id: z.string().optional(),
+  form_base_url: z.string().optional(),
 });
 
 type ConfigFormData = z.infer<typeof configSchema>;
@@ -52,6 +53,7 @@ export function InstagramConfigTab() {
       app_secret: "",
       page_access_token: "",
       instagram_account_id: "",
+      form_base_url: "",
     },
   });
 
@@ -62,6 +64,7 @@ export function InstagramConfigTab() {
         app_secret: config.app_secret || "",
         page_access_token: config.page_access_token || "",
         instagram_account_id: config.instagram_account_id || "",
+        form_base_url: (config as any).form_base_url || "",
       });
     }
   }, [config, form]);
@@ -77,6 +80,7 @@ export function InstagramConfigTab() {
         app_secret: data.app_secret,
         page_access_token: data.page_access_token,
         instagram_account_id: data.instagram_account_id || null,
+        form_base_url: data.form_base_url || null,
         is_active: true,
       };
 
@@ -309,6 +313,23 @@ export function InstagramConfigTab() {
                     </FormControl>
                     <FormDescription>
                       ID da conta do Instagram Business (será detectado automaticamente se não informado)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="form_base_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL Base dos Formulários (opcional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://seudominio.com.br" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      URL do seu domínio personalizado. Os links de formulário usarão este domínio automaticamente.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

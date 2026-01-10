@@ -248,8 +248,9 @@ async function processMessage(supabase: any, event: any) {
       if (gatilho.formulario_id) {
         console.log('Trigger has form requirement:', gatilho.formulario_id);
         
-        // Build form URL with tracking
-        const formUrl = `https://app.noktaodonto.com.br/f/${gatilho.formulario_id}?t=${senderId}`;
+        // Build form URL with tracking - use configured base URL or fallback
+        const baseUrl = config.form_base_url || 'https://app.noktaodonto.com.br';
+        const formUrl = `${baseUrl}/f/${gatilho.formulario_id}?t=${senderId}`;
         
         let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
         formMessage = processSpintax(formMessage);
@@ -631,8 +632,9 @@ async function processComment(supabase: any, comment: any) {
         if (gatilho.formulario_id) {
           console.log('Comment trigger has form requirement:', gatilho.formulario_id);
           
-          // Build form URL with tracking
-          const formUrl = `https://app.noktaodonto.com.br/f/${gatilho.formulario_id}?t=${comment.from.id}`;
+          // Build form URL with tracking - use configured base URL or fallback
+          const baseUrl = config.form_base_url || 'https://app.noktaodonto.com.br';
+          const formUrl = `${baseUrl}/f/${gatilho.formulario_id}?t=${comment.from.id}`;
           
           let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
           formMessage = processSpintax(formMessage);
