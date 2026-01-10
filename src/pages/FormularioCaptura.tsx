@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { z } from "zod";
+import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
+import { formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
 
 interface CampoPersonalizado {
   id: string;
@@ -48,6 +50,7 @@ export default function FormularioCaptura() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [countryCode, setCountryCode] = useState("55");
 
   useEffect(() => {
     async function loadForm() {
@@ -166,7 +169,13 @@ export default function FormularioCaptura() {
   };
 
   const handleChange = (campoId: string, value: string) => {
-    setFormData(prev => ({ ...prev, [campoId]: value }));
+    // For phone field, format with country code
+    if (campoId === "telefone") {
+      const formattedPhone = formatPhoneByCountry(value, countryCode);
+      setFormData(prev => ({ ...prev, [campoId]: formattedPhone }));
+    } else {
+      setFormData(prev => ({ ...prev, [campoId]: value }));
+    }
     
     if (fieldErrors[campoId]) {
       setFieldErrors(prev => ({ ...prev, [campoId]: "" }));
@@ -231,7 +240,7 @@ export default function FormularioCaptura() {
           instagram_user_id: instagramUserId || null,
           tracking_id: trackingId || null,
           nome: formData.nome || null,
-          telefone: formData.telefone || null,
+          telefone: formData.telefone ? `${countryCode}${formData.telefone.replace(/\D/g, '')}` : null,
           email: formData.email || null,
           dados_extras: Object.keys(dadosExtras).length > 0 ? dadosExtras : null,
         });
@@ -332,6 +341,15 @@ export default function FormularioCaptura() {
                       onBlur={() => handleBlur(campo)}
                       className={fieldErrors[id] ? "border-destructive" : ""}
                       rows={3}
+                    />
+                  ) : id === "telefone" ? (
+                    <CountryCodeSelect
+                      value={countryCode}
+                      onChange={setCountryCode}
+                      phoneValue={formData[id] || ""}
+                      onPhoneChange={(value) => handleChange(id, value)}
+                      onPhoneBlur={() => handleBlur(campo)}
+                      placeholder={getPhonePlaceholder(countryCode)}
                     />
                   ) : (
                     <Input

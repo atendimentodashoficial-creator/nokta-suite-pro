@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,10 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, FileText, Copy, ExternalLink, Users, X } from "lucide-react";
+import { Plus, Trash2, Loader2, FileText, Copy, ExternalLink, Users, X, User, Phone, Mail, Calendar, MessageSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
@@ -20,6 +19,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatPhoneDisplay, extractCountryCode, formatPhoneByCountry } from "@/utils/phoneFormat";
+import { countries } from "@/components/whatsapp/CountryCodeSelect";
 
 const formSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
@@ -55,6 +56,8 @@ interface Resposta {
   telefone: string | null;
   email: string | null;
   instagram_user_id: string | null;
+  tracking_id: string | null;
+  dados_extras: Record<string, string> | null;
   created_at: string;
 }
 
@@ -599,46 +602,115 @@ export function InstagramFormulariosTab() {
           </TabsContent>
 
           <TabsContent value="respostas" className="mt-4">
-            {selectedFormId && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Respostas do Formulário
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loadingRespostas ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
+            {selectedFormId ? (
+              <div className="space-y-4">
+                {/* Header com título do formulário */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Users className="h-5 w-5" />
+                          Respostas: {formularios?.find(f => f.id === selectedFormId)?.nome}
+                        </CardTitle>
+                        <CardDescription>
+                          {respostas?.length || 0} resposta{respostas?.length !== 1 ? 's' : ''} recebida{respostas?.length !== 1 ? 's' : ''}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {formularios?.find(f => f.id === selectedFormId)?.titulo_pagina}
+                      </Badge>
                     </div>
-                  ) : respostas?.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      Nenhuma resposta ainda
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Telefone</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Data</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {respostas?.map((resposta) => (
-                          <TableRow key={resposta.id}>
-                            <TableCell>{resposta.nome || "-"}</TableCell>
-                            <TableCell>{resposta.telefone || "-"}</TableCell>
-                            <TableCell>{resposta.email || "-"}</TableCell>
-                            <TableCell>
-                              {format(new Date(resposta.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
+                  </CardHeader>
+                </Card>
+
+                {loadingRespostas ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : respostas?.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                      <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="text-muted-foreground">Nenhuma resposta ainda</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        As respostas aparecerão aqui quando alguém preencher o formulário
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-3">
+                    {respostas?.map((resposta) => {
+                      const phoneFormatted = resposta.telefone ? formatPhoneDisplay(resposta.telefone) : null;
+                      const { countryCode } = resposta.telefone ? extractCountryCode(resposta.telefone) : { countryCode: "55" };
+                      const countryFlag = countries.find(c => c.dialCode === countryCode)?.flag || "🇧🇷";
+                      
+                      return (
+                        <Card key={resposta.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 space-y-3">
+                                {/* Nome */}
+                                {resposta.nome && (
+                                  <div className="flex items-center gap-2">
+                                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <span className="font-medium">{resposta.nome}</span>
+                                  </div>
+                                )}
+                                
+                                <div className="flex flex-wrap gap-4 text-sm">
+                                  {/* Telefone */}
+                                  {resposta.telefone && (
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                      <span className="text-base">{countryFlag}</span>
+                                      <Phone className="h-3.5 w-3.5" />
+                                      <span>{phoneFormatted}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Email */}
+                                  {resposta.email && (
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                      <Mail className="h-3.5 w-3.5" />
+                                      <span>{resposta.email}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Dados extras */}
+                                {resposta.dados_extras && Object.keys(resposta.dados_extras).length > 0 && (
+                                  <div className="pt-2 border-t space-y-1">
+                                    {Object.entries(resposta.dados_extras).map(([key, value]) => (
+                                      <div key={key} className="text-sm">
+                                        <span className="text-muted-foreground">{key}:</span>{" "}
+                                        <span>{value}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Data */}
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                                <Calendar className="h-3.5 w-3.5" />
+                                {format(new Date(resposta.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground">Selecione um formulário</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Clique em um formulário na aba "Formulários" para ver suas respostas
+                  </p>
                 </CardContent>
               </Card>
             )}
