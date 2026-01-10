@@ -34,7 +34,7 @@ export default function Leads() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  const { data: leads, isLoading } = useLeads("lead");
+  const { data: leads, isLoading } = useLeads(); // Sem filtro de status - exclui apenas "cliente" por padrão
 
   // Filtra por período primeiro
   const leadsInPeriod = filterByPeriod(leads);
