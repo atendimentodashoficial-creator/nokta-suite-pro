@@ -13,7 +13,7 @@ function processSpintax(input: string): string {
 
   let result = text;
   const regex = /\{([^{}]+)\}/g;
-  
+
   let match;
   while ((match = regex.exec(result)) !== null) {
     const inside = match[1];
@@ -27,8 +27,24 @@ function processSpintax(input: string): string {
       }
     }
   }
-  
+
   return result;
+}
+
+function normalizeBaseUrl(raw: string | null | undefined): string | null {
+  const value = (raw ?? "").trim();
+  if (!value) return null;
+
+  // Allow user to paste without scheme (e.g. "meuapp.com"), default to https
+  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+
+  try {
+    const url = new URL(withScheme);
+    // remove trailing slash to avoid double slashes when we append /f/...
+    return url.origin;
+  } catch {
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -249,7 +265,7 @@ async function processMessage(supabase: any, event: any) {
         console.log('Trigger has form requirement:', gatilho.formulario_id);
         
         // Build form URL with tracking - use configured base URL or fallback
-        const baseUrl = config.form_base_url || 'https://app.noktaodonto.com.br';
+        const baseUrl = normalizeBaseUrl(config.form_base_url) || 'https://app.noktaodonto.com.br';
         const formUrl = `${baseUrl}/f/${gatilho.formulario_id}?t=${senderId}`;
         
         let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
@@ -633,7 +649,7 @@ async function processComment(supabase: any, comment: any) {
           console.log('Comment trigger has form requirement:', gatilho.formulario_id);
           
           // Build form URL with tracking - use configured base URL or fallback
-          const baseUrl = config.form_base_url || 'https://app.noktaodonto.com.br';
+          const baseUrl = normalizeBaseUrl(config.form_base_url) || 'https://app.noktaodonto.com.br';
           const formUrl = `${baseUrl}/f/${gatilho.formulario_id}?t=${comment.from.id}`;
           
           let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
