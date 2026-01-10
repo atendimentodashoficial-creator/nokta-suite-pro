@@ -15,6 +15,7 @@ import {
   AlertCircle,
   RefreshCw,
   TrendingUp,
+  TrendingDown,
   Target,
   BarChart3,
   Layers,
@@ -302,6 +303,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       compareceu: number;
       clientes: number;
       valor: number;
+      spend: number;
     }> = {};
 
     // Group by adset for analysis
@@ -313,6 +315,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       compareceu: number;
       clientes: number;
       valor: number;
+      spend: number;
     }> = {};
 
     // Group by ad for analysis
@@ -325,16 +328,26 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       compareceu: number;
       clientes: number;
       valor: number;
+      spend: number;
     }> = {};
+
+    // Create spend lookup from campaigns
+    const campaignSpendMap: Record<string, number> = {};
+    campaigns.forEach(c => {
+      if (c.campaign_name) {
+        campaignSpendMap[c.campaign_name] = (campaignSpendMap[c.campaign_name] || 0) + (c.spend || 0);
+      }
+    });
 
     for (const lead of trackedLeads) {
       const campaign = lead.utm_campaign || lead.fb_campaign_name || 'Sem campanha';
       const adset = lead.fb_adset_name || 'Sem conjunto';
       const ad = lead.fb_ad_name || 'Sem anúncio';
+      const campaignSpend = campaignSpendMap[campaign] || 0;
       
       // Aggregate by campaign
       if (!byCampaign[campaign]) {
-        byCampaign[campaign] = { campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
+        byCampaign[campaign] = { campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0, spend: campaignSpend };
       }
       byCampaign[campaign].leads++;
       if (lead.data_agendamento) byCampaign[campaign].agendados++;
@@ -348,7 +361,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       if (adset !== 'Sem conjunto') {
         const adsetKey = `${campaign}::${adset}`;
         if (!byAdset[adsetKey]) {
-          byAdset[adsetKey] = { adset, campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
+          byAdset[adsetKey] = { adset, campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0, spend: campaignSpend };
         }
         byAdset[adsetKey].leads++;
         if (lead.data_agendamento) byAdset[adsetKey].agendados++;
@@ -363,7 +376,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       if (ad !== 'Sem anúncio') {
         const adKey = `${campaign}::${adset}::${ad}`;
         if (!byAd[adKey]) {
-          byAd[adKey] = { ad, adset, campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
+          byAd[adKey] = { ad, adset, campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0, spend: campaignSpend };
         }
         byAd[adKey].leads++;
         if (lead.data_agendamento) byAd[adKey].agendados++;
@@ -1524,52 +1537,177 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
             </Card>
           )}
 
-          {/* Top Performers by Funnel Stage */}
+          {/* Top Performers by Cost per Result */}
           {funnelData && (funnelData.byAdset.length > 0 || funnelData.byAd.length > 0) && (() => {
-            // Calculate total spend from campaigns for cost calculations
-            const totalSpend = campaigns.reduce((sum, c) => sum + (c.spend || 0), 0);
-            
-            // Helper to calculate cost per stage
-            const getCostPer = (count: number): string => {
-              if (count <= 0 || totalSpend <= 0) return 'N/A';
-              return `R$ ${(totalSpend / count).toFixed(2)}`;
+            // Helper to calculate cost per result for each item
+            const getCostPer = (spend: number, count: number): number => {
+              if (count <= 0 || spend <= 0) return Infinity;
+              return spend / count;
             };
+
+            const formatCost = (cost: number): string => {
+              if (cost === Infinity || cost <= 0) return 'N/A';
+              return `R$ ${cost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            };
+
+            // Sort by lowest cost per lead (CPL)
+            const adsetsByCPL = [...funnelData.byAdset]
+              .filter(a => a.leads > 0 && a.spend > 0)
+              .map(a => ({ ...a, cpl: getCostPer(a.spend, a.leads) }))
+              .sort((a, b) => a.cpl - b.cpl);
+
+            const adsByCPL = [...funnelData.byAd]
+              .filter(a => a.leads > 0 && a.spend > 0)
+              .map(a => ({ ...a, cpl: getCostPer(a.spend, a.leads) }))
+              .sort((a, b) => a.cpl - b.cpl);
+
+            // Sort by lowest cost per agendamento
+            const adsetsByAgend = [...funnelData.byAdset]
+              .filter(a => a.agendados > 0 && a.spend > 0)
+              .map(a => ({ ...a, costPerAgend: getCostPer(a.spend, a.agendados) }))
+              .sort((a, b) => a.costPerAgend - b.costPerAgend);
+
+            const adsByAgend = [...funnelData.byAd]
+              .filter(a => a.agendados > 0 && a.spend > 0)
+              .map(a => ({ ...a, costPerAgend: getCostPer(a.spend, a.agendados) }))
+              .sort((a, b) => a.costPerAgend - b.costPerAgend);
+
+            // Sort by lowest cost per comparecimento
+            const adsetsByComparec = [...funnelData.byAdset]
+              .filter(a => a.compareceu > 0 && a.spend > 0)
+              .map(a => ({ ...a, costPerComparec: getCostPer(a.spend, a.compareceu) }))
+              .sort((a, b) => a.costPerComparec - b.costPerComparec);
+
+            const adsByComparec = [...funnelData.byAd]
+              .filter(a => a.compareceu > 0 && a.spend > 0)
+              .map(a => ({ ...a, costPerComparec: getCostPer(a.spend, a.compareceu) }))
+              .sort((a, b) => a.costPerComparec - b.costPerComparec);
+
+            // Sort by lowest CAC (cost per client)
+            const adsetsByCAC = [...funnelData.byAdset]
+              .filter(a => a.clientes > 0 && a.spend > 0)
+              .map(a => ({ ...a, cac: getCostPer(a.spend, a.clientes) }))
+              .sort((a, b) => a.cac - b.cac);
+
+            const adsByCAC = [...funnelData.byAd]
+              .filter(a => a.clientes > 0 && a.spend > 0)
+              .map(a => ({ ...a, cac: getCostPer(a.spend, a.clientes) }))
+              .sort((a, b) => a.cac - b.cac);
 
             return (
               <Card className="border-cyan-500/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
-                    <BarChart3 className="h-5 w-5 text-cyan-500" />
-                    Melhores Desempenhos por Etapa do Funil
+                    <TrendingDown className="h-5 w-5 text-cyan-500" />
+                    Menor Custo por Resultado (Funil)
                   </CardTitle>
                   <CardDescription>
-                    Conjuntos e anúncios que mais alimentam cada etapa do funil de conversão
+                    Conjuntos e anúncios com melhor custo/resultado por etapa do funil
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-8">
-                    {/* Stage 1: Leads */}
+                    {/* Stage 1: CPL - Leads */}
                     <div>
                       <div className="flex items-center gap-2 mb-4 pb-2 border-b">
                         <Users className="h-5 w-5 text-blue-500" />
-                        <h3 className="font-semibold text-base">Etapa 1: Geração de Leads</h3>
+                        <h3 className="font-semibold text-base">CPL - Custo por Lead</h3>
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top Adsets by Leads */}
-                        {funnelData.byAdset.length > 0 && (
+                        {/* Top Adsets by CPL */}
+                        {adsetsByCPL.length > 0 && (
                           <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
                             <div className="flex items-center gap-2 mb-3">
                               <Layers className="h-4 w-4 text-blue-500" />
                               <h4 className="font-medium text-sm">Top Conjuntos</h4>
                             </div>
                             <div className="space-y-2">
-                              {[...funnelData.byAdset]
-                                .sort((a, b) => b.leads - a.leads)
-                                .slice(0, 5)
-                                .map((item, index) => (
+                              {adsetsByCPL.slice(0, 5).map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-sm truncate cursor-help">{item.adset}</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="font-medium">{item.adset}</p>
+                                        <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-2">
+                                    <span className="text-xs text-muted-foreground">{item.leads} leads</span>
+                                    <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 font-semibold">
+                                      {formatCost(item.cpl)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* Top Ads by CPL */}
+                        {adsByCPL.length > 0 && (
+                          <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Megaphone className="h-4 w-4 text-purple-500" />
+                              <h4 className="font-medium text-sm">Top Anúncios</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {adsByCPL.slice(0, 5).map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-sm truncate cursor-help">{item.ad}</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="font-medium">{item.ad}</p>
+                                        <p className="text-xs text-muted-foreground">Conjunto: {item.adset}</p>
+                                        <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-2">
+                                    <span className="text-xs text-muted-foreground">{item.leads} leads</span>
+                                    <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 font-semibold">
+                                      {formatCost(item.cpl)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Stage 2: Custo por Agendamento */}
+                    {(adsetsByAgend.length > 0 || adsByAgend.length > 0) && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                          <Calendar className="h-5 w-5 text-amber-500" />
+                          <h3 className="font-semibold text-base">Custo por Agendamento</h3>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {/* Top Adsets by Cost per Agendamento */}
+                          {adsetsByAgend.length > 0 && (
+                            <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Layers className="h-4 w-4 text-amber-500" />
+                                <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {adsetsByAgend.slice(0, 5).map((item, index) => (
                                   <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500 text-white' : 'bg-amber-500/20 text-amber-600'}`}>
                                         {index + 1}
                                       </span>
                                       <Tooltip>
@@ -1582,36 +1720,29 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                         </TooltipContent>
                                       </Tooltip>
                                     </div>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 ml-2 cursor-help">
-                                          {item.leads} leads
-                                        </Badge>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>CPL: {getCostPer(funnelData.totals.leadsTracked)}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{item.agendados} agend.</span>
+                                      <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 font-semibold">
+                                        {formatCost(item.costPerAgend)}
+                                      </Badge>
+                                    </div>
                                   </div>
                                 ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {/* Top Ads by Leads */}
-                        {funnelData.byAd.length > 0 && (
-                          <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Megaphone className="h-4 w-4 text-purple-500" />
-                              <h4 className="font-medium text-sm">Top Anúncios</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAd]
-                                .sort((a, b) => b.leads - a.leads)
-                                .slice(0, 5)
-                                .map((item, index) => (
+                          )}
+                          {/* Top Ads by Cost per Agendamento */}
+                          {adsByAgend.length > 0 && (
+                            <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Megaphone className="h-4 w-4 text-orange-500" />
+                                <h4 className="font-medium text-sm">Top Anúncios</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {adsByAgend.slice(0, 5).map((item, index) => (
                                   <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-600'}`}>
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-600'}`}>
                                         {index + 1}
                                       </span>
                                       <Tooltip>
@@ -1625,350 +1756,186 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                         </TooltipContent>
                                       </Tooltip>
                                     </div>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 ml-2 cursor-help">
-                                          {item.leads} leads
-                                        </Badge>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>CPL: {getCostPer(funnelData.totals.leadsTracked)}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{item.agendados} agend.</span>
+                                      <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600 font-semibold">
+                                        {formatCost(item.costPerAgend)}
+                                      </Badge>
+                                    </div>
                                   </div>
                                 ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Stage 2: Agendamentos */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-4 pb-2 border-b">
-                        <Calendar className="h-5 w-5 text-amber-500" />
-                        <h3 className="font-semibold text-base">Etapa 2: Agendamentos</h3>
-                      </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top Adsets by Agendamentos */}
-                        {funnelData.byAdset.filter(a => a.agendados > 0).length > 0 && (
-                          <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-amber-500" />
-                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAdset]
-                                .filter(a => a.agendados > 0)
-                                .sort((a, b) => b.agendados - a.agendados)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.leads > 0 ? ((item.agendados / item.leads) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500 text-white' : 'bg-amber-500/20 text-amber-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="text-sm truncate cursor-help">{item.adset}</span>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top" className="max-w-xs">
-                                            <p className="font-medium">{item.adset}</p>
-                                            <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 cursor-help">
-                                              {item.agendados}
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>Custo/Agendamento: {getCostPer(funnelData.totals.agendadosTracked)}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
+                    {/* Stage 3: Custo por Comparecimento */}
+                    {(adsetsByComparec.length > 0 || adsByComparec.length > 0) && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                          <CheckCircle2 className="h-5 w-5 text-teal-500" />
+                          <h3 className="font-semibold text-base">Custo por Comparecimento</h3>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {/* Top Adsets by Cost per Comparecimento */}
+                          {adsetsByComparec.length > 0 && (
+                            <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Layers className="h-4 w-4 text-teal-500" />
+                                <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {adsetsByComparec.slice(0, 5).map((item, index) => (
+                                  <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-teal-500 text-white' : 'bg-teal-500/20 text-teal-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="text-sm truncate cursor-help">{item.adset}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-xs">
+                                          <p className="font-medium">{item.adset}</p>
+                                          <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     </div>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        )}
-                        {/* Top Ads by Agendamentos */}
-                        {funnelData.byAd.filter(a => a.agendados > 0).length > 0 && (
-                          <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Megaphone className="h-4 w-4 text-orange-500" />
-                              <h4 className="font-medium text-sm">Top Anúncios</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAd]
-                                .filter(a => a.agendados > 0)
-                                .sort((a, b) => b.agendados - a.agendados)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.leads > 0 ? ((item.agendados / item.leads) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="text-sm truncate cursor-help">{item.ad}</span>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top" className="max-w-xs">
-                                            <p className="font-medium">{item.ad}</p>
-                                            <p className="text-xs text-muted-foreground">Conjunto: {item.adset}</p>
-                                            <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600 cursor-help">
-                                              {item.agendados}
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>Custo/Agendamento: {getCostPer(funnelData.totals.agendadosTracked)}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{item.compareceu} comp.</span>
+                                      <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600 font-semibold">
+                                        {formatCost(item.costPerComparec)}
+                                      </Badge>
                                     </div>
-                                  );
-                                })}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                          {/* Top Ads by Cost per Comparecimento */}
+                          {adsByComparec.length > 0 && (
+                            <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Megaphone className="h-4 w-4 text-emerald-500" />
+                                <h4 className="font-medium text-sm">Top Anúncios</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {adsByComparec.slice(0, 5).map((item, index) => (
+                                  <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/20 text-emerald-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="text-sm truncate cursor-help">{item.ad}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-xs">
+                                          <p className="font-medium">{item.ad}</p>
+                                          <p className="text-xs text-muted-foreground">Conjunto: {item.adset}</p>
+                                          <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{item.compareceu} comp.</span>
+                                      <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 font-semibold">
+                                        {formatCost(item.costPerComparec)}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Stage 3: Comparecimentos */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-4 pb-2 border-b">
-                        <CheckCircle2 className="h-5 w-5 text-teal-500" />
-                        <h3 className="font-semibold text-base">Etapa 3: Comparecimentos</h3>
-                      </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top Adsets by Comparecimentos */}
-                        {funnelData.byAdset.filter(a => a.compareceu > 0).length > 0 && (
-                          <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-teal-500" />
-                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAdset]
-                                .filter(a => a.compareceu > 0)
-                                .sort((a, b) => b.compareceu - a.compareceu)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.agendados > 0 ? ((item.compareceu / item.agendados) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-teal-500 text-white' : 'bg-teal-500/20 text-teal-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="text-sm truncate cursor-help">{item.adset}</span>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top" className="max-w-xs">
-                                            <p className="font-medium">{item.adset}</p>
-                                            <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600 cursor-help">
-                                              {item.compareceu}
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>Custo/Comparecimento: {getCostPer(funnelData.totals.compareceuTracked)}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
+                    {/* Stage 4: CAC - Clientes */}
+                    {(adsetsByCAC.length > 0 || adsByCAC.length > 0) && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                          <UserCheck className="h-5 w-5 text-green-500" />
+                          <h3 className="font-semibold text-base">CAC - Custo de Aquisição de Cliente</h3>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {/* Top Adsets by CAC */}
+                          {adsetsByCAC.length > 0 && (
+                            <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Layers className="h-4 w-4 text-green-500" />
+                                <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {adsetsByCAC.slice(0, 5).map((item, index) => (
+                                  <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="text-sm truncate cursor-help">{item.adset}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-xs">
+                                          <p className="font-medium">{item.adset}</p>
+                                          <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     </div>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        )}
-                        {/* Top Ads by Comparecimentos */}
-                        {funnelData.byAd.filter(a => a.compareceu > 0).length > 0 && (
-                          <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Megaphone className="h-4 w-4 text-emerald-500" />
-                              <h4 className="font-medium text-sm">Top Anúncios</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAd]
-                                .filter(a => a.compareceu > 0)
-                                .sort((a, b) => b.compareceu - a.compareceu)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.agendados > 0 ? ((item.compareceu / item.agendados) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/20 text-emerald-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="text-sm truncate cursor-help">{item.ad}</span>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top" className="max-w-xs">
-                                            <p className="font-medium">{item.ad}</p>
-                                            <p className="text-xs text-muted-foreground">Conjunto: {item.adset}</p>
-                                            <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 cursor-help">
-                                              {item.compareceu}
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>Custo/Comparecimento: {getCostPer(funnelData.totals.compareceuTracked)}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{item.clientes} clientes</span>
+                                      <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600 font-semibold">
+                                        {formatCost(item.cac)}
+                                      </Badge>
                                     </div>
-                                  );
-                                })}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Stage 4: Clientes */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-4 pb-2 border-b">
-                        <UserCheck className="h-5 w-5 text-green-500" />
-                        <h3 className="font-semibold text-base">Etapa 4: Clientes Fechados</h3>
-                      </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top Adsets by Clientes */}
-                        {funnelData.byAdset.filter(a => a.clientes > 0).length > 0 && (
-                          <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-green-500" />
-                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAdset]
-                                .filter(a => a.clientes > 0)
-                                .sort((a, b) => b.clientes - a.clientes)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.leads > 0 ? ((item.clientes / item.leads) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="text-sm truncate cursor-help">{item.adset}</span>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top" className="max-w-xs">
-                                            <p className="font-medium">{item.adset}</p>
-                                            <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600 cursor-help">
-                                              {item.clientes} · R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>CAC (Custo/Cliente): {getCostPer(funnelData.totals.clientesTracked)}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
+                          )}
+                          {/* Top Ads by CAC */}
+                          {adsByCAC.length > 0 && (
+                            <div className="p-4 bg-lime-500/5 border border-lime-500/20 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Megaphone className="h-4 w-4 text-lime-600" />
+                                <h4 className="font-medium text-sm">Top Anúncios</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {adsByCAC.slice(0, 5).map((item, index) => (
+                                  <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-lime-500 text-white' : 'bg-lime-500/20 text-lime-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="text-sm truncate cursor-help">{item.ad}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-xs">
+                                          <p className="font-medium">{item.ad}</p>
+                                          <p className="text-xs text-muted-foreground">Conjunto: {item.adset}</p>
+                                          <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     </div>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        )}
-                        {/* Top Ads by Clientes */}
-                        {funnelData.byAd.filter(a => a.clientes > 0).length > 0 && (
-                          <div className="p-4 bg-lime-500/5 border border-lime-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Megaphone className="h-4 w-4 text-lime-600" />
-                              <h4 className="font-medium text-sm">Top Anúncios</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAd]
-                                .filter(a => a.clientes > 0)
-                                .sort((a, b) => b.clientes - a.clientes)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.leads > 0 ? ((item.clientes / item.leads) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-lime-500 text-white' : 'bg-lime-500/20 text-lime-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="text-sm truncate cursor-help">{item.ad}</span>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top" className="max-w-xs">
-                                            <p className="font-medium">{item.ad}</p>
-                                            <p className="text-xs text-muted-foreground">Conjunto: {item.adset}</p>
-                                            <p className="text-xs text-muted-foreground">Campanha: {item.campaign}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600 cursor-help">
-                                              {item.clientes} · R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p>CAC (Custo/Cliente): {getCostPer(funnelData.totals.clientesTracked)}</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{item.clientes} clientes</span>
+                                      <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600 font-semibold">
+                                        {formatCost(item.cac)}
+                                      </Badge>
                                     </div>
-                                  );
-                                })}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
