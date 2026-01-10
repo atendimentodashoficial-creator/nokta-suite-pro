@@ -516,19 +516,35 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   const loadLeadStatus = async () => {
     try {
       const last8Digits = getLast8Digits(chat.contact_number);
-      
-      // Buscar todos os leads para comparar pelos últimos 8 dígitos
-      const { data: allLeads } = await supabase
+      if (!last8Digits || last8Digits.length < 8) {
+        setLeadId(null);
+        setLeadStatus(null);
+        setLeadAttribution(null);
+        return;
+      }
+
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!userId) return;
+
+      // Busca direcionada (evita limite de 1000 linhas e evita pegar lead de outra origem)
+      const { data: leads, error } = await supabase
         .from('leads')
-        .select('id, status, telefone, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name')
-        .is('deleted_at', null);
-      
-      // Encontrar lead pelos últimos 8 dígitos
-      const lead = allLeads?.find(l => getLast8Digits(l.telefone) === last8Digits);
-      
+        .select('id, status, telefone, origem, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name, created_at')
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .like('telefone', `%${last8Digits}`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      const matching = (leads || []).filter((l) => getLast8Digits(l.telefone) === last8Digits);
+      const lead = matching.find((l) => (l.origem || '').toLowerCase() === 'whatsapp') || matching[0];
+
       if (lead) {
         setLeadId(lead.id);
-        
+
         // Capturar atribuição do lead (campanha/anúncio) se houver
         setLeadAttribution({
           utm_source: lead.utm_source,
@@ -543,14 +559,14 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
           fb_adset_name: lead.fb_adset_name,
           fb_ad_name: lead.fb_ad_name,
         });
-        
+
         // Verificar se o lead tem algum agendamento
         const { data: agendamentos } = await supabase
           .from('agendamentos')
           .select('id')
           .eq('cliente_id', lead.id)
           .limit(1);
-        
+
         // Se tem agendamento, considerar como cliente
         if (agendamentos && agendamentos.length > 0) {
           setLeadStatus('cliente');
