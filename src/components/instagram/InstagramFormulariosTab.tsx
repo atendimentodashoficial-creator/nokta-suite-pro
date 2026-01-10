@@ -153,6 +153,7 @@ export function InstagramFormulariosTab() {
         cor_primaria: data.cor_primaria || "#8B5CF6",
         imagem_url: data.imagem_url || null,
         campos: todosCampos,
+        ativo: true,
       });
 
       if (error) throw error;

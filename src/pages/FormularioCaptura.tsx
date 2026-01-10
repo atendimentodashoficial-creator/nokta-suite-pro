@@ -59,11 +59,16 @@ export default function FormularioCaptura() {
         .from("instagram_formularios")
         .select("*")
         .eq("id", formId)
-        .eq("ativo", true)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
-        setError("Formulário não encontrado ou inativo");
+        setError("Formulário não encontrado");
+        setLoading(false);
+        return;
+      }
+
+      if (data.ativo === false) {
+        setError("Formulário inativo");
         setLoading(false);
         return;
       }
