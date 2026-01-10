@@ -437,11 +437,106 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         if (data.length > 1) {
           setPreviousReport(data[1] as unknown as StoredReport);
         }
+        
+        // Load spend data for cost per result calculations (in background)
+        loadSpendDataForStoredReport(latestReport);
       }
     } catch (error) {
       console.error("Error loading stored report:", error);
     } finally {
       setLoadingStoredReport(false);
+    }
+  };
+  
+  const loadSpendDataForStoredReport = async (storedRpt: StoredReport) => {
+    try {
+      const formattedDateStart = storedRpt.date_start;
+      const formattedDateEnd = storedRpt.date_end;
+      
+      // Fetch campaigns for the stored report period
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("facebook-ads-api", {
+        body: { 
+          action: "get_campaign_metrics",
+          ad_account_id: selectedAccount,
+          date_start: formattedDateStart,
+          date_end: formattedDateEnd
+        },
+        headers: {
+          Authorization: `Bearer ${session.session?.access_token}`,
+        },
+      });
+
+      if (response.error || !response.data?.success) {
+        console.error("Error fetching campaigns for spend data:", response.data?.error);
+        return;
+      }
+
+      const campaignsForPeriod = response.data.campaigns || [];
+      const campaignsWithData = campaignsForPeriod.filter((item: BaseMetrics) => 
+        (item.impressions || 0) > 0 || (item.clicks || 0) > 0 || (item.spend || 0) > 0 || (item.results || 0) > 0
+      );
+
+      if (campaignsWithData.length === 0) return;
+
+      // Fetch adsets and ads
+      const allAdsets: AdsetData[] = [];
+      const allAds: AdData[] = [];
+
+      for (const campaign of campaignsWithData) {
+        try {
+          const { data } = await supabase.functions.invoke("facebook-ads-api", {
+            body: {
+              action: "get_adsets",
+              campaign_id: campaign.campaign_id,
+              date_start: formattedDateStart,
+              date_end: formattedDateEnd,
+            },
+          });
+          if (data?.success && data.adsets) {
+            allAdsets.push(...data.adsets.map((adset: AdsetData) => ({
+              ...adset,
+              campaign_name: campaign.campaign_name,
+              campaign_id: campaign.campaign_id,
+            })));
+          }
+        } catch (e) {
+          console.error(`Error fetching adsets for campaign ${campaign.campaign_id}:`, e);
+        }
+      }
+
+      for (const adset of allAdsets) {
+        try {
+          const { data } = await supabase.functions.invoke("facebook-ads-api", {
+            body: {
+              action: "get_ads",
+              adset_id: adset.adset_id,
+              date_start: formattedDateStart,
+              date_end: formattedDateEnd,
+            },
+          });
+          if (data?.success && data.ads) {
+            allAds.push(...data.ads.map((ad: AdData) => ({
+              ...ad,
+              adset_name: adset.adset_name,
+              adset_id: adset.adset_id,
+            })));
+          }
+        } catch (e) {
+          console.error(`Error fetching ads for adset ${adset.adset_id}:`, e);
+        }
+      }
+
+      const adsetsWithData = allAdsets.filter((item: BaseMetrics) => 
+        (item.impressions || 0) > 0 || (item.clicks || 0) > 0 || (item.spend || 0) > 0 || (item.results || 0) > 0
+      );
+      const adsWithData = allAds.filter((item: BaseMetrics) => 
+        (item.impressions || 0) > 0 || (item.clicks || 0) > 0 || (item.spend || 0) > 0 || (item.results || 0) > 0
+      );
+
+      setAdsSpendData({ adsets: adsetsWithData, ads: adsWithData });
+    } catch (error) {
+      console.error("Error loading spend data for stored report:", error);
     }
   };
 
