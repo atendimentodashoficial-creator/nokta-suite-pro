@@ -212,6 +212,10 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         start = startOfMonth(subMonths(today, 1));
         end = endOfMonth(subMonths(today, 1));
         break;
+      case "max":
+        start = new Date(2020, 0, 1);
+        end = today;
+        break;
       default:
         start = subDays(today, 6);
     }
@@ -748,6 +752,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                   <SelectItem value="last_week">Semana passada</SelectItem>
                   <SelectItem value="this_month">Este mês</SelectItem>
                   <SelectItem value="last_month">Mês passado</SelectItem>
+                  <SelectItem value="max">Máximo</SelectItem>
                   <SelectItem value="custom">Personalizado</SelectItem>
                 </SelectContent>
               </Select>
