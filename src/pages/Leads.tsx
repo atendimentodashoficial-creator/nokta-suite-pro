@@ -39,6 +39,17 @@ export default function Leads() {
   // Filtra por período primeiro
   const leadsInPeriod = filterByPeriod(leads);
 
+  // Conta leads por origem no período
+  const leadsWhatsAppCount = leadsInPeriod?.filter((lead) => {
+    const origem = (lead.origem || "").toLowerCase();
+    return origem === "whatsapp" || origem === "" || lead.origem === null;
+  }).length || 0;
+
+  const leadsDisparosCount = leadsInPeriod?.filter((lead) => {
+    const origem = (lead.origem || "").toLowerCase();
+    return origem === "disparos";
+  }).length || 0;
+
   // Filtra por origem (WhatsApp ou Disparos)
   const leadsByOrigem = leadsInPeriod?.filter((lead) => {
     const origem = (lead.origem || "").toLowerCase();
@@ -245,9 +256,17 @@ export default function Leads() {
             onDateStartChange={setDateStart}
             onDateEndChange={setDateEnd}
           />
-          <span className="text-sm text-muted-foreground">
-            {leadsInPeriod?.length || 0} leads no período
-          </span>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+              WhatsApp: <strong className="text-foreground">{leadsWhatsAppCount}</strong>
+            </span>
+            <span className="text-border">|</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              Disparos: <strong className="text-foreground">{leadsDisparosCount}</strong>
+            </span>
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
