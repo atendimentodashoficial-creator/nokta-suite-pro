@@ -262,21 +262,13 @@ async function processMessage(supabase: any, event: any) {
         
         const buttonText = gatilho.botao_formulario_texto || 'Preencher Formulário';
         
-        // Send text message first
-        await sendInstagramMessage(
-          config.page_access_token,
-          config.instagram_account_id,
-          senderId,
-          formMessage
-        );
-        
-        // Then send button with form link
+        // Send button with form link - using the message as the template title
         await sendInstagramButtons(
           config.page_access_token,
           config.instagram_account_id,
           senderId,
           [{ type: 'url', title: buttonText, url: formUrl }],
-          null // No title needed, text was sent above
+          formMessage // Use the message as the title above the button
         );
 
         // Log response
