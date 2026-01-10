@@ -317,7 +317,13 @@ export default function FormularioCaptura() {
               <Button
                 className="mt-4"
                 style={{ backgroundColor: config.cor_primaria }}
-                onClick={() => window.open(config.botao_sucesso_url!, "_blank")}
+                onClick={() => {
+                  let url = config.botao_sucesso_url!;
+                  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    url = "https://" + url;
+                  }
+                  window.open(url, "_blank");
+                }}
               >
                 {config.botao_sucesso_texto}
               </Button>
