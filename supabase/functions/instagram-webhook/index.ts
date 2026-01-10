@@ -143,7 +143,7 @@ async function processMessage(supabase: any, event: any) {
     return;
   }
 
-  console.log('Processing message from:', senderId, 'Content:', message.text);
+  console.log('Processing message from:', senderId, 'Content:', message.text, 'Quick Reply:', message.quick_reply);
 
   // Find active config
   const { data: configs } = await supabase
@@ -157,6 +157,36 @@ async function processMessage(supabase: any, event: any) {
   }
 
   const config = configs[0];
+
+  // Check if this is a quick reply from the "release content" button
+  if (message.quick_reply?.payload?.startsWith('release_content_')) {
+    const gatilhoId = message.quick_reply.payload.replace('release_content_', '');
+    console.log('Release content button clicked for gatilho:', gatilhoId);
+    
+    // Fetch the gatilho to send its content
+    const { data: gatilho } = await supabase
+      .from('instagram_gatilhos')
+      .select('*')
+      .eq('id', gatilhoId)
+      .eq('user_id', config.user_id)
+      .single();
+
+    if (gatilho) {
+      // Log the button click
+      await supabase.from('instagram_mensagens').insert({
+        user_id: config.user_id,
+        instagram_user_id: senderId,
+        tipo: 'dm_recebida',
+        conteudo: message.text || '[Clicou no botão de liberar]',
+        gatilho_id: gatilhoId,
+        metadata: { tipo: 'release_button_click', payload: message.quick_reply.payload },
+      });
+
+      // Send the actual content (form, text, media, buttons, etc.)
+      await sendGatilhoContent(supabase, config, gatilho, senderId);
+      return; // Content sent, stop processing
+    }
+  }
 
   // Check if this is first interaction
   const isFirstInteraction = await checkAndTrackInteraction(supabase, config.user_id, senderId);
@@ -230,7 +260,7 @@ async function processMessage(supabase: any, event: any) {
         const followerInfo = await checkIfFollower(config.page_access_token, senderId);
         
         if (followerInfo && !followerInfo.is_user_follow_business) {
-          console.log('User does not follow business, sending follow request for trigger:', gatilho.nome);
+          console.log('User does not follow business, sending follow request with button for trigger:', gatilho.nome);
           
           // Replace {nome} with username if available and process spintax
           let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
@@ -238,10 +268,18 @@ async function processMessage(supabase: any, event: any) {
             followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
           }
 
-          await sendInstagramMessage(
+          // Get button text (default if not set)
+          const buttonText = gatilho.botao_liberar_texto || 'Já sigo! Liberar material';
+          
+          // Send message with a quick reply button to release content
+          // The payload will be used to identify this as a "release content" action
+          const releasePayload = `release_content_${gatilho.id}`;
+          
+          await sendInstagramButtons(
             config.page_access_token,
             config.instagram_account_id,
             senderId,
+            [{ type: 'quick_reply', title: buttonText, payload: releasePayload }],
             followMessage
           );
 
@@ -251,12 +289,12 @@ async function processMessage(supabase: any, event: any) {
             instagram_user_id: senderId,
             instagram_username: followerInfo.username,
             tipo: 'dm_enviada',
-            conteudo: followMessage,
+            conteudo: `${followMessage}\n[Botão: ${buttonText}]`,
             gatilho_id: gatilho.id,
-            metadata: { tipo: 'pedir_seguir', follower_info: followerInfo },
+            metadata: { tipo: 'pedir_seguir_com_botao', follower_info: followerInfo, release_payload: releasePayload },
           });
 
-          break; // Stop processing - user needs to follow first
+          break; // Stop processing - user needs to follow first and click button
         }
       }
       
@@ -376,6 +414,111 @@ async function processMessage(supabase: any, event: any) {
 
   // Also check ice breaker payloads
   await checkIceBreakerPayload(supabase, config, senderId, message.text);
+}
+
+// Helper function to send all gatilho content (used when releasing content after follow)
+async function sendGatilhoContent(supabase: any, config: any, gatilho: any, senderId: string) {
+  console.log('Sending gatilho content for:', gatilho.nome);
+  
+  // If a form is required, send the form with a button
+  if (gatilho.formulario_id) {
+    const baseUrl = normalizeBaseUrl(config.form_base_url) || 'https://app.noktaodonto.com.br';
+    const formUrl = `${baseUrl}/f/${gatilho.formulario_id}?t=${senderId}`;
+    
+    let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
+    formMessage = processSpintax(formMessage);
+    
+    const userInfo = await checkIfFollower(config.page_access_token, senderId);
+    if (userInfo?.username) {
+      formMessage = formMessage.replace(/{nome}/g, userInfo.username);
+    }
+    
+    const buttonText = gatilho.botao_formulario_texto || 'Preencher Formulário';
+    const buttonTitle = gatilho.titulo_botoes || formMessage;
+    
+    await sendInstagramButtons(
+      config.page_access_token,
+      config.instagram_account_id,
+      senderId,
+      [{ type: 'url', title: buttonText, url: formUrl }],
+      buttonTitle
+    );
+
+    await supabase.from('instagram_mensagens').insert({
+      user_id: config.user_id,
+      instagram_user_id: senderId,
+      tipo: 'dm_enviada',
+      conteudo: `${formMessage}\n[Botão: ${buttonText}]`,
+      gatilho_id: gatilho.id,
+      metadata: { tipo: 'formulario_liberado', formulario_id: gatilho.formulario_id, formUrl },
+    });
+    
+    return; // Form was sent
+  }
+  
+  // Send text response
+  if (gatilho.resposta_texto) {
+    const responseText = processSpintax(gatilho.resposta_texto);
+    
+    await sendInstagramMessage(
+      config.page_access_token,
+      config.instagram_account_id,
+      senderId,
+      responseText
+    );
+
+    await supabase.from('instagram_mensagens').insert({
+      user_id: config.user_id,
+      instagram_user_id: senderId,
+      tipo: 'dm_enviada',
+      conteudo: responseText,
+      gatilho_id: gatilho.id,
+      metadata: { tipo: 'conteudo_liberado' },
+    });
+  }
+
+  // Send media if configured
+  if (gatilho.resposta_midia_url && gatilho.resposta_midia_tipo) {
+    await sendInstagramMedia(
+      config.page_access_token,
+      config.instagram_account_id,
+      senderId,
+      gatilho.resposta_midia_url,
+      gatilho.resposta_midia_tipo
+    );
+  }
+
+  // Send buttons if configured
+  if (gatilho.resposta_botoes && Array.isArray(gatilho.resposta_botoes) && gatilho.resposta_botoes.length > 0) {
+    const buttonTitle = gatilho.titulo_botoes || gatilho.resposta_texto || null;
+    
+    await sendInstagramButtons(
+      config.page_access_token,
+      config.instagram_account_id,
+      senderId,
+      gatilho.resposta_botoes,
+      buttonTitle ? processSpintax(buttonTitle) : null
+    );
+
+    await supabase.from('instagram_mensagens').insert({
+      user_id: config.user_id,
+      instagram_user_id: senderId,
+      tipo: 'dm_enviada_botoes',
+      conteudo: JSON.stringify(gatilho.resposta_botoes),
+      gatilho_id: gatilho.id,
+    });
+  }
+
+  // Send link if configured
+  if (gatilho.resposta_link_url) {
+    const linkText = processSpintax(gatilho.resposta_link_texto || gatilho.resposta_link_url);
+    await sendInstagramMessage(
+      config.page_access_token,
+      config.instagram_account_id,
+      senderId,
+      `${linkText}\n${gatilho.resposta_link_url}`
+    );
+  }
 }
 
 async function checkIfFollower(accessToken: string, userId: string): Promise<any | null> {

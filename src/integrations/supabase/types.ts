@@ -1792,6 +1792,7 @@ export type Database = {
           ativo_em_comentario: boolean | null
           ativo_em_dm: boolean | null
           botao_formulario_texto: string | null
+          botao_liberar_texto: string | null
           created_at: string
           fluxo_id: string | null
           formulario_id: string | null
@@ -1819,6 +1820,7 @@ export type Database = {
           ativo_em_comentario?: boolean | null
           ativo_em_dm?: boolean | null
           botao_formulario_texto?: string | null
+          botao_liberar_texto?: string | null
           created_at?: string
           fluxo_id?: string | null
           formulario_id?: string | null
@@ -1846,6 +1848,7 @@ export type Database = {
           ativo_em_comentario?: boolean | null
           ativo_em_dm?: boolean | null
           botao_formulario_texto?: string | null
+          botao_liberar_texto?: string | null
           created_at?: string
           fluxo_id?: string | null
           formulario_id?: string | null
