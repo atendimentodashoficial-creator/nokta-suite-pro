@@ -1786,6 +1786,8 @@ export type Database = {
       instagram_gatilhos: {
         Row: {
           ativo: boolean | null
+          ativo_em_comentario: boolean | null
+          ativo_em_dm: boolean | null
           created_at: string
           fluxo_id: string | null
           formulario_id: string | null
@@ -1808,6 +1810,8 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean | null
+          ativo_em_comentario?: boolean | null
+          ativo_em_dm?: boolean | null
           created_at?: string
           fluxo_id?: string | null
           formulario_id?: string | null
@@ -1830,6 +1834,8 @@ export type Database = {
         }
         Update: {
           ativo?: boolean | null
+          ativo_em_comentario?: boolean | null
+          ativo_em_dm?: boolean | null
           created_at?: string
           fluxo_id?: string | null
           formulario_id?: string | null
