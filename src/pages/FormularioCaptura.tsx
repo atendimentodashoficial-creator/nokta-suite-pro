@@ -365,7 +365,7 @@ export default function FormularioCaptura() {
                       rows={3}
                     />
                   ) : tipo === "multipla_escolha" ? (
-                    <div className="space-y-2 rounded-md border p-3">
+                    <div className="space-y-1">
                       {(opcoes || []).length > 0 ? (
                         (opcoes || []).map((opcao, idx) => {
                           const selected = Array.isArray(formData[id])
@@ -375,7 +375,7 @@ export default function FormularioCaptura() {
                           return (
                             <label
                               key={idx}
-                              className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/40 cursor-pointer"
+                              className="flex items-center gap-3 py-1.5 cursor-pointer"
                             >
                               <Checkbox
                                 checked={selected}
@@ -398,13 +398,13 @@ export default function FormularioCaptura() {
                       )}
                     </div>
                   ) : tipo === "sim_nao" ? (
-                    <div className="space-y-2 rounded-md border p-3">
-                      {["Sim", "Não"].map((opcao) => {
+                    <div className="space-y-1">
+                      {(opcoes && opcoes.length >= 2 ? opcoes : ["Sim", "Não"]).map((opcao) => {
                         const selected = valueToString(formData[id]) === opcao;
                         return (
                           <label
                             key={opcao}
-                            className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/40 cursor-pointer"
+                            className="flex items-center gap-3 py-1.5 cursor-pointer"
                           >
                             <Checkbox
                               checked={selected}
