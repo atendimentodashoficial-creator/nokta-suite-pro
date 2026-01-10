@@ -301,9 +301,8 @@ export function FunilConversaoTab() {
           grouped[key].agendados++;
         }
         
-        // Verificar status do lead (follow_up = em negociação)
-        // Se é cliente, também passou pela negociação
-        if (bestStatus === "follow_up" || bestStatus === "cliente") {
+        // Em negociação = já agendou mas ainda NÃO fechou (apenas follow_up)
+        if (bestStatus === "follow_up") {
           grouped[key].em_negociacao++;
         }
         
