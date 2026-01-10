@@ -326,10 +326,19 @@ export function InstagramConfigTab() {
                   <FormItem>
                     <FormLabel>URL Base dos Formulários (opcional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://seudominio.com.br" {...field} />
+                      <div className="flex gap-2">
+                        <Input placeholder="https://seudominio.com.br" {...field} />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => form.setValue("form_base_url", window.location.origin, { shouldDirty: true })}
+                        >
+                          Usar URL atual
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormDescription>
-                      URL do seu domínio personalizado. Os links de formulário usarão este domínio automaticamente.
+                      Se você ainda não tem domínio, clique em “Usar URL atual”. Se informar manualmente, inclua o https.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
