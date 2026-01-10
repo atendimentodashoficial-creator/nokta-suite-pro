@@ -6,7 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+// Use Lovable AI Gateway (auto-configured, no API key needed from user)
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,11 +20,11 @@ serve(async (req) => {
 
     // Check API key action
     if (action === 'check_api_key') {
-      console.log("Checking OpenAI API key configuration");
+      console.log("Checking Lovable AI configuration");
       return new Response(
         JSON.stringify({ 
           success: true, 
-          configured: !!openAIApiKey && openAIApiKey.length > 0 
+          configured: !!LOVABLE_API_KEY && LOVABLE_API_KEY.length > 0 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -30,10 +32,10 @@ serve(async (req) => {
 
     // Generate report action
     if (action === 'generate_report') {
-      if (!openAIApiKey) {
-        console.error("OpenAI API key not configured");
+      if (!LOVABLE_API_KEY) {
+        console.error("Lovable AI API key not configured");
         return new Response(
-          JSON.stringify({ success: false, error: "API OpenAI não configurada" }),
+          JSON.stringify({ success: false, error: "Lovable AI não configurado" }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -411,16 +413,16 @@ ${funnelData ? `5. Analisar a qualidade dos leads por campanha (qual campanha tr
 6. Calcular o retorno real do investimento (ROAS baseado em faturamento real)
 7. Identificar gargalos no funil (onde estamos perdendo mais oportunidades)` : ''}`;
 
-      console.log("Calling OpenAI API with enhanced cost/result analysis");
+      console.log("Calling Lovable AI Gateway with enhanced cost/result analysis");
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(AI_GATEWAY_URL, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'google/gemini-3-flash-preview',
           messages: [
             { 
               role: 'system', 
@@ -435,9 +437,23 @@ ${funnelData ? `5. Analisar a qualidade dos leads por campanha (qual campanha tr
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("OpenAI API error:", response.status, errorText);
+        console.error("Lovable AI Gateway error:", response.status, errorText);
+        
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Limite de requisições excedido. Tente novamente em alguns segundos." }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Créditos de IA esgotados. Adicione créditos em Configurações > Workspace > Uso." }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
         return new Response(
-          JSON.stringify({ success: false, error: "Erro ao chamar API OpenAI" }),
+          JSON.stringify({ success: false, error: "Erro ao chamar Lovable AI" }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
