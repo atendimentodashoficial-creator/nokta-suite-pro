@@ -1566,7 +1566,7 @@ export function FunilConversaoTab() {
                           <Layers className="h-4 w-4 text-blue-500" />
                           <h4 className="font-medium text-sm">Top Conjuntos</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdsetItem
                               key={`${item.campaign}-${item.adset}`}
@@ -1595,7 +1595,7 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-purple-500" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdItem
                               key={`${item.campaign}-${item.adset}-${item.ad}`}
@@ -1665,7 +1665,7 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-orange-500" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdItem
                               key={`${item.campaign}-${item.adset}-${item.ad}`}
@@ -1706,7 +1706,7 @@ export function FunilConversaoTab() {
                           <Layers className="h-4 w-4 text-teal-500" />
                           <h4 className="font-medium text-sm">Top Conjuntos</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdsetItem
                               key={`${item.campaign}-${item.adset}`}
@@ -1735,7 +1735,7 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-emerald-500" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdItem
                               key={`${item.campaign}-${item.adset}-${item.ad}`}
@@ -1776,7 +1776,7 @@ export function FunilConversaoTab() {
                           <Layers className="h-4 w-4 text-green-500" />
                           <h4 className="font-medium text-sm">Top Conjuntos</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdsetItem
                               key={`${item.campaign}-${item.adset}`}
@@ -1805,7 +1805,7 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-lime-600" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdItem
                               key={`${item.campaign}-${item.adset}-${item.ad}`}
@@ -1913,7 +1913,7 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-purple-500" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdItem
                               key={`cpl-${item.campaign}-${item.adset}-${item.ad}`}
@@ -2003,7 +2003,7 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-orange-500" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdItem
                               key={`cpa-${item.campaign}-${item.adset}-${item.ad}`}
@@ -2054,7 +2054,7 @@ export function FunilConversaoTab() {
                           <Layers className="h-4 w-4 text-teal-500" />
                           <h4 className="font-medium text-sm">Top Conjuntos</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdsetItem
                               key={`cpc-${item.campaign}-${item.adset}`}
@@ -2093,7 +2093,7 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-emerald-500" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdItem
                               key={`cpc-${item.campaign}-${item.adset}-${item.ad}`}
@@ -2144,7 +2144,7 @@ export function FunilConversaoTab() {
                           <Layers className="h-4 w-4 text-green-500" />
                           <h4 className="font-medium text-sm">Top Conjuntos</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdsetItem
                               key={`cac-${item.campaign}-${item.adset}`}
@@ -2183,7 +2183,7 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-lime-600" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                        <div className="space-y-2 h-[280px] overflow-y-auto overscroll-contain pr-2" style={{ WebkitOverflowScrolling: "touch" }}>
                           {sortedItems.map((item, index) => (
                             <AdItem
                               key={`cac-${item.campaign}-${item.adset}-${item.ad}`}
