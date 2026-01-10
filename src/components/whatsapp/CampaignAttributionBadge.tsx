@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { Megaphone } from "lucide-react";
+import { Megaphone, Calendar, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getLast8Digits } from "@/utils/whatsapp";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Popover,
   PopoverContent,
@@ -9,8 +11,15 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface CampaignAttributionData {
+interface AttributionEntry {
+  id: string;
+  source: 'meta' | 'google' | 'other';
+  fb_ad_id: string | null;
+  fb_ad_name: string | null;
+  fb_campaign_name: string | null;
+  fb_adset_name: string | null;
   utm_source: string | null;
   utm_campaign: string | null;
   utm_medium: string | null;
@@ -18,6 +27,8 @@ interface CampaignAttributionData {
   utm_term: string | null;
   fbclid: string | null;
   gclid: string | null;
+  ad_thumbnail_url: string | null;
+  timestamp: string;
 }
 
 interface CampaignAttributionBadgeProps {
@@ -25,55 +36,156 @@ interface CampaignAttributionBadgeProps {
 }
 
 export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionBadgeProps) {
-  const [attribution, setAttribution] = useState<CampaignAttributionData | null>(null);
+  const [attributions, setAttributions] = useState<AttributionEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadAttribution = async () => {
-      // Important: don't clear existing attribution while reloading,
-      // otherwise the megaphone flickers (appears then disappears).
+    const loadAttributions = async () => {
       setIsLoading(true);
       try {
         const last8Digits = getLast8Digits(contactNumber);
         if (!last8Digits || last8Digits.length < 8) {
           if (isMounted && !hasLoadedOnce) {
-            setAttribution(null);
+            setAttributions([]);
           }
           return;
         }
 
-        // Buscar todos os leads para comparar pelos últimos 8 dígitos
+        const allAttributions: AttributionEntry[] = [];
+        const seenAdIds = new Set<string>();
+
+        // 1. Buscar de mensagens do WhatsApp (whatsapp_messages)
+        const { data: wpMessages } = await supabase
+          .from('whatsapp_messages')
+          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id')
+          .or(`fb_ad_id.not.is.null,fbclid.not.is.null,gclid.not.is.null,utm_source.not.is.null`);
+
+        // Filtrar por número de contato
+        if (wpMessages) {
+          // Precisamos buscar os chats para filtrar por número
+          const { data: wpChats } = await supabase
+            .from('whatsapp_chats')
+            .select('id, contact_number');
+          
+          const chatMap = new Map(wpChats?.map(c => [c.id, c.contact_number]) || []);
+          
+          for (const msg of wpMessages) {
+            const chatNumber = chatMap.get(msg.chat_id);
+            if (chatNumber && getLast8Digits(chatNumber) === last8Digits) {
+              const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
+              if (!seenAdIds.has(key)) {
+                seenAdIds.add(key);
+                allAttributions.push({
+                  id: msg.id,
+                  source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
+                  fb_ad_id: msg.fb_ad_id,
+                  fb_ad_name: msg.fb_ad_name,
+                  fb_campaign_name: msg.fb_campaign_name,
+                  fb_adset_name: msg.fb_adset_name,
+                  utm_source: msg.utm_source,
+                  utm_campaign: msg.utm_campaign,
+                  utm_medium: msg.utm_medium,
+                  utm_content: msg.utm_content,
+                  utm_term: msg.utm_term,
+                  fbclid: msg.fbclid,
+                  gclid: null,
+                  ad_thumbnail_url: msg.ad_thumbnail_url,
+                  timestamp: msg.timestamp,
+                });
+              }
+            }
+          }
+        }
+
+        // 2. Buscar de mensagens de Disparos (disparos_messages)
+        const { data: dispMessages } = await supabase
+          .from('disparos_messages')
+          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id')
+          .or(`fb_ad_id.not.is.null,fbclid.not.is.null,utm_source.not.is.null`);
+
+        if (dispMessages) {
+          const { data: dispChats } = await supabase
+            .from('disparos_chats')
+            .select('id, contact_number');
+          
+          const dispChatMap = new Map(dispChats?.map(c => [c.id, c.contact_number]) || []);
+          
+          for (const msg of dispMessages) {
+            const chatNumber = dispChatMap.get(msg.chat_id);
+            if (chatNumber && getLast8Digits(chatNumber) === last8Digits) {
+              const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
+              if (!seenAdIds.has(key)) {
+                seenAdIds.add(key);
+                allAttributions.push({
+                  id: msg.id,
+                  source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
+                  fb_ad_id: msg.fb_ad_id,
+                  fb_ad_name: msg.fb_ad_name,
+                  fb_campaign_name: msg.fb_campaign_name,
+                  fb_adset_name: msg.fb_adset_name,
+                  utm_source: msg.utm_source,
+                  utm_campaign: msg.utm_campaign,
+                  utm_medium: msg.utm_medium,
+                  utm_content: msg.utm_content,
+                  utm_term: msg.utm_term,
+                  fbclid: msg.fbclid,
+                  gclid: null,
+                  ad_thumbnail_url: msg.ad_thumbnail_url,
+                  timestamp: msg.timestamp,
+                });
+              }
+            }
+          }
+        }
+
+        // 3. Buscar dos leads
         const { data: allLeads } = await supabase
           .from('leads')
-          .select('utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, gclid, telefone')
+          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, gclid, telefone, created_at')
           .is('deleted_at', null);
 
-        // Encontrar lead pelos últimos 8 dígitos que tenha algum dado de atribuição
-        const leadWithAttribution = allLeads?.find(l => {
-          const hasAttribution = l.utm_source || l.utm_campaign || l.fbclid || l.gclid;
-          return getLast8Digits(l.telefone) === last8Digits && hasAttribution;
-        });
+        if (allLeads) {
+          for (const lead of allLeads) {
+            if (getLast8Digits(lead.telefone) === last8Digits) {
+              const hasAttribution = lead.fb_ad_id || lead.utm_source || lead.fbclid || lead.gclid;
+              if (hasAttribution) {
+                const key = lead.fb_ad_id || lead.gclid || lead.fbclid || `${lead.utm_source}-${lead.utm_campaign}-${lead.created_at}`;
+                if (!seenAdIds.has(key)) {
+                  seenAdIds.add(key);
+                  allAttributions.push({
+                    id: lead.id,
+                    source: lead.gclid ? 'google' : (lead.fb_ad_id || lead.fbclid ? 'meta' : 'other'),
+                    fb_ad_id: lead.fb_ad_id,
+                    fb_ad_name: lead.fb_ad_name,
+                    fb_campaign_name: lead.fb_campaign_name,
+                    fb_adset_name: lead.fb_adset_name,
+                    utm_source: lead.utm_source,
+                    utm_campaign: lead.utm_campaign,
+                    utm_medium: lead.utm_medium,
+                    utm_content: lead.utm_content,
+                    utm_term: lead.utm_term,
+                    fbclid: lead.fbclid,
+                    gclid: lead.gclid,
+                    ad_thumbnail_url: null,
+                    timestamp: lead.created_at || new Date().toISOString(),
+                  });
+                }
+              }
+            }
+          }
+        }
 
         if (!isMounted) return;
 
-        if (leadWithAttribution) {
-          setAttribution({
-            utm_source: leadWithAttribution.utm_source,
-            utm_campaign: leadWithAttribution.utm_campaign,
-            utm_medium: leadWithAttribution.utm_medium,
-            utm_content: leadWithAttribution.utm_content,
-            utm_term: leadWithAttribution.utm_term,
-            fbclid: leadWithAttribution.fbclid,
-            gclid: leadWithAttribution.gclid,
-          });
-        }
-        // Se não encontrou, NÃO limpar o estado - manter o que já temos
+        // Ordenar por data (mais recente primeiro)
+        allAttributions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        
+        setAttributions(allAttributions);
       } catch (error) {
-        console.error('Error loading campaign attribution:', error);
-        // Keep previous attribution on transient errors.
+        console.error('Error loading campaign attributions:', error);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -82,7 +194,7 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
       }
     };
 
-    loadAttribution();
+    loadAttributions();
 
     return () => {
       isMounted = false;
@@ -90,30 +202,35 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
   }, [contactNumber]);
 
   // Não mostrar nada se não há dados de atribuição E já carregou pelo menos uma vez
-  if (!attribution && hasLoadedOnce) {
+  if (attributions.length === 0 && hasLoadedOnce) {
     return null;
   }
 
   // Ainda carregando pela primeira vez - não mostrar nada ainda
-  if (!attribution && isLoading) {
+  if (attributions.length === 0 && isLoading) {
     return null;
   }
 
-  // Determinar a fonte principal para exibição
-  const getSourceInfo = () => {
-    if (attribution.utm_source === 'facebook' || attribution.fbclid) {
+  const getSourceInfo = (attr: AttributionEntry) => {
+    if (attr.source === 'meta') {
       return { label: 'Meta Ads', color: 'bg-blue-500' };
     }
-    if (attribution.gclid) {
+    if (attr.source === 'google') {
       return { label: 'Google Ads', color: 'bg-green-500' };
     }
-    if (attribution.utm_source) {
-      return { label: attribution.utm_source, color: 'bg-purple-500' };
+    if (attr.utm_source) {
+      return { label: attr.utm_source, color: 'bg-purple-500' };
     }
     return { label: 'Campanha', color: 'bg-gray-500' };
   };
 
-  const sourceInfo = getSourceInfo();
+  const formatDate = (timestamp: string) => {
+    try {
+      return format(new Date(timestamp), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+    } catch {
+      return timestamp;
+    }
+  };
 
   return (
     <Popover>
@@ -121,88 +238,131 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 flex-shrink-0"
-          title="Ver origem da campanha"
+          className="h-6 w-6 flex-shrink-0 relative"
+          title="Ver origens de campanhas"
         >
           <Megaphone className="w-4 h-4 text-blue-500" />
+          {attributions.length > 1 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+              {attributions.length}
+            </span>
+          )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-3" align="start">
+      <PopoverContent className="w-80 p-3" align="start">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Megaphone className="w-4 h-4 text-blue-500" />
-            <span className="font-semibold text-sm">Origem do Lead</span>
+            <span className="font-semibold text-sm">
+              Histórico de Campanhas ({attributions.length})
+            </span>
           </div>
           
-          <div className="space-y-2">
-            {/* Fonte */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Fonte:</span>
-              <Badge variant="secondary" className={`text-white ${sourceInfo.color}`}>
-                {sourceInfo.label}
-              </Badge>
+          <ScrollArea className={attributions.length > 2 ? "h-64" : ""}>
+            <div className="space-y-3 pr-2">
+              {attributions.map((attr, index) => {
+                const sourceInfo = getSourceInfo(attr);
+                return (
+                  <div 
+                    key={attr.id} 
+                    className={`space-y-2 p-2 rounded-lg ${index === 0 ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800' : 'bg-muted/50'}`}
+                  >
+                    {/* Header com data e fonte */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Calendar className="w-3 h-3" />
+                        <span>{formatDate(attr.timestamp)}</span>
+                      </div>
+                      <Badge variant="secondary" className={`text-white text-[10px] px-1.5 py-0 ${sourceInfo.color}`}>
+                        {sourceInfo.label}
+                      </Badge>
+                    </div>
+
+                    {/* Thumbnail do anúncio */}
+                    {attr.ad_thumbnail_url && (
+                      <div className="flex justify-center">
+                        <img 
+                          src={attr.ad_thumbnail_url} 
+                          alt="Anúncio" 
+                          className="max-h-16 rounded object-contain"
+                        />
+                      </div>
+                    )}
+
+                    {/* Detalhes do anúncio */}
+                    <div className="space-y-1 text-xs">
+                      {/* Campanha */}
+                      {(attr.fb_campaign_name || attr.utm_campaign) && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-muted-foreground shrink-0">Campanha:</span>
+                          <span className="font-medium text-right truncate" title={attr.fb_campaign_name || attr.utm_campaign || ''}>
+                            {attr.fb_campaign_name || attr.utm_campaign}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Conjunto */}
+                      {attr.fb_adset_name && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-muted-foreground shrink-0">Conjunto:</span>
+                          <span className="font-medium text-right truncate" title={attr.fb_adset_name}>
+                            {attr.fb_adset_name}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Anúncio */}
+                      {attr.fb_ad_name && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-muted-foreground shrink-0">Anúncio:</span>
+                          <span className="font-medium text-right truncate" title={attr.fb_ad_name}>
+                            {attr.fb_ad_name}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Meio */}
+                      {attr.utm_medium && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-muted-foreground shrink-0">Meio:</span>
+                          <span className="font-medium">{attr.utm_medium}</span>
+                        </div>
+                      )}
+
+                      {/* ID do Anúncio */}
+                      {attr.fb_ad_id && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-muted-foreground shrink-0">ID:</span>
+                          <span className="font-mono text-[10px] truncate max-w-[140px]" title={attr.fb_ad_id}>
+                            {attr.fb_ad_id}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Click IDs */}
+                      {(attr.fbclid || attr.gclid) && (
+                        <div className="flex items-start justify-between gap-2 pt-1 border-t border-muted">
+                          <span className="text-muted-foreground shrink-0">
+                            {attr.fbclid ? 'FBCLID:' : 'GCLID:'}
+                          </span>
+                          <span className="font-mono text-[10px] truncate max-w-[140px]" title={attr.fbclid || attr.gclid || ''}>
+                            {(attr.fbclid || attr.gclid || '').slice(0, 16)}...
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Indicador de mais recente */}
+                    {index === 0 && attributions.length > 1 && (
+                      <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                        ★ Mais recente
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Campanha */}
-            {attribution.utm_campaign && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Campanha:</span>
-                <span className="text-xs font-medium truncate max-w-[160px]" title={attribution.utm_campaign}>
-                  {attribution.utm_campaign}
-                </span>
-              </div>
-            )}
-
-            {/* Meio */}
-            {attribution.utm_medium && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Meio:</span>
-                <span className="text-xs font-medium">{attribution.utm_medium}</span>
-              </div>
-            )}
-
-            {/* Conteúdo (ID do anúncio) */}
-            {attribution.utm_content && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">ID Anúncio:</span>
-                <span className="text-xs font-mono truncate max-w-[140px]" title={attribution.utm_content}>
-                  {attribution.utm_content}
-                </span>
-              </div>
-            )}
-
-            {/* Termo/Body */}
-            {attribution.utm_term && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Texto:</span>
-                <span className="text-xs truncate max-w-[160px]" title={attribution.utm_term}>
-                  {attribution.utm_term}
-                </span>
-              </div>
-            )}
-
-            {/* Click IDs */}
-            {(attribution.fbclid || attribution.gclid) && (
-              <div className="pt-2 border-t">
-                {attribution.fbclid && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">FBCLID:</span>
-                    <span className="text-xs font-mono truncate max-w-[140px]" title={attribution.fbclid}>
-                      {attribution.fbclid.slice(0, 12)}...
-                    </span>
-                  </div>
-                )}
-                {attribution.gclid && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">GCLID:</span>
-                    <span className="text-xs font-mono truncate max-w-[140px]" title={attribution.gclid}>
-                      {attribution.gclid.slice(0, 12)}...
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          </ScrollArea>
         </div>
       </PopoverContent>
     </Popover>
