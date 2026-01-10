@@ -78,32 +78,34 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
               </span>
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-96 p-4 max-h-[80vh] overflow-y-auto" align="start">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b">
-                <Megaphone className="w-5 h-5 text-blue-500" />
-                <span className="font-semibold">Origem do Anúncio</span>
+          <PopoverContent className="w-[320px] sm:w-96 p-0 max-h-[70vh] overflow-hidden" align="start">
+            <div className="flex flex-col max-h-[70vh]">
+              {/* Header fixo */}
+              <div className="flex items-center gap-2 p-3 border-b bg-background sticky top-0 z-10">
+                <Megaphone className="w-4 h-4 text-blue-500" />
+                <span className="font-semibold text-sm">Origem do Anúncio</span>
               </div>
               
-              {/* Thumbnail da imagem do anúncio */}
-              {lead.ad_thumbnail_url && (
-                <div className="relative group cursor-pointer" onClick={() => setIsImageModalOpen(true)}>
-                  <img 
-                    src={lead.ad_thumbnail_url} 
-                    alt="Thumbnail do anúncio" 
-                    className="w-full h-auto rounded-lg border shadow-sm hover:shadow-md transition-shadow"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
-                    <Maximize2 className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              {/* Conteúdo com scroll */}
+              <div className="overflow-y-auto flex-1 p-3 space-y-3">
+                {/* Thumbnail da imagem do anúncio */}
+                {lead.ad_thumbnail_url && (
+                  <div className="relative group cursor-pointer" onClick={() => setIsImageModalOpen(true)}>
+                    <img 
+                      src={lead.ad_thumbnail_url} 
+                      alt="Thumbnail do anúncio" 
+                      className="w-full h-auto max-h-40 object-cover rounded-lg border shadow-sm hover:shadow-md transition-shadow"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                      <Maximize2 className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              <div className="space-y-3">
+                )}
+                
                 {/* Fonte */}
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Fonte:</span>
-                  <span className={`text-xs px-3 py-1 rounded-md font-medium ${sourceInfo.bgColor} ${sourceInfo.textColor}`}>
+                  <span className="text-xs text-muted-foreground">Fonte:</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${sourceInfo.bgColor} ${sourceInfo.textColor}`}>
                     {sourceInfo.label}
                   </span>
                 </div>
@@ -111,9 +113,9 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
                 {/* Campanha (Gerenciador) */}
                 {(lead.fb_campaign_name || lead.utm_campaign) && (
                   <div className="space-y-1">
-                    <span className="text-sm text-muted-foreground">Campanha (Gerenciador):</span>
-                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-3">
-                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 break-words">
+                    <span className="text-xs text-muted-foreground">Campanha (Gerenciador):</span>
+                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-2">
+                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 break-words">
                         {lead.fb_campaign_name || lead.utm_campaign}
                       </span>
                     </div>
@@ -123,9 +125,9 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
                 {/* Conjunto de Anúncios */}
                 {lead.fb_adset_name && (
                   <div className="space-y-1">
-                    <span className="text-sm text-muted-foreground">Conjunto de Anúncios:</span>
-                    <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-3">
-                      <span className="text-sm font-semibold text-green-700 dark:text-green-300 break-words">
+                    <span className="text-xs text-muted-foreground">Conjunto de Anúncios:</span>
+                    <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-2">
+                      <span className="text-xs font-semibold text-green-700 dark:text-green-300 break-words">
                         {lead.fb_adset_name}
                       </span>
                     </div>
@@ -135,9 +137,9 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
                 {/* Nome do Anúncio */}
                 {lead.fb_ad_name && (
                   <div className="space-y-1">
-                    <span className="text-sm text-muted-foreground">Nome do Anúncio:</span>
-                    <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-md p-3">
-                      <span className="text-sm font-semibold text-orange-700 dark:text-orange-300 break-words">
+                    <span className="text-xs text-muted-foreground">Nome do Anúncio:</span>
+                    <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-md p-2">
+                      <span className="text-xs font-semibold text-orange-700 dark:text-orange-300 break-words">
                         {lead.fb_ad_name}
                       </span>
                     </div>
@@ -147,9 +149,9 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
                 {/* Texto do Anúncio (expandível) */}
                 {textContent && (
                   <div className="space-y-1">
-                    <span className="text-sm text-muted-foreground">Texto do Anúncio:</span>
-                    <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-3">
-                      <span className="text-sm break-words whitespace-pre-wrap">
+                    <span className="text-xs text-muted-foreground">Texto do Anúncio:</span>
+                    <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-2">
+                      <span className="text-xs break-words whitespace-pre-wrap">
                         {displayText}
                         {isTextLong && !isTextExpanded && '...'}
                       </span>
@@ -180,14 +182,14 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
                 )}
 
                 {/* Dados Técnicos */}
-                <div className="pt-3 border-t space-y-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dados Técnicos</span>
+                <div className="pt-2 border-t space-y-1.5">
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Dados Técnicos</span>
                   
                   {/* ID do Anúncio */}
                   {(lead.fb_ad_id || lead.utm_content) && (
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm text-muted-foreground">ID do Anúncio:</span>
-                      <span className="text-sm font-mono text-right break-all">
+                      <span className="text-xs text-muted-foreground">ID:</span>
+                      <span className="text-[10px] font-mono text-right break-all max-w-[180px]">
                         {lead.fb_ad_id || lead.utm_content}
                       </span>
                     </div>
@@ -196,24 +198,24 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
                   {/* Meio */}
                   {lead.utm_medium && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Meio:</span>
-                      <span className="text-sm">{lead.utm_medium}</span>
+                      <span className="text-xs text-muted-foreground">Meio:</span>
+                      <span className="text-xs">{lead.utm_medium}</span>
                     </div>
                   )}
 
                   {/* Click IDs */}
                   {lead.fbclid && (
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm text-muted-foreground">FBCLID:</span>
-                      <span className="text-xs font-mono text-right break-all text-muted-foreground max-w-[200px]">
+                      <span className="text-xs text-muted-foreground">FBCLID:</span>
+                      <span className="text-[10px] font-mono text-right break-all text-muted-foreground max-w-[160px]">
                         {lead.fbclid}
                       </span>
                     </div>
                   )}
                   {lead.gclid && (
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm text-muted-foreground">GCLID:</span>
-                      <span className="text-xs font-mono text-right break-all text-muted-foreground max-w-[200px]">
+                      <span className="text-xs text-muted-foreground">GCLID:</span>
+                      <span className="text-[10px] font-mono text-right break-all text-muted-foreground max-w-[160px]">
                         {lead.gclid}
                       </span>
                     </div>
