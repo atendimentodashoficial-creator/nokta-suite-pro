@@ -43,7 +43,8 @@ export default function Leads() {
   const leadsByOrigem = leadsInPeriod?.filter((lead) => {
     const origem = (lead.origem || "").toLowerCase();
     if (origemFilter === "whatsapp") {
-      return origem === "whatsapp" || origem === "";
+      // Inclui WhatsApp e leads sem origem definida (null ou vazio)
+      return origem === "whatsapp" || origem === "" || lead.origem === null;
     }
     return origem === "disparos";
   });
