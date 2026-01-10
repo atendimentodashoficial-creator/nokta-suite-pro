@@ -1071,10 +1071,6 @@ Deno.serve(async (req) => {
       utm_content: null,
       utm_term: null,
       fbclid: null,
-      fb_ad_id: null,
-      fb_campaign_name: null,
-      fb_adset_name: null,
-      fb_ad_name: null,
     };
 
     // Handle standard referral format
@@ -1089,7 +1085,6 @@ Deno.serve(async (req) => {
       utmData.utm_content = referral.source_id || null;
       utmData.utm_term = referral.body || null;
       utmData.fbclid = referral.ctwa_clid || null;
-      utmData.fb_ad_id = referral.source_id || null;
     }
     // Handle UAZAPI format: externalAdReply in contextInfo
     else if (externalAdReply && conversionSource === 'FB_Ads') {
@@ -1104,7 +1099,6 @@ Deno.serve(async (req) => {
       utmData.utm_content = externalAdReply.sourceID || externalAdReply.sourceId || externalAdReply.source_id || null;
       utmData.utm_term = externalAdReply.body || null;
       utmData.fbclid = externalAdReply.ctwa_clid || null;
-      utmData.fb_ad_id = externalAdReply.sourceID || externalAdReply.sourceId || externalAdReply.source_id || null;
 
       // Fallback: some UAZAPI payloads omit sourceId but include ctwaPayload/conversionData.
       if (!utmData.utm_content || !utmData.fbclid) {
@@ -1124,17 +1118,6 @@ Deno.serve(async (req) => {
         source_id: utmData.utm_content || undefined,
         ctwa_clid: utmData.fbclid || undefined,
       };
-    }
-
-    // Fetch real Facebook campaign names if we have an ad ID (for lead enrichment)
-    let leadFbCampaignInfo = { campaign_name: null as string | null, adset_name: null as string | null, ad_name: null as string | null };
-    if (utmData.fb_ad_id) {
-      leadFbCampaignInfo = await fetchFacebookCampaignInfo(supabase, userId, utmData.fb_ad_id);
-      console.log('Fetched Facebook campaign info for lead:', leadFbCampaignInfo);
-      // Update utmData with enriched names
-      utmData.fb_campaign_name = leadFbCampaignInfo.campaign_name;
-      utmData.fb_adset_name = leadFbCampaignInfo.adset_name;
-      utmData.fb_ad_name = leadFbCampaignInfo.ad_name;
     }
 
     // NOTE: UTM data is now included directly in message inserts (above), so no post-update needed
@@ -1215,10 +1198,6 @@ Deno.serve(async (req) => {
         updateData.utm_content = utmData.utm_content;
         updateData.utm_term = utmData.utm_term;
         updateData.fbclid = utmData.fbclid;
-        updateData.fb_ad_id = utmData.fb_ad_id;
-        updateData.fb_campaign_name = utmData.fb_campaign_name;
-        updateData.fb_adset_name = utmData.fb_adset_name;
-        updateData.fb_ad_name = utmData.fb_ad_name;
       }
 
       // Add instance name if available
@@ -1268,10 +1247,6 @@ Deno.serve(async (req) => {
         updateData.utm_content = utmData.utm_content;
         updateData.utm_term = utmData.utm_term;
         updateData.fbclid = utmData.fbclid;
-        updateData.fb_ad_id = utmData.fb_ad_id;
-        updateData.fb_campaign_name = utmData.fb_campaign_name;
-        updateData.fb_adset_name = utmData.fb_adset_name;
-        updateData.fb_ad_name = utmData.fb_ad_name;
         console.log('Adding UTM data to existing lead:', utmData);
         await logEvent(userId, 'info', `Dados UTM adicionados ao lead existente: ${JSON.stringify(utmData)}`);
       }
@@ -1326,11 +1301,6 @@ Deno.serve(async (req) => {
         utm_content: utmData.utm_content,
         utm_term: utmData.utm_term,
         fbclid: utmData.fbclid,
-        // Facebook Ad enriched data
-        fb_ad_id: utmData.fb_ad_id,
-        fb_campaign_name: utmData.fb_campaign_name,
-        fb_adset_name: utmData.fb_adset_name,
-        fb_ad_name: utmData.fb_ad_name,
       })
       .select()
       .single();
