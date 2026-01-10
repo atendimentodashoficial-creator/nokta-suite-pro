@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -25,7 +25,10 @@ import {
   Clock,
   Trophy,
   ArrowRight,
-  Download
+  Download,
+  Users,
+  UserCheck,
+  Handshake
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -44,6 +47,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useLeads } from "@/hooks/useLeads";
 
 interface BaseMetrics {
   impressions: number;
@@ -141,6 +145,7 @@ interface StoredReport {
 export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { data: allLeads } = useLeads();
   
   const [apiKeyConfigured, setApiKeyConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -223,6 +228,124 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     setDateStart(start);
     setDateEnd(end);
   };
+
+  // Calculate funnel data for the selected period
+  const funnelData = useMemo(() => {
+    if (!allLeads) return null;
+
+    const startDate = dateStart;
+    const endDate = dateEnd;
+
+    // Filter leads by period (using created_at)
+    const leadsInPeriod = allLeads.filter(lead => {
+      const leadDate = new Date(lead.created_at);
+      return leadDate >= startDate && leadDate <= endDate;
+    });
+
+    // Separate tracked (from ads) vs untracked
+    const trackedLeads = leadsInPeriod.filter(lead => 
+      lead.utm_campaign || lead.fbclid || lead.utm_source
+    );
+    const untrackedLeads = leadsInPeriod.filter(lead => 
+      !lead.utm_campaign && !lead.fbclid && !lead.utm_source
+    );
+
+    // Calculate funnel metrics
+    const totalLeads = leadsInPeriod.length;
+    const trackedCount = trackedLeads.length;
+    const untrackedCount = untrackedLeads.length;
+
+    // Get agendamentos for these leads
+    const agendados = leadsInPeriod.filter(lead => 
+      lead.data_agendamento !== null
+    );
+    const agendadosTracked = trackedLeads.filter(lead => lead.data_agendamento !== null).length;
+    const agendadosUntracked = untrackedLeads.filter(lead => lead.data_agendamento !== null).length;
+
+    // Comparecimentos (leads with data_comparecimento)
+    const compareceu = leadsInPeriod.filter(lead => lead.data_comparecimento !== null);
+    const compareceuTracked = trackedLeads.filter(lead => lead.data_comparecimento !== null).length;
+    const compareceuUntracked = untrackedLeads.filter(lead => lead.data_comparecimento !== null).length;
+
+    // Clientes (status = 'cliente')
+    const clientes = leadsInPeriod.filter(lead => lead.status === 'cliente');
+    const clientesTracked = trackedLeads.filter(lead => lead.status === 'cliente').length;
+    const clientesUntracked = untrackedLeads.filter(lead => lead.status === 'cliente').length;
+
+    // Valor fechado
+    const valorTotal = clientes.reduce((sum, lead) => sum + (lead.valor_tratamento || 0), 0);
+    const valorTracked = trackedLeads.filter(lead => lead.status === 'cliente')
+      .reduce((sum, lead) => sum + (lead.valor_tratamento || 0), 0);
+    const valorUntracked = untrackedLeads.filter(lead => lead.status === 'cliente')
+      .reduce((sum, lead) => sum + (lead.valor_tratamento || 0), 0);
+
+    // Em negociação
+    const emNegociacao = leadsInPeriod.filter(lead => 
+      lead.data_comparecimento !== null && lead.status !== 'cliente'
+    );
+
+    // Calculate conversion rates
+    const taxaAgendamento = totalLeads > 0 ? (agendados.length / totalLeads) * 100 : 0;
+    const taxaComparecimento = agendados.length > 0 ? (compareceu.length / agendados.length) * 100 : 0;
+    const taxaFechamento = compareceu.length > 0 ? (clientes.length / compareceu.length) * 100 : 0;
+    const taxaConversaoGeral = totalLeads > 0 ? (clientes.length / totalLeads) * 100 : 0;
+
+    // Ticket médio
+    const ticketMedio = clientes.length > 0 ? valorTotal / clientes.length : 0;
+
+    // Group by campaign for analysis
+    const byCampaign: Record<string, {
+      campaign: string;
+      leads: number;
+      agendados: number;
+      compareceu: number;
+      clientes: number;
+      valor: number;
+    }> = {};
+
+    for (const lead of trackedLeads) {
+      const campaign = lead.utm_campaign || 'Sem campanha';
+      if (!byCampaign[campaign]) {
+        byCampaign[campaign] = { campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
+      }
+      byCampaign[campaign].leads++;
+      if (lead.data_agendamento) byCampaign[campaign].agendados++;
+      if (lead.data_comparecimento) byCampaign[campaign].compareceu++;
+      if (lead.status === 'cliente') {
+        byCampaign[campaign].clientes++;
+        byCampaign[campaign].valor += lead.valor_tratamento || 0;
+      }
+    }
+
+    return {
+      totals: {
+        leads: totalLeads,
+        leadsTracked: trackedCount,
+        leadsUntracked: untrackedCount,
+        agendados: agendados.length,
+        agendadosTracked,
+        agendadosUntracked,
+        compareceu: compareceu.length,
+        compareceuTracked,
+        compareceuUntracked,
+        emNegociacao: emNegociacao.length,
+        clientes: clientes.length,
+        clientesTracked,
+        clientesUntracked,
+        valorTotal,
+        valorTracked,
+        valorUntracked,
+        ticketMedio,
+      },
+      taxas: {
+        agendamento: taxaAgendamento,
+        comparecimento: taxaComparecimento,
+        fechamento: taxaFechamento,
+        conversaoGeral: taxaConversaoGeral,
+      },
+      byCampaign: Object.values(byCampaign).sort((a, b) => b.leads - a.leads),
+    };
+  }, [allLeads, dateStart, dateEnd]);
 
   const loadStoredReport = async () => {
     if (!selectedAccount || !user) return;
@@ -437,7 +560,13 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
           dateEnd: formattedDateEnd,
           accountId: selectedAccount,
           compareWithPrevious: compare,
-          previousReport: compare ? storedReport?.report : null
+          previousReport: compare ? storedReport?.report : null,
+          // Include funnel data for comprehensive analysis
+          funnelData: funnelData ? {
+            totals: funnelData.totals,
+            taxas: funnelData.taxas,
+            byCampaign: funnelData.byCampaign,
+          } : null
         },
         headers: {
           Authorization: `Bearer ${session.session?.access_token}`,

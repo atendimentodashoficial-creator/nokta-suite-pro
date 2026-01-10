@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, campaigns, adsets, ads, dateStart, dateEnd, accountId, compareWithPrevious, previousReport } = await req.json();
+    const { action, campaigns, adsets, ads, dateStart, dateEnd, accountId, compareWithPrevious, previousReport, funnelData } = await req.json();
 
     // Check API key action
     if (action === 'check_api_key') {
@@ -272,17 +272,74 @@ Compare o desempenho atual com o relatório anterior e identifique:
     }`;
       }
 
-      const prompt = `Você é um especialista em análise de campanhas de Facebook Ads, com foco especial em CUSTO POR RESULTADO (custo por conversa iniciada). Analise os dados abaixo e forneça insights e recomendações em JSON.
+      // Build funnel analysis section if data is available
+      let funnelSection = "";
+      let funnelInsightsInstructions = "";
+      
+      if (funnelData && funnelData.totals) {
+        const totals = funnelData.totals;
+        const taxas = funnelData.taxas || {};
+        const byCampaign = funnelData.byCampaign || [];
+        
+        funnelSection = `
+
+═══════════════════════════════════════════════════════════════
+📊 FUNIL DE CONVERSÃO REAL (DADOS DO CRM)
+═══════════════════════════════════════════════════════════════
+Este é o funil REAL baseado nos leads que chegaram via anúncios e seu progresso no CRM:
+
+TOTAIS DO PERÍODO:
+- Total de Leads: ${totals.leads} (${totals.leadsTracked} rastreados de anúncios / ${totals.leadsUntracked} sem rastreamento)
+- Agendamentos: ${totals.agendados} (${totals.agendadosTracked} rastreados / ${totals.agendadosUntracked} não rastreados)
+- Comparecimentos: ${totals.compareceu} (${totals.compareceuTracked} rastreados / ${totals.compareceuUntracked} não rastreados)
+- Em Negociação: ${totals.emNegociacao || 0}
+- Clientes Fechados: ${totals.clientes} (${totals.clientesTracked} rastreados / ${totals.clientesUntracked} não rastreados)
+- Faturamento Total: R$ ${(totals.valorTotal || 0).toFixed(2)} (R$ ${(totals.valorTracked || 0).toFixed(2)} de anúncios / R$ ${(totals.valorUntracked || 0).toFixed(2)} orgânico)
+- Ticket Médio: R$ ${(totals.ticketMedio || 0).toFixed(2)}
+
+TAXAS DE CONVERSÃO:
+- Taxa de Agendamento (Lead → Agendado): ${(taxas.agendamento || 0).toFixed(1)}%
+- Taxa de Comparecimento (Agendado → Compareceu): ${(taxas.comparecimento || 0).toFixed(1)}%
+- Taxa de Fechamento (Compareceu → Cliente): ${(taxas.fechamento || 0).toFixed(1)}%
+- Conversão Geral (Lead → Cliente): ${(taxas.conversaoGeral || 0).toFixed(1)}%
+
+${byCampaign.length > 0 ? `FUNIL POR CAMPANHA (Top 10):
+${JSON.stringify(byCampaign.slice(0, 10).map((c: any) => ({
+  campanha: c.campaign,
+  leads: c.leads,
+  agendados: c.agendados,
+  compareceu: c.compareceu,
+  clientes: c.clientes,
+  valor_fechado: c.valor,
+  taxa_conversao: c.leads > 0 ? ((c.clientes / c.leads) * 100).toFixed(1) + '%' : '0%'
+})), null, 2)}` : ''}
+
+ANÁLISE DE EFICIÊNCIA DO FUNIL:
+- Custo por Lead (CPL): R$ ${totalResults > 0 ? (totalSpend / totals.leadsTracked).toFixed(2) : '0.00'}
+- Custo por Agendamento: R$ ${totals.agendadosTracked > 0 ? (totalSpend / totals.agendadosTracked).toFixed(2) : '0.00'}
+- Custo por Comparecimento: R$ ${totals.compareceuTracked > 0 ? (totalSpend / totals.compareceuTracked).toFixed(2) : '0.00'}
+- CAC (Custo de Aquisição de Cliente): R$ ${totals.clientesTracked > 0 ? (totalSpend / totals.clientesTracked).toFixed(2) : '0.00'}
+- ROAS Real: ${totals.valorTracked > 0 && totalSpend > 0 ? (totals.valorTracked / totalSpend).toFixed(2) + 'x' : 'N/A'}
+`;
+
+        funnelInsightsInstructions = `
+  * 2-3 insights sobre o FUNIL DE CONVERSÃO (taxas de agendamento, comparecimento, fechamento)
+  * Identificar gargalos no funil (onde estamos perdendo mais leads)
+  * Comparar desempenho de leads rastreados vs não rastreados`;
+      }
+
+      const prompt = `Você é um especialista em análise de campanhas de Facebook Ads, com foco especial em CUSTO POR RESULTADO e no FUNIL DE CONVERSÃO COMPLETO. Analise os dados abaixo e forneça insights e recomendações em JSON.
 
 IMPORTANTE: 
-1. O CUSTO POR RESULTADO (custo por conversa iniciada) é a métrica MAIS IMPORTANTE para o cliente.
+1. O CUSTO POR RESULTADO (custo por conversa iniciada) é a métrica inicial importante.
 2. Analise TODOS OS NÍVEIS: Campanhas, Conjuntos de Anúncios e Anúncios individuais.
-3. Os rankings já foram calculados automaticamente. Seu foco é gerar INSIGHTS e RECOMENDAÇÕES.
+3. ${funnelData ? 'CRÍTICO: Analise também o FUNIL DE CONVERSÃO REAL (dados do CRM) para entender a qualidade dos leads e o retorno real do investimento.' : 'Foque no custo por resultado como métrica principal.'}
+4. Os rankings já foram calculados automaticamente. Seu foco é gerar INSIGHTS e RECOMENDAÇÕES.
 
 PERÍODO: ${dateStart} a ${dateEnd}
 
 ═══════════════════════════════════════════════════════════════
-RESUMO GERAL
+RESUMO GERAL - MÉTRICAS DE ANÚNCIOS
 ═══════════════════════════════════════════════════════════════
 - Total de Campanhas com dados: ${filteredCampaigns.length}
 - Total de Conjuntos com dados: ${filteredAdsets.length}
@@ -292,7 +349,7 @@ RESUMO GERAL
 - CUSTO MÉDIO POR RESULTADO: R$ ${avgCostPerResult.toFixed(2)}
 - CTR Médio: ${avgCTR.toFixed(2)}%
 - CPC Médio: R$ ${avgCPC.toFixed(2)}
-
+${funnelSection}
 ═══════════════════════════════════════════════════════════════
 ANÁLISE POR NÍVEL - CUSTO POR RESULTADO
 ═══════════════════════════════════════════════════════════════
@@ -317,7 +374,7 @@ ${comparisonSection}
 
 Retorne um JSON válido (sem markdown) com a seguinte estrutura:
 {
-  "summary": "Resumo executivo de 4-5 frases focando no custo por resultado e eficiência do investimento",
+  "summary": "Resumo executivo de 5-7 frases focando no custo por resultado, eficiência do investimento ${funnelData ? 'e no funil de conversão real (CAC, ROAS, taxas de conversão)' : ''}",
   "insights": [
     {
       "type": "success" | "warning" | "info",
@@ -332,22 +389,27 @@ Retorne um JSON válido (sem markdown) com a seguinte estrutura:
 }
 
 Forneça:
-- 8-10 insights relevantes, sendo OBRIGATÓRIO incluir:
+- 10-14 insights relevantes, sendo OBRIGATÓRIO incluir:
   * 2-3 insights sobre CAMPANHAS com melhor/pior custo por resultado
   * 2-3 insights sobre CONJUNTOS DE ANÚNCIOS com melhor/pior custo por resultado
-  * 2-3 insights sobre ANÚNCIOS com melhor/pior custo por resultado
+  * 2-3 insights sobre ANÚNCIOS com melhor/pior custo por resultado${funnelInsightsInstructions}
   * 1-2 insights gerais sobre tendências
-- 8-10 recomendações práticas e acionáveis focadas em:
+- 10-12 recomendações práticas e acionáveis focadas em:
   * Reduzir custo por resultado
   * Escalar os melhores anúncios/conjuntos
   * Pausar ou otimizar os piores performers
+  ${funnelData ? `* Melhorar taxas de conversão do funil (agendamento, comparecimento, fechamento)
+  * Identificar quais campanhas trazem leads de melhor qualidade (que mais convertem em clientes)` : ''}
 ${compareWithPrevious ? '- 4-6 mudanças na seção de comparação' : ''}
 
 FOCO PRINCIPAL:
 1. Identificar os anúncios e conjuntos mais eficientes (menor custo por conversa)
 2. Apontar desperdício de verba em anúncios/conjuntos ineficientes
 3. Sugerir realocação de orçamento para os melhores performers
-4. Identificar padrões de sucesso (criativos, públicos, horários)`;
+4. Identificar padrões de sucesso (criativos, públicos, horários)
+${funnelData ? `5. Analisar a qualidade dos leads por campanha (qual campanha traz leads que mais convertem)
+6. Calcular o retorno real do investimento (ROAS baseado em faturamento real)
+7. Identificar gargalos no funil (onde estamos perdendo mais oportunidades)` : ''}`;
 
       console.log("Calling OpenAI API with enhanced cost/result analysis");
 
