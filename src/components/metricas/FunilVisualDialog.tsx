@@ -8,7 +8,8 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowDown,
-  UserX
+  UserX,
+  UserCheck
 } from "lucide-react";
 
 interface FunnelData {
@@ -17,6 +18,7 @@ interface FunnelData {
   ad_name: string | null;
   leads: number;
   agendados: number;
+  compareceu: number;
   nao_compareceu: number;
   em_negociacao: number;
   clientes: number;
@@ -66,6 +68,17 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       width: 88,
       metric: data.spend > 0 && data.agendados > 0 ? `CPA: ${formatCurrency(data.spend / data.agendados)}` : null,
       conversionRate: data.leads > 0 ? formatPercentage(data.agendados, data.leads) : null,
+    },
+    {
+      name: "Compareceu",
+      value: data.compareceu,
+      icon: UserCheck,
+      bgColor: "bg-emerald-500",
+      textColor: "text-emerald-600",
+      bgLight: "bg-emerald-100 dark:bg-emerald-900/50",
+      width: 76,
+      metric: null,
+      conversionRate: data.agendados > 0 ? formatPercentage(data.compareceu, data.agendados) : null,
     },
     {
       name: "Não Compareceu",

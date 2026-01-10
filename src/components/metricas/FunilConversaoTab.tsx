@@ -25,7 +25,8 @@ import {
   Loader2,
   BarChart3,
   Eye,
-  UserX
+  UserX,
+  UserCheck
 } from "lucide-react";
 import {
   Select,
@@ -58,6 +59,7 @@ interface FunnelData {
   ad_id: string | null;
   leads: number;
   agendados: number;
+  compareceu: number;
   nao_compareceu: number;
   em_negociacao: number;
   clientes: number;
@@ -75,6 +77,7 @@ interface SelectedFunnelData {
   ad_name: string | null;
   leads: number;
   agendados: number;
+  compareceu: number;
   nao_compareceu: number;
   em_negociacao: number;
   clientes: number;
@@ -286,6 +289,7 @@ export function FunilConversaoTab() {
             ad_id: adId,
             leads: 0,
             agendados: 0,
+            compareceu: 0,
             nao_compareceu: 0,
             em_negociacao: 0,
             clientes: 0,
@@ -310,12 +314,15 @@ export function FunilConversaoTab() {
         // Então conta como agendado mesmo se não tiver registro na tabela de agendamentos
         if (hasAgendamento || bestStatus === "follow_up" || bestStatus === "cliente") {
           grouped[key].agendados++;
-        }
-        
-        // Não compareceu = tinha agendamento mas cancelou/faltou
-        // Só conta se não evoluiu para negociação ou cliente
-        if (naoCompareceu && bestStatus !== "follow_up" && bestStatus !== "cliente") {
-          grouped[key].nao_compareceu++;
+          
+          // Não compareceu = tinha agendamento mas cancelou/faltou
+          // Só conta se não evoluiu para negociação ou cliente
+          if (naoCompareceu && bestStatus !== "follow_up" && bestStatus !== "cliente") {
+            grouped[key].nao_compareceu++;
+          } else {
+            // Compareceu = agendou e compareceu (está em negociação ou fechou, ou simplesmente não cancelou)
+            grouped[key].compareceu++;
+          }
         }
         
         // Em negociação = já agendou mas ainda NÃO fechou (apenas follow_up)
@@ -410,19 +417,20 @@ export function FunilConversaoTab() {
 
   // Calcular totais
   const totals = useMemo(() => {
-    if (!funnelData) return { leads: 0, agendados: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: 0 };
+    if (!funnelData) return { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: 0 };
     
     const totalSpend = Object.values(spendByCampaign).reduce((a, b) => a + b, 0);
     
     return funnelData.reduce((acc, item) => ({
       leads: acc.leads + item.leads,
       agendados: acc.agendados + item.agendados,
+      compareceu: acc.compareceu + item.compareceu,
       nao_compareceu: acc.nao_compareceu + item.nao_compareceu,
       em_negociacao: acc.em_negociacao + item.em_negociacao,
       clientes: acc.clientes + item.clientes,
       valor_fechado: acc.valor_fechado + item.valor_fechado,
       spend: totalSpend,
-    }), { leads: 0, agendados: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: totalSpend });
+    }), { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: totalSpend });
   }, [funnelData, spendByCampaign]);
 
   const formatCurrency = (value: number) => {
@@ -583,14 +591,29 @@ export function FunilConversaoTab() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Não Compareceu</CardTitle>
-            <UserX className="h-4 w-4 text-red-500" />
+            <CardTitle className="text-sm font-medium">Comparecimento</CardTitle>
+            <div className="flex items-center gap-1">
+              <UserCheck className="h-4 w-4 text-green-500" />
+              <span className="text-muted-foreground">/</span>
+              <UserX className="h-4 w-4 text-red-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(totals.nao_compareceu)}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatPercentage(totals.nao_compareceu, totals.agendados)} dos agendados
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <div className="text-lg font-bold text-green-600">{formatNumber(totals.compareceu)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {formatPercentage(totals.compareceu, totals.agendados)}
+                </p>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div className="flex-1">
+                <div className="text-lg font-bold text-red-600">{formatNumber(totals.nao_compareceu)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {formatPercentage(totals.nao_compareceu, totals.agendados)}
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -695,6 +718,7 @@ export function FunilConversaoTab() {
                         ad_name: row.ad_name,
                         leads: row.leads,
                         agendados: row.agendados,
+                        compareceu: row.compareceu,
                         nao_compareceu: row.nao_compareceu,
                         em_negociacao: row.em_negociacao,
                         clientes: row.clientes,
