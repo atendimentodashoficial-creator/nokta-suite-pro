@@ -1532,7 +1532,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
             </Card>
           )}
 
-          {/* Top Performers by Funnel Stage */}
+          {/* CARD 1: Top Performers by Funnel Stage - RESULTS */}
           {funnelData && (funnelData.byAdset.length > 0 || funnelData.byAd.length > 0) && (
             <Card className="border-cyan-500/20">
               <CardHeader>
@@ -1552,154 +1552,60 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                       <Users className="h-5 w-5 text-blue-500" />
                       <h3 className="font-semibold text-base">Etapa 1: Geração de Leads</h3>
                     </div>
-                    
-                    {/* Section: Top Results */}
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Mais Resultados</p>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top Adsets by Leads */}
-                        {funnelData.byAdset.length > 0 && (
-                          <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-blue-500" />
-                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAdset]
-                                .sort((a, b) => b.leads - a.leads)
-                                .slice(0, 5)
-                                .map((item, index) => (
-                                  <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
-                                        {index + 1}
-                                      </span>
-                                      <span className="text-sm truncate">{item.adset}</span>
-                                    </div>
-                                    <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 ml-2">
-                                      {item.leads} leads
-                                    </Badge>
-                                  </div>
-                                ))}
-                            </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {funnelData.byAdset.length > 0 && (
+                        <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="h-4 w-4 text-blue-500" />
+                            <h4 className="font-medium text-sm">Top Conjuntos</h4>
                           </div>
-                        )}
-                        {/* Top Ads by Leads */}
-                        {funnelData.byAd.length > 0 && (
-                          <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Megaphone className="h-4 w-4 text-purple-500" />
-                              <h4 className="font-medium text-sm">Top Anúncios</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAd]
-                                .sort((a, b) => b.leads - a.leads)
-                                .slice(0, 5)
-                                .map((item, index) => (
-                                  <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-600'}`}>
-                                        {index + 1}
-                                      </span>
-                                      <span className="text-sm truncate">{item.ad}</span>
-                                    </div>
-                                    <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 ml-2">
-                                      {item.leads} leads
-                                    </Badge>
+                          <div className="space-y-2">
+                            {[...funnelData.byAdset]
+                              .sort((a, b) => b.leads - a.leads)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
                                   </div>
-                                ))}
-                            </div>
+                                  <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 ml-2">
+                                    {item.leads} leads
+                                  </Badge>
+                                </div>
+                              ))}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Section: Best Cost per Result */}
-                    {adsSpendData.adsets.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Melhor Custo por Lead</p>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          {/* Best CPL Adsets */}
-                          {(() => {
-                            const adsetsWithCPL = funnelData.byAdset
-                              .filter(f => f.leads > 0)
-                              .map(f => {
-                                const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
-                                const spend = spendData?.spend || 0;
-                                const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
-                                return { ...f, spend, cpl };
-                              })
-                              .filter(f => f.cpl !== null && f.cpl > 0)
-                              .sort((a, b) => (a.cpl || 0) - (b.cpl || 0));
-                            
-                            if (adsetsWithCPL.length === 0) return null;
-                            
-                            return (
-                              <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Layers className="h-4 w-4 text-emerald-500" />
-                                  <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {adsetsWithCPL.slice(0, 5).map((item, index) => (
-                                    <div key={`cpl-${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/20 text-emerald-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.adset}</span>
-                                      </div>
-                                      <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 ml-2">
-                                        R$ {item.cpl?.toFixed(2)}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          {/* Best CPL Ads */}
-                          {(() => {
-                            const adsWithCPL = funnelData.byAd
-                              .filter(f => f.leads > 0)
-                              .map(f => {
-                                const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
-                                const spend = spendData?.spend || 0;
-                                const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
-                                return { ...f, spend, cpl };
-                              })
-                              .filter(f => f.cpl !== null && f.cpl > 0)
-                              .sort((a, b) => (a.cpl || 0) - (b.cpl || 0));
-                            
-                            if (adsWithCPL.length === 0) return null;
-                            
-                            return (
-                              <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Megaphone className="h-4 w-4 text-teal-500" />
-                                  <h4 className="font-medium text-sm">Top Anúncios</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {adsWithCPL.slice(0, 5).map((item, index) => (
-                                    <div key={`cpl-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-teal-500 text-white' : 'bg-teal-500/20 text-teal-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.ad}</span>
-                                      </div>
-                                      <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600 ml-2">
-                                        R$ {item.cpl?.toFixed(2)}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
                         </div>
-                      </div>
-                    )}
+                      )}
+                      {funnelData.byAd.length > 0 && (
+                        <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-4 w-4 text-purple-500" />
+                            <h4 className="font-medium text-sm">Top Anúncios</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAd]
+                              .sort((a, b) => b.leads - a.leads)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 ml-2">
+                                    {item.leads} leads
+                                  </Badge>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Stage 2: Agendamentos */}
@@ -1708,168 +1614,62 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                       <Calendar className="h-5 w-5 text-amber-500" />
                       <h3 className="font-semibold text-base">Etapa 2: Agendamentos</h3>
                     </div>
-                    
-                    {/* Section: Top Results */}
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Mais Resultados</p>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top Adsets by Agendamentos */}
-                        {funnelData.byAdset.filter(a => a.agendados > 0).length > 0 && (
-                          <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-amber-500" />
-                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAdset]
-                                .filter(a => a.agendados > 0)
-                                .sort((a, b) => b.agendados - a.agendados)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.leads > 0 ? ((item.agendados / item.leads) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500 text-white' : 'bg-amber-500/20 text-amber-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.adset}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600">
-                                          {item.agendados}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                            </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {funnelData.byAdset.filter(a => a.agendados > 0).length > 0 && (
+                        <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="h-4 w-4 text-amber-500" />
+                            <h4 className="font-medium text-sm">Top Conjuntos</h4>
                           </div>
-                        )}
-                        {/* Top Ads by Agendamentos */}
-                        {funnelData.byAd.filter(a => a.agendados > 0).length > 0 && (
-                          <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Megaphone className="h-4 w-4 text-orange-500" />
-                              <h4 className="font-medium text-sm">Top Anúncios</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAd]
-                                .filter(a => a.agendados > 0)
-                                .sort((a, b) => b.agendados - a.agendados)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.leads > 0 ? ((item.agendados / item.leads) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.ad}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600">
-                                          {item.agendados}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                            </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAdset]
+                              .filter(a => a.agendados > 0)
+                              .sort((a, b) => b.agendados - a.agendados)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500 text-white' : 'bg-amber-500/20 text-amber-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 ml-2">
+                                    {item.agendados} agend.
+                                  </Badge>
+                                </div>
+                              ))}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Section: Best Cost per Agendamento */}
-                    {adsSpendData.adsets.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Melhor Custo por Agendamento</p>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          {/* Best CPA Adsets */}
-                          {(() => {
-                            const adsetsWithCPA = funnelData.byAdset
-                              .filter(f => f.agendados > 0)
-                              .map(f => {
-                                const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
-                                const spend = spendData?.spend || 0;
-                                const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
-                                return { ...f, spend, cpa };
-                              })
-                              .filter(f => f.cpa !== null && f.cpa > 0)
-                              .sort((a, b) => (a.cpa || 0) - (b.cpa || 0));
-                            
-                            if (adsetsWithCPA.length === 0) return null;
-                            
-                            return (
-                              <div className="p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Layers className="h-4 w-4 text-yellow-600" />
-                                  <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {adsetsWithCPA.slice(0, 5).map((item, index) => (
-                                    <div key={`cpa-${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-yellow-500 text-white' : 'bg-yellow-500/20 text-yellow-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.adset}</span>
-                                      </div>
-                                      <Badge variant="outline" className="bg-yellow-500/10 border-yellow-500/30 text-yellow-600 ml-2">
-                                        R$ {item.cpa?.toFixed(2)}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          {/* Best CPA Ads */}
-                          {(() => {
-                            const adsWithCPA = funnelData.byAd
-                              .filter(f => f.agendados > 0)
-                              .map(f => {
-                                const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
-                                const spend = spendData?.spend || 0;
-                                const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
-                                return { ...f, spend, cpa };
-                              })
-                              .filter(f => f.cpa !== null && f.cpa > 0)
-                              .sort((a, b) => (a.cpa || 0) - (b.cpa || 0));
-                            
-                            if (adsWithCPA.length === 0) return null;
-                            
-                            return (
-                              <div className="p-4 bg-amber-600/5 border border-amber-600/20 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Megaphone className="h-4 w-4 text-amber-600" />
-                                  <h4 className="font-medium text-sm">Top Anúncios</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {adsWithCPA.slice(0, 5).map((item, index) => (
-                                    <div key={`cpa-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-600 text-white' : 'bg-amber-600/20 text-amber-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.ad}</span>
-                                      </div>
-                                      <Badge variant="outline" className="bg-amber-600/10 border-amber-600/30 text-amber-600 ml-2">
-                                        R$ {item.cpa?.toFixed(2)}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
                         </div>
-                      </div>
-                    )}
+                      )}
+                      {funnelData.byAd.filter(a => a.agendados > 0).length > 0 && (
+                        <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-4 w-4 text-orange-500" />
+                            <h4 className="font-medium text-sm">Top Anúncios</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAd]
+                              .filter(a => a.agendados > 0)
+                              .sort((a, b) => b.agendados - a.agendados)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600 ml-2">
+                                    {item.agendados} agend.
+                                  </Badge>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Stage 3: Comparecimentos */}
@@ -1878,168 +1678,62 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                       <CheckCircle2 className="h-5 w-5 text-teal-500" />
                       <h3 className="font-semibold text-base">Etapa 3: Comparecimentos</h3>
                     </div>
-                    
-                    {/* Section: Top Results */}
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Mais Resultados</p>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top Adsets by Comparecimentos */}
-                        {funnelData.byAdset.filter(a => a.compareceu > 0).length > 0 && (
-                          <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-teal-500" />
-                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAdset]
-                                .filter(a => a.compareceu > 0)
-                                .sort((a, b) => b.compareceu - a.compareceu)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.agendados > 0 ? ((item.compareceu / item.agendados) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-teal-500 text-white' : 'bg-teal-500/20 text-teal-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.adset}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600">
-                                          {item.compareceu}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                            </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {funnelData.byAdset.filter(a => a.compareceu > 0).length > 0 && (
+                        <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="h-4 w-4 text-teal-500" />
+                            <h4 className="font-medium text-sm">Top Conjuntos</h4>
                           </div>
-                        )}
-                        {/* Top Ads by Comparecimentos */}
-                        {funnelData.byAd.filter(a => a.compareceu > 0).length > 0 && (
-                          <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Megaphone className="h-4 w-4 text-emerald-500" />
-                              <h4 className="font-medium text-sm">Top Anúncios</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {[...funnelData.byAd]
-                                .filter(a => a.compareceu > 0)
-                                .sort((a, b) => b.compareceu - a.compareceu)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.agendados > 0 ? ((item.compareceu / item.agendados) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/20 text-emerald-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.ad}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600">
-                                          {item.compareceu}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                            </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAdset]
+                              .filter(a => a.compareceu > 0)
+                              .sort((a, b) => b.compareceu - a.compareceu)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-teal-500 text-white' : 'bg-teal-500/20 text-teal-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600 ml-2">
+                                    {item.compareceu} comp.
+                                  </Badge>
+                                </div>
+                              ))}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Section: Best Cost per Comparecimento */}
-                    {adsSpendData.adsets.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Melhor Custo por Comparecimento</p>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          {/* Best CPC Adsets */}
-                          {(() => {
-                            const adsetsWithCPC = funnelData.byAdset
-                              .filter(f => f.compareceu > 0)
-                              .map(f => {
-                                const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
-                                const spend = spendData?.spend || 0;
-                                const cpc = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
-                                return { ...f, spend, cpc };
-                              })
-                              .filter(f => f.cpc !== null && f.cpc > 0)
-                              .sort((a, b) => (a.cpc || 0) - (b.cpc || 0));
-                            
-                            if (adsetsWithCPC.length === 0) return null;
-                            
-                            return (
-                              <div className="p-4 bg-cyan-500/5 border border-cyan-500/20 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Layers className="h-4 w-4 text-cyan-600" />
-                                  <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {adsetsWithCPC.slice(0, 5).map((item, index) => (
-                                    <div key={`cpc-${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-cyan-500 text-white' : 'bg-cyan-500/20 text-cyan-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.adset}</span>
-                                      </div>
-                                      <Badge variant="outline" className="bg-cyan-500/10 border-cyan-500/30 text-cyan-600 ml-2">
-                                        R$ {item.cpc?.toFixed(2)}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          {/* Best CPC Ads */}
-                          {(() => {
-                            const adsWithCPC = funnelData.byAd
-                              .filter(f => f.compareceu > 0)
-                              .map(f => {
-                                const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
-                                const spend = spendData?.spend || 0;
-                                const cpc = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
-                                return { ...f, spend, cpc };
-                              })
-                              .filter(f => f.cpc !== null && f.cpc > 0)
-                              .sort((a, b) => (a.cpc || 0) - (b.cpc || 0));
-                            
-                            if (adsWithCPC.length === 0) return null;
-                            
-                            return (
-                              <div className="p-4 bg-sky-500/5 border border-sky-500/20 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Megaphone className="h-4 w-4 text-sky-600" />
-                                  <h4 className="font-medium text-sm">Top Anúncios</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {adsWithCPC.slice(0, 5).map((item, index) => (
-                                    <div key={`cpc-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-sky-500 text-white' : 'bg-sky-500/20 text-sky-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.ad}</span>
-                                      </div>
-                                      <Badge variant="outline" className="bg-sky-500/10 border-sky-500/30 text-sky-600 ml-2">
-                                        R$ {item.cpc?.toFixed(2)}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
                         </div>
-                      </div>
-                    )}
+                      )}
+                      {funnelData.byAd.filter(a => a.compareceu > 0).length > 0 && (
+                        <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-4 w-4 text-emerald-500" />
+                            <h4 className="font-medium text-sm">Top Anúncios</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAd]
+                              .filter(a => a.compareceu > 0)
+                              .sort((a, b) => b.compareceu - a.compareceu)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/20 text-emerald-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 ml-2">
+                                    {item.compareceu} comp.
+                                  </Badge>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Stage 4: Clientes */}
@@ -2048,168 +1742,424 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                       <UserCheck className="h-5 w-5 text-green-500" />
                       <h3 className="font-semibold text-base">Etapa 4: Clientes Fechados</h3>
                     </div>
-                    
-                    {/* Section: Top Results */}
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Mais Resultados</p>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top Adsets by Clientes */}
-                        {funnelData.byAdset.filter(a => a.clientes > 0).length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {funnelData.byAdset.filter(a => a.clientes > 0).length > 0 && (
+                        <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="h-4 w-4 text-green-500" />
+                            <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAdset]
+                              .filter(a => a.clientes > 0)
+                              .sort((a, b) => b.clientes - a.clientes)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600 ml-2">
+                                    {item.clientes} clientes
+                                  </Badge>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                      {funnelData.byAd.filter(a => a.clientes > 0).length > 0 && (
+                        <div className="p-4 bg-lime-500/5 border border-lime-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-4 w-4 text-lime-600" />
+                            <h4 className="font-medium text-sm">Top Anúncios</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAd]
+                              .filter(a => a.clientes > 0)
+                              .sort((a, b) => b.clientes - a.clientes)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-lime-500 text-white' : 'bg-lime-500/20 text-lime-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600 ml-2">
+                                    {item.clientes} clientes
+                                  </Badge>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* CARD 2: Cost per Result by Funnel Stage */}
+          {funnelData && adsSpendData.adsets.length > 0 && (funnelData.byAdset.length > 0 || funnelData.byAd.length > 0) && (
+            <Card className="border-emerald-500/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <BarChart3 className="h-5 w-5 text-emerald-500" />
+                  Melhor Custo por Etapa do Funil
+                </CardTitle>
+                <CardDescription>
+                  Conjuntos e anúncios com menor custo por resultado em cada etapa
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-8">
+                  {/* Stage 1: CPL */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                      <Users className="h-5 w-5 text-blue-500" />
+                      <h3 className="font-semibold text-base">Etapa 1: Custo por Lead</h3>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {(() => {
+                        const adsetsWithCPL = funnelData.byAdset
+                          .filter(f => f.leads > 0)
+                          .map(f => {
+                            const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
+                            const spend = spendData?.spend || 0;
+                            const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
+                            return { ...f, spend, cpl };
+                          })
+                          .filter(f => f.cpl !== null && f.cpl > 0)
+                          .sort((a, b) => (a.cpl || 0) - (b.cpl || 0));
+                        
+                        if (adsetsWithCPL.length === 0) return null;
+                        
+                        return (
+                          <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Layers className="h-4 w-4 text-blue-500" />
+                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {adsetsWithCPL.slice(0, 5).map((item, index) => (
+                                <div key={`cpl-${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 ml-2">
+                                    R$ {item.cpl?.toFixed(2)}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {(() => {
+                        const adsWithCPL = funnelData.byAd
+                          .filter(f => f.leads > 0)
+                          .map(f => {
+                            const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
+                            const spend = spendData?.spend || 0;
+                            const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
+                            return { ...f, spend, cpl };
+                          })
+                          .filter(f => f.cpl !== null && f.cpl > 0)
+                          .sort((a, b) => (a.cpl || 0) - (b.cpl || 0));
+                        
+                        if (adsWithCPL.length === 0) return null;
+                        
+                        return (
+                          <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Megaphone className="h-4 w-4 text-purple-500" />
+                              <h4 className="font-medium text-sm">Top Anúncios</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {adsWithCPL.slice(0, 5).map((item, index) => (
+                                <div key={`cpl-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 ml-2">
+                                    R$ {item.cpl?.toFixed(2)}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Stage 2: Cost per Agendamento */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                      <Calendar className="h-5 w-5 text-amber-500" />
+                      <h3 className="font-semibold text-base">Etapa 2: Custo por Agendamento</h3>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {(() => {
+                        const adsetsWithCPA = funnelData.byAdset
+                          .filter(f => f.agendados > 0)
+                          .map(f => {
+                            const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
+                            const spend = spendData?.spend || 0;
+                            const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
+                            return { ...f, spend, cpa };
+                          })
+                          .filter(f => f.cpa !== null && f.cpa > 0)
+                          .sort((a, b) => (a.cpa || 0) - (b.cpa || 0));
+                        
+                        if (adsetsWithCPA.length === 0) return null;
+                        
+                        return (
+                          <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Layers className="h-4 w-4 text-amber-500" />
+                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {adsetsWithCPA.slice(0, 5).map((item, index) => (
+                                <div key={`cpa-${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500 text-white' : 'bg-amber-500/20 text-amber-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 ml-2">
+                                    R$ {item.cpa?.toFixed(2)}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {(() => {
+                        const adsWithCPA = funnelData.byAd
+                          .filter(f => f.agendados > 0)
+                          .map(f => {
+                            const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
+                            const spend = spendData?.spend || 0;
+                            const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
+                            return { ...f, spend, cpa };
+                          })
+                          .filter(f => f.cpa !== null && f.cpa > 0)
+                          .sort((a, b) => (a.cpa || 0) - (b.cpa || 0));
+                        
+                        if (adsWithCPA.length === 0) return null;
+                        
+                        return (
+                          <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Megaphone className="h-4 w-4 text-orange-500" />
+                              <h4 className="font-medium text-sm">Top Anúncios</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {adsWithCPA.slice(0, 5).map((item, index) => (
+                                <div key={`cpa-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600 ml-2">
+                                    R$ {item.cpa?.toFixed(2)}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Stage 3: Cost per Comparecimento */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                      <CheckCircle2 className="h-5 w-5 text-teal-500" />
+                      <h3 className="font-semibold text-base">Etapa 3: Custo por Comparecimento</h3>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {(() => {
+                        const adsetsWithCPC = funnelData.byAdset
+                          .filter(f => f.compareceu > 0)
+                          .map(f => {
+                            const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
+                            const spend = spendData?.spend || 0;
+                            const costPerComp = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
+                            return { ...f, spend, costPerComp };
+                          })
+                          .filter(f => f.costPerComp !== null && f.costPerComp > 0)
+                          .sort((a, b) => (a.costPerComp || 0) - (b.costPerComp || 0));
+                        
+                        if (adsetsWithCPC.length === 0) return null;
+                        
+                        return (
+                          <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Layers className="h-4 w-4 text-teal-500" />
+                              <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {adsetsWithCPC.slice(0, 5).map((item, index) => (
+                                <div key={`cpc-${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-teal-500 text-white' : 'bg-teal-500/20 text-teal-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600 ml-2">
+                                    R$ {item.costPerComp?.toFixed(2)}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {(() => {
+                        const adsWithCPC = funnelData.byAd
+                          .filter(f => f.compareceu > 0)
+                          .map(f => {
+                            const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
+                            const spend = spendData?.spend || 0;
+                            const costPerComp = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
+                            return { ...f, spend, costPerComp };
+                          })
+                          .filter(f => f.costPerComp !== null && f.costPerComp > 0)
+                          .sort((a, b) => (a.costPerComp || 0) - (b.costPerComp || 0));
+                        
+                        if (adsWithCPC.length === 0) return null;
+                        
+                        return (
+                          <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Megaphone className="h-4 w-4 text-emerald-500" />
+                              <h4 className="font-medium text-sm">Top Anúncios</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {adsWithCPC.slice(0, 5).map((item, index) => (
+                                <div key={`cpc-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/20 text-emerald-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 ml-2">
+                                    R$ {item.costPerComp?.toFixed(2)}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Stage 4: CAC */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                      <UserCheck className="h-5 w-5 text-green-500" />
+                      <h3 className="font-semibold text-base">Etapa 4: CAC (Custo por Cliente)</h3>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {(() => {
+                        const adsetsWithCAC = funnelData.byAdset
+                          .filter(f => f.clientes > 0)
+                          .map(f => {
+                            const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
+                            const spend = spendData?.spend || 0;
+                            const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
+                            return { ...f, spend, cac };
+                          })
+                          .filter(f => f.cac !== null && f.cac > 0)
+                          .sort((a, b) => (a.cac || 0) - (b.cac || 0));
+                        
+                        if (adsetsWithCAC.length === 0) return null;
+                        
+                        return (
                           <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl">
                             <div className="flex items-center gap-2 mb-3">
                               <Layers className="h-4 w-4 text-green-500" />
                               <h4 className="font-medium text-sm">Top Conjuntos</h4>
                             </div>
                             <div className="space-y-2">
-                              {[...funnelData.byAdset]
-                                .filter(a => a.clientes > 0)
-                                .sort((a, b) => b.clientes - a.clientes)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.leads > 0 ? ((item.clientes / item.leads) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.adset}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600">
-                                          {item.clientes} · R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                              {adsetsWithCAC.slice(0, 5).map((item, index) => (
+                                <div key={`cac-${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600 ml-2">
+                                    R$ {item.cac?.toFixed(2)}
+                                  </Badge>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        )}
-                        {/* Top Ads by Clientes */}
-                        {funnelData.byAd.filter(a => a.clientes > 0).length > 0 && (
+                        );
+                      })()}
+                      {(() => {
+                        const adsWithCAC = funnelData.byAd
+                          .filter(f => f.clientes > 0)
+                          .map(f => {
+                            const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
+                            const spend = spendData?.spend || 0;
+                            const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
+                            return { ...f, spend, cac };
+                          })
+                          .filter(f => f.cac !== null && f.cac > 0)
+                          .sort((a, b) => (a.cac || 0) - (b.cac || 0));
+                        
+                        if (adsWithCAC.length === 0) return null;
+                        
+                        return (
                           <div className="p-4 bg-lime-500/5 border border-lime-500/20 rounded-xl">
                             <div className="flex items-center gap-2 mb-3">
                               <Megaphone className="h-4 w-4 text-lime-600" />
                               <h4 className="font-medium text-sm">Top Anúncios</h4>
                             </div>
                             <div className="space-y-2">
-                              {[...funnelData.byAd]
-                                .filter(a => a.clientes > 0)
-                                .sort((a, b) => b.clientes - a.clientes)
-                                .slice(0, 5)
-                                .map((item, index) => {
-                                  const rate = item.leads > 0 ? ((item.clientes / item.leads) * 100).toFixed(0) : '0';
-                                  return (
-                                    <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-lime-500 text-white' : 'bg-lime-500/20 text-lime-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.ad}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <span className="text-xs text-muted-foreground">{rate}%</span>
-                                        <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600">
-                                          {item.clientes} · R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                              {adsWithCAC.slice(0, 5).map((item, index) => (
+                                <div key={`cac-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-lime-500 text-white' : 'bg-lime-500/20 text-lime-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600 ml-2">
+                                    R$ {item.cac?.toFixed(2)}
+                                  </Badge>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                     </div>
-                    
-                    {/* Section: Best CAC (Cost per Cliente) */}
-                    {adsSpendData.adsets.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Melhor CAC (Custo por Cliente)</p>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          {/* Best CAC Adsets */}
-                          {(() => {
-                            const adsetsWithCAC = funnelData.byAdset
-                              .filter(f => f.clientes > 0)
-                              .map(f => {
-                                const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
-                                const spend = spendData?.spend || 0;
-                                const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
-                                return { ...f, spend, cac };
-                              })
-                              .filter(f => f.cac !== null && f.cac > 0)
-                              .sort((a, b) => (a.cac || 0) - (b.cac || 0));
-                            
-                            if (adsetsWithCAC.length === 0) return null;
-                            
-                            return (
-                              <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Layers className="h-4 w-4 text-indigo-600" />
-                                  <h4 className="font-medium text-sm">Top Conjuntos</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {adsetsWithCAC.slice(0, 5).map((item, index) => (
-                                    <div key={`cac-${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-indigo-500 text-white' : 'bg-indigo-500/20 text-indigo-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.adset}</span>
-                                      </div>
-                                      <Badge variant="outline" className="bg-indigo-500/10 border-indigo-500/30 text-indigo-600 ml-2">
-                                        R$ {item.cac?.toFixed(2)}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          {/* Best CAC Ads */}
-                          {(() => {
-                            const adsWithCAC = funnelData.byAd
-                              .filter(f => f.clientes > 0)
-                              .map(f => {
-                                const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
-                                const spend = spendData?.spend || 0;
-                                const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
-                                return { ...f, spend, cac };
-                              })
-                              .filter(f => f.cac !== null && f.cac > 0)
-                              .sort((a, b) => (a.cac || 0) - (b.cac || 0));
-                            
-                            if (adsWithCAC.length === 0) return null;
-                            
-                            return (
-                              <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <Megaphone className="h-4 w-4 text-violet-600" />
-                                  <h4 className="font-medium text-sm">Top Anúncios</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {adsWithCAC.slice(0, 5).map((item, index) => (
-                                    <div key={`cac-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-violet-500 text-white' : 'bg-violet-500/20 text-violet-600'}`}>
-                                          {index + 1}
-                                        </span>
-                                        <span className="text-sm truncate">{item.ad}</span>
-                                      </div>
-                                      <Badge variant="outline" className="bg-violet-500/10 border-violet-500/30 text-violet-600 ml-2">
-                                        R$ {item.cac?.toFixed(2)}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </CardContent>
