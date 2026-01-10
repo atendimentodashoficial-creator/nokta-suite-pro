@@ -501,8 +501,6 @@ export function InstagramGatilhosTab() {
                   />
                 </div>
 
-                {/* Abas de resposta - só aparecem quando DM está ativado */}
-                {form.watch("ativo_em_dm") && (
                 <Tabs value={activeResponseTab} onValueChange={setActiveResponseTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger 
@@ -896,7 +894,6 @@ export function InstagramGatilhosTab() {
                   </TabsContent>
 
                 </Tabs>
-                )}
 
                 {/* Seção de Verificar Seguidor - Toggle separado */}
                 <div className="p-4 border rounded-lg space-y-4">
