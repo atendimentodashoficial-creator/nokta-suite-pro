@@ -1389,6 +1389,10 @@ export type Database = {
           meio_pagamento: string | null
           numero_parcelas: number | null
           observacoes: string | null
+          pixel_data_completed_at: string | null
+          pixel_event_sent_at: string | null
+          pixel_form_sent_at: string | null
+          pixel_status: string | null
           procedimento_id: string | null
           profissional_id: string | null
           status: Database["public"]["Enums"]["status_fatura"]
@@ -1409,6 +1413,10 @@ export type Database = {
           meio_pagamento?: string | null
           numero_parcelas?: number | null
           observacoes?: string | null
+          pixel_data_completed_at?: string | null
+          pixel_event_sent_at?: string | null
+          pixel_form_sent_at?: string | null
+          pixel_status?: string | null
           procedimento_id?: string | null
           profissional_id?: string | null
           status?: Database["public"]["Enums"]["status_fatura"]
@@ -1429,6 +1437,10 @@ export type Database = {
           meio_pagamento?: string | null
           numero_parcelas?: number | null
           observacoes?: string | null
+          pixel_data_completed_at?: string | null
+          pixel_event_sent_at?: string | null
+          pixel_form_sent_at?: string | null
+          pixel_status?: string | null
           procedimento_id?: string | null
           profissional_id?: string | null
           status?: Database["public"]["Enums"]["status_fatura"]
