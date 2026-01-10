@@ -536,7 +536,7 @@ export function InstagramFormulariosTab() {
                             const novoCampo: CampoPersonalizado = {
                               id: novoId,
                               label: novoCampoLabel.trim(),
-                              tipo: novoCampoTipo,
+                              tipo: novoCampoTipo as CampoPersonalizado["tipo"],
                               obrigatorio: true,
                             };
                             
