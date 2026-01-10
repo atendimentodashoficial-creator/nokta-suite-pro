@@ -522,30 +522,25 @@ async function processComment(supabase: any, comment: any) {
         });
       }
       
-      // 2. Send DM to commenter (with follower check if configured)
-      if (gatilho.resposta_texto || gatilho.verificar_seguidor) {
-        // Check if this trigger requires follower verification
+      // 2. Send "DM" to commenter.
+      // IMPORTANT: Instagram does not allow initiating a normal DM to a user just from a comment.
+      // The correct behavior is a *private reply to the comment*, which appears in Inbox/Requests.
+      if (comment.id && (gatilho.resposta_texto || gatilho.verificar_seguidor)) {
+        // If follower verification is enabled and user is not a follower, send the follow request first
         if (gatilho.verificar_seguidor && gatilho.mensagem_pedir_seguir) {
           const followerInfo = await checkIfFollower(config.page_access_token, comment.from.id);
           console.log('Follower check for commenter:', followerInfo);
-          
+
           if (followerInfo && !followerInfo.is_user_follow_business) {
-            console.log('Commenter does not follow business, sending follow request');
-            
-            // Replace {nome} with username if available and process spintax
+            console.log('Commenter does not follow business, sending follow request (private reply)');
+
             let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
             if (comment.from?.username) {
               followMessage = followMessage.replace(/{nome}/g, comment.from.username);
             }
 
-            await sendInstagramMessage(
-              config.page_access_token,
-              config.instagram_account_id,
-              comment.from.id,
-              followMessage
-            );
+            await sendPrivateReplyToComment(config.page_access_token, comment.id, followMessage);
 
-            // Log the message
             await supabase.from('instagram_mensagens').insert({
               user_id: config.user_id,
               instagram_user_id: comment.from.id,
@@ -553,25 +548,19 @@ async function processComment(supabase: any, comment: any) {
               tipo: 'dm_enviada',
               conteudo: followMessage,
               gatilho_id: gatilho.id,
-              metadata: { tipo: 'pedir_seguir_comentario', follower_info: followerInfo },
+              metadata: { tipo: 'pedir_seguir_comentario', via: 'private_reply', follower_info: followerInfo, comment_id: comment.id },
             });
 
             break; // Stop processing - user needs to follow first
           }
         }
-        
-        // User follows or no verification required - send the actual DM
+
+        // User follows or no verification required - send the actual DM response (private reply)
         if (gatilho.resposta_texto) {
           const dmText = processSpintax(gatilho.resposta_texto);
-          
-          await sendInstagramMessage(
-            config.page_access_token,
-            config.instagram_account_id,
-            comment.from.id,
-            dmText
-          );
 
-          // Log response
+          await sendPrivateReplyToComment(config.page_access_token, comment.id, dmText);
+
           await supabase.from('instagram_mensagens').insert({
             user_id: config.user_id,
             instagram_user_id: comment.from.id,
@@ -579,6 +568,7 @@ async function processComment(supabase: any, comment: any) {
             tipo: 'dm_enviada',
             conteudo: dmText,
             gatilho_id: gatilho.id,
+            metadata: { via: 'private_reply', comment_id: comment.id },
           });
         }
       }
@@ -623,8 +613,49 @@ async function replyToComment(
 
   if (!response.ok) {
     console.error('Failed to reply to comment:', result);
-    // Don't throw - we still want to send the DM even if the comment reply fails
+    // Don't throw - we still want to proceed
     return null;
+  }
+
+  return result;
+}
+
+// Sends a "private reply" to a comment. This is the correct way to message a commenter.
+// It will land in Inbox (followers) or Requests (non-followers).
+async function sendPrivateReplyToComment(
+  accessToken: string,
+  commentId: string,
+  text: string,
+) {
+  const trimmed = (accessToken || "").trim();
+  const isInstagramGraphToken = trimmed.startsWith("IG");
+
+  const url = isInstagramGraphToken
+    ? `https://graph.instagram.com/v24.0/${commentId}/private_replies`
+    : `https://graph.facebook.com/v18.0/${commentId}/private_replies`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (isInstagramGraphToken) {
+    headers['Authorization'] = `Bearer ${trimmed}`;
+  }
+
+  const body = isInstagramGraphToken
+    ? { message: text }
+    : { message: text, access_token: trimmed };
+
+  console.log('Sending private reply to comment:', { commentId, text, url });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  console.log('Private reply result:', { url, status: response.status, result });
+
+  if (!response.ok) {
+    throw new Error(`Private reply failed (${response.status}): ${JSON.stringify(result)}`);
   }
 
   return result;
