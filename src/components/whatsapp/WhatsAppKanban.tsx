@@ -470,14 +470,20 @@ export function WhatsAppKanban({
       // Process in batches of 50 to avoid request size limits
       const BATCH_SIZE = 50;
       let totalDeleted = 0;
-      
+
       for (let i = 0; i < chatIdsToDelete.length; i += BATCH_SIZE) {
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
         const batch = chatIdsToDelete.slice(i, i + BATCH_SIZE);
+
         const { error } = await supabase.functions.invoke("whatsapp-delete-chat", {
           body: { chat_ids: batch },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Include batch number to make debugging easier
+          throw new Error(`Lote ${batchNumber}: ${error.message || "Erro ao excluir"}`);
+        }
+
         totalDeleted += batch.length;
       }
 
@@ -489,7 +495,14 @@ export function WhatsAppKanban({
       onChatsDeleted?.({ ids: chatIdsToDelete, normalizedNumbers });
     } catch (error: any) {
       console.error("Error deleting chats:", error);
-      toast.error("Erro ao excluir chats");
+
+      const message =
+        error?.context?.error ||
+        error?.context?.message ||
+        error?.message ||
+        "Erro desconhecido";
+
+      toast.error(`Erro ao excluir chats: ${message}`);
     } finally {
       setIsDeleting(false);
     }
