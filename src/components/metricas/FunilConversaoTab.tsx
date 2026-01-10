@@ -709,13 +709,8 @@ export function FunilConversaoTab() {
       {/* Cards de resumo do funil */}
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Leads</CardTitle>
-            <div className="flex items-center gap-1">
-              <Megaphone className="h-4 w-4 text-blue-500" />
-              <span className="text-muted-foreground">/</span>
-              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.leads)}</div>
@@ -748,13 +743,8 @@ export function FunilConversaoTab() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Agendados</CardTitle>
-            <div className="flex items-center gap-1">
-              <Megaphone className="h-4 w-4 text-blue-500" />
-              <span className="text-muted-foreground">/</span>
-              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.agendados)}</div>
@@ -787,13 +777,8 @@ export function FunilConversaoTab() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Comparecimento</CardTitle>
-            <div className="flex items-center gap-1">
-              <UserCheck className="h-4 w-4 text-green-500" />
-              <span className="text-muted-foreground">/</span>
-              <UserX className="h-4 w-4 text-red-500" />
-            </div>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 mb-2">
@@ -840,13 +825,8 @@ export function FunilConversaoTab() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Em Negociação</CardTitle>
-            <div className="flex items-center gap-1">
-              <Megaphone className="h-4 w-4 text-blue-500" />
-              <span className="text-muted-foreground">/</span>
-              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.em_negociacao)}</div>
@@ -879,13 +859,8 @@ export function FunilConversaoTab() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Conversões</CardTitle>
-            <div className="flex items-center gap-1">
-              <Megaphone className="h-4 w-4 text-blue-500" />
-              <span className="text-muted-foreground">/</span>
-              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.clientes)}</div>
@@ -918,9 +893,8 @@ export function FunilConversaoTab() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversão</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Taxa Conversão</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">{formatPercentage(totals.clientes, totals.leads)}</div>
