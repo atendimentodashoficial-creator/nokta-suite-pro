@@ -6,6 +6,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Process spintax by randomly selecting one option from each {option1|option2} block
+function processSpintax(input: string): string {
+  const text = (input ?? "").toString();
+  if (!text.includes("{") || !text.includes("|")) return text;
+
+  let result = text;
+  const regex = /\{([^{}]+)\}/g;
+  
+  let match;
+  while ((match = regex.exec(result)) !== null) {
+    const inside = match[1];
+    if (inside.includes("|")) {
+      const options = inside.split("|").map((s) => s.trim()).filter(Boolean);
+      if (options.length > 0) {
+        const randomOption = options[Math.floor(Math.random() * options.length)];
+        result = result.slice(0, match.index) + randomOption + result.slice(match.index + match[0].length);
+        // Reset regex to search from the beginning since string changed
+        regex.lastIndex = 0;
+      }
+    }
+  }
+  
+  return result;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -144,11 +169,13 @@ async function processMessage(supabase: any, event: any) {
     if (welcomeGatilho?.resposta_texto) {
       console.log('Sending welcome message');
       
+      const welcomeText = processSpintax(welcomeGatilho.resposta_texto);
+      
       await sendInstagramMessage(
         config.page_access_token,
         config.instagram_account_id,
         senderId,
-        welcomeGatilho.resposta_texto
+        welcomeText
       );
 
       // Log response
@@ -156,7 +183,7 @@ async function processMessage(supabase: any, event: any) {
         user_id: config.user_id,
         instagram_user_id: senderId,
         tipo: 'dm_enviada',
-        conteudo: welcomeGatilho.resposta_texto,
+        conteudo: welcomeText,
         gatilho_id: welcomeGatilho.id,
       });
 
@@ -189,8 +216,8 @@ async function processMessage(supabase: any, event: any) {
         if (followerInfo && !followerInfo.is_user_follow_business) {
           console.log('User does not follow business, sending follow request for trigger:', gatilho.nome);
           
-          // Replace {nome} with username if available
-          let followMessage = gatilho.mensagem_pedir_seguir;
+          // Replace {nome} with username if available and process spintax
+          let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
           if (followerInfo.username) {
             followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
           }
@@ -219,11 +246,13 @@ async function processMessage(supabase: any, event: any) {
       
       // Send text response
       if (gatilho.resposta_texto) {
+        const responseText = processSpintax(gatilho.resposta_texto);
+        
         await sendInstagramMessage(
           config.page_access_token,
           config.instagram_account_id,
           senderId,
-          gatilho.resposta_texto
+          responseText
         );
 
         // Log response
@@ -231,7 +260,7 @@ async function processMessage(supabase: any, event: any) {
           user_id: config.user_id,
           instagram_user_id: senderId,
           tipo: 'dm_enviada',
-          conteudo: gatilho.resposta_texto,
+          conteudo: responseText,
           gatilho_id: gatilho.id,
         });
       }
@@ -271,7 +300,7 @@ async function processMessage(supabase: any, event: any) {
 
       // Send link if configured
       if (gatilho.resposta_link_url) {
-        const linkText = gatilho.resposta_link_texto || gatilho.resposta_link_url;
+        const linkText = processSpintax(gatilho.resposta_link_texto || gatilho.resposta_link_url);
         await sendInstagramMessage(
           config.page_access_token,
           config.instagram_account_id,
@@ -384,18 +413,20 @@ async function checkIceBreakerPayload(supabase: any, config: any, senderId: stri
         );
 
         if (triggered && gatilho.resposta_texto) {
+          const iceBreakerText = processSpintax(gatilho.resposta_texto);
+          
           await sendInstagramMessage(
             config.page_access_token,
             config.instagram_account_id,
             senderId,
-            gatilho.resposta_texto
+            iceBreakerText
           );
 
           await supabase.from('instagram_mensagens').insert({
             user_id: config.user_id,
             instagram_user_id: senderId,
             tipo: 'dm_enviada',
-            conteudo: gatilho.resposta_texto,
+            conteudo: iceBreakerText,
             gatilho_id: gatilho.id,
           });
 
@@ -452,8 +483,8 @@ async function processComment(supabase: any, comment: any) {
       if (gatilho.responder_comentario && gatilho.resposta_comentario_texto && comment.id) {
         console.log('Replying to comment publicly:', comment.id);
         
-        let replyText = gatilho.resposta_comentario_texto;
-        // Replace {nome} with username if available
+        // Process spintax first, then replace {nome}
+        let replyText = processSpintax(gatilho.resposta_comentario_texto);
         if (comment.from?.username) {
           replyText = replyText.replace(/{nome}/g, comment.from.username);
         }
@@ -478,11 +509,13 @@ async function processComment(supabase: any, comment: any) {
       
       // 2. Send DM to commenter
       if (gatilho.resposta_texto) {
+        const dmText = processSpintax(gatilho.resposta_texto);
+        
         await sendInstagramMessage(
           config.page_access_token,
           config.instagram_account_id,
           comment.from.id,
-          gatilho.resposta_texto
+          dmText
         );
 
         // Log response
@@ -491,7 +524,7 @@ async function processComment(supabase: any, comment: any) {
           instagram_user_id: comment.from.id,
           instagram_username: comment.from.username,
           tipo: 'dm_enviada',
-          conteudo: gatilho.resposta_texto,
+          conteudo: dmText,
           gatilho_id: gatilho.id,
         });
       }
