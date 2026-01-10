@@ -60,32 +60,96 @@ export function PixelStatusBadge({
         "Olá! Para finalizar seu cadastro, precisamos de algumas informações adicionais. Por favor, preencha o formulário abaixo:";
       const message = `${customMessage}\n\n${formUrl}`;
       
-      // Determine which config to use based on origem
-      const isDisparos = clienteOrigem?.toLowerCase() === "disparos";
-      
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("Não autenticado");
-      
-      // Use fetch directly to get more details on error
-      const functionName = isDisparos ? "disparos-send-message" : "uazapi-send-message";
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`,
-        {
+
+      // Get the lead's instancia_nome to find the correct instance
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("instancia_nome, origem")
+        .eq("id", clienteId)
+        .single();
+
+      const leadInstanciaNome = leadData?.instancia_nome;
+      const isDisparos = clienteOrigem?.toLowerCase() === "disparos" || leadData?.origem?.toLowerCase() === "disparos";
+
+      // If lead has instancia_nome, find the matching instance
+      let instanceConfig = null;
+      if (leadInstanciaNome) {
+        // First check in disparos_instancias
+        const { data: disparosInstance } = await supabase
+          .from("disparos_instancias")
+          .select("id, base_url, api_key")
+          .eq("user_id", user?.id)
+          .eq("nome", leadInstanciaNome)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (disparosInstance) {
+          instanceConfig = {
+            type: "disparos",
+            baseUrl: disparosInstance.base_url,
+            apiKey: disparosInstance.api_key,
+          };
+        } else {
+          // Check if it matches the main WhatsApp instance name
+          const { data: mainConfig } = await supabase
+            .from("uazapi_config")
+            .select("base_url, api_key, instance_name")
+            .eq("user_id", user?.id)
+            .eq("is_active", true)
+            .maybeSingle();
+
+          if (mainConfig && mainConfig.instance_name === leadInstanciaNome) {
+            instanceConfig = {
+              type: "whatsapp",
+              baseUrl: mainConfig.base_url,
+              apiKey: mainConfig.api_key,
+            };
+          }
+        }
+      }
+
+      // If we found a specific instance, send directly
+      if (instanceConfig) {
+        const sendResponse = await fetch(`${instanceConfig.baseUrl}/message/sendText`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.session.access_token}`,
+            apikey: instanceConfig.apiKey,
           },
           body: JSON.stringify({
-            phone: clienteTelefone,
-            message,
+            number: clienteTelefone,
+            text: message,
           }),
-        }
-      );
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Erro ${response.status}`);
+        if (!sendResponse.ok) {
+          const errorData = await sendResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || `Erro ${sendResponse.status}`);
+        }
+      } else {
+        // Fallback to edge function based on origem
+        const functionName = isDisparos ? "disparos-send-message" : "uazapi-send-message";
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.session.access_token}`,
+            },
+            body: JSON.stringify({
+              phone: clienteTelefone,
+              message,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Erro ${response.status}`);
+        }
       }
 
       // Update fatura status
