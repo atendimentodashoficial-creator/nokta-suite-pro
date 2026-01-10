@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, FileText, Copy, ExternalLink, Users, X, User, Phone, Mail, Calendar, MessageSquare } from "lucide-react";
+import { Plus, Trash2, Loader2, FileText, Copy, ExternalLink, Users, X, User, Phone, Mail, Calendar, MessageSquare, Pencil } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
@@ -43,9 +43,11 @@ interface Formulario {
   subtitulo_pagina: string | null;
   texto_botao: string;
   mensagem_sucesso: string;
-  campos: string[];
+  campos: (string | CampoPersonalizado)[];
   cor_primaria: string;
   imagem_url: string | null;
+  botao_sucesso_texto: string | null;
+  botao_sucesso_url: string | null;
   ativo: boolean;
   created_at: string;
 }
@@ -71,6 +73,7 @@ interface CampoPersonalizado {
 
 export function InstagramFormulariosTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingFormulario, setEditingFormulario] = useState<Formulario | null>(null);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [selectedCampos, setSelectedCampos] = useState<string[]>(["nome", "telefone", "email"]);
   const [camposPersonalizados, setCamposPersonalizados] = useState<CampoPersonalizado[]>([]);
@@ -173,14 +176,47 @@ export function InstagramFormulariosTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
       toast.success("Formulário criado com sucesso!");
-      setDialogOpen(false);
-      form.reset();
-      setSelectedCampos(["nome", "telefone", "email"]);
-      setCamposPersonalizados([]);
+      closeDialog();
     },
     onError: (error) => {
       console.error("Erro ao criar formulário:", error);
       toast.error("Erro ao criar formulário");
+    },
+  });
+
+  const updateFormulario = useMutation({
+    mutationFn: async (data: FormData & { id: string }) => {
+      const todosCampos = [
+        ...selectedCampos,
+        ...camposPersonalizados.map(c => JSON.stringify(c))
+      ];
+
+      const { error } = await supabase
+        .from("instagram_formularios")
+        .update({
+          nome: data.nome,
+          titulo_pagina: data.titulo_pagina,
+          subtitulo_pagina: data.subtitulo_pagina || null,
+          texto_botao: data.texto_botao,
+          mensagem_sucesso: data.mensagem_sucesso,
+          cor_primaria: data.cor_primaria || "#8B5CF6",
+          imagem_url: data.imagem_url || null,
+          campos: todosCampos,
+          botao_sucesso_texto: data.botao_sucesso_texto || null,
+          botao_sucesso_url: data.botao_sucesso_url || null,
+        })
+        .eq("id", data.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["instagram-formularios"] });
+      toast.success("Formulário atualizado com sucesso!");
+      closeDialog();
+    },
+    onError: (error) => {
+      console.error("Erro ao atualizar formulário:", error);
+      toast.error("Erro ao atualizar formulário");
     },
   });
 
@@ -207,6 +243,68 @@ export function InstagramFormulariosTab() {
       toast.success("Formulário excluído");
     },
   });
+
+  const openEditDialog = (formulario: Formulario) => {
+    setEditingFormulario(formulario);
+    
+    // Parse campos - separar padrão de personalizados
+    const camposPadraoIds: string[] = [];
+    const camposCustom: CampoPersonalizado[] = [];
+    
+    formulario.campos.forEach((c) => {
+      if (typeof c === "string") {
+        // Tentar parse como JSON
+        try {
+          const parsed = JSON.parse(c);
+          if (parsed.id && parsed.label) {
+            camposCustom.push(parsed as CampoPersonalizado);
+          } else {
+            camposPadraoIds.push(c);
+          }
+        } catch {
+          camposPadraoIds.push(c);
+        }
+      } else {
+        camposCustom.push(c);
+      }
+    });
+    
+    setSelectedCampos(camposPadraoIds);
+    setCamposPersonalizados(camposCustom);
+    
+    form.reset({
+      nome: formulario.nome,
+      titulo_pagina: formulario.titulo_pagina,
+      subtitulo_pagina: formulario.subtitulo_pagina || "",
+      texto_botao: formulario.texto_botao,
+      mensagem_sucesso: formulario.mensagem_sucesso,
+      cor_primaria: formulario.cor_primaria,
+      imagem_url: formulario.imagem_url || "",
+      botao_sucesso_texto: formulario.botao_sucesso_texto || "",
+      botao_sucesso_url: formulario.botao_sucesso_url || "",
+    });
+    
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setEditingFormulario(null);
+    form.reset();
+    setSelectedCampos(["nome", "telefone", "email"]);
+    setCamposPersonalizados([]);
+    setNovoCampoLabel("");
+    setNovoCampoTipo("text");
+    setNovasOpcoes(["", ""]);
+  };
+
+  const handleFormSubmit = (data: FormData) => {
+    if (editingFormulario) {
+      updateFormulario.mutate({ ...data, id: editingFormulario.id });
+    } else {
+      createFormulario.mutate(data);
+    }
+  };
 
   const getFormUrl = (formId: string) => {
     return `${window.location.origin}/f/${formId}`;
@@ -235,20 +333,23 @@ export function InstagramFormulariosTab() {
           </p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          if (!open) closeDialog();
+          else setDialogOpen(true);
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => { setEditingFormulario(null); setDialogOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Formulário
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col">
             <DialogHeader className="flex-shrink-0">
-              <DialogTitle>Criar Novo Formulário</DialogTitle>
+              <DialogTitle>{editingFormulario ? "Editar Formulário" : "Criar Novo Formulário"}</DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto pr-2">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((data) => createFormulario.mutate(data))} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="nome"
@@ -579,12 +680,12 @@ export function InstagramFormulariosTab() {
                 />
 
                 <div className="flex gap-2 justify-end pt-4">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={closeDialog}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={createFormulario.isPending}>
-                    {createFormulario.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                    Criar Formulário
+                  <Button type="submit" disabled={createFormulario.isPending || updateFormulario.isPending}>
+                    {(createFormulario.isPending || updateFormulario.isPending) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                    {editingFormulario ? "Salvar Alterações" : "Criar Formulário"}
                   </Button>
                 </div>
               </form>
@@ -636,6 +737,14 @@ export function InstagramFormulariosTab() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => openEditDialog(formulario)}
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => copyFormUrl(formulario.id)}
                           title="Copiar link"
                         >
@@ -673,9 +782,6 @@ export function InstagramFormulariosTab() {
                         className="w-4 h-4 rounded-full"
                         style={{ backgroundColor: formulario.cor_primaria }}
                       />
-                    </div>
-                    <div className="mt-2 p-2 bg-muted rounded text-xs font-mono truncate">
-                      {getFormUrl(formulario.id)}
                     </div>
                   </CardContent>
                 </Card>
