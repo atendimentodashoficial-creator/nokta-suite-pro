@@ -47,6 +47,7 @@ interface ChatWindowProps {
   onChatUpdated?: (updatedChat: Chat) => void;
   availableChats?: any[];
   onBack?: () => void;
+  initialMessage?: string | null;
 }
 
 interface ClienteData {
@@ -56,10 +57,10 @@ interface ClienteData {
   email?: string;
 }
 
-export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated, availableChats = [], onBack }: ChatWindowProps) => {
+export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated, availableChats = [], onBack, initialMessage }: ChatWindowProps) => {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [newMessage, setNewMessage] = useState(initialMessage || "");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -176,6 +177,13 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       setShouldScrollToBottom(false);
     }
   }, [shouldScrollToBottom, messages]);
+
+  // Set initial message when prop changes (for prefill from deep-links)
+  useEffect(() => {
+    if (initialMessage) {
+      setNewMessage(initialMessage);
+    }
+  }, [initialMessage]);
 
   // Load messages from local database with pagination (newest first, then reverse for display)
   const loadMessages = async (forceScrollOnLoad = false, loadMore = false) => {

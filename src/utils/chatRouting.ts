@@ -14,19 +14,21 @@ export type ChatOrigin = "WhatsApp" | "Disparos" | "Manual" | string | null | un
 
 type ChatRouteOptions = {
   instanciaNome?: string | null;
+  prefillMessage?: string | null;
 };
 
 function buildRoute(phone: string, origem?: ChatOrigin, opts?: ChatRouteOptions): string {
   const encodedPhone = encodeURIComponent(phone);
+  const prefillParam = opts?.prefillMessage ? `&prefill=${encodeURIComponent(opts.prefillMessage)}` : "";
 
   if (origem === "Disparos") {
     const instanciaNome = opts?.instanciaNome ? encodeURIComponent(opts.instanciaNome) : "";
     return instanciaNome
-      ? `/disparos?chat=${encodedPhone}&instancia_nome=${instanciaNome}`
-      : `/disparos?chat=${encodedPhone}`;
+      ? `/disparos?chat=${encodedPhone}&instancia_nome=${instanciaNome}${prefillParam}`
+      : `/disparos?chat=${encodedPhone}${prefillParam}`;
   }
 
-  return `/whatsapp?chat=${encodedPhone}`;
+  return `/whatsapp?chat=${encodedPhone}${prefillParam}`;
 }
 
 /**

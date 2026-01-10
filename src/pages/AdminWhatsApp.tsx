@@ -43,6 +43,7 @@ export default function AdminWhatsApp() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [prefillMessage, setPrefillMessage] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // WhatsApp connection state (QR code flow) - based on disparos_instancias
@@ -677,10 +678,16 @@ export default function AdminWhatsApp() {
   useEffect(() => {
     const chatParam = searchParams.get('chat');
     const clientName = searchParams.get('name');
+    const prefillParam = searchParams.get('prefill');
     if (!chatParam) return;
 
     // Wait for chats to be loaded first (not just length > 0, but actually loaded)
     if (!chatsLoaded) return;
+
+    // Set prefill message if provided
+    if (prefillParam) {
+      setPrefillMessage(prefillParam);
+    }
 
     // If the param is a DB UUID, open by id
     if (isUuid(chatParam)) {
@@ -1465,17 +1472,19 @@ export default function AdminWhatsApp() {
       {isMobile ? <div className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
               {/* Se há um chat selecionado, mostra o ChatWindow em tela cheia (abaixo do header mobile) */}
               {showChatWindow && selectedChat ? <div className="fixed top-16 left-0 right-0 bottom-0 z-50 bg-background flex flex-col">
-                  <ChatWindow chat={selectedChat} onMessagesRead={() => {
+                  <ChatWindow chat={selectedChat} initialMessage={prefillMessage} onMessagesRead={() => {
               if (selectedChat?.id && selectedChat.id !== "temp") {
                 void clearUnreadCount(selectedChat.id);
               }
             }} onChatDeleted={() => {
               setSelectedChat(null);
               setShowChatWindow(false);
+              setPrefillMessage(null);
               loadChats();
             }} onChatUpdated={handleChatUpdated} availableChats={chats} onBack={() => {
               setSelectedChat(null);
               setShowChatWindow(false);
+              setPrefillMessage(null);
             }} />
                 </div> : (/* Lista de conversas no estilo WhatsApp */
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -1549,11 +1558,11 @@ export default function AdminWhatsApp() {
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={35} minSize={25} maxSize={60}>
               <div className="h-full flex flex-col overflow-hidden">
-                <ChatWindow chat={selectedChat} onMessagesRead={() => {
+                <ChatWindow chat={selectedChat} initialMessage={prefillMessage} onMessagesRead={() => {
                   if (selectedChat?.id && selectedChat.id !== "temp") {
                     void clearUnreadCount(selectedChat.id);
                   }
-                }} onChatUpdated={handleChatUpdated} availableChats={chats} onBack={() => setSelectedChat(null)} />
+                }} onChatUpdated={handleChatUpdated} availableChats={chats} onBack={() => { setSelectedChat(null); setPrefillMessage(null); }} />
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
@@ -1612,7 +1621,7 @@ export default function AdminWhatsApp() {
                 {/* Coluna 2: Chat Window */}
                 <ResizablePanel defaultSize={70} minSize={40}>
                   <div className="h-full flex flex-col overflow-hidden">
-                    {selectedChat ? <ChatWindow chat={selectedChat} onMessagesRead={() => {
+                    {selectedChat ? <ChatWindow chat={selectedChat} initialMessage={prefillMessage} onMessagesRead={() => {
                 if (selectedChat?.id && selectedChat.id !== "temp") {
                   void clearUnreadCount(selectedChat.id);
                 }
