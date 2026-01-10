@@ -25,6 +25,7 @@ import Disparos from "./pages/Disparos";
 import Extrator from "./pages/Extrator";
 import Instagram from "./pages/Instagram";
 import FormularioCaptura from "./pages/FormularioCaptura";
+import FormularioConversao from "./pages/FormularioConversao";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/f/:formId" element={<FormularioCaptura />} />
+            <Route path="/conversao/:faturaId" element={<FormularioConversao />} />
             <Route
               path="/"
               element={

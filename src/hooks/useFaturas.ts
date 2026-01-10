@@ -22,6 +22,10 @@ export interface Fatura {
   valor_parcela: number | null;
   taxa_parcelamento: number | null;
   juros_pago_por: string | null;
+  pixel_status?: string | null;
+  pixel_form_sent_at?: string | null;
+  pixel_data_completed_at?: string | null;
+  pixel_event_sent_at?: string | null;
 }
 
 export const useFaturas = (status?: StatusFatura) => {
@@ -32,7 +36,7 @@ export const useFaturas = (status?: StatusFatura) => {
         .from("faturas")
         .select(`
           *,
-          leads:cliente_id(nome, telefone, origem),
+          leads:cliente_id(id, nome, telefone, origem),
           procedimentos:procedimento_id(nome),
           profissionais:profissional_id(nome),
           fatura_agendamentos(
