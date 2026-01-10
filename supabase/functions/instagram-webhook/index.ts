@@ -194,9 +194,6 @@ async function processMessage(supabase: any, event: any) {
            if (followerInfo?.username) {
              followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
            }
-           if (gatilho.instagram_seguir) {
-             followMessage = followMessage.replace(/{instagram}/g, gatilho.instagram_seguir);
-           }
 
            const buttonText = gatilho.botao_liberar_texto || 'Já sigo! Liberar material';
            const releasePayload = `release_content_${gatilho.id}`;
@@ -308,9 +305,6 @@ async function processMessage(supabase: any, event: any) {
           let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
           if (followerInfo?.username) {
             followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
-          }
-          if (gatilho.instagram_seguir) {
-            followMessage = followMessage.replace(/{instagram}/g, gatilho.instagram_seguir);
           }
 
           // Get button text (default if not set)
@@ -825,9 +819,6 @@ async function processComment(supabase: any, comment: any) {
             let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
             if (comment.from?.username) {
               followMessage = followMessage.replace(/{nome}/g, comment.from.username);
-            }
-            if (gatilho.instagram_seguir) {
-              followMessage = followMessage.replace(/{instagram}/g, gatilho.instagram_seguir);
             }
 
             // Get button text (default if not set)

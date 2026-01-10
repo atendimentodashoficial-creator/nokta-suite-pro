@@ -36,7 +36,6 @@ const gatilhoSchema = z.object({
   })).optional(),
   titulo_botoes: z.string().optional(),
   verificar_seguidor: z.boolean().optional(),
-  instagram_seguir: z.string().optional(),
   mensagem_pedir_seguir: z.string().optional(),
   botao_liberar_texto: z.string().optional(),
   formulario_id: z.string().optional(),
@@ -63,7 +62,6 @@ interface Gatilho {
   resposta_botoes: any[] | null;
   titulo_botoes: string | null;
   verificar_seguidor: boolean | null;
-  instagram_seguir: string | null;
   mensagem_pedir_seguir: string | null;
   botao_liberar_texto: string | null;
   formulario_id: string | null;
@@ -114,7 +112,6 @@ export function InstagramGatilhosTab() {
       resposta_botoes: [],
       titulo_botoes: "",
       verificar_seguidor: false,
-      instagram_seguir: "",
       mensagem_pedir_seguir: "",
       botao_liberar_texto: "",
       formulario_id: "",
@@ -243,7 +240,6 @@ export function InstagramGatilhosTab() {
         resposta_botoes: buttons.length > 0 ? buttons : null,
         titulo_botoes: data.titulo_botoes || null,
         verificar_seguidor: data.verificar_seguidor || false,
-        instagram_seguir: data.instagram_seguir || null,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         botao_liberar_texto: data.botao_liberar_texto || 'Já sigo! Liberar material',
         formulario_id: data.formulario_id || null,
@@ -290,7 +286,6 @@ export function InstagramGatilhosTab() {
         resposta_botoes: buttons.length > 0 ? buttons : null,
         titulo_botoes: data.titulo_botoes || null,
         verificar_seguidor: data.verificar_seguidor || false,
-        instagram_seguir: data.instagram_seguir || null,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         botao_liberar_texto: data.botao_liberar_texto || 'Já sigo! Liberar material',
         formulario_id: data.formulario_id || null,
@@ -366,7 +361,6 @@ export function InstagramGatilhosTab() {
       resposta_link_texto: gatilho.resposta_link_texto || "",
       titulo_botoes: gatilho.titulo_botoes || "",
       verificar_seguidor: gatilho.verificar_seguidor || false,
-      instagram_seguir: (gatilho as any).instagram_seguir || "",
       mensagem_pedir_seguir: gatilho.mensagem_pedir_seguir || "",
       botao_liberar_texto: (gatilho as any).botao_liberar_texto || "Já sigo! Liberar material",
       formulario_id: gatilho.formulario_id || "",
@@ -980,26 +974,6 @@ export function InstagramGatilhosTab() {
                     <>
                       <FormField
                         control={form.control}
-                        name="instagram_seguir"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>@ do Instagram para seguir</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="@seuinstagram"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormDescription className="text-xs">
-                              Será enviado na mensagem para facilitar o lead a te encontrar
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
                         name="mensagem_pedir_seguir"
                         render={({ field }) => (
                           <FormItem>
@@ -1012,7 +986,7 @@ export function InstagramGatilhosTab() {
                               />
                             </FormControl>
                             <FormDescription className="text-xs">
-                              Enviada quando a pessoa não te segue. Use {"{nome}"} para o nome e {"{instagram}"} para o @.
+                              Enviada quando a pessoa não te segue. Use {"{nome}"} para incluir o nome.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
