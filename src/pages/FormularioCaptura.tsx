@@ -386,6 +386,11 @@ export default function FormularioCaptura() {
                                     : current.filter((v) => v !== opcao);
                                   handleChange(id, next);
                                 }}
+                                style={{
+                                  borderColor: config.cor_primaria,
+                                  backgroundColor: selected ? config.cor_primaria : undefined,
+                                }}
+                                className="border-2"
                               />
                               <span className="text-sm">{opcao}</span>
                             </label>
@@ -411,6 +416,11 @@ export default function FormularioCaptura() {
                               onCheckedChange={(checked) => {
                                 handleChange(id, checked ? opcao : "");
                               }}
+                              style={{
+                                borderColor: config.cor_primaria,
+                                backgroundColor: selected ? config.cor_primaria : undefined,
+                              }}
+                              className="border-2"
                             />
                             <span className="text-sm">{opcao}</span>
                           </label>
