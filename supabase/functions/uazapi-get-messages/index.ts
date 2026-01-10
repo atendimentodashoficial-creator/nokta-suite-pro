@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     // Use limit(1) instead of maybeSingle() to avoid errors when duplicates exist
     const { data: existingChats, error: chatCheckError } = await supabase
       .from('whatsapp_chats')
-      .select('id, created_at')
+      .select('id, created_at, last_message, last_message_time')
       .eq('user_id', user.id)
       .eq('chat_id', chatid)
       .is('deleted_at', null)
