@@ -493,39 +493,67 @@ async function processComment(supabase: any, comment: any) {
 
     if (triggered && comment.from?.id) {
       console.log('Comment trigger matched:', gatilho.nome);
-      
-      // 1. Reply publicly to the comment if configured
-      if (gatilho.responder_comentario && gatilho.resposta_comentario_texto && comment.id) {
-        console.log('Replying to comment publicly:', comment.id);
-        
-        // Process spintax first, then replace {nome}
-        let replyText = processSpintax(gatilho.resposta_comentario_texto);
-        if (comment.from?.username) {
-          replyText = replyText.replace(/{nome}/g, comment.from.username);
-        }
-        
-        await replyToComment(
-          config.page_access_token,
-          comment.id,
-          replyText
-        );
 
-        // Log the public reply
-        await supabase.from('instagram_mensagens').insert({
-          user_id: config.user_id,
-          instagram_user_id: comment.from.id,
-          instagram_username: comment.from.username,
-          tipo: 'resposta_comentario',
-          conteudo: replyText,
-          post_id: comment.media?.id,
-          gatilho_id: gatilho.id,
-        });
+      const commentId = comment.id as string | undefined;
+
+      // 1. Reply publicly to the comment if configured (idempotent)
+      if (gatilho.responder_comentario && gatilho.resposta_comentario_texto && commentId) {
+        // Avoid double replies if Meta retries the webhook
+        const { data: existingPublic } = await supabase
+          .from('instagram_mensagens')
+          .select('id')
+          .eq('user_id', config.user_id)
+          .eq('gatilho_id', gatilho.id)
+          .eq('tipo', 'resposta_comentario')
+          .contains('metadata', { comment_id: commentId })
+          .limit(1);
+
+        if (existingPublic && existingPublic.length > 0) {
+          console.log('Skipping duplicate public reply for comment:', commentId);
+        } else {
+          console.log('Replying to comment publicly:', commentId);
+
+          // Process spintax first, then replace {nome}
+          let replyText = processSpintax(gatilho.resposta_comentario_texto);
+          if (comment.from?.username) {
+            replyText = replyText.replace(/{nome}/g, comment.from.username);
+          }
+
+          await replyToComment(config.page_access_token, commentId, replyText);
+
+          // Log the public reply (store comment_id for idempotency)
+          await supabase.from('instagram_mensagens').insert({
+            user_id: config.user_id,
+            instagram_user_id: comment.from.id,
+            instagram_username: comment.from.username,
+            tipo: 'resposta_comentario',
+            conteudo: replyText,
+            post_id: comment.media?.id,
+            gatilho_id: gatilho.id,
+            metadata: { via: 'public_reply', comment_id: commentId },
+          });
+        }
       }
       
       // 2. Send "DM" to commenter.
       // IMPORTANT: Instagram does not allow initiating a normal DM to a user just from a comment.
       // The correct behavior is a *private reply to the comment*, which appears in Inbox/Requests.
-      if (comment.id && (gatilho.resposta_texto || gatilho.verificar_seguidor)) {
+      if (commentId && (gatilho.resposta_texto || gatilho.verificar_seguidor)) {
+        // Avoid double private replies if Meta retries the webhook
+        const { data: existingPrivate } = await supabase
+          .from('instagram_mensagens')
+          .select('id')
+          .eq('user_id', config.user_id)
+          .eq('gatilho_id', gatilho.id)
+          .eq('tipo', 'dm_enviada')
+          .contains('metadata', { comment_id: commentId })
+          .limit(1);
+
+        if (existingPrivate && existingPrivate.length > 0) {
+          console.log('Skipping duplicate private reply for comment:', commentId);
+          break;
+        }
+
         // If follower verification is enabled and user is not a follower, send the follow request first
         if (gatilho.verificar_seguidor && gatilho.mensagem_pedir_seguir) {
           const followerInfo = await checkIfFollower(config.page_access_token, comment.from.id);
@@ -539,7 +567,7 @@ async function processComment(supabase: any, comment: any) {
               followMessage = followMessage.replace(/{nome}/g, comment.from.username);
             }
 
-            await sendPrivateReplyToComment(config.page_access_token, comment.id, followMessage);
+            await sendPrivateReplyToComment(config.page_access_token, commentId, followMessage);
 
             await supabase.from('instagram_mensagens').insert({
               user_id: config.user_id,
@@ -548,7 +576,7 @@ async function processComment(supabase: any, comment: any) {
               tipo: 'dm_enviada',
               conteudo: followMessage,
               gatilho_id: gatilho.id,
-              metadata: { tipo: 'pedir_seguir_comentario', via: 'private_reply', follower_info: followerInfo, comment_id: comment.id },
+              metadata: { tipo: 'pedir_seguir_comentario', via: 'private_reply', follower_info: followerInfo, comment_id: commentId },
             });
 
             break; // Stop processing - user needs to follow first
@@ -559,7 +587,7 @@ async function processComment(supabase: any, comment: any) {
         if (gatilho.resposta_texto) {
           const dmText = processSpintax(gatilho.resposta_texto);
 
-          await sendPrivateReplyToComment(config.page_access_token, comment.id, dmText);
+          await sendPrivateReplyToComment(config.page_access_token, commentId, dmText);
 
           await supabase.from('instagram_mensagens').insert({
             user_id: config.user_id,
@@ -568,7 +596,7 @@ async function processComment(supabase: any, comment: any) {
             tipo: 'dm_enviada',
             conteudo: dmText,
             gatilho_id: gatilho.id,
-            metadata: { via: 'private_reply', comment_id: comment.id },
+            metadata: { via: 'private_reply', comment_id: commentId },
           });
         }
       }
