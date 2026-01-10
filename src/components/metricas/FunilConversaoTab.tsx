@@ -168,10 +168,17 @@ interface AdItemProps {
   numberTextClass: string;
   badge: React.ReactNode;
   thumbnailUrl?: string;
+  adText?: string;
 }
 
-function AdItem({ item, index, numberBgClass, numberBgInactiveClass, numberTextClass, badge, thumbnailUrl }: AdItemProps) {
+function AdItem({ item, index, numberBgClass, numberBgInactiveClass, numberTextClass, badge, thumbnailUrl, adText }: AdItemProps) {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isTextExpanded, setIsTextExpanded] = useState(false);
+  
+  const shouldTruncateText = adText && adText.length > 150;
+  const displayText = shouldTruncateText && !isTextExpanded 
+    ? adText.substring(0, 150) + "..." 
+    : adText;
   
   return (
     <>
@@ -222,6 +229,27 @@ function AdItem({ item, index, numberBgClass, numberBgInactiveClass, numberTextC
                   </span>
                 </div>
               </div>
+              {adText && (
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Texto do Anúncio:</span>
+                  <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-md p-2">
+                    <span className="text-xs text-purple-700 dark:text-purple-300 break-words whitespace-pre-wrap">
+                      {displayText}
+                    </span>
+                    {shouldTruncateText && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsTextExpanded(!isTextExpanded);
+                        }}
+                        className="text-xs text-purple-600 dark:text-purple-400 hover:underline mt-1 block"
+                      >
+                        {isTextExpanded ? "Ver menos" : "Ver mais"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">Conjunto de Anúncios:</span>
                 <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-2">
@@ -891,30 +919,60 @@ export function FunilConversaoTab() {
       .map(item => item.ad_id as string);
   }, [funnelByAd]);
 
-  const { data: adThumbnails } = useQuery({
-    queryKey: ["ad-thumbnails", user?.id, adIds],
+  const { data: adData } = useQuery({
+    queryKey: ["ad-data", user?.id, adIds],
     queryFn: async () => {
-      if (!user?.id || adIds.length === 0) return {};
+      if (!user?.id || adIds.length === 0) return { thumbnails: {}, texts: {} };
       
       // Buscar thumbnails já salvos nos leads
-      const { data } = await supabase
+      const { data: leadData } = await supabase
         .from("leads")
         .select("fb_ad_id, ad_thumbnail_url")
         .eq("user_id", user.id)
         .in("fb_ad_id", adIds)
         .not("ad_thumbnail_url", "is", null);
       
+      // Buscar texto dos anúncios das mensagens de WhatsApp
+      let messageData: Array<{ fb_ad_id: string | null; content: string | null }> = [];
+      try {
+        // @ts-ignore - Ignorar erro de profundidade de tipo
+        const result = await (supabase.from("whatsapp_messages") as any)
+          .select("fb_ad_id, content")
+          .eq("user_id", user.id)
+          .in("fb_ad_id", adIds)
+          .limit(500);
+        messageData = result.data || [];
+      } catch (e) {
+        console.error("Error fetching message data:", e);
+      }
+      
       const thumbnailMap: Record<string, string> = {};
-      data?.forEach(item => {
+      leadData?.forEach(item => {
         if (item.fb_ad_id && item.ad_thumbnail_url) {
           thumbnailMap[item.fb_ad_id] = item.ad_thumbnail_url;
         }
       });
       
-      return thumbnailMap;
+      // Extrair texto do anúncio da primeira mensagem de cada ad_id
+      const textMap: Record<string, string> = {};
+      messageData?.forEach(item => {
+        if (item.fb_ad_id && item.content && !textMap[item.fb_ad_id]) {
+          // Limpar o texto removendo prefixos comuns e metadados
+          let text = item.content.trim();
+          // Se o texto parecer ser o texto do anúncio (não é uma resposta simples)
+          if (text.length > 10) {
+            textMap[item.fb_ad_id] = text;
+          }
+        }
+      });
+      
+      return { thumbnails: thumbnailMap, texts: textMap };
     },
     enabled: !!user?.id && adIds.length > 0,
   });
+
+  const adThumbnails = adData?.thumbnails || {};
+  const adTexts = adData?.texts || {};
 
   const isLoading = loadingFunnel || loadingSpend;
 
@@ -1566,6 +1624,7 @@ export function FunilConversaoTab() {
                               numberBgInactiveClass="bg-purple-500/20"
                               numberTextClass="text-purple-600"
                               thumbnailUrl={item.ad_id ? adThumbnails?.[item.ad_id] : undefined}
+                              adText={item.ad_id ? adTexts?.[item.ad_id] : undefined}
                               badge={
                                 <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 ml-2">
                                   {item.leads} leads
@@ -1635,6 +1694,7 @@ export function FunilConversaoTab() {
                               numberBgInactiveClass="bg-orange-500/20"
                               numberTextClass="text-orange-600"
                               thumbnailUrl={item.ad_id ? adThumbnails?.[item.ad_id] : undefined}
+                              adText={item.ad_id ? adTexts?.[item.ad_id] : undefined}
                               badge={
                                 <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600 ml-2">
                                   {item.agendados} agend.
@@ -1704,6 +1764,7 @@ export function FunilConversaoTab() {
                               numberBgInactiveClass="bg-emerald-500/20"
                               numberTextClass="text-emerald-600"
                               thumbnailUrl={item.ad_id ? adThumbnails?.[item.ad_id] : undefined}
+                              adText={item.ad_id ? adTexts?.[item.ad_id] : undefined}
                               badge={
                                 <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 ml-2">
                                   {item.compareceu} comp.
@@ -1773,6 +1834,7 @@ export function FunilConversaoTab() {
                               numberBgInactiveClass="bg-lime-500/20"
                               numberTextClass="text-lime-600"
                               thumbnailUrl={item.ad_id ? adThumbnails?.[item.ad_id] : undefined}
+                              adText={item.ad_id ? adTexts?.[item.ad_id] : undefined}
                               badge={
                                 <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600 ml-2">
                                   {item.clientes} clientes
@@ -1880,6 +1942,7 @@ export function FunilConversaoTab() {
                               numberBgInactiveClass="bg-purple-500/20"
                               numberTextClass="text-purple-600"
                               thumbnailUrl={item.ad_id ? adThumbnails?.[item.ad_id] : undefined}
+                              adText={item.ad_id ? adTexts?.[item.ad_id] : undefined}
                               badge={
                                 <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 ml-2">
                                   {formatCurrency(item.cpl || 0)}
@@ -1969,6 +2032,7 @@ export function FunilConversaoTab() {
                               numberBgInactiveClass="bg-orange-500/20"
                               numberTextClass="text-orange-600"
                               thumbnailUrl={item.ad_id ? adThumbnails?.[item.ad_id] : undefined}
+                              adText={item.ad_id ? adTexts?.[item.ad_id] : undefined}
                               badge={
                                 <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600 ml-2">
                                   {formatCurrency(item.cpa || 0)}
@@ -2058,6 +2122,7 @@ export function FunilConversaoTab() {
                               numberBgInactiveClass="bg-emerald-500/20"
                               numberTextClass="text-emerald-600"
                               thumbnailUrl={item.ad_id ? adThumbnails?.[item.ad_id] : undefined}
+                              adText={item.ad_id ? adTexts?.[item.ad_id] : undefined}
                               badge={
                                 <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 ml-2">
                                   {formatCurrency(item.costPerComp || 0)}
@@ -2130,9 +2195,6 @@ export function FunilConversaoTab() {
                       .sort((a, b) => (a.cac || 0) - (b.cac || 0));
                     
                     if (sortedItems.length === 0) return null;
-                    const isExpanded = expandedSections.has("cost-clientes-ad");
-                    const displayItems = isExpanded ? sortedItems : sortedItems.slice(0, 5);
-                    const hasMore = sortedItems.length > 5;
                     
                     return (
                       <div className="p-4 bg-lime-500/5 border border-lime-500/20 rounded-xl">
@@ -2140,30 +2202,25 @@ export function FunilConversaoTab() {
                           <Megaphone className="h-4 w-4 text-lime-600" />
                           <h4 className="font-medium text-sm">Top Anúncios</h4>
                         </div>
-                        <div className="space-y-2">
-                          {displayItems.map((item, index) => (
-                            <div key={`cac-${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-lime-500 text-white' : 'bg-lime-500/20 text-lime-600'}`}>
-                                  {index + 1}
-                                </span>
-                                <span className="text-sm truncate">{item.ad}</span>
-                              </div>
-                              <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600 ml-2">
-                                {formatCurrency(item.cac || 0)}
-                              </Badge>
-                            </div>
+                        <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                          {sortedItems.map((item, index) => (
+                            <AdItem
+                              key={`cac-${item.campaign}-${item.adset}-${item.ad}`}
+                              item={item}
+                              index={index}
+                              numberBgClass="bg-lime-500"
+                              numberBgInactiveClass="bg-lime-500/20"
+                              numberTextClass="text-lime-600"
+                              thumbnailUrl={item.ad_id ? adThumbnails?.[item.ad_id] : undefined}
+                              adText={item.ad_id ? adTexts?.[item.ad_id] : undefined}
+                              badge={
+                                <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600 ml-2">
+                                  {formatCurrency(item.cac || 0)}
+                                </Badge>
+                              }
+                            />
                           ))}
                         </div>
-                        {hasMore && (
-                          <Button variant="ghost" size="sm" className="w-full mt-2 text-xs" onClick={() => toggleSection("cost-clientes-ad")}>
-                            {isExpanded ? (
-                              <>Ver menos <ChevronDown className="h-3 w-3 ml-1 rotate-180" /></>
-                            ) : (
-                              <>Ver mais ({sortedItems.length - 5}) <ChevronDown className="h-3 w-3 ml-1" /></>
-                            )}
-                          </Button>
-                        )}
                       </div>
                     );
                   })()}
