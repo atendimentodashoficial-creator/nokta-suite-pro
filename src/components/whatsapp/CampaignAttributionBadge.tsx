@@ -231,6 +231,59 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
           });
         }
 
+        // Enriquecer Meta Ads (campanha/conjunto/anúncio) via backend quando só temos o fb_ad_id.
+        // (Isso é o que deixa igual ao da Lenir.)
+        const needEnrich = allAttributions
+          .filter((a) => a.source === 'meta' && a.fb_ad_id)
+          .filter((a) => !a.fb_campaign_name || !a.fb_adset_name || !a.fb_ad_name || !a.ad_thumbnail_url);
+
+        if (needEnrich.length > 0) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+
+          const cache = new Map<string, Partial<AttributionEntry>>();
+          const uniqueAdIds = Array.from(new Set(needEnrich.map((a) => a.fb_ad_id!).filter(Boolean)));
+
+          await Promise.all(
+            uniqueAdIds.map(async (adId) => {
+              try {
+                const resp = await supabase.functions.invoke('fetch-facebook-ad-info', {
+                  headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                  body: { ad_id: adId },
+                });
+
+                if (resp.error) return;
+
+                const r: any = resp.data;
+                cache.set(adId, {
+                  fb_ad_id: r.ad_id ?? adId,
+                  fb_ad_name: r.ad_name ?? null,
+                  fb_campaign_name: r.campaign_name ?? null,
+                  fb_adset_name: r.adset_name ?? null,
+                  ad_thumbnail_url: r.thumbnail_url ?? null,
+                });
+              } catch {
+                // silencioso
+              }
+            })
+          );
+
+          // aplica cache
+          for (let i = 0; i < allAttributions.length; i++) {
+            const a = allAttributions[i];
+            if (a.source !== 'meta' || !a.fb_ad_id) continue;
+            const extra = cache.get(a.fb_ad_id);
+            if (!extra) continue;
+            allAttributions[i] = {
+              ...a,
+              fb_ad_name: a.fb_ad_name ?? extra.fb_ad_name ?? null,
+              fb_campaign_name: a.fb_campaign_name ?? extra.fb_campaign_name ?? null,
+              fb_adset_name: a.fb_adset_name ?? extra.fb_adset_name ?? null,
+              ad_thumbnail_url: a.ad_thumbnail_url ?? extra.ad_thumbnail_url ?? null,
+            };
+          }
+        }
+
         if (!isMounted) return;
 
         // Ordenar por data (mais recente primeiro)
