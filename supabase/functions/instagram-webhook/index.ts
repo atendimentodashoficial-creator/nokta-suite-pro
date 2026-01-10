@@ -295,7 +295,7 @@ async function processMessage(supabase: any, event: any) {
   for (const gatilho of gatilhos || []) {
     const messageText = normalizeAccents(message.text || '');
     const triggered = gatilho.palavras_chave.some((kw: string) => 
-      messageText === normalizeAccents(kw)
+      messageText.includes(normalizeAccents(kw))
     );
 
     if (triggered) {
@@ -660,8 +660,8 @@ async function checkIceBreakerPayload(supabase: any, config: any, senderId: stri
 
       for (const gatilho of gatilhos || []) {
         const triggered = gatilho.palavras_chave.some((kw: string) => 
-          normalizeAccents(normalizedPayload) === normalizeAccents(kw) || 
-          normalizeAccents(normalizedQuestion) === normalizeAccents(kw)
+          normalizeAccents(normalizedPayload).includes(normalizeAccents(kw)) || 
+          normalizeAccents(normalizedQuestion).includes(normalizeAccents(kw))
         );
 
         if (triggered && gatilho.resposta_texto) {
@@ -740,7 +740,7 @@ async function processComment(supabase: any, comment: any) {
   for (const gatilho of gatilhos || []) {
     const commentText = normalizeAccents(comment.text || '');
     const triggered = gatilho.palavras_chave.some((kw: string) => 
-      commentText === normalizeAccents(kw)
+      commentText.includes(normalizeAccents(kw))
     );
 
     if (triggered && comment.from?.id) {
