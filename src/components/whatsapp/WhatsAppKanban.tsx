@@ -469,22 +469,47 @@ export function WhatsAppKanban({
     try {
       // Process in batches of 50 to avoid request size limits
       const BATCH_SIZE = 50;
+      const MAX_RETRIES = 3;
       let totalDeleted = 0;
+
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+      const invokeWithRetry = async (chat_ids: string[], batchNumber: number) => {
+        let lastErr: any;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            const { error } = await supabase.functions.invoke("whatsapp-delete-chat", {
+              body: { chat_ids },
+            });
+
+            if (error) {
+              throw new Error(error.message || "Erro ao excluir");
+            }
+
+            return;
+          } catch (e) {
+            lastErr = e;
+            // exponential backoff: 600ms, 1200ms, 2400ms
+            await sleep(600 * Math.pow(2, attempt - 1));
+          }
+        }
+
+        throw new Error(
+          `Lote ${batchNumber}: ${
+            lastErr?.message || "Falha de rede ao chamar a função"
+          }`
+        );
+      };
 
       for (let i = 0; i < chatIdsToDelete.length; i += BATCH_SIZE) {
         const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
         const batch = chatIdsToDelete.slice(i, i + BATCH_SIZE);
 
-        const { error } = await supabase.functions.invoke("whatsapp-delete-chat", {
-          body: { chat_ids: batch },
-        });
-
-        if (error) {
-          // Include batch number to make debugging easier
-          throw new Error(`Lote ${batchNumber}: ${error.message || "Erro ao excluir"}`);
-        }
-
+        await invokeWithRetry(batch, batchNumber);
         totalDeleted += batch.length;
+
+        // small pacing to reduce burst / transient network failures
+        await sleep(150);
       }
 
       toast.success(`${totalDeleted} conversa(s) excluída(s)`);
