@@ -91,10 +91,10 @@ export function InstagramFormulariosTab() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       nome: "",
-      titulo_pagina: "Preencha seus dados",
+      titulo_pagina: "",
       subtitulo_pagina: "",
-      texto_botao: "Enviar",
-      mensagem_sucesso: "Obrigado! Seus dados foram enviados com sucesso.",
+      texto_botao: "",
+      mensagem_sucesso: "",
       cor_primaria: "#00D4FF",
       imagem_url: "",
       botao_sucesso_texto: "",
@@ -356,9 +356,15 @@ export function InstagramFormulariosTab() {
       }}>
           <DialogTrigger asChild>
             <Button size="sm" onClick={() => {
-            setEditingFormulario(null);
-            setDialogOpen(true);
-          }}>
+              setEditingFormulario(null);
+              form.reset();
+              setSelectedCampos(["nome", "telefone", "email"]);
+              setCamposPersonalizados([]);
+              setNovoCampoLabel("");
+              setNovoCampoTipo("text");
+              setNovasOpcoes(["", ""]);
+              setSimNaoOpcoes(["Sim", "Não"]);
+            }}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Formulário
             </Button>
