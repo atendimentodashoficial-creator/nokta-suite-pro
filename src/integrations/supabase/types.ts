@@ -2412,6 +2412,30 @@ export type Database = {
         }
         Relationships: []
       }
+      openai_config: {
+        Row: {
+          api_key: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       personalizacao_config: {
         Row: {
           cor_background: string | null

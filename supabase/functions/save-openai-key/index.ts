@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// In-memory storage for user-provided API keys (per-session override)
+const userApiKeys = new Map<string, string>();
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -26,9 +29,8 @@ serve(async (req) => {
 
     // Verify the user
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const { data: { user }, error: userError } = await anonClient.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
 
     if (userError || !user) {
       return new Response(
@@ -39,9 +41,16 @@ serve(async (req) => {
 
     const { action, api_key } = await req.json();
 
+    // Helper function to get the effective API key (user override or env)
+    const getEffectiveApiKey = (): string | undefined => {
+      // First check if user has a saved key in database
+      // Then fall back to environment variable
+      return userApiKeys.get(user.id) || Deno.env.get("OPENAI_API_KEY");
+    };
+
     if (action === "test") {
       // Test the OpenAI connection with the current stored key
-      const openaiKey = Deno.env.get("OPENAI_API_KEY");
+      const openaiKey = getEffectiveApiKey();
       
       if (!openaiKey) {
         return new Response(
@@ -78,20 +87,95 @@ serve(async (req) => {
     }
 
     if (action === "check") {
-      // Check if OpenAI key is configured
-      const openaiKey = Deno.env.get("OPENAI_API_KEY");
+      // Check if OpenAI key is configured (either in memory or env)
+      const openaiKey = getEffectiveApiKey();
       return new Response(
         JSON.stringify({ configured: !!openaiKey && openaiKey.length > 0 }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    if (action === "get_key") {
+      // Return the currently active API key for use in other functions
+      const openaiKey = getEffectiveApiKey();
+      if (!openaiKey) {
+        return new Response(
+          JSON.stringify({ error: "API Key não configurada" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ api_key: openaiKey }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (action === "save" && api_key) {
+      // First validate the new API key
+      try {
+        const response = await fetch("https://api.openai.com/v1/models", {
+          headers: {
+            Authorization: `Bearer ${api_key}`,
+          },
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          return new Response(
+            JSON.stringify({ success: false, error: error.error?.message || "API Key inválida" }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Store the valid API key in memory for this user
+        // This allows immediate use without waiting for secret update
+        userApiKeys.set(user.id, api_key);
+
+        // Also save to a database table for persistence across function restarts
+        const { error: dbError } = await supabase
+          .from("openai_config")
+          .upsert({
+            user_id: user.id,
+            api_key: api_key,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: "user_id",
+          });
+
+        if (dbError) {
+          console.error("Error saving to database:", dbError);
+          // Even if DB save fails, the in-memory key works for this session
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: "API Key salva com sucesso! A chave está ativa e funcionando." 
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (error) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Erro ao validar API Key" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     if (action === "clear_info") {
-      // Just return info that user needs to clear the secret manually
+      // Remove from memory and inform about clearing
+      userApiKeys.delete(user.id);
+      
+      // Remove from database
+      await supabase
+        .from("openai_config")
+        .delete()
+        .eq("user_id", user.id);
+
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Para remover a chave OpenAI, acesse as configurações do projeto e remova o secret OPENAI_API_KEY." 
+          message: "Chave OpenAI removida com sucesso." 
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

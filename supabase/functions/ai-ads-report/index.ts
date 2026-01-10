@@ -1,22 +1,74 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Check for OpenAI key first (user-configured), fallback to Lovable AI
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+// Environment API keys
+const ENV_OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Determine which API to use
-const useOpenAI = !!OPENAI_API_KEY && OPENAI_API_KEY.length > 0;
-const AI_API_URL = useOpenAI 
-  ? 'https://api.openai.com/v1/chat/completions'
-  : 'https://ai.gateway.lovable.dev/v1/chat/completions';
-const AI_API_KEY = useOpenAI ? OPENAI_API_KEY : LOVABLE_API_KEY;
-const AI_MODEL = useOpenAI ? 'gpt-4o-mini' : 'google/gemini-3-flash-preview';
+// Helper function to get user's OpenAI key from database
+async function getUserOpenAIKey(userId: string): Promise<string | null> {
+  try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data, error } = await supabase
+      .from('openai_config')
+      .select('api_key')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error || !data) return null;
+    return data.api_key;
+  } catch (e) {
+    console.error('Error fetching user OpenAI key:', e);
+    return null;
+  }
+}
+
+// Helper to get effective API key and configuration
+async function getAIConfig(userId?: string): Promise<{ apiUrl: string; apiKey: string; model: string; provider: string } | null> {
+  // Priority 1: User's key from database
+  if (userId) {
+    const userKey = await getUserOpenAIKey(userId);
+    if (userKey && userKey.length > 0) {
+      return {
+        apiUrl: 'https://api.openai.com/v1/chat/completions',
+        apiKey: userKey,
+        model: 'gpt-4o-mini',
+        provider: 'openai-user'
+      };
+    }
+  }
+  
+  // Priority 2: Environment OpenAI key
+  if (ENV_OPENAI_API_KEY && ENV_OPENAI_API_KEY.length > 0) {
+    return {
+      apiUrl: 'https://api.openai.com/v1/chat/completions',
+      apiKey: ENV_OPENAI_API_KEY,
+      model: 'gpt-4o-mini',
+      provider: 'openai-env'
+    };
+  }
+  
+  // Priority 3: Lovable AI
+  if (LOVABLE_API_KEY && LOVABLE_API_KEY.length > 0) {
+    return {
+      apiUrl: 'https://ai.gateway.lovable.dev/v1/chat/completions',
+      apiKey: LOVABLE_API_KEY,
+      model: 'google/gemini-3-flash-preview',
+      provider: 'lovable'
+    };
+  }
+  
+  return null;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -24,16 +76,30 @@ serve(async (req) => {
   }
 
   try {
+    // Extract user from auth header for personalized key lookup
+    let userId: string | undefined;
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+        userId = user?.id;
+      } catch (e) {
+        console.log('Could not extract user:', e);
+      }
+    }
+
     const { action, campaigns, adsets, ads, dateStart, dateEnd, accountId, compareWithPrevious, previousReport, funnelData } = await req.json();
 
     // Check API key action
     if (action === 'check_api_key') {
-      console.log("Checking AI configuration - OpenAI:", !!OPENAI_API_KEY, "Lovable AI:", !!LOVABLE_API_KEY);
+      const aiConfig = await getAIConfig(userId);
+      console.log("Checking AI configuration - Provider:", aiConfig?.provider || 'none');
       return new Response(
         JSON.stringify({ 
           success: true, 
-          configured: !!AI_API_KEY && AI_API_KEY.length > 0,
-          provider: useOpenAI ? 'openai' : 'lovable'
+          configured: !!aiConfig,
+          provider: aiConfig?.provider || 'none'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -41,13 +107,18 @@ serve(async (req) => {
 
     // Generate report action
     if (action === 'generate_report') {
-      if (!AI_API_KEY) {
-        console.error("No AI API key configured (neither OpenAI nor Lovable AI)");
+      const aiConfig = await getAIConfig(userId);
+      
+      if (!aiConfig) {
+        console.error("No AI API key configured (neither user key, OpenAI env, nor Lovable AI)");
         return new Response(
           JSON.stringify({ success: false, error: "Nenhuma API de IA configurada. Configure a chave OpenAI nas configurações." }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      
+      console.log(`Using AI provider: ${aiConfig.provider}, model: ${aiConfig.model}`);
+
 
       // Helper function to check if an item has actual data (not all zeros)
       const hasActualData = (item: any): boolean => {
@@ -422,16 +493,16 @@ ${funnelData ? `5. Analisar a qualidade dos leads por campanha (qual campanha tr
 6. Calcular o retorno real do investimento (ROAS baseado em faturamento real)
 7. Identificar gargalos no funil (onde estamos perdendo mais oportunidades)` : ''}`;
 
-      console.log(`Calling AI API (${useOpenAI ? 'OpenAI' : 'Lovable AI'}) with enhanced cost/result analysis`);
+      console.log(`Calling AI API (${aiConfig.provider}) with enhanced cost/result analysis`);
 
-      const response = await fetch(AI_API_URL, {
+      const response = await fetch(aiConfig.apiUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${AI_API_KEY}`,
+          'Authorization': `Bearer ${aiConfig.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: AI_MODEL,
+          model: aiConfig.model,
           messages: [
             { 
               role: 'system', 
@@ -446,7 +517,7 @@ ${funnelData ? `5. Analisar a qualidade dos leads por campanha (qual campanha tr
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`AI API error (${useOpenAI ? 'OpenAI' : 'Lovable'}):`, response.status, errorText);
+        console.error(`AI API error (${aiConfig.provider}):`, response.status, errorText);
         
         if (response.status === 429) {
           return new Response(
@@ -456,19 +527,19 @@ ${funnelData ? `5. Analisar a qualidade dos leads por campanha (qual campanha tr
         }
         if (response.status === 402) {
           return new Response(
-            JSON.stringify({ success: false, error: useOpenAI ? "Erro na API OpenAI. Verifique sua chave e créditos." : "Créditos de IA esgotados. Adicione créditos em Configurações > Workspace > Uso." }),
+            JSON.stringify({ success: false, error: aiConfig.provider.startsWith('openai') ? "Erro na API OpenAI. Verifique sua chave e créditos." : "Créditos de IA esgotados. Adicione créditos em Configurações > Workspace > Uso." }),
             { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         if (response.status === 401) {
           return new Response(
-            JSON.stringify({ success: false, error: useOpenAI ? "Chave OpenAI inválida. Verifique nas configurações." : "Erro de autenticação na API de IA." }),
+            JSON.stringify({ success: false, error: aiConfig.provider.startsWith('openai') ? "Chave OpenAI inválida. Verifique nas configurações." : "Erro de autenticação na API de IA." }),
             { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         
         return new Response(
-          JSON.stringify({ success: false, error: `Erro ao chamar API de IA (${useOpenAI ? 'OpenAI' : 'Lovable AI'})` }),
+          JSON.stringify({ success: false, error: `Erro ao chamar API de IA (${aiConfig.provider})` }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
