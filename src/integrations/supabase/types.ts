@@ -1597,6 +1597,7 @@ export type Database = {
           app_id: string
           app_secret: string
           created_at: string
+          form_base_url: string | null
           ice_breakers: Json | null
           id: string
           instagram_account_id: string | null
@@ -1612,6 +1613,7 @@ export type Database = {
           app_id: string
           app_secret: string
           created_at?: string
+          form_base_url?: string | null
           ice_breakers?: Json | null
           id?: string
           instagram_account_id?: string | null
@@ -1627,6 +1629,7 @@ export type Database = {
           app_id?: string
           app_secret?: string
           created_at?: string
+          form_base_url?: string | null
           ice_breakers?: Json | null
           id?: string
           instagram_account_id?: string | null
