@@ -182,6 +182,7 @@ export function FunilConversaoTab() {
       const endDate = format(dateEnd, "yyyy-MM-dd");
 
       // Buscar TODOS os leads do usuário para poder unificar por telefone
+      // Exclui leads de Disparos - funil é apenas para WhatsApp
       const { data: allLeads, error } = await supabase
         .from("leads")
         .select(`
@@ -194,10 +195,12 @@ export function FunilConversaoTab() {
           fb_ad_name, 
           fb_ad_id,
           created_at,
-          valor_tratamento
+          valor_tratamento,
+          origem
         `)
         .eq("user_id", user.id)
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .neq("origem", "Disparos");
 
       if (error) throw error;
 
