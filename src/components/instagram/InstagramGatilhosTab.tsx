@@ -501,6 +501,8 @@ export function InstagramGatilhosTab() {
                   />
                 </div>
 
+                {/* Abas de resposta - só aparecem quando DM está ativado */}
+                {form.watch("ativo_em_dm") && (
                 <Tabs value={activeResponseTab} onValueChange={setActiveResponseTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger 
@@ -894,6 +896,7 @@ export function InstagramGatilhosTab() {
                   </TabsContent>
 
                 </Tabs>
+                )}
 
                 {/* Seção de Verificar Seguidor - Toggle separado */}
                 <div className="p-4 border rounded-lg space-y-4">
@@ -957,9 +960,11 @@ export function InstagramGatilhosTab() {
                             <Reply className="h-5 w-5 text-primary" />
                             <div>
                               <FormLabel className="text-base font-medium">Resposta pública no comentário</FormLabel>
-                              <FormDescription className="text-xs">
-                                Além da DM, responde diretamente no comentário
-                              </FormDescription>
+                              {form.watch("ativo_em_dm") && (
+                                <FormDescription className="text-xs">
+                                  Além da DM, responde diretamente no comentário
+                                </FormDescription>
+                              )}
                             </div>
                           </div>
                           <FormControl>
