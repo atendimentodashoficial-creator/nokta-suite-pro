@@ -365,6 +365,48 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
     );
   };
 
+  // Render the campaign badge outside the message bubble for customer messages
+  if (!isAgent && hasAttribution && !isDeleted) {
+    return (
+      <div className="flex items-start gap-2">
+        {/* Campaign badge outside the bubble */}
+        {renderCampaignBadge()}
+        
+        {/* Message bubble */}
+        <div className="flex-1">
+          <div
+            className={`rounded-lg px-4 py-2 ${
+              isDeleted
+                ? 'bg-red-50 text-red-600'
+                : 'bg-muted text-foreground'
+            }`}
+          >
+            {/* Media content - hide if deleted */}
+            {!isDeleted && isMedia && message.media_url && renderMedia()}
+
+            {/* Text content - hide metadata for media messages */}
+            {message.content && !isMediaMetadata(message.content, isMedia) && (
+              <div
+                className={`text-sm whitespace-pre-wrap break-words ${isDeleted ? 'italic' : ''}`}
+                dangerouslySetInnerHTML={{ 
+                  __html: isDeleted ? 'Mensagem apagada' : formatWhatsAppText(message.content) 
+                }}
+              />
+            )}
+
+            {/* Timestamp and status */}
+            <div className="flex items-center gap-1 mt-1 justify-end">
+              <span className="text-xs opacity-70">
+                {format(new Date(message.timestamp), 'HH:mm')}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default render for agent messages or messages without attribution
   return (
     <div
       className={`rounded-lg px-4 py-2 ${
@@ -375,9 +417,6 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
           : 'bg-muted text-foreground'
       }`}
     >
-      {/* Campaign attribution badge - show above content for customer messages */}
-      {!isAgent && renderCampaignBadge()}
-
       {/* Media content - hide if deleted */}
       {!isDeleted && isMedia && message.media_url && renderMedia()}
 
