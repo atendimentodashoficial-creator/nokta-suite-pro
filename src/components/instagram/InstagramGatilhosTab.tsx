@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload, UserCheck, Pencil } from "lucide-react";
+import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload, UserCheck, Pencil, FileText } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,6 +34,8 @@ const gatilhoSchema = z.object({
   })).optional(),
   verificar_seguidor: z.boolean().optional(),
   mensagem_pedir_seguir: z.string().optional(),
+  formulario_id: z.string().optional(),
+  mensagem_formulario: z.string().optional(),
 });
 
 type GatilhoFormData = z.infer<typeof gatilhoSchema>;
@@ -51,8 +53,15 @@ interface Gatilho {
   resposta_botoes: any[] | null;
   verificar_seguidor: boolean | null;
   mensagem_pedir_seguir: string | null;
+  formulario_id: string | null;
   ativo: boolean;
   created_at: string;
+}
+
+interface Formulario {
+  id: string;
+  nome: string;
+  ativo: boolean;
 }
 
 interface QuickReplyButton {
@@ -85,6 +94,8 @@ export function InstagramGatilhosTab() {
       resposta_botoes: [],
       verificar_seguidor: false,
       mensagem_pedir_seguir: "",
+      formulario_id: "",
+      mensagem_formulario: "",
     },
   });
 
@@ -102,6 +113,24 @@ export function InstagramGatilhosTab() {
 
       if (error) throw error;
       return data as Gatilho[];
+    },
+  });
+
+  const { data: formularios } = useQuery({
+    queryKey: ["instagram-formularios-select"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const { data, error } = await supabase
+        .from("instagram_formularios")
+        .select("id, nome, ativo")
+        .eq("user_id", user.id)
+        .eq("ativo", true)
+        .order("nome", { ascending: true });
+
+      if (error) throw error;
+      return data as Formulario[];
     },
   });
 
@@ -186,6 +215,7 @@ export function InstagramGatilhosTab() {
         resposta_botoes: buttons.length > 0 ? buttons : null,
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
+        formulario_id: data.formulario_id || null,
         ativo: true,
       };
 
@@ -223,6 +253,7 @@ export function InstagramGatilhosTab() {
         resposta_botoes: buttons.length > 0 ? buttons : null,
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
+        formulario_id: data.formulario_id || null,
       };
 
       const { error } = await supabase
@@ -288,6 +319,8 @@ export function InstagramGatilhosTab() {
       resposta_link_texto: gatilho.resposta_link_texto || "",
       verificar_seguidor: gatilho.verificar_seguidor || false,
       mensagem_pedir_seguir: gatilho.mensagem_pedir_seguir || "",
+      formulario_id: gatilho.formulario_id || "",
+      mensagem_formulario: "",
     });
     setButtons(gatilho.resposta_botoes || []);
     setPreviewImage(gatilho.resposta_midia_tipo === "image" ? gatilho.resposta_midia_url : null);
@@ -402,7 +435,7 @@ export function InstagramGatilhosTab() {
                 </div>
 
                 <Tabs defaultValue="texto" className="w-full">
-                  <TabsList className="grid w-full grid-cols-5">
+                  <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="texto" className="text-xs">
                       <MessageCircle className="h-3 w-3 mr-1" />
                       Texto
@@ -418,6 +451,10 @@ export function InstagramGatilhosTab() {
                     <TabsTrigger value="botoes" className="text-xs">
                       <MousePointerClick className="h-3 w-3 mr-1" />
                       Botões
+                    </TabsTrigger>
+                    <TabsTrigger value="formulario" className="text-xs">
+                      <FileText className="h-3 w-3 mr-1" />
+                      Formulário
                     </TabsTrigger>
                     <TabsTrigger value="seguidor" className="text-xs">
                       <UserCheck className="h-3 w-3 mr-1" />
@@ -656,6 +693,78 @@ export function InstagramGatilhosTab() {
                           </FormItem>
                         )}
                       />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="formulario" className="mt-4 space-y-4">
+                    <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <FileText className="h-5 w-5 text-primary mt-0.5" />
+                        <div>
+                          <p className="font-medium">Exigir preenchimento de formulário</p>
+                          <p className="text-xs text-muted-foreground">
+                            O material/link só será enviado após o usuário preencher o formulário
+                          </p>
+                        </div>
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="formulario_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Formulário</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione um formulário (opcional)" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">Nenhum (envio direto)</SelectItem>
+                                {formularios?.map((f) => (
+                                  <SelectItem key={f.id} value={f.id}>
+                                    {f.nome}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription className="text-xs">
+                              Selecione um formulário para capturar dados antes de enviar o material
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {form.watch("formulario_id") && (
+                        <FormField
+                          control={form.control}
+                          name="mensagem_formulario"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Mensagem com o link do formulário</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Preencha seus dados para receber o material: {link_formulario}"
+                                  rows={3}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormDescription className="text-xs">
+                                Use {"{link_formulario}"} onde o link deve aparecer. Use {"{nome}"} para incluir o nome do usuário.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+
+                      {!formularios?.length && (
+                        <p className="text-xs text-amber-600">
+                          Nenhum formulário ativo. Crie um na aba "Formulários".
+                        </p>
+                      )}
                     </div>
                   </TabsContent>
                 </Tabs>
