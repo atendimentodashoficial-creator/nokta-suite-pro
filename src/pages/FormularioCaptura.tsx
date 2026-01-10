@@ -446,6 +446,11 @@ export default function FormularioCaptura() {
                     <Input
                       id={id}
                       type={tipo}
+                      autoComplete={
+                        id === "nome" ? "name" : 
+                        id === "email" ? "email" : 
+                        tipo === "tel" ? "tel" : undefined
+                      }
                       placeholder={getCampoPlaceholder(campo)}
                       value={valueToString(formData[id])}
                       onChange={(e) => handleChange(id, e.target.value)}
