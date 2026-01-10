@@ -245,6 +245,20 @@ export function InstagramFormulariosTab() {
     },
   });
 
+  const deleteResposta = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("instagram_formularios_respostas").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["instagram-formularios-respostas", selectedFormId] });
+      toast.success("Resposta excluída");
+    },
+    onError: () => {
+      toast.error("Erro ao excluir resposta");
+    },
+  });
+
   const openEditDialog = (formulario: Formulario) => {
     setEditingFormulario(formulario);
     
@@ -870,32 +884,43 @@ export function InstagramFormulariosTab() {
                       const countryFlag = countries.find(c => c.dialCode === countryCode)?.flag || "🇧🇷";
                       
                       return (
-                        <Card key={resposta.id} className="hover:shadow-md transition-shadow">
-                          <CardContent className="p-4">
+                        <Card key={resposta.id} className="group border-l-4 hover:shadow-lg transition-all duration-200" style={{ borderLeftColor: formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF' }}>
+                          <CardContent className="p-5">
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1 space-y-3">
-                                {/* Nome */}
+                                {/* Nome com avatar */}
                                 {resposta.nome && (
-                                  <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <span className="font-medium">{resposta.nome}</span>
+                                  <div className="flex items-center gap-3">
+                                    <div 
+                                      className="h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                                      style={{ backgroundColor: formularios?.find(f => f.id === selectedFormId)?.cor_primaria || '#00D4FF' }}
+                                    >
+                                      {resposta.nome.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <span className="font-semibold text-base">{resposta.nome}</span>
+                                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <Calendar className="h-3 w-3" />
+                                        {format(new Date(resposta.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
                                 
-                                <div className="flex flex-wrap gap-4 text-sm">
+                                <div className="flex flex-wrap gap-4 text-sm pl-[52px]">
                                   {/* Telefone */}
                                   {resposta.telefone && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                    <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
                                       <span className="text-base">{countryFlag}</span>
-                                      <Phone className="h-3.5 w-3.5" />
-                                      <span>{phoneFormatted}</span>
+                                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                                      <span className="font-medium">{phoneFormatted}</span>
                                     </div>
                                   )}
                                   
                                   {/* Email */}
                                   {resposta.email && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                      <Mail className="h-3.5 w-3.5" />
+                                    <div className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5">
+                                      <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                                       <span>{resposta.email}</span>
                                     </div>
                                   )}
@@ -903,22 +928,28 @@ export function InstagramFormulariosTab() {
                                 
                                 {/* Dados extras */}
                                 {resposta.dados_extras && Object.keys(resposta.dados_extras).length > 0 && (
-                                  <div className="pt-2 border-t space-y-1">
+                                  <div className="pt-3 mt-3 border-t border-dashed space-y-2 pl-[52px]">
                                     {Object.entries(resposta.dados_extras).map(([key, value]) => (
-                                      <div key={key} className="text-sm">
-                                        <span className="text-muted-foreground">{key}:</span>{" "}
-                                        <span>{value}</span>
+                                      <div key={key} className="flex items-start gap-2 text-sm">
+                                        <Badge variant="secondary" className="text-xs font-normal shrink-0">
+                                          {key}
+                                        </Badge>
+                                        <span className="text-muted-foreground">{value}</span>
                                       </div>
                                     ))}
                                   </div>
                                 )}
                               </div>
                               
-                              {/* Data */}
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
-                                <Calendar className="h-3.5 w-3.5" />
-                                {format(new Date(resposta.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                              </div>
+                              {/* Botão de excluir */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => deleteResposta.mutate(resposta.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </CardContent>
                         </Card>
