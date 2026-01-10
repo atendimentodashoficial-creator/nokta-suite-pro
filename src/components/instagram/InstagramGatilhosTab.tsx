@@ -831,31 +831,56 @@ export function InstagramGatilhosTab() {
                             )}
                           />
 
-                          <FormField
-                            control={form.control}
-                            name="botao_formulario_texto"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Texto do botão</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="Preencher Formulário"
-                                    maxLength={20}
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormDescription className="text-xs">
-                                  Texto que aparece no botão (máx. 20 caracteres)
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          <div className="grid grid-cols-2 gap-3">
+                            <FormField
+                              control={form.control}
+                              name="titulo_botoes"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Título acima do botão</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="Escolha uma opção:"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormDescription className="text-xs">
+                                    Texto que aparece como título (opcional)
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="botao_formulario_texto"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Texto do botão</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="Preencher Formulário"
+                                      maxLength={20}
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormDescription className="text-xs">
+                                    Texto no botão (máx. 20 caracteres)
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
 
                           <div className="p-3 bg-background rounded-lg border">
                             <p className="text-xs text-muted-foreground mb-2">Prévia:</p>
                             <div className="space-y-2">
                               <p className="text-sm">{form.watch("mensagem_formulario") || "Olá! Para liberar seu material, preencha o formulário abaixo:"}</p>
+                              {form.watch("titulo_botoes") && (
+                                <p className="text-xs text-muted-foreground">{form.watch("titulo_botoes")}</p>
+                              )}
                               <div className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium">
                                 {form.watch("botao_formulario_texto") || "Preencher Formulário"}
                               </div>

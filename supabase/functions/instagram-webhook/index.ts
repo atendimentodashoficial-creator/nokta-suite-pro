@@ -261,22 +261,38 @@ async function processMessage(supabase: any, event: any) {
         }
         
         const buttonText = gatilho.botao_formulario_texto || 'Preencher Formulário';
+        const buttonTitle = gatilho.titulo_botoes || null;
         
-        // Send button with form link - using the message as the template title
-        await sendInstagramButtons(
-          config.page_access_token,
-          config.instagram_account_id,
-          senderId,
-          [{ type: 'url', title: buttonText, url: formUrl }],
-          formMessage // Use the message as the title above the button
-        );
+        // If there's a custom button title, send the message first, then the button
+        if (buttonTitle) {
+          // Send the form message first
+          await sendInstagramMessage(config.page_access_token, config.instagram_account_id, senderId, formMessage);
+          
+          // Then send the button with custom title
+          await sendInstagramButtons(
+            config.page_access_token,
+            config.instagram_account_id,
+            senderId,
+            [{ type: 'url', title: buttonText, url: formUrl }],
+            buttonTitle
+          );
+        } else {
+          // Send button with form message as title (original behavior)
+          await sendInstagramButtons(
+            config.page_access_token,
+            config.instagram_account_id,
+            senderId,
+            [{ type: 'url', title: buttonText, url: formUrl }],
+            formMessage
+          );
+        }
 
         // Log response
         await supabase.from('instagram_mensagens').insert({
           user_id: config.user_id,
           instagram_user_id: senderId,
           tipo: 'dm_enviada',
-          conteudo: `${formMessage}\n[Botão: ${buttonText}]`,
+          conteudo: buttonTitle ? `${formMessage}\n${buttonTitle}\n[Botão: ${buttonText}]` : `${formMessage}\n[Botão: ${buttonText}]`,
           gatilho_id: gatilho.id,
           metadata: { tipo: 'formulario', formulario_id: gatilho.formulario_id, formUrl },
         });
