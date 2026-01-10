@@ -98,7 +98,7 @@ export function InstagramFormulariosTab() {
       subtitulo_pagina: "",
       texto_botao: "Enviar",
       mensagem_sucesso: "Obrigado! Seus dados foram enviados com sucesso.",
-      cor_primaria: "#8B5CF6",
+      cor_primaria: "#00D4FF",
       imagem_url: "",
       botao_sucesso_texto: "",
       botao_sucesso_url: "",
