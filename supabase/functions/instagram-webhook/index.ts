@@ -662,8 +662,8 @@ async function replyToComment(
   return result;
 }
 
-// Sends a "private reply" to a comment. This is the correct way to message a commenter.
-// It will land in Inbox (followers) or Requests (non-followers).
+// Sends a DM to a commenter using the /me/messages endpoint with comment_id in recipient.
+// This is the approach that works (same as n8n workflow).
 async function sendPrivateReplyToComment(
   accessToken: string,
   commentId: string,
@@ -672,20 +672,29 @@ async function sendPrivateReplyToComment(
   const trimmed = (accessToken || "").trim();
   const isInstagramGraphToken = trimmed.startsWith("IG");
 
+  // Use /me/messages with comment_id in recipient (same as n8n workflow)
   const url = isInstagramGraphToken
-    ? `https://graph.instagram.com/v24.0/${commentId}/private_replies`
-    : `https://graph.facebook.com/v18.0/${commentId}/private_replies`;
+    ? `https://graph.instagram.com/v23.0/me/messages`
+    : `https://graph.facebook.com/v18.0/me/messages`;
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (isInstagramGraphToken) {
     headers['Authorization'] = `Bearer ${trimmed}`;
   }
 
+  // The key: use comment_id in recipient to send DM to the commenter
   const body = isInstagramGraphToken
-    ? { message: text }
-    : { message: text, access_token: trimmed };
+    ? {
+        recipient: { comment_id: commentId },
+        message: { text },
+      }
+    : {
+        recipient: { comment_id: commentId },
+        message: { text },
+        access_token: trimmed,
+      };
 
-  console.log('Sending private reply to comment:', { commentId, text, url });
+  console.log('Sending DM to commenter via /me/messages:', { commentId, text, url });
 
   const response = await fetch(url, {
     method: 'POST',
@@ -694,11 +703,10 @@ async function sendPrivateReplyToComment(
   });
 
   const result = await response.json().catch(() => ({}));
-  console.log('Private reply result:', { url, status: response.status, result });
+  console.log('DM to commenter result:', { url, status: response.status, result });
 
   if (!response.ok) {
-    console.error('Private reply failed:', result);
-    // Do not throw; private replies may be unavailable depending on permissions/token type.
+    console.error('DM to commenter failed:', result);
     return null;
   }
 
