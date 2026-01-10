@@ -652,7 +652,7 @@ async function processComment(supabase: any, comment: any) {
           }
         }
 
-        // If a form is required, send the form link (private replies don't support buttons)
+        // If a form is required, send button with form link via private reply
         if (gatilho.formulario_id) {
           console.log('Comment trigger has form requirement:', gatilho.formulario_id);
           
@@ -669,51 +669,102 @@ async function processComment(supabase: any, comment: any) {
           
           const buttonText = gatilho.botao_formulario_texto || 'Preencher Formulário';
           
-          // For private replies, include the link in the message (buttons not supported)
-          const finalMessage = `${formMessage}\n\n👉 ${buttonText}:\n${formUrl}`;
-          
-          await sendPrivateReplyToComment(config.page_access_token, commentId, finalMessage);
+          // Send button template via private reply
+          await sendPrivateReplyButtonsToComment(
+            config.page_access_token, 
+            commentId, 
+            [{ title: buttonText, url: formUrl }],
+            formMessage
+          );
 
           await supabase.from('instagram_mensagens').insert({
             user_id: config.user_id,
             instagram_user_id: comment.from.id,
             instagram_username: comment.from.username,
             tipo: 'dm_enviada',
-            conteudo: finalMessage,
+            conteudo: formMessage,
             gatilho_id: gatilho.id,
-            metadata: { via: 'private_reply', comment_id: commentId, tipo: 'formulario', formulario_id: gatilho.formulario_id },
+            metadata: { via: 'private_reply_button', comment_id: commentId, tipo: 'formulario', formulario_id: gatilho.formulario_id, button_url: formUrl },
           });
-        } else {
-          // User follows or no verification required - send the actual DM response (private reply)
-          const hasDmText = !!gatilho.resposta_texto;
-          const hasDmLink = !!gatilho.resposta_link_url;
-
-          if (hasDmText || hasDmLink) {
-            const parts: string[] = [];
-
-            if (hasDmText) {
-              parts.push(processSpintax(gatilho.resposta_texto));
+        } else if (gatilho.resposta_midia_url) {
+          // Send media via private reply
+          console.log('Comment trigger has media:', gatilho.resposta_midia_tipo);
+          
+          // First send text if exists
+          if (gatilho.resposta_texto) {
+            let dmText = processSpintax(gatilho.resposta_texto);
+            if (comment.from?.username) {
+              dmText = dmText.replace(/{nome}/g, comment.from.username);
             }
-
-            if (hasDmLink) {
-              const linkLabel = processSpintax(gatilho.resposta_link_texto || gatilho.resposta_link_url);
-              parts.push(`${linkLabel}\n${gatilho.resposta_link_url}`);
-            }
-
-            const dmText = parts.filter(Boolean).join("\n\n");
-
             await sendPrivateReplyToComment(config.page_access_token, commentId, dmText);
-
-            await supabase.from('instagram_mensagens').insert({
-              user_id: config.user_id,
-              instagram_user_id: comment.from.id,
-              instagram_username: comment.from.username,
-              tipo: 'dm_enviada',
-              conteudo: dmText,
-              gatilho_id: gatilho.id,
-              metadata: { via: 'private_reply', comment_id: commentId, includes_link: hasDmLink },
-            });
           }
+          
+          // Then send media via private reply with attachment
+          await sendPrivateReplyMediaToComment(
+            config.page_access_token,
+            commentId,
+            gatilho.resposta_midia_url,
+            gatilho.resposta_midia_tipo || 'image'
+          );
+
+          await supabase.from('instagram_mensagens').insert({
+            user_id: config.user_id,
+            instagram_user_id: comment.from.id,
+            instagram_username: comment.from.username,
+            tipo: 'dm_enviada',
+            conteudo: gatilho.resposta_texto || '[Mídia enviada]',
+            media_url: gatilho.resposta_midia_url,
+            gatilho_id: gatilho.id,
+            metadata: { via: 'private_reply', comment_id: commentId, media_type: gatilho.resposta_midia_tipo },
+          });
+        } else if (gatilho.resposta_link_url) {
+          // Send link as button via private reply
+          console.log('Comment trigger has link:', gatilho.resposta_link_url);
+          
+          let messageText = gatilho.resposta_texto || '';
+          if (messageText) {
+            messageText = processSpintax(messageText);
+            if (comment.from?.username) {
+              messageText = messageText.replace(/{nome}/g, comment.from.username);
+            }
+          }
+          
+          const linkLabel = processSpintax(gatilho.resposta_link_texto || 'Acessar');
+          
+          await sendPrivateReplyButtonsToComment(
+            config.page_access_token,
+            commentId,
+            [{ title: linkLabel, url: gatilho.resposta_link_url }],
+            messageText || 'Clique no botão abaixo:'
+          );
+
+          await supabase.from('instagram_mensagens').insert({
+            user_id: config.user_id,
+            instagram_user_id: comment.from.id,
+            instagram_username: comment.from.username,
+            tipo: 'dm_enviada',
+            conteudo: messageText || linkLabel,
+            gatilho_id: gatilho.id,
+            metadata: { via: 'private_reply_button', comment_id: commentId, link_url: gatilho.resposta_link_url },
+          });
+        } else if (gatilho.resposta_texto) {
+          // User follows or no verification required - send the actual DM response (private reply)
+          let dmText = processSpintax(gatilho.resposta_texto);
+          if (comment.from?.username) {
+            dmText = dmText.replace(/{nome}/g, comment.from.username);
+          }
+
+          await sendPrivateReplyToComment(config.page_access_token, commentId, dmText);
+
+          await supabase.from('instagram_mensagens').insert({
+            user_id: config.user_id,
+            instagram_user_id: comment.from.id,
+            instagram_username: comment.from.username,
+            tipo: 'dm_enviada',
+            conteudo: dmText,
+            gatilho_id: gatilho.id,
+            metadata: { via: 'private_reply', comment_id: commentId },
+          });
         }
       }
 
@@ -721,6 +772,63 @@ async function processComment(supabase: any, comment: any) {
     }
   }
 }
+
+// Send media via private reply to a comment
+async function sendPrivateReplyMediaToComment(
+  accessToken: string,
+  commentId: string,
+  mediaUrl: string,
+  mediaType: string,
+) {
+  const trimmed = (accessToken || "").trim();
+  const isInstagramGraphToken = trimmed.startsWith("IG");
+
+  const url = isInstagramGraphToken
+    ? `https://graph.instagram.com/v24.0/me/messages`
+    : `https://graph.facebook.com/v18.0/me/messages`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (isInstagramGraphToken) {
+    headers['Authorization'] = `Bearer ${trimmed}`;
+  }
+
+  const attachmentType = mediaType === 'video' ? 'video' 
+    : mediaType === 'audio' ? 'audio' 
+    : 'image';
+
+  const messagePayload = {
+    attachment: {
+      type: attachmentType,
+      payload: {
+        url: mediaUrl,
+        is_reusable: true,
+      },
+    },
+  };
+
+  const body = isInstagramGraphToken
+    ? { recipient: { comment_id: commentId }, message: messagePayload }
+    : { recipient: { comment_id: commentId }, message: messagePayload, access_token: trimmed };
+
+  console.log('Sending media to commenter via private reply:', { commentId, mediaType, url });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  console.log('Media to commenter result:', { url, status: response.status, result });
+
+  if (!response.ok) {
+    console.error('Media to commenter failed:', result);
+    return null;
+  }
+
+  return result;
+}
+
 
 async function replyToComment(
   accessToken: string,
@@ -1017,4 +1125,66 @@ async function sendInstagramButtons(
   }
 
   return { success: true };
+}
+
+// Send buttons via private reply to a comment (uses comment_id in recipient)
+async function sendPrivateReplyButtonsToComment(
+  accessToken: string,
+  commentId: string,
+  buttons: { title: string; url: string }[],
+  messageText: string,
+) {
+  const trimmed = (accessToken || "").trim();
+  const isInstagramGraphToken = trimmed.startsWith("IG");
+
+  const url = isInstagramGraphToken
+    ? `https://graph.instagram.com/v24.0/me/messages`
+    : `https://graph.facebook.com/v18.0/me/messages`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (isInstagramGraphToken) {
+    headers['Authorization'] = `Bearer ${trimmed}`;
+  }
+
+  // Use generic template with buttons
+  const templateButtons = buttons.slice(0, 3).map((b) => ({
+    type: "web_url",
+    url: b.url.startsWith('http') ? b.url : `https://${b.url}`,
+    title: b.title.substring(0, 20) // Max 20 chars for button title
+  }));
+
+  const messagePayload = {
+    attachment: {
+      type: "template",
+      payload: {
+        template_type: "generic",
+        elements: [{
+          title: messageText.substring(0, 80) || " ", // Max 80 chars for title
+          buttons: templateButtons
+        }]
+      }
+    }
+  };
+
+  const body = isInstagramGraphToken
+    ? { recipient: { comment_id: commentId }, message: messagePayload }
+    : { recipient: { comment_id: commentId }, message: messagePayload, access_token: trimmed };
+
+  console.log('Sending button template to commenter via private reply:', { commentId, buttons: templateButtons, url });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  console.log('Button template to commenter result:', { url, status: response.status, result });
+
+  if (!response.ok) {
+    console.error('Button template to commenter failed:', result);
+    return null;
+  }
+
+  return result;
 }
