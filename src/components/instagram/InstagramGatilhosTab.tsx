@@ -37,6 +37,7 @@ const gatilhoSchema = z.object({
   titulo_botoes: z.string().optional(),
   verificar_seguidor: z.boolean().optional(),
   mensagem_pedir_seguir: z.string().optional(),
+  botao_liberar_texto: z.string().optional(),
   formulario_id: z.string().optional(),
   mensagem_formulario: z.string().optional(),
   botao_formulario_texto: z.string().optional(),
@@ -62,6 +63,7 @@ interface Gatilho {
   titulo_botoes: string | null;
   verificar_seguidor: boolean | null;
   mensagem_pedir_seguir: string | null;
+  botao_liberar_texto: string | null;
   formulario_id: string | null;
   mensagem_formulario: string | null;
   botao_formulario_texto: string | null;
@@ -111,6 +113,7 @@ export function InstagramGatilhosTab() {
       titulo_botoes: "",
       verificar_seguidor: false,
       mensagem_pedir_seguir: "",
+      botao_liberar_texto: "",
       formulario_id: "",
       mensagem_formulario: "",
       botao_formulario_texto: "Preencher Formulário",
@@ -238,6 +241,7 @@ export function InstagramGatilhosTab() {
         titulo_botoes: data.titulo_botoes || null,
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
+        botao_liberar_texto: data.botao_liberar_texto || 'Já sigo! Liberar material',
         formulario_id: data.formulario_id || null,
         mensagem_formulario: data.mensagem_formulario || null,
         botao_formulario_texto: data.botao_formulario_texto || 'Preencher Formulário',
@@ -283,6 +287,7 @@ export function InstagramGatilhosTab() {
         titulo_botoes: data.titulo_botoes || null,
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
+        botao_liberar_texto: data.botao_liberar_texto || 'Já sigo! Liberar material',
         formulario_id: data.formulario_id || null,
         mensagem_formulario: data.mensagem_formulario || null,
         botao_formulario_texto: data.botao_formulario_texto || 'Preencher Formulário',
@@ -357,6 +362,7 @@ export function InstagramGatilhosTab() {
       titulo_botoes: gatilho.titulo_botoes || "",
       verificar_seguidor: gatilho.verificar_seguidor || false,
       mensagem_pedir_seguir: gatilho.mensagem_pedir_seguir || "",
+      botao_liberar_texto: (gatilho as any).botao_liberar_texto || "Já sigo! Liberar material",
       formulario_id: gatilho.formulario_id || "",
       mensagem_formulario: gatilho.mensagem_formulario || "",
       botao_formulario_texto: gatilho.botao_formulario_texto || "Preencher Formulário",
@@ -965,26 +971,49 @@ export function InstagramGatilhosTab() {
                   />
 
                   {form.watch("verificar_seguidor") && (
-                    <FormField
-                      control={form.control}
-                      name="mensagem_pedir_seguir"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Mensagem se NÃO seguir</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Olá! 👋 Antes de continuar, me segue lá pra não perder nenhuma novidade! 💜"
-                              rows={3}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription className="text-xs">
-                            Enviada quando a pessoa não te segue. Use {"{nome}"} para incluir o nome.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="mensagem_pedir_seguir"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Mensagem se NÃO seguir</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Olá! 👋 Antes de continuar, me segue lá pra não perder nenhuma novidade! Depois clique no botão abaixo 💜"
+                                rows={3}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Enviada quando a pessoa não te segue. Use {"{nome}"} para incluir o nome.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="botao_liberar_texto"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Texto do botão para liberar</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Já sigo! Liberar material"
+                                maxLength={20}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Botão que a pessoa clica após seguir para liberar o material. Máx 20 caracteres.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
                   )}
                 </div>
 
