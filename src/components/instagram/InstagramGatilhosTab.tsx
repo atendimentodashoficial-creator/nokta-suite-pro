@@ -714,14 +714,17 @@ export function InstagramGatilhosTab() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Formulário</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <Select 
+                              onValueChange={(v) => field.onChange(v === "none" ? "" : v)} 
+                              value={field.value || "none"}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Selecione um formulário (opcional)" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">Nenhum (envio direto)</SelectItem>
+                                <SelectItem value="none">Nenhum (envio direto)</SelectItem>
                                 {formularios?.map((f) => (
                                   <SelectItem key={f.id} value={f.id}>
                                     {f.nome}
