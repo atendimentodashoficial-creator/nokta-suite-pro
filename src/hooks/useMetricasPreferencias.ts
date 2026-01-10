@@ -7,12 +7,27 @@ import type { MetricCardKey } from "@/components/metricas/MetricCardSelectorDial
 import { DEFAULT_VISIBLE_CARDS } from "@/components/metricas/MetricCardSelectorDialog";
 import type { Json } from "@/integrations/supabase/types";
 
+export type FunnelColumnKey = 
+  | "name" 
+  | "spend" 
+  | "leads" 
+  | "cpl" 
+  | "agendados" 
+  | "cpa_agendado" 
+  | "faltou" 
+  | "em_negociacao" 
+  | "conversoes" 
+  | "cac" 
+  | "faturado" 
+  | "roas";
+
 export interface MetricasPreferencias {
   id: string;
   user_id: string;
   presets: Preset[];
   visible_cards: MetricCardKey[] | null;
   selected_preset_id: string | null;
+  funnel_column_order: FunnelColumnKey[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +57,7 @@ export function useMetricasPreferencias() {
           ...data,
           presets: (data.presets as unknown as Preset[]) || [],
           visible_cards: (data.visible_cards as unknown as MetricCardKey[]) || null,
+          funnel_column_order: (data.funnel_column_order as unknown as FunnelColumnKey[]) || null,
         } as MetricasPreferencias;
       }
       
@@ -55,6 +71,7 @@ export function useMetricasPreferencias() {
       presets?: Preset[];
       visible_cards?: MetricCardKey[];
       selected_preset_id?: string | null;
+      funnel_column_order?: FunnelColumnKey[];
     }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
@@ -74,6 +91,9 @@ export function useMetricasPreferencias() {
       }
       if (updates.selected_preset_id !== undefined) {
         updatePayload.selected_preset_id = updates.selected_preset_id;
+      }
+      if (updates.funnel_column_order !== undefined) {
+        updatePayload.funnel_column_order = updates.funnel_column_order as unknown as Json;
       }
 
       if (existing) {
@@ -115,6 +135,7 @@ export function useMetricasPreferencias() {
   const presets = preferencias?.presets || [];
   const visibleCards = preferencias?.visible_cards || DEFAULT_VISIBLE_CARDS;
   const selectedPresetId = preferencias?.selected_preset_id || null;
+  const funnelColumnOrder = preferencias?.funnel_column_order || null;
 
   // Get visible columns from selected preset
   const getVisibleColumns = (): ColumnKey[] => {
@@ -135,6 +156,7 @@ export function useMetricasPreferencias() {
     presets,
     visibleCards,
     selectedPresetId,
+    funnelColumnOrder,
     getVisibleColumns,
     updatePresets: (newPresets: Preset[]) => 
       upsertPreferencias.mutateAsync({ presets: newPresets }),
@@ -143,6 +165,8 @@ export function useMetricasPreferencias() {
     updateSelectedPreset: (presetId: string | null) => {
       return upsertPreferencias.mutateAsync({ selected_preset_id: presetId });
     },
+    updateFunnelColumnOrder: (order: FunnelColumnKey[]) =>
+      upsertPreferencias.mutateAsync({ funnel_column_order: order }),
     upsertPreferencias,
   };
 }

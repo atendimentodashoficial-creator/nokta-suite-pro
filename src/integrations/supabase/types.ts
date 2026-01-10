@@ -2385,6 +2385,7 @@ export type Database = {
       metricas_preferencias: {
         Row: {
           created_at: string
+          funnel_column_order: Json | null
           id: string
           presets: Json | null
           selected_preset_id: string | null
@@ -2394,6 +2395,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          funnel_column_order?: Json | null
           id?: string
           presets?: Json | null
           selected_preset_id?: string | null
@@ -2403,6 +2405,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          funnel_column_order?: Json | null
           id?: string
           presets?: Json | null
           selected_preset_id?: string | null
