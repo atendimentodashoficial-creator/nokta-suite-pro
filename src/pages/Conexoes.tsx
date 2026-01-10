@@ -103,6 +103,7 @@ export default function Conexoes() {
   const [newOpenAIKey, setNewOpenAIKey] = useState("");
   const [savingOpenAI, setSavingOpenAI] = useState(false);
   const [testingOpenAI, setTestingOpenAI] = useState(false);
+  const [removingOpenAI, setRemovingOpenAI] = useState(false);
   const [openAITestResult, setOpenAITestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // ===== Apify State =====
@@ -230,7 +231,24 @@ export default function Conexoes() {
     }
   };
 
-  // ===== Apify Functions =====
+  const removeOpenAIKey = async () => {
+    setRemovingOpenAI(true);
+    try {
+      // Clear local state - the actual secret removal needs to be done via project settings
+      setHasOpenAIKey(false);
+      setOpenAIKey("");
+      setNewOpenAIKey("");
+      setOpenAITestResult(null);
+      
+      toast({
+        title: "Chave removida localmente",
+        description: "Para remover permanentemente, delete o secret OPENAI_API_KEY nas configurações do projeto Lovable.",
+      });
+    } finally {
+      setRemovingOpenAI(false);
+    }
+  };
+
   const loadApifyConfig = async () => {
     try {
       const { data, error } = await supabase
@@ -1442,6 +1460,14 @@ export default function Conexoes() {
                     <RefreshCw className="h-4 w-4 mr-2" />
                   )}
                   Testar Conexão
+                </Button>
+                <Button variant="destructive" onClick={removeOpenAIKey} disabled={removingOpenAI}>
+                  {removingOpenAI ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Remover Chave
                 </Button>
               </div>
 
