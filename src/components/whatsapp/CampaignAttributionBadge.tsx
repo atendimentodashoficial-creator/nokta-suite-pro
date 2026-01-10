@@ -89,10 +89,23 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
         const allAttributions: AttributionEntry[] = [];
         const seenAdIds = new Set<string>();
 
-        // 1) WhatsApp: busca direto pelo chatId (quando disponível) para não depender de listar chats (RLS/limite).
-        const wpChatIds = chatId
-          ? [chatId]
-          : [];
+        // 1) WhatsApp: tenta pelo chatId; se não achar, cai para busca por telefone (últimos 8 dígitos)
+        let wpChatIds = chatId ? [chatId] : [];
+
+        // Fallback: algumas telas podem abrir o ChatWindow com id diferente/temporário;
+        // então garantimos que vamos achar o chat do usuário pelo telefone.
+        if (wpChatIds.length === 0) {
+          const { data: wpChats } = await supabase
+            .from('whatsapp_chats')
+            .select('id, contact_number, normalized_number')
+            .eq('user_id', userId)
+            .or(`contact_number.like.%${last8Digits},normalized_number.like.%${last8Digits}`)
+            .limit(20);
+
+          wpChatIds = (wpChats || [])
+            .filter((c) => getLast8Digits(c.contact_number || c.normalized_number || '') === last8Digits)
+            .map((c) => c.id);
+        }
 
         if (wpChatIds.length > 0) {
           const { data: wpMessages } = await supabase
