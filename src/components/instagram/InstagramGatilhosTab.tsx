@@ -38,6 +38,7 @@ const gatilhoSchema = z.object({
   mensagem_pedir_seguir: z.string().optional(),
   formulario_id: z.string().optional(),
   mensagem_formulario: z.string().optional(),
+  botao_formulario_texto: z.string().optional(),
   responder_comentario: z.boolean().optional(),
   resposta_comentario_texto: z.string().optional(),
 });
@@ -61,6 +62,7 @@ interface Gatilho {
   mensagem_pedir_seguir: string | null;
   formulario_id: string | null;
   mensagem_formulario: string | null;
+  botao_formulario_texto: string | null;
   responder_comentario: boolean | null;
   resposta_comentario_texto: string | null;
   ativo: boolean;
@@ -107,6 +109,7 @@ export function InstagramGatilhosTab() {
       mensagem_pedir_seguir: "",
       formulario_id: "",
       mensagem_formulario: "",
+      botao_formulario_texto: "Preencher Formulário",
       responder_comentario: false,
       resposta_comentario_texto: "",
     },
@@ -232,6 +235,7 @@ export function InstagramGatilhosTab() {
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         formulario_id: data.formulario_id || null,
         mensagem_formulario: data.mensagem_formulario || null,
+        botao_formulario_texto: data.botao_formulario_texto || 'Preencher Formulário',
         responder_comentario: data.responder_comentario || false,
         resposta_comentario_texto: data.resposta_comentario_texto || null,
         ativo: true,
@@ -275,6 +279,7 @@ export function InstagramGatilhosTab() {
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         formulario_id: data.formulario_id || null,
         mensagem_formulario: data.mensagem_formulario || null,
+        botao_formulario_texto: data.botao_formulario_texto || 'Preencher Formulário',
         responder_comentario: data.responder_comentario || false,
         resposta_comentario_texto: data.resposta_comentario_texto || null,
       };
@@ -346,6 +351,7 @@ export function InstagramGatilhosTab() {
       mensagem_pedir_seguir: gatilho.mensagem_pedir_seguir || "",
       formulario_id: gatilho.formulario_id || "",
       mensagem_formulario: gatilho.mensagem_formulario || "",
+      botao_formulario_texto: gatilho.botao_formulario_texto || "Preencher Formulário",
       responder_comentario: gatilho.responder_comentario || false,
       resposta_comentario_texto: gatilho.resposta_comentario_texto || "",
     });
@@ -740,9 +746,9 @@ export function InstagramGatilhosTab() {
                       <div className="flex items-start gap-3">
                         <FileText className="h-5 w-5 text-primary mt-0.5" />
                         <div>
-                          <p className="font-medium">Exigir preenchimento de formulário</p>
+                          <p className="font-medium">Enviar formulário de captura</p>
                           <p className="text-xs text-muted-foreground">
-                            O material/link só será enviado após o usuário preencher o formulário
+                            Envia uma mensagem com um botão para abrir o formulário
                           </p>
                         </div>
                       </div>
@@ -759,11 +765,11 @@ export function InstagramGatilhosTab() {
                             >
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Selecione um formulário (opcional)" />
+                                  <SelectValue placeholder="Selecione um formulário" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="none">Nenhum (envio direto)</SelectItem>
+                                <SelectItem value="none">Nenhum</SelectItem>
                                 {formularios?.map((f) => (
                                   <SelectItem key={f.id} value={f.id}>
                                     {f.nome}
@@ -771,35 +777,65 @@ export function InstagramGatilhosTab() {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <FormDescription className="text-xs">
-                              Selecione um formulário para capturar dados antes de enviar o material
-                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
                       {form.watch("formulario_id") && (
-                        <FormField
-                          control={form.control}
-                          name="mensagem_formulario"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Mensagem com o link do formulário</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Preencha seus dados para receber o material: {link_formulario}"
-                                  rows={3}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs">
-                                Use {"{link_formulario}"} onde o link deve aparecer. Use {"{nome}"} para incluir o nome do usuário.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        <>
+                          <FormField
+                            control={form.control}
+                            name="mensagem_formulario"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Texto da mensagem</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Olá {nome}! 👋 Para liberar seu material, preencha o formulário abaixo:"
+                                    rows={3}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-xs">
+                                  Texto que aparece acima do botão. Use {"{nome}"} para incluir o nome do usuário.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="botao_formulario_texto"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Texto do botão</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Preencher Formulário"
+                                    maxLength={20}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-xs">
+                                  Texto que aparece no botão (máx. 20 caracteres)
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="p-3 bg-background rounded-lg border">
+                            <p className="text-xs text-muted-foreground mb-2">Prévia:</p>
+                            <div className="space-y-2">
+                              <p className="text-sm">{form.watch("mensagem_formulario") || "Olá! Para liberar seu material, preencha o formulário abaixo:"}</p>
+                              <div className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium">
+                                {form.watch("botao_formulario_texto") || "Preencher Formulário"}
+                              </div>
+                            </div>
+                          </div>
+                        </>
                       )}
 
                       {!formularios?.length && (
