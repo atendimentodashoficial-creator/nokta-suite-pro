@@ -225,22 +225,30 @@ export function FunilConversaoTab() {
 
       if (error) throw error;
 
-      // IMPORTANTE: para o período selecionado, só entra no funil quem teve
-      // pelo menos 1 registro NÃO-Disparos DENTRO do período.
-      // Isso evita contar contatos que só receberam Disparos hoje, mas tiveram WhatsApp em outra data.
-      const phoneHasNonDisparosInPeriod: Record<string, boolean> = {};
-      allLeads?.forEach((lead) => {
-        if (!isWithinPeriod(lead.created_at)) return;
-        const normalizedPhone = normalizePhone(lead.telefone);
-        if (lead.origem !== "Disparos") {
-          phoneHasNonDisparosInPeriod[normalizedPhone] = true;
-        }
+      // Considerar apenas leads de origem WhatsApp (ou sem origem definida = WhatsApp implícito)
+      // Mesma lógica da aba Leads (WhatsApp)
+      const isWhatsAppLead = (origem: string | null) => {
+        const o = (origem || "").toLowerCase();
+        return o === "whatsapp" || o === "";
+      };
+
+      // Filtrar leads elegíveis (não-Disparos) que entraram NO PERÍODO
+      const leadsInPeriod = (allLeads || []).filter((lead) => {
+        if (!isWithinPeriod(lead.created_at)) return false;
+        return isWhatsAppLead(lead.origem);
       });
 
-      // Considerar apenas leads de telefones elegíveis para o período
+      // Criar mapa de telefones que têm lead WhatsApp no período (para enriquecer com dados de campanha de qualquer data)
+      const phonesInPeriod = new Set<string>();
+      leadsInPeriod.forEach((lead) => {
+        phonesInPeriod.add(normalizePhone(lead.telefone));
+      });
+
+      // Leads válidos = todos os leads (qualquer data) cujo telefone está no período
+      // Isso permite pegar dados de campanha de registros anteriores
       const validLeads = (allLeads || []).filter((lead) => {
         const normalizedPhone = normalizePhone(lead.telefone);
-        return phoneHasNonDisparosInPeriod[normalizedPhone] === true;
+        return phonesInPeriod.has(normalizedPhone);
       });
 
       // Criar mapa de dados de campanha por telefone normalizado (pode vir de qualquer data)
@@ -274,8 +282,8 @@ export function FunilConversaoTab() {
         leadIdsByPhone[normalizedPhone].push(lead.id);
       });
 
-      // Filtrar leads válidos pelo período (UTC)
-      const leads = validLeads.filter((lead) => isWithinPeriod(lead.created_at));
+      // Leads no período = apenas os que entraram no período E são WhatsApp
+      const leads = leadsInPeriod;
 
       // Total de registros no período (antes da unificação por telefone)
       const totalRecords = leads.length;
