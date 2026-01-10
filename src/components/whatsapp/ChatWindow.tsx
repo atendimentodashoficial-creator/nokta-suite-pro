@@ -1451,18 +1451,20 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   };
 
   const attributionAnchorMessageId =
-    messages.find(
-      (m) =>
-        m?.sender_type === "customer" &&
-        Boolean(
-          m?.utm_source ||
-            m?.utm_campaign ||
-            m?.fbclid ||
-            m?.fb_campaign_name ||
-            m?.fb_ad_id
-        )
-    )?.message_id ??
-    messages.find((m) => m?.sender_type === "customer")?.message_id;
+    [...messages]
+      .reverse()
+      .find(
+        (m) =>
+          m?.sender_type === "customer" &&
+          Boolean(
+            m?.utm_source ||
+              m?.utm_campaign ||
+              m?.fbclid ||
+              m?.fb_campaign_name ||
+              m?.fb_ad_id
+          )
+      )?.message_id ??
+    [...messages].reverse().find((m) => m?.sender_type === "customer")?.message_id;
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
