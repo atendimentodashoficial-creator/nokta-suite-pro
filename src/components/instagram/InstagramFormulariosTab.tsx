@@ -64,8 +64,9 @@ interface Resposta {
 interface CampoPersonalizado {
   id: string;
   label: string;
-  tipo: "text" | "tel" | "email" | "textarea";
+  tipo: "text" | "tel" | "email" | "textarea" | "multipla_escolha" | "sim_nao";
   obrigatorio: boolean;
+  opcoes?: string[]; // Para múltipla escolha
 }
 
 export function InstagramFormulariosTab() {
@@ -74,7 +75,9 @@ export function InstagramFormulariosTab() {
   const [selectedCampos, setSelectedCampos] = useState<string[]>(["nome", "telefone", "email"]);
   const [camposPersonalizados, setCamposPersonalizados] = useState<CampoPersonalizado[]>([]);
   const [novoCampoLabel, setNovoCampoLabel] = useState("");
-  const [novoCampoTipo, setNovoCampoTipo] = useState<"text" | "textarea">("text");
+  const [novoCampoTipo, setNovoCampoTipo] = useState<"text" | "textarea" | "multipla_escolha" | "sim_nao">("text");
+  const [novasOpcoes, setNovasOpcoes] = useState<string[]>(["", ""]);
+  const [novaOpcaoTexto, setNovaOpcaoTexto] = useState("");
   const queryClient = useQueryClient();
 
   const camposPadrao = [
@@ -411,9 +414,18 @@ export function InstagramFormulariosTab() {
                       <p className="text-sm font-medium">Perguntas adicionais:</p>
                       {camposPersonalizados.map((campo, index) => (
                         <div key={campo.id} className="flex items-center gap-2 p-2 border rounded-lg bg-muted/50">
-                          <span className="flex-1 text-sm">{campo.label}</span>
+                          <div className="flex-1">
+                            <span className="text-sm">{campo.label}</span>
+                            {campo.tipo === "multipla_escolha" && campo.opcoes && (
+                              <p className="text-xs text-muted-foreground">
+                                Opções: {campo.opcoes.join(", ")}
+                              </p>
+                            )}
+                          </div>
                           <Badge variant="secondary" className="text-xs">
-                            {campo.tipo === "textarea" ? "Texto longo" : "Texto curto"}
+                            {campo.tipo === "textarea" ? "Texto longo" : 
+                             campo.tipo === "multipla_escolha" ? "Múltipla escolha" : 
+                             campo.tipo === "sim_nao" ? "Sim/Não" : "Texto curto"}
                           </Badge>
                           <Button
                             type="button"
@@ -441,38 +453,106 @@ export function InstagramFormulariosTab() {
                         onChange={(e) => setNovoCampoLabel(e.target.value)}
                         className="flex-1"
                       />
-                      <Select value={novoCampoTipo} onValueChange={(v: "text" | "textarea") => setNovoCampoTipo(v)}>
-                        <SelectTrigger className="w-32">
+                      <Select value={novoCampoTipo} onValueChange={(v: "text" | "textarea" | "multipla_escolha" | "sim_nao") => {
+                        setNovoCampoTipo(v);
+                        if (v === "multipla_escolha") {
+                          setNovasOpcoes(["", ""]);
+                        }
+                      }}>
+                        <SelectTrigger className="w-40">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="text">Curto</SelectItem>
-                          <SelectItem value="textarea">Longo</SelectItem>
+                          <SelectItem value="text">Texto curto</SelectItem>
+                          <SelectItem value="textarea">Texto longo</SelectItem>
+                          <SelectItem value="multipla_escolha">Múltipla escolha</SelectItem>
+                          <SelectItem value="sim_nao">Sim/Não</SelectItem>
                         </SelectContent>
                       </Select>
-                      <Button
+                    </div>
+                    
+                    {/* Opções para múltipla escolha */}
+                    {novoCampoTipo === "multipla_escolha" && (
+                      <div className="space-y-2 pl-2 border-l-2 border-muted">
+                        <p className="text-xs text-muted-foreground">Adicione as opções de resposta:</p>
+                        {novasOpcoes.map((opcao, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <Input
+                              placeholder={`Opção ${idx + 1}`}
+                              value={opcao}
+                              onChange={(e) => {
+                                const updated = [...novasOpcoes];
+                                updated[idx] = e.target.value;
+                                setNovasOpcoes(updated);
+                              }}
+                              className="flex-1 h-8 text-sm"
+                            />
+                            {novasOpcoes.length > 2 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setNovasOpcoes(novasOpcoes.filter((_, i) => i !== idx));
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        {novasOpcoes.length < 6 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setNovasOpcoes([...novasOpcoes, ""])}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Adicionar opção
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    
+                    <Button
                         type="button"
                         variant="outline"
+                        className="w-full"
                         onClick={() => {
                           if (novoCampoLabel.trim()) {
-                            const novoId = `custom_${Date.now()}`;
-                            setCamposPersonalizados([
-                              ...camposPersonalizados,
-                              {
-                                id: novoId,
-                                label: novoCampoLabel.trim(),
-                                tipo: novoCampoTipo,
-                                obrigatorio: true,
+                            // Validar opções para múltipla escolha
+                            if (novoCampoTipo === "multipla_escolha") {
+                              const opcoesValidas = novasOpcoes.filter(o => o.trim());
+                              if (opcoesValidas.length < 2) {
+                                return; // Precisa de pelo menos 2 opções
                               }
-                            ]);
+                            }
+                            
+                            const novoId = `custom_${Date.now()}`;
+                            const novoCampo: CampoPersonalizado = {
+                              id: novoId,
+                              label: novoCampoLabel.trim(),
+                              tipo: novoCampoTipo,
+                              obrigatorio: true,
+                            };
+                            
+                            if (novoCampoTipo === "multipla_escolha") {
+                              novoCampo.opcoes = novasOpcoes.filter(o => o.trim());
+                            }
+                            
+                            setCamposPersonalizados([...camposPersonalizados, novoCampo]);
                             setNovoCampoLabel("");
                             setNovoCampoTipo("text");
+                            setNovasOpcoes(["", ""]);
                           }
                         }}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-4 w-4 mr-1" />
+                        Adicionar pergunta
                       </Button>
-                    </div>
                   </div>
 
                   <p className="text-xs text-muted-foreground">
