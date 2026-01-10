@@ -123,7 +123,10 @@ export const useLeads = (status?: LeadStatus) => {
       
       for (const lead of leadsDescending) {
         const last8 = getLast8Digits(lead.telefone);
-        const origem = (lead.origem || "").toLowerCase();
+        // Normalize origem: treat null/empty as 'whatsapp' for deduplication
+        // This matches the webhook logic to prevent counting same contact twice
+        const origemRaw = (lead.origem || "").toLowerCase();
+        const origem = origemRaw === "" ? "whatsapp" : origemRaw;
         const key = `${last8}-${origem}`;
         
         // Como a lista está ordenada por created_at DESC, o primeiro é o mais recente
