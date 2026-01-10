@@ -10,12 +10,14 @@ import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
 import { formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface CampoPersonalizado {
   id: string;
   label: string;
-  tipo: "text" | "tel" | "email" | "textarea";
+  tipo: "text" | "tel" | "email" | "textarea" | "multipla_escolha" | "sim_nao";
   obrigatorio: boolean;
+  opcoes?: string[]; // Para múltipla escolha
 }
 
 interface FormConfig {
@@ -342,6 +344,40 @@ export default function FormularioCaptura() {
                       className={fieldErrors[id] ? "border-destructive" : ""}
                       rows={3}
                     />
+                  ) : tipo === "multipla_escolha" && typeof campo !== "string" && campo.opcoes ? (
+                    <RadioGroup
+                      value={formData[id] || ""}
+                      onValueChange={(value) => handleChange(id, value)}
+                      className="space-y-2"
+                    >
+                      {campo.opcoes.map((opcao, idx) => (
+                        <div key={idx} className="flex items-center space-x-2">
+                          <RadioGroupItem value={opcao} id={`${id}_${idx}`} />
+                          <Label htmlFor={`${id}_${idx}`} className="font-normal cursor-pointer">
+                            {opcao}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  ) : tipo === "sim_nao" ? (
+                    <RadioGroup
+                      value={formData[id] || ""}
+                      onValueChange={(value) => handleChange(id, value)}
+                      className="flex space-x-4"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Sim" id={`${id}_sim`} />
+                        <Label htmlFor={`${id}_sim`} className="font-normal cursor-pointer">
+                          Sim
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Não" id={`${id}_nao`} />
+                        <Label htmlFor={`${id}_nao`} className="font-normal cursor-pointer">
+                          Não
+                        </Label>
+                      </div>
+                    </RadioGroup>
                   ) : id === "telefone" ? (
                     <CountryCodeSelect
                       value={countryCode}
