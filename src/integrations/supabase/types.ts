@@ -2000,6 +2000,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          ad_thumbnail_url: string | null
           avaliacao: number | null
           cep: string | null
           cidade: string | null
@@ -2041,6 +2042,7 @@ export type Database = {
           valor_tratamento: number | null
         }
         Insert: {
+          ad_thumbnail_url?: string | null
           avaliacao?: number | null
           cep?: string | null
           cidade?: string | null
@@ -2082,6 +2084,7 @@ export type Database = {
           valor_tratamento?: number | null
         }
         Update: {
+          ad_thumbnail_url?: string | null
           avaliacao?: number | null
           cep?: string | null
           cidade?: string | null

@@ -30,6 +30,8 @@ export interface Lead {
   origem: string | null;
   origem_lead: boolean;
   instancia_nome: string | null;
+
+  // Attribution fields
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
@@ -37,11 +39,19 @@ export interface Lead {
   utm_term: string | null;
   fbclid: string | null;
   gclid: string | null;
+  fb_ad_id?: string | null;
+  fb_campaign_name?: string | null;
+  fb_adset_name?: string | null;
+  fb_ad_name?: string | null;
+  ad_thumbnail_url?: string | null;
+
   created_at: string;
   updated_at: string;
+
   // New: all places where this contact appeared as lead (ordered by first contact)
   allPresences?: LeadPresence[];
 }
+
 
 export const useLeads = (status?: LeadStatus) => {
   return useQuery({

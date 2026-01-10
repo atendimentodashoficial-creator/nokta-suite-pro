@@ -16,7 +16,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MessageBubble } from "./MessageBubble";
 import { DateSeparator, isDifferentDay } from "./DateSeparator";
-import { CampaignAttributionBadge } from "./CampaignAttributionBadge";
 
 import { getInitials, normalizePhoneNumber, formatPhoneNumber, getLast8Digits } from "@/utils/whatsapp";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
@@ -572,7 +571,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       // 2) Buscar lead para status e fallback de atribuição
       const { data: leads, error } = await supabase
         .from('leads')
-        .select('id, status, telefone, origem, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name, created_at')
+        .select('id, status, telefone, origem, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name, ad_thumbnail_url, created_at')
         .eq('user_id', userId)
         .is('deleted_at', null)
         .like('telefone', `%${last8Digits}`)
@@ -588,40 +587,91 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         setLeadId(lead.id);
 
         // Mesclar: wpAttribution tem prioridade (dados da mensagem), fallback para lead
-        const baseAttribution = {
+        const baseAttribution: any = {
           utm_source: wpAttribution?.utm_source || lead.utm_source,
           utm_campaign: wpAttribution?.utm_campaign || lead.utm_campaign,
           utm_medium: wpAttribution?.utm_medium || lead.utm_medium,
           utm_content: wpAttribution?.utm_content || lead.utm_content,
           utm_term: wpAttribution?.utm_term || lead.utm_term,
           fbclid: wpAttribution?.fbclid || lead.fbclid,
-          ad_thumbnail_url: wpAttribution?.ad_thumbnail_url || null,
+          ad_thumbnail_url: wpAttribution?.ad_thumbnail_url || lead.ad_thumbnail_url || null,
           fb_ad_id: wpAttribution?.fb_ad_id || lead.fb_ad_id,
           fb_campaign_name: wpAttribution?.fb_campaign_name || lead.fb_campaign_name,
           fb_adset_name: wpAttribution?.fb_adset_name || lead.fb_adset_name,
           fb_ad_name: wpAttribution?.fb_ad_name || lead.fb_ad_name,
         };
 
-        // 3) Se temos fb_ad_id mas falta algum nome, enriquecer via API
-        const needsEnrichment = baseAttribution.fb_ad_id && 
-          (!baseAttribution.fb_campaign_name || !baseAttribution.fb_adset_name || !baseAttribution.fb_ad_name);
+        // Se não veio fb_ad_id, tenta extrair do utm_content (na Lenir o utm_content == ad_id)
+        const parseMetaAdId = (value?: string | null) => {
+          if (!value) return null;
+          const v = String(value).trim();
+          return /^\d{8,}$/.test(v) ? v : null;
+        };
+
+        baseAttribution.fb_ad_id = baseAttribution.fb_ad_id || parseMetaAdId(baseAttribution.utm_content);
+
+        // 3) Se temos ad_id (ou derivado) mas falta algum nome, enriquecer via API
+        const needsEnrichment =
+          baseAttribution.fb_ad_id &&
+          (!baseAttribution.fb_campaign_name ||
+            !baseAttribution.fb_adset_name ||
+            !baseAttribution.fb_ad_name ||
+            !baseAttribution.ad_thumbnail_url);
 
         if (needsEnrichment && session?.access_token) {
           try {
-            const resp = await supabase.functions.invoke('fetch-facebook-ad-info', {
+            const resp = await supabase.functions.invoke("fetch-facebook-ad-info", {
               headers: { Authorization: `Bearer ${session.access_token}` },
               body: { ad_id: baseAttribution.fb_ad_id },
             });
 
             if (!resp.error && resp.data) {
-              const r = resp.data;
+              const r: any = resp.data;
               baseAttribution.fb_campaign_name = baseAttribution.fb_campaign_name || r.campaign_name || null;
               baseAttribution.fb_adset_name = baseAttribution.fb_adset_name || r.adset_name || null;
               baseAttribution.fb_ad_name = baseAttribution.fb_ad_name || r.ad_name || null;
               baseAttribution.ad_thumbnail_url = baseAttribution.ad_thumbnail_url || r.thumbnail_url || null;
+
+              // Persistir para ficar consistente (WhatsApp + Leads)
+              try {
+                await supabase
+                  .from("leads")
+                  .update({
+                    fb_ad_id: baseAttribution.fb_ad_id,
+                    fb_campaign_name: baseAttribution.fb_campaign_name,
+                    fb_adset_name: baseAttribution.fb_adset_name,
+                    fb_ad_name: baseAttribution.fb_ad_name,
+                    ad_thumbnail_url: baseAttribution.ad_thumbnail_url,
+                    utm_source: baseAttribution.utm_source,
+                    utm_campaign: baseAttribution.utm_campaign,
+                    utm_medium: baseAttribution.utm_medium,
+                    utm_content: baseAttribution.utm_content,
+                    utm_term: baseAttribution.utm_term,
+                    fbclid: baseAttribution.fbclid,
+                  })
+                  .eq("id", lead.id);
+
+                if (isUuid(chat.id) && chatIds.length > 0) {
+                  await supabase
+                    .from("whatsapp_messages")
+                    .update({
+                      fb_ad_id: baseAttribution.fb_ad_id,
+                      fb_campaign_name: baseAttribution.fb_campaign_name,
+                      fb_adset_name: baseAttribution.fb_adset_name,
+                      fb_ad_name: baseAttribution.fb_ad_name,
+                      ad_thumbnail_url: baseAttribution.ad_thumbnail_url,
+                    })
+                    .in("chat_id", chatIds)
+                    .eq("utm_content", baseAttribution.fb_ad_id);
+                }
+              } catch {
+                // não bloquear UI
+              }
+
+              queryClient.invalidateQueries({ queryKey: ["leads"] });
             }
           } catch (enrichError) {
-            console.warn('Failed to enrich attribution from Facebook API:', enrichError);
+            console.warn("Failed to enrich attribution from Facebook API:", enrichError);
           }
         }
 
@@ -1400,6 +1450,20 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     }
   };
 
+  const attributionAnchorMessageId =
+    messages.find(
+      (m) =>
+        m?.sender_type === "customer" &&
+        Boolean(
+          m?.utm_source ||
+            m?.utm_campaign ||
+            m?.fbclid ||
+            m?.fb_campaign_name ||
+            m?.fb_ad_id
+        )
+    )?.message_id ??
+    messages.find((m) => m?.sender_type === "customer")?.message_id;
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header - Fixo no topo */}
@@ -1608,7 +1672,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
                     )}
 
                     {/* Mensagem */}
-                    <MessageBubble message={msg} fallbackAttribution={leadAttribution} />
+                    <MessageBubble message={msg} fallbackAttribution={msg.message_id === attributionAnchorMessageId ? leadAttribution : undefined} />
                   </div>
                 </div>
               </div>
