@@ -9,6 +9,7 @@ export interface MetaPixelConfig {
   pixel_id: string;
   access_token: string;
   test_event_code: string | null;
+  mensagem_formulario: string | null;
   eventos_ativos: {
     lead: boolean;
     initiate_checkout: boolean;
@@ -50,7 +51,7 @@ export const useMetaPixelConfig = () => {
         .maybeSingle();
 
       if (error) throw error;
-      return data as MetaPixelConfig | null;
+      return data as unknown as MetaPixelConfig | null;
     },
     enabled: !!user?.id,
   });
@@ -65,6 +66,7 @@ export const useSaveMetaPixelConfig = () => {
       pixel_id: string;
       access_token: string;
       test_event_code?: string;
+      mensagem_formulario?: string;
       eventos_ativos?: MetaPixelConfig["eventos_ativos"];
     }) => {
       if (!user?.id) throw new Error("User not authenticated");
@@ -82,6 +84,7 @@ export const useSaveMetaPixelConfig = () => {
             pixel_id: config.pixel_id,
             access_token: config.access_token,
             test_event_code: config.test_event_code || null,
+            mensagem_formulario: config.mensagem_formulario || null,
             eventos_ativos: config.eventos_ativos,
             updated_at: new Date().toISOString(),
           })
@@ -94,6 +97,7 @@ export const useSaveMetaPixelConfig = () => {
           pixel_id: config.pixel_id,
           access_token: config.access_token,
           test_event_code: config.test_event_code || null,
+          mensagem_formulario: config.mensagem_formulario || null,
           eventos_ativos: config.eventos_ativos || {
             lead: true,
             initiate_checkout: true,

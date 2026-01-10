@@ -22,6 +22,9 @@ export function MetaPixelConfig() {
   const [pixelId, setPixelId] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [testEventCode, setTestEventCode] = useState("");
+  const [mensagemFormulario, setMensagemFormulario] = useState(
+    "Olá! Para finalizar seu cadastro, precisamos de algumas informações adicionais. Por favor, preencha o formulário abaixo:"
+  );
   const [eventosAtivos, setEventosAtivos] = useState({
     lead: true,
     initiate_checkout: true,
@@ -55,6 +58,10 @@ export function MetaPixelConfig() {
       setPixelId(config.pixel_id || "");
       setAccessToken(config.access_token || "");
       setTestEventCode(config.test_event_code || "");
+      setMensagemFormulario(
+        config.mensagem_formulario || 
+        "Olá! Para finalizar seu cadastro, precisamos de algumas informações adicionais. Por favor, preencha o formulário abaixo:"
+      );
       setEventosAtivos(config.eventos_ativos || {
         lead: true,
         initiate_checkout: true,
@@ -69,6 +76,7 @@ export function MetaPixelConfig() {
       pixel_id: pixelId,
       access_token: accessToken,
       test_event_code: testEventCode,
+      mensagem_formulario: mensagemFormulario,
       eventos_ativos: eventosAtivos,
     });
   };
@@ -156,6 +164,28 @@ export function MetaPixelConfig() {
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <TestTube className="h-3 w-3" />
               Use para testar eventos sem afetar dados reais
+            </p>
+          </div>
+        </div>
+
+        {/* Mensagem do formulário de conversão */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="mensagem_formulario" className="text-base font-semibold">
+              Mensagem do Formulário de Conversão
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Esta mensagem será enviada no WhatsApp junto com o link do formulário para coleta de dados
+            </p>
+            <textarea
+              id="mensagem_formulario"
+              className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Digite a mensagem que será enviada..."
+              value={mensagemFormulario}
+              onChange={(e) => setMensagemFormulario(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              O link do formulário será adicionado automaticamente ao final da mensagem
             </p>
           </div>
         </div>

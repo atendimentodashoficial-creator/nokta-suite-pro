@@ -2352,6 +2352,7 @@ export type Database = {
           created_at: string
           eventos_ativos: Json | null
           id: string
+          mensagem_formulario: string | null
           pixel_id: string
           test_event_code: string | null
           updated_at: string
@@ -2362,6 +2363,7 @@ export type Database = {
           created_at?: string
           eventos_ativos?: Json | null
           id?: string
+          mensagem_formulario?: string | null
           pixel_id: string
           test_event_code?: string | null
           updated_at?: string
@@ -2372,6 +2374,7 @@ export type Database = {
           created_at?: string
           eventos_ativos?: Json | null
           id?: string
+          mensagem_formulario?: string | null
           pixel_id?: string
           test_event_code?: string | null
           updated_at?: string
