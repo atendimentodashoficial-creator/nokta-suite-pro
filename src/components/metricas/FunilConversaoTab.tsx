@@ -445,29 +445,57 @@ export function FunilConversaoTab() {
 
   // Calcular totais
   const totals = useMemo(() => {
-    if (!funnelData) return { leads: 0, leadsTracked: 0, leadsUntracked: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: 0 };
+    const defaultTotals = { 
+      leads: 0, leadsTracked: 0, leadsUntracked: 0, 
+      agendados: 0, agendadosTracked: 0, agendadosUntracked: 0,
+      compareceu: 0, compareceuTracked: 0, compareceuUntracked: 0,
+      nao_compareceu: 0, naoCompareceuTracked: 0, naoCompareceuUntracked: 0,
+      em_negociacao: 0, emNegociacaoTracked: 0, emNegociacaoUntracked: 0,
+      clientes: 0, clientesTracked: 0, clientesUntracked: 0,
+      valor_fechado: 0, valorTracked: 0, valorUntracked: 0,
+      spend: 0 
+    };
+    
+    if (!funnelData) return defaultTotals;
     
     const totalSpend = Object.values(spendByCampaign).reduce((a, b) => a + b, 0);
     
-    // Contar leads rastreados vs não rastreados
+    // Contar rastreados vs não rastreados
     const tracked = funnelData.filter(item => item.campaign_name !== "Sem campanha");
     const untracked = funnelData.find(item => item.campaign_name === "Sem campanha");
     
     const leadsTracked = tracked.reduce((sum, item) => sum + item.leads, 0);
     const leadsUntracked = untracked?.leads || 0;
+    const agendadosTracked = tracked.reduce((sum, item) => sum + item.agendados, 0);
+    const agendadosUntracked = untracked?.agendados || 0;
+    const compareceuTracked = tracked.reduce((sum, item) => sum + item.compareceu, 0);
+    const compareceuUntracked = untracked?.compareceu || 0;
+    const naoCompareceuTracked = tracked.reduce((sum, item) => sum + item.nao_compareceu, 0);
+    const naoCompareceuUntracked = untracked?.nao_compareceu || 0;
+    const emNegociacaoTracked = tracked.reduce((sum, item) => sum + item.em_negociacao, 0);
+    const emNegociacaoUntracked = untracked?.em_negociacao || 0;
+    const clientesTracked = tracked.reduce((sum, item) => sum + item.clientes, 0);
+    const clientesUntracked = untracked?.clientes || 0;
+    const valorTracked = tracked.reduce((sum, item) => sum + item.valor_fechado, 0);
+    const valorUntracked = untracked?.valor_fechado || 0;
     
     return funnelData.reduce((acc, item) => ({
       leads: acc.leads + item.leads,
-      leadsTracked: acc.leadsTracked,
-      leadsUntracked: acc.leadsUntracked,
+      leadsTracked, leadsUntracked,
       agendados: acc.agendados + item.agendados,
+      agendadosTracked, agendadosUntracked,
       compareceu: acc.compareceu + item.compareceu,
+      compareceuTracked, compareceuUntracked,
       nao_compareceu: acc.nao_compareceu + item.nao_compareceu,
+      naoCompareceuTracked, naoCompareceuUntracked,
       em_negociacao: acc.em_negociacao + item.em_negociacao,
+      emNegociacaoTracked, emNegociacaoUntracked,
       clientes: acc.clientes + item.clientes,
+      clientesTracked, clientesUntracked,
       valor_fechado: acc.valor_fechado + item.valor_fechado,
+      valorTracked, valorUntracked,
       spend: totalSpend,
-    }), { leads: 0, leadsTracked, leadsUntracked, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: totalSpend });
+    }), { ...defaultTotals, spend: totalSpend });
   }, [funnelData, spendByCampaign]);
 
   const formatCurrency = (value: number) => {
@@ -722,13 +750,39 @@ export function FunilConversaoTab() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Agendados</CardTitle>
-            <CalendarIconSolid className="h-4 w-4 text-blue-500" />
+            <div className="flex items-center gap-1">
+              <Megaphone className="h-4 w-4 text-blue-500" />
+              <span className="text-muted-foreground">/</span>
+              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.agendados)}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatPercentage(totals.agendados, totals.leads)} • CPA: {totals.agendados > 0 ? formatCurrency(totals.spend / totals.agendados) : "—"}
-            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <Megaphone className="h-3 w-3 text-blue-500" />
+                    <span className="font-medium text-blue-600">{formatNumber(totals.agendadosTracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Agendados de anúncios (rastreados)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span>•</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    <span>{formatNumber(totals.agendadosUntracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Agendados sem rastreamento</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </CardContent>
         </Card>
 
@@ -742,7 +796,7 @@ export function FunilConversaoTab() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-2">
               <div className="flex-1">
                 <div className="text-lg font-bold text-green-600">{formatNumber(totals.compareceu)}</div>
                 <p className="text-xs text-muted-foreground">
@@ -757,32 +811,109 @@ export function FunilConversaoTab() {
                 </p>
               </div>
             </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground border-t pt-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <Megaphone className="h-3 w-3 text-blue-500" />
+                    <span className="font-medium text-blue-600">{formatNumber(totals.compareceuTracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Comparecimentos de anúncios</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span>•</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    <span>{formatNumber(totals.compareceuUntracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Comparecimentos sem rastreamento</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Em Negociação</CardTitle>
-            <Handshake className="h-4 w-4 text-yellow-500" />
+            <div className="flex items-center gap-1">
+              <Megaphone className="h-4 w-4 text-blue-500" />
+              <span className="text-muted-foreground">/</span>
+              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.em_negociacao)}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatPercentage(totals.em_negociacao, totals.agendados)} dos agendados
-            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <Megaphone className="h-3 w-3 text-blue-500" />
+                    <span className="font-medium text-blue-600">{formatNumber(totals.emNegociacaoTracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Em negociação de anúncios</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span>•</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    <span>{formatNumber(totals.emNegociacaoUntracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Em negociação sem rastreamento</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <div className="flex items-center gap-1">
+              <Megaphone className="h-4 w-4 text-blue-500" />
+              <span className="text-muted-foreground">/</span>
+              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.clientes)}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatPercentage(totals.clientes, totals.leads)} • CAC: {totals.clientes > 0 ? formatCurrency(totals.spend / totals.clientes) : "—"}
-            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <Megaphone className="h-3 w-3 text-blue-500" />
+                    <span className="font-medium text-blue-600">{formatNumber(totals.clientesTracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Clientes de anúncios (rastreados)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span>•</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    <span>{formatNumber(totals.clientesUntracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Clientes sem rastreamento</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </CardContent>
         </Card>
 
