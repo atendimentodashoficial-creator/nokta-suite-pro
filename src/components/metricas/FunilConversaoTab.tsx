@@ -218,6 +218,22 @@ export function FunilConversaoTab() {
         return phoneHasWhatsApp[normalizedPhone] === true;
       });
 
+      // Deduplicate validLeads by phone + normalized origem (same logic as useLeads hook)
+      // Treat null/empty origem as "whatsapp" for deduplication
+      const seenPhoneOrigem = new Set<string>();
+      const deduplicatedLeads = validLeads?.filter(lead => {
+        const normalizedPhone = normalizePhone(lead.telefone);
+        const origemRaw = (lead.origem || "").toLowerCase();
+        const origem = origemRaw === "" ? "whatsapp" : origemRaw;
+        const key = `${normalizedPhone}-${origem}`;
+        
+        if (seenPhoneOrigem.has(key)) {
+          return false;
+        }
+        seenPhoneOrigem.add(key);
+        return true;
+      }) || [];
+
       // Criar mapa de dados de campanha por telefone normalizado
       // Prioriza leads que têm dados de campanha
       const campaignDataByPhone: Record<string, {
@@ -227,7 +243,7 @@ export function FunilConversaoTab() {
         fb_ad_id: string | null;
       }> = {};
 
-      validLeads?.forEach(lead => {
+      deduplicatedLeads?.forEach(lead => {
         const normalizedPhone = normalizePhone(lead.telefone);
         // Se esse lead tem dados de campanha, salva no mapa
         if (lead.fb_campaign_name) {
@@ -242,7 +258,7 @@ export function FunilConversaoTab() {
 
       // Criar mapa de todos os IDs de lead por telefone normalizado (apenas válidos)
       const leadIdsByPhone: Record<string, string[]> = {};
-      validLeads?.forEach(lead => {
+      deduplicatedLeads?.forEach(lead => {
         const normalizedPhone = normalizePhone(lead.telefone);
         if (!leadIdsByPhone[normalizedPhone]) {
           leadIdsByPhone[normalizedPhone] = [];
@@ -251,7 +267,7 @@ export function FunilConversaoTab() {
       });
 
       // Filtrar leads válidos pelo período
-      const leads = validLeads?.filter(lead => {
+      const leads = deduplicatedLeads?.filter(lead => {
         const createdAt = new Date(lead.created_at);
         const start = new Date(startDate);
         const end = new Date(endDate + "T23:59:59");
@@ -354,7 +370,7 @@ export function FunilConversaoTab() {
         grouped[key].leads++;
         
         // Pegar o melhor status entre todos os leads válidos com este telefone
-        const allLeadsWithPhone = validLeads?.filter(l => normalizePhone(l.telefone) === normalizedPhone) || [];
+        const allLeadsWithPhone = deduplicatedLeads?.filter(l => normalizePhone(l.telefone) === normalizedPhone) || [];
         const bestStatus = allLeadsWithPhone.find(l => l.status === "cliente")?.status ||
                           allLeadsWithPhone.find(l => l.status === "follow_up")?.status ||
                           lead.status;
