@@ -40,6 +40,16 @@ function normalizeAccents(text: string): string {
     .trim();
 }
 
+// Check if keyword exists as a whole word in text (case/accent insensitive)
+function matchesWholeWord(text: string, keyword: string): boolean {
+  const normalizedText = normalizeAccents(text);
+  const normalizedKeyword = normalizeAccents(keyword);
+  // Escape special regex characters in keyword
+  const escapedKeyword = normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
+  return regex.test(normalizedText);
+}
+
 function normalizeBaseUrl(raw: string | null | undefined): string | null {
   const value = (raw ?? "").trim();
   if (!value) return null;
@@ -293,9 +303,9 @@ async function processMessage(supabase: any, event: any) {
     .eq('ativo_em_dm', true);
 
   for (const gatilho of gatilhos || []) {
-    const messageText = normalizeAccents(message.text || '');
+    const messageText = message.text || '';
     const triggered = gatilho.palavras_chave.some((kw: string) => 
-      messageText.includes(normalizeAccents(kw))
+      matchesWholeWord(messageText, kw)
     );
 
     if (triggered) {
@@ -660,8 +670,8 @@ async function checkIceBreakerPayload(supabase: any, config: any, senderId: stri
 
       for (const gatilho of gatilhos || []) {
         const triggered = gatilho.palavras_chave.some((kw: string) => 
-          normalizeAccents(normalizedPayload).includes(normalizeAccents(kw)) || 
-          normalizeAccents(normalizedQuestion).includes(normalizeAccents(kw))
+          matchesWholeWord(normalizedPayload, kw) || 
+          matchesWholeWord(normalizedQuestion, kw)
         );
 
         if (triggered && gatilho.resposta_texto) {
@@ -738,9 +748,9 @@ async function processComment(supabase: any, comment: any) {
     .eq('ativo_em_comentario', true);
 
   for (const gatilho of gatilhos || []) {
-    const commentText = normalizeAccents(comment.text || '');
+    const commentText = comment.text || '';
     const triggered = gatilho.palavras_chave.some((kw: string) => 
-      commentText.includes(normalizeAccents(kw))
+      matchesWholeWord(commentText, kw)
     );
 
     if (triggered && comment.from?.id) {
