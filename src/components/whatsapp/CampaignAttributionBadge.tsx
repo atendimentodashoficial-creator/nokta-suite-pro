@@ -27,8 +27,11 @@ interface CampaignAttributionBadgeProps {
 export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionBadgeProps) {
   const [attribution, setAttribution] = useState<CampaignAttributionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadAttribution = async () => {
       // Important: don't clear existing attribution while reloading,
       // otherwise the megaphone flickers (appears then disappears).
@@ -36,7 +39,9 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
       try {
         const last8Digits = getLast8Digits(contactNumber);
         if (!last8Digits || last8Digits.length < 8) {
-          setAttribution(null);
+          if (isMounted && !hasLoadedOnce) {
+            setAttribution(null);
+          }
           return;
         }
 
@@ -52,9 +57,10 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
           return getLast8Digits(l.telefone) === last8Digits && hasAttribution;
         });
 
+        if (!isMounted) return;
+
         if (leadWithAttribution) {
-          setAttribution(prev => ({
-            ...(prev || {}),
+          setAttribution({
             utm_source: leadWithAttribution.utm_source,
             utm_campaign: leadWithAttribution.utm_campaign,
             utm_medium: leadWithAttribution.utm_medium,
@@ -62,24 +68,34 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
             utm_term: leadWithAttribution.utm_term,
             fbclid: leadWithAttribution.fbclid,
             gclid: leadWithAttribution.gclid,
-          }));
-        } else {
-          // Don't unset attribution during reload; only unset if we truly have none.
-          setAttribution(null);
+          });
         }
+        // Se não encontrou, NÃO limpar o estado - manter o que já temos
       } catch (error) {
         console.error('Error loading campaign attribution:', error);
         // Keep previous attribution on transient errors.
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+          setHasLoadedOnce(true);
+        }
       }
     };
 
     loadAttribution();
+
+    return () => {
+      isMounted = false;
+    };
   }, [contactNumber]);
 
-  // Não mostrar nada se não há dados de atribuição
-  if (!attribution) {
+  // Não mostrar nada se não há dados de atribuição E já carregou pelo menos uma vez
+  if (!attribution && hasLoadedOnce) {
+    return null;
+  }
+
+  // Ainda carregando pela primeira vez - não mostrar nada ainda
+  if (!attribution && isLoading) {
     return null;
   }
 
