@@ -17,12 +17,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { LeadCampaignBadge } from "@/components/leads/LeadCampaignBadge";
+import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 
 export default function Leads() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [origemFilter, setOrigemFilter] = useState<"whatsapp" | "disparos">("whatsapp");
+  
+  // Period filter
+  const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd, filterByPeriod } = usePeriodFilter("max");
   
   // Selection state for bulk delete
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -32,8 +36,11 @@ export default function Leads() {
   
   const { data: leads, isLoading } = useLeads("lead");
 
+  // Filtra por período primeiro
+  const leadsInPeriod = filterByPeriod(leads);
+
   // Filtra por origem (WhatsApp ou Disparos)
-  const leadsByOrigem = leads?.filter((lead) => {
+  const leadsByOrigem = leadsInPeriod?.filter((lead) => {
     const origem = (lead.origem || "").toLowerCase();
     if (origemFilter === "whatsapp") {
       return origem === "whatsapp" || origem === "";
@@ -226,8 +233,21 @@ export default function Leads() {
         </TabsList>
       </Tabs>
 
-      {/* Search */}
-      <Card className="p-4 shadow-card">
+      {/* Period Filter & Search */}
+      <Card className="p-4 shadow-card space-y-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <PeriodFilter
+            value={periodFilter}
+            onChange={setPeriodFilter}
+            dateStart={dateStart}
+            dateEnd={dateEnd}
+            onDateStartChange={setDateStart}
+            onDateEndChange={setDateEnd}
+          />
+          <span className="text-sm text-muted-foreground">
+            {leadsInPeriod?.length || 0} leads no período
+          </span>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input

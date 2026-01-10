@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
+import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 
 export default function Clientes() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,6 +39,9 @@ export default function Clientes() {
   const [editarClienteOpen, setEditarClienteOpen] = useState(false);
   const [clienteParaEditar, setClienteParaEditar] = useState<Lead | null>(null);
   
+  // Period filter
+  const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd, filterByPeriod } = usePeriodFilter("max");
+  
   // Selection state for bulk delete
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedClienteIds, setSelectedClienteIds] = useState<Set<string>>(new Set());
@@ -48,6 +52,9 @@ export default function Clientes() {
   const queryClient = useQueryClient();
   
   const { data: clientes, isLoading } = useLeads("cliente");
+  
+  // Filtra por período primeiro
+  const clientesInPeriod = filterByPeriod(clientes);
 
   const handleAbrirAgendamento = (cliente: any) => {
     setClienteSelecionado(cliente);
@@ -173,7 +180,7 @@ export default function Clientes() {
     }
   };
 
-  const filteredClientes = clientes?.filter((cliente) => {
+  const filteredClientes = clientesInPeriod?.filter((cliente) => {
     const searchLower = searchTerm.toLowerCase();
     return (
       cliente.nome.toLowerCase().includes(searchLower) ||
@@ -271,8 +278,21 @@ export default function Clientes() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Search */}
-      <Card className="p-4 shadow-card">
+      {/* Period Filter & Search */}
+      <Card className="p-4 shadow-card space-y-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <PeriodFilter
+            value={periodFilter}
+            onChange={setPeriodFilter}
+            dateStart={dateStart}
+            dateEnd={dateEnd}
+            onDateStartChange={setDateStart}
+            onDateEndChange={setDateEnd}
+          />
+          <span className="text-sm text-muted-foreground">
+            {clientesInPeriod?.length || 0} clientes no período
+          </span>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
