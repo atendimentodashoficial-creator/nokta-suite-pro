@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Megaphone, Calendar, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { getLast8Digits } from "@/utils/whatsapp";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -37,6 +38,7 @@ interface CampaignAttributionBadgeProps {
 }
 
 export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttributionBadgeProps) {
+  const { user } = useAuth();
   const [attributions, setAttributions] = useState<AttributionEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
@@ -45,10 +47,19 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
     let isMounted = true;
 
     const loadAttributions = async () => {
+      // Sem usuário autenticado não dá pra ler as tabelas (RLS), então não renderiza.
+      if (!user?.id) {
+        if (isMounted) {
+          setIsLoading(false);
+          setHasLoadedOnce(true);
+          setAttributions([]);
+        }
+        return;
+      }
+
       setIsLoading(true);
       try {
-        const { data: auth } = await supabase.auth.getUser();
-        const userId = auth.user?.id;
+        const userId = user.id;
 
         const last8Digits = getLast8Digits(contactNumber);
         if (!last8Digits || last8Digits.length < 8) {
@@ -211,7 +222,7 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
     return () => {
       isMounted = false;
     };
-  }, [contactNumber, chatId]);
+  }, [contactNumber, chatId, user?.id]);
 
   // Não mostrar nada se não há dados de atribuição E já carregou pelo menos uma vez
   if (attributions.length === 0 && hasLoadedOnce) {
