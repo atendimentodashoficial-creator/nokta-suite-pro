@@ -1312,6 +1312,158 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
             </CardContent>
           </Card>
 
+          {/* Top Performers by Funnel */}
+          {funnelData && funnelData.byCampaign.length > 0 && (
+            <Card className="border-amber-500/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="h-5 w-5 text-amber-500" />
+                  Melhores Desempenhos por Funil (Dados Rastreados)
+                </CardTitle>
+                <CardDescription>
+                  Campanhas ranqueadas pela eficiência de conversão no funil real
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* Top by Conversion Rate (Lead → Cliente) */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Trophy className="h-4 w-4 text-amber-500" />
+                      <h4 className="font-medium">Melhor Taxa de Conversão (Lead → Cliente)</h4>
+                    </div>
+                    <div className="grid gap-2">
+                      {[...funnelData.byCampaign]
+                        .filter(c => c.leads >= 3)
+                        .sort((a, b) => {
+                          const rateA = a.leads > 0 ? (a.clientes / a.leads) * 100 : 0;
+                          const rateB = b.leads > 0 ? (b.clientes / b.leads) * 100 : 0;
+                          return rateB - rateA;
+                        })
+                        .slice(0, 5)
+                        .map((item, index) => {
+                          const convRate = item.leads > 0 ? ((item.clientes / item.leads) * 100).toFixed(1) : '0';
+                          return (
+                            <div key={item.campaign} className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500 text-white' : 'bg-amber-500/20 text-amber-600'}`}>
+                                  {index + 1}
+                                </span>
+                                <span className="font-medium text-sm truncate max-w-[200px]">{item.campaign}</span>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="text-muted-foreground">{item.leads} leads → {item.clientes} clientes</span>
+                                <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600">
+                                  {convRate}%
+                                </Badge>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Top by Number of Clients */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <UserCheck className="h-4 w-4 text-green-500" />
+                      <h4 className="font-medium">Mais Clientes Gerados</h4>
+                    </div>
+                    <div className="grid gap-2">
+                      {[...funnelData.byCampaign]
+                        .filter(c => c.clientes > 0)
+                        .sort((a, b) => b.clientes - a.clientes)
+                        .slice(0, 5)
+                        .map((item, index) => (
+                          <div key={item.campaign} className="flex items-center justify-between p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-600'}`}>
+                                {index + 1}
+                              </span>
+                              <span className="font-medium text-sm truncate max-w-[200px]">{item.campaign}</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="text-muted-foreground">{item.leads} leads</span>
+                              <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600">
+                                {item.clientes} clientes
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Top by Revenue */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Handshake className="h-4 w-4 text-blue-500" />
+                      <h4 className="font-medium">Maior Faturamento</h4>
+                    </div>
+                    <div className="grid gap-2">
+                      {[...funnelData.byCampaign]
+                        .filter(c => c.valor > 0)
+                        .sort((a, b) => b.valor - a.valor)
+                        .slice(0, 5)
+                        .map((item, index) => (
+                          <div key={item.campaign} className="flex items-center justify-between p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
+                                {index + 1}
+                              </span>
+                              <span className="font-medium text-sm truncate max-w-[200px]">{item.campaign}</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="text-muted-foreground">{item.clientes} clientes</span>
+                              <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600">
+                                R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Top by Attendance Rate */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="h-4 w-4 text-purple-500" />
+                      <h4 className="font-medium">Melhor Taxa de Comparecimento</h4>
+                    </div>
+                    <div className="grid gap-2">
+                      {[...funnelData.byCampaign]
+                        .filter(c => c.agendados >= 3)
+                        .sort((a, b) => {
+                          const rateA = a.agendados > 0 ? (a.compareceu / a.agendados) * 100 : 0;
+                          const rateB = b.agendados > 0 ? (b.compareceu / b.agendados) * 100 : 0;
+                          return rateB - rateA;
+                        })
+                        .slice(0, 5)
+                        .map((item, index) => {
+                          const attendRate = item.agendados > 0 ? ((item.compareceu / item.agendados) * 100).toFixed(1) : '0';
+                          return (
+                            <div key={item.campaign} className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-600'}`}>
+                                  {index + 1}
+                                </span>
+                                <span className="font-medium text-sm truncate max-w-[200px]">{item.campaign}</span>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="text-muted-foreground">{item.agendados} agendados → {item.compareceu} compareceu</span>
+                                <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600">
+                                  {attendRate}%
+                                </Badge>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Recomendações */}
           <Card>
             <CardHeader>
