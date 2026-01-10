@@ -523,11 +523,53 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         return;
       }
 
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData.user?.id;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      const userId = session?.user?.id;
       if (!userId) return;
 
-      // Busca direcionada (evita limite de 1000 linhas e evita pegar lead de outra origem)
+      // 1) Primeiro tenta buscar atribuição diretamente das mensagens do chat (fonte primária - como Lenir)
+      let wpAttribution: any = null;
+      
+      // Busca o chat_id correto do banco
+      const { data: wpChats } = await supabase
+        .from('whatsapp_chats')
+        .select('id')
+        .eq('user_id', userId)
+        .or(`contact_number.like.%${last8Digits},normalized_number.like.%${last8Digits}`)
+        .limit(5);
+
+      const chatIds = (wpChats || []).map(c => c.id);
+      
+      if (chatIds.length > 0) {
+        // Buscar mensagens com atribuição de campanha
+        const { data: wpMessages } = await supabase
+          .from('whatsapp_messages')
+          .select('fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp')
+          .in('chat_id', chatIds)
+          .or('fb_ad_id.not.is.null,fbclid.not.is.null,utm_source.not.is.null')
+          .order('timestamp', { ascending: false })
+          .limit(1);
+
+        if (wpMessages && wpMessages.length > 0) {
+          const msg = wpMessages[0];
+          wpAttribution = {
+            fb_ad_id: msg.fb_ad_id,
+            fb_campaign_name: msg.fb_campaign_name,
+            fb_adset_name: msg.fb_adset_name,
+            fb_ad_name: msg.fb_ad_name,
+            utm_source: msg.utm_source,
+            utm_campaign: msg.utm_campaign,
+            utm_medium: msg.utm_medium,
+            utm_content: msg.utm_content,
+            utm_term: msg.utm_term,
+            fbclid: msg.fbclid,
+            ad_thumbnail_url: msg.ad_thumbnail_url,
+          };
+        }
+      }
+
+      // 2) Buscar lead para status e fallback de atribuição
       const { data: leads, error } = await supabase
         .from('leads')
         .select('id, status, telefone, origem, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name, created_at')
@@ -545,20 +587,45 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       if (lead) {
         setLeadId(lead.id);
 
-        // Capturar atribuição do lead (campanha/anúncio) se houver
-        setLeadAttribution({
-          utm_source: lead.utm_source,
-          utm_campaign: lead.utm_campaign,
-          utm_medium: lead.utm_medium,
-          utm_content: lead.utm_content,
-          utm_term: lead.utm_term,
-          fbclid: lead.fbclid,
-          ad_thumbnail_url: null,
-          fb_ad_id: lead.fb_ad_id,
-          fb_campaign_name: lead.fb_campaign_name,
-          fb_adset_name: lead.fb_adset_name,
-          fb_ad_name: lead.fb_ad_name,
-        });
+        // Mesclar: wpAttribution tem prioridade (dados da mensagem), fallback para lead
+        const baseAttribution = {
+          utm_source: wpAttribution?.utm_source || lead.utm_source,
+          utm_campaign: wpAttribution?.utm_campaign || lead.utm_campaign,
+          utm_medium: wpAttribution?.utm_medium || lead.utm_medium,
+          utm_content: wpAttribution?.utm_content || lead.utm_content,
+          utm_term: wpAttribution?.utm_term || lead.utm_term,
+          fbclid: wpAttribution?.fbclid || lead.fbclid,
+          ad_thumbnail_url: wpAttribution?.ad_thumbnail_url || null,
+          fb_ad_id: wpAttribution?.fb_ad_id || lead.fb_ad_id,
+          fb_campaign_name: wpAttribution?.fb_campaign_name || lead.fb_campaign_name,
+          fb_adset_name: wpAttribution?.fb_adset_name || lead.fb_adset_name,
+          fb_ad_name: wpAttribution?.fb_ad_name || lead.fb_ad_name,
+        };
+
+        // 3) Se temos fb_ad_id mas falta algum nome, enriquecer via API
+        const needsEnrichment = baseAttribution.fb_ad_id && 
+          (!baseAttribution.fb_campaign_name || !baseAttribution.fb_adset_name || !baseAttribution.fb_ad_name);
+
+        if (needsEnrichment && session?.access_token) {
+          try {
+            const resp = await supabase.functions.invoke('fetch-facebook-ad-info', {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+              body: { ad_id: baseAttribution.fb_ad_id },
+            });
+
+            if (!resp.error && resp.data) {
+              const r = resp.data;
+              baseAttribution.fb_campaign_name = baseAttribution.fb_campaign_name || r.campaign_name || null;
+              baseAttribution.fb_adset_name = baseAttribution.fb_adset_name || r.adset_name || null;
+              baseAttribution.fb_ad_name = baseAttribution.fb_ad_name || r.ad_name || null;
+              baseAttribution.ad_thumbnail_url = baseAttribution.ad_thumbnail_url || r.thumbnail_url || null;
+            }
+          } catch (enrichError) {
+            console.warn('Failed to enrich attribution from Facebook API:', enrichError);
+          }
+        }
+
+        setLeadAttribution(baseAttribution);
 
         // Verificar se o lead tem algum agendamento
         const { data: agendamentos } = await supabase
@@ -576,7 +643,8 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       } else {
         setLeadId(null);
         setLeadStatus(null);
-        setLeadAttribution(null);
+        // Mesmo sem lead, se temos atribuição da mensagem, usar
+        setLeadAttribution(wpAttribution);
       }
     } catch (error: any) {
       console.error('Error loading lead status:', error);
