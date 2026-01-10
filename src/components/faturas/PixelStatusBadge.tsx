@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { navigateToChat } from "@/utils/chatRouting";
 
 type PixelStatus = "pendente" | "formulario_enviado" | "dados_completos" | "evento_enviado";
 
@@ -27,10 +29,10 @@ export function PixelStatusBadge({
   pixelStatus,
   compact = false,
 }: PixelStatusBadgeProps) {
-  const [sendingForm, setSendingForm] = useState(false);
   const [sendingEvent, setSendingEvent] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   const status = pixelStatus || "pendente";
 
@@ -49,8 +51,7 @@ export function PixelStatusBadge({
     enabled: !!user?.id,
   });
 
-  const sendFormMessage = async () => {
-    setSendingForm(true);
+  const openChatWithFormMessage = async () => {
     try {
       // Get the form URL
       const formUrl = `${window.location.origin}/conversao/${faturaId}`;
@@ -59,120 +60,25 @@ export function PixelStatusBadge({
       const customMessage = pixelConfig?.mensagem_formulario || 
         "Olá! Para finalizar seu cadastro, precisamos de algumas informações adicionais. Por favor, preencha o formulário abaixo:";
       const message = `${customMessage}\n\n${formUrl}`;
-      
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) throw new Error("Não autenticado");
 
-      // Get the lead's instancia_nome and origem to find the correct instance
+      // Get the lead's instancia_nome to pass to navigation
       const { data: leadData } = await supabase
         .from("leads")
         .select("instancia_nome, origem")
         .eq("id", clienteId)
-        .single();
+        .maybeSingle();
 
-      const leadInstanciaNome = leadData?.instancia_nome;
       const leadOrigem = leadData?.origem || clienteOrigem;
-      const isDisparos = leadOrigem?.toLowerCase() === "disparos";
+      const leadInstanciaNome = leadData?.instancia_nome;
 
-      // Determine which instance to use based on origem and instancia_nome
-      let instanceConfig = null;
-
-      if (isDisparos && leadInstanciaNome) {
-        // For Disparos origin, find the matching instance in disparos_instancias
-        const { data: disparosInstance } = await supabase
-          .from("disparos_instancias")
-          .select("id, base_url, api_key")
-          .eq("user_id", user?.id)
-          .eq("nome", leadInstanciaNome)
-          .eq("is_active", true)
-          .maybeSingle();
-
-        if (disparosInstance) {
-          instanceConfig = {
-            type: "disparos",
-            baseUrl: disparosInstance.base_url,
-            apiKey: disparosInstance.api_key,
-          };
-        }
-      } else if (!isDisparos) {
-        // For WhatsApp origin, use the main instance from uazapi_config
-        const { data: mainConfig } = await supabase
-          .from("uazapi_config")
-          .select("base_url, api_key")
-          .eq("user_id", user?.id)
-          .eq("is_active", true)
-          .maybeSingle();
-
-        if (mainConfig) {
-          instanceConfig = {
-            type: "whatsapp",
-            baseUrl: mainConfig.base_url,
-            apiKey: mainConfig.api_key,
-          };
-        }
-      }
-
-      // If we found a specific instance, send directly via UAZapi API
-      if (instanceConfig) {
-        const sendResponse = await fetch(`${instanceConfig.baseUrl}/send/text`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            token: instanceConfig.apiKey,
-          },
-          body: JSON.stringify({
-            number: clienteTelefone,
-            text: message,
-          }),
-        });
-
-        if (!sendResponse.ok) {
-          const errorData = await sendResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || `Erro ${sendResponse.status}`);
-        }
-      } else {
-        // Fallback to edge function if no direct instance config found
-        const functionName = isDisparos ? "disparos-send-message" : "uazapi-send-message";
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.session.access_token}`,
-            },
-            body: JSON.stringify({
-              number: clienteTelefone,
-              text: message,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Erro ${response.status}`);
-        }
-      }
-
-      // Update fatura status
-      const { error: updateError } = await supabase
-        .from("faturas")
-        .update({
-          pixel_status: "formulario_enviado",
-          pixel_form_sent_at: new Date().toISOString(),
-        })
-        .eq("id", faturaId);
-
-      if (updateError) throw updateError;
-
-      queryClient.invalidateQueries({ queryKey: ["faturas"] });
-      toast.success("Formulário enviado para o cliente!");
+      // Navigate to chat with prefilled message
+      await navigateToChat(navigate, clienteTelefone, leadOrigem, {
+        instanciaNome: leadInstanciaNome,
+        prefillMessage: message,
+      });
     } catch (error: any) {
-      console.error("Error sending form:", error);
-      toast.error(error.message || "Erro ao enviar formulário");
-    } finally {
-      setSendingForm(false);
+      console.error("Error opening chat:", error);
+      toast.error("Erro ao abrir chat");
     }
   };
 
@@ -294,22 +200,15 @@ export function PixelStatusBadge({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={sendFormMessage}
-                  disabled={sendingForm}
+                  onClick={openChatWithFormMessage}
                   className="text-xs"
                 >
-                  {sendingForm ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <>
-                      <Send className="h-3 w-3 mr-1" />
-                      {status === "formulario_enviado" ? "Reenviar" : "Enviar"} formulário
-                    </>
-                  )}
+                  <Send className="h-3 w-3 mr-1" />
+                  {status === "formulario_enviado" ? "Reenviar" : "Enviar"} formulário
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Envia mensagem no WhatsApp com link do formulário</p>
+                <p>Abre o chat com mensagem pré-preenchida</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

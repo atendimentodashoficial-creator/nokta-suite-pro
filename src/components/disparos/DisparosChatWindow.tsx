@@ -92,6 +92,7 @@ interface DisparosChatWindowProps {
   onChatDeleted?: () => void;
   onChatUpdated?: (updatedChat: any) => void;
   availableChats?: any[];
+  initialMessage?: string | null;
 }
 
 interface ClienteData {
@@ -101,10 +102,10 @@ interface ClienteData {
   email?: string;
 }
 
-export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated, availableChats = [] }: DisparosChatWindowProps) {
+export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated, availableChats = [], initialMessage }: DisparosChatWindowProps) {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [newMessage, setNewMessage] = useState(initialMessage || "");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [agendamentoDialogOpen, setAgendamentoDialogOpen] = useState(false);
@@ -166,6 +167,13 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
       setShouldScrollToBottom(false);
     }
   }, [shouldScrollToBottom, messages]);
+
+  // Set initial message when prop changes (for prefill from deep-links)
+  useEffect(() => {
+    if (initialMessage) {
+      setNewMessage(initialMessage);
+    }
+  }, [initialMessage]);
 
   // Load messages from local database only (webhook handles new messages)
   const loadMessages = async (forceScrollOnLoad = false) => {

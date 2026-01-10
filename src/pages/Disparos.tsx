@@ -58,6 +58,7 @@ export default function Disparos() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [prefillMessage, setPrefillMessage] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [instanciasMap, setInstanciasMap] = useState<Record<string, DisparosInstancia>>({});
   const [instanciasList, setInstanciasList] = useState<DisparosInstancia[]>([]);
@@ -583,12 +584,18 @@ export default function Disparos() {
     loadInstancias();
   }, []);
 
-  // Deep-link support: /disparos?chat=PHONE[&instancia_nome=NAME]
+  // Deep-link support: /disparos?chat=PHONE[&instancia_nome=NAME][&prefill=MESSAGE]
   useEffect(() => {
     const chatParam = searchParams.get("chat");
+    const prefillParam = searchParams.get("prefill");
     if (!chatParam) return;
     if (!chatsLoaded) return;
     if (deepLinkHandledRef.current) return;
+
+    // Set prefill message if provided
+    if (prefillParam) {
+      setPrefillMessage(prefillParam);
+    }
 
     const targetLast8 = getLast8Digits(chatParam);
     const instanciaNomeParam = searchParams.get("instancia_nome");
@@ -1141,14 +1148,17 @@ export default function Disparos() {
                 <div className="fixed top-16 left-0 right-0 bottom-0 z-50 bg-background flex flex-col">
                   <DisparosChatWindow
                     chat={selectedChat}
+                    initialMessage={prefillMessage}
                     onBack={() => {
                       setSelectedChat(null);
                       setShowChatWindow(false);
+                      setPrefillMessage(null);
                     }}
                     onChatUpdated={handleChatUpdated}
                     onChatDeleted={() => {
                       setSelectedChat(null);
                       setShowChatWindow(false);
+                      setPrefillMessage(null);
                       loadChats();
                     }}
                     availableChats={chats}
@@ -1296,11 +1306,13 @@ export default function Disparos() {
                     <div className="h-full flex flex-col overflow-hidden min-h-0">
                       <DisparosChatWindow
                         chat={selectedChat}
-                        onBack={handleBack}
+                        initialMessage={prefillMessage}
+                        onBack={() => { handleBack(); setPrefillMessage(null); }}
                         onChatUpdated={handleChatUpdated}
                         onChatDeleted={() => {
                           setSelectedChat(null);
                           setShowChatWindow(false);
+                          setPrefillMessage(null);
                           loadChats();
                         }}
                         availableChats={chats}
@@ -1408,11 +1420,13 @@ export default function Disparos() {
                   {selectedChat ? (
                     <DisparosChatWindow
                       chat={selectedChat}
-                      onBack={handleBack}
+                      initialMessage={prefillMessage}
+                      onBack={() => { handleBack(); setPrefillMessage(null); }}
                       onChatUpdated={handleChatUpdated}
                       onChatDeleted={() => {
                         setSelectedChat(null);
                         setShowChatWindow(false);
+                        setPrefillMessage(null);
                         loadChats();
                       }}
                       availableChats={chats}
