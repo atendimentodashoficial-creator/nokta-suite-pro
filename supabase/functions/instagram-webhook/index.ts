@@ -263,29 +263,17 @@ async function processMessage(supabase: any, event: any) {
         const buttonText = gatilho.botao_formulario_texto || 'Preencher Formulário';
         const buttonTitle = gatilho.titulo_botoes || null;
         
-        // If there's a custom button title, send the message first, then the button
-        if (buttonTitle) {
-          // Send the form message first
-          await sendInstagramMessage(config.page_access_token, config.instagram_account_id, senderId, formMessage);
-          
-          // Then send the button with custom title
-          await sendInstagramButtons(
-            config.page_access_token,
-            config.instagram_account_id,
-            senderId,
-            [{ type: 'url', title: buttonText, url: formUrl }],
-            buttonTitle
-          );
-        } else {
-          // Send button with form message as title (original behavior)
-          await sendInstagramButtons(
-            config.page_access_token,
-            config.instagram_account_id,
-            senderId,
-            [{ type: 'url', title: buttonText, url: formUrl }],
-            formMessage
-          );
-        }
+        // Always send the message first, then the button separately
+        await sendInstagramMessage(config.page_access_token, config.instagram_account_id, senderId, formMessage);
+        
+        // Send button - use custom title if provided, otherwise use minimal text
+        await sendInstagramButtons(
+          config.page_access_token,
+          config.instagram_account_id,
+          senderId,
+          [{ type: 'url', title: buttonText, url: formUrl }],
+          buttonTitle || " " // Use custom title or minimal space
+        );
 
         // Log response
         await supabase.from('instagram_mensagens').insert({
