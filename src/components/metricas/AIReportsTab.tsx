@@ -412,6 +412,30 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     };
   }, [allLeads, dateStart, dateEnd]);
 
+  const normName = (v?: string | null) => (v ?? "").toString().trim().toLowerCase();
+
+  const spendMaps = useMemo(() => {
+    const adsetSpendByName = new Map<string, number>();
+    const adSpendByName = new Map<string, number>();
+
+    for (const a of adsSpendData.adsets) {
+      const key = normName((a as any).adset_name);
+      if (!key) continue;
+      adsetSpendByName.set(key, (adsetSpendByName.get(key) ?? 0) + (a.spend ?? 0));
+    }
+
+    for (const a of adsSpendData.ads) {
+      const key = normName((a as any).ad_name);
+      if (!key) continue;
+      adSpendByName.set(key, (adSpendByName.get(key) ?? 0) + (a.spend ?? 0));
+    }
+
+    return { adsetSpendByName, adSpendByName };
+  }, [adsSpendData.adsets, adsSpendData.ads]);
+
+  const formatBRL = (value: number) =>
+    value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
   const loadStoredReport = async () => {
     if (!selectedAccount || !user) return;
     
@@ -1475,233 +1499,6 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
             </CardContent>
           </Card>
 
-          {/* Top Performers by Funnel - Cost per Result */}
-          {funnelData && funnelData.byCampaign.length > 0 && (
-            <Card className="border-emerald-500/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <BarChart3 className="h-5 w-5 text-emerald-500" />
-                  Melhor Custo por Etapa do Funil
-                </CardTitle>
-                <CardDescription>
-                  Campanhas ranqueadas pelo menor custo por resultado em cada etapa
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-8">
-                  {/* Stage 1: CPL */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
-                      <Users className="h-5 w-5 text-blue-500" />
-                      <h3 className="font-semibold text-base">Etapa 1: Custo por Lead</h3>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {(() => {
-                        const campaignsWithCPL = funnelData.byCampaign
-                          .filter(f => f.leads > 0)
-                          .map(f => {
-                            const spendData = adsSpendData.adsets.find(a => 
-                              a.adset_name?.toLowerCase().includes(f.campaign.toLowerCase().split(' ')[0]) ||
-                              f.campaign.toLowerCase().includes(a.adset_name?.toLowerCase().split(' ')[0] || '')
-                            );
-                            // Try to find spend by campaign name in adsets
-                            const totalSpend = adsSpendData.adsets
-                              .filter(a => a.spend > 0)
-                              .reduce((sum, a) => sum + a.spend, 0);
-                            const estimatedSpend = f.leads > 0 && totalSpend > 0 ? (totalSpend / funnelData.totals.leadsTracked) * f.leads : 0;
-                            const cpl = estimatedSpend > 0 && f.leads > 0 ? estimatedSpend / f.leads : null;
-                            return { ...f, spend: estimatedSpend, cpl };
-                          })
-                          .filter(f => f.cpl !== null && f.cpl > 0)
-                          .sort((a, b) => (a.cpl || 0) - (b.cpl || 0));
-                        
-                        if (campaignsWithCPL.length === 0) {
-                          // Fallback: show campaigns by leads without CPL
-                          const topByLeads = [...funnelData.byCampaign].sort((a, b) => b.leads - a.leads).slice(0, 5);
-                          return (
-                            <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl col-span-2">
-                              <div className="flex items-center gap-2 mb-3">
-                                <Layers className="h-4 w-4 text-blue-500" />
-                                <h4 className="font-medium text-sm">Top Campanhas por Leads</h4>
-                              </div>
-                              <div className="space-y-2">
-                                {topByLeads.map((item, index) => (
-                                  <div key={`cpl-${item.campaign}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
-                                        {index + 1}
-                                      </span>
-                                      <span className="text-sm truncate">{item.campaign}</span>
-                                    </div>
-                                    <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 ml-2">
-                                      {item.leads} leads
-                                    </Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        }
-                        
-                        return (
-                          <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl col-span-2">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-blue-500" />
-                              <h4 className="font-medium text-sm">Top Campanhas</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {campaignsWithCPL.slice(0, 5).map((item, index) => (
-                                <div key={`cpl-${item.campaign}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
-                                      {index + 1}
-                                    </span>
-                                    <span className="text-sm truncate">{item.campaign}</span>
-                                  </div>
-                                  <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 ml-2">
-                                    R$ {item.cpl?.toFixed(2)}
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Stage 2: Custo por Agendamento */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
-                      <Calendar className="h-5 w-5 text-amber-500" />
-                      <h3 className="font-semibold text-base">Etapa 2: Custo por Agendamento</h3>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {(() => {
-                        const topByAgendados = [...funnelData.byCampaign]
-                          .filter(c => c.agendados > 0)
-                          .sort((a, b) => b.agendados - a.agendados)
-                          .slice(0, 5);
-                        
-                        if (topByAgendados.length === 0) return null;
-                        
-                        return (
-                          <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl col-span-2">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-amber-500" />
-                              <h4 className="font-medium text-sm">Top Campanhas por Agendamentos</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {topByAgendados.map((item, index) => (
-                                <div key={`cpa-${item.campaign}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500 text-white' : 'bg-amber-500/20 text-amber-600'}`}>
-                                      {index + 1}
-                                    </span>
-                                    <span className="text-sm truncate">{item.campaign}</span>
-                                  </div>
-                                  <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 ml-2">
-                                    {item.agendados} agend.
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Stage 3: Custo por Comparecimento */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
-                      <CheckCircle2 className="h-5 w-5 text-teal-500" />
-                      <h3 className="font-semibold text-base">Etapa 3: Custo por Comparecimento</h3>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {(() => {
-                        const topByCompareceu = [...funnelData.byCampaign]
-                          .filter(c => c.compareceu > 0)
-                          .sort((a, b) => b.compareceu - a.compareceu)
-                          .slice(0, 5);
-                        
-                        if (topByCompareceu.length === 0) return null;
-                        
-                        return (
-                          <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl col-span-2">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-teal-500" />
-                              <h4 className="font-medium text-sm">Top Campanhas por Comparecimentos</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {topByCompareceu.map((item, index) => (
-                                <div key={`cpc-${item.campaign}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-teal-500 text-white' : 'bg-teal-500/20 text-teal-600'}`}>
-                                      {index + 1}
-                                    </span>
-                                    <span className="text-sm truncate">{item.campaign}</span>
-                                  </div>
-                                  <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600 ml-2">
-                                    {item.compareceu} comp.
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Stage 4: CAC */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
-                      <UserCheck className="h-5 w-5 text-green-500" />
-                      <h3 className="font-semibold text-base">Etapa 4: CAC (Custo por Cliente)</h3>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {(() => {
-                        const topByClientes = [...funnelData.byCampaign]
-                          .filter(c => c.clientes > 0)
-                          .sort((a, b) => b.clientes - a.clientes)
-                          .slice(0, 5);
-                        
-                        if (topByClientes.length === 0) return null;
-                        
-                        return (
-                          <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl col-span-2">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Layers className="h-4 w-4 text-green-500" />
-                              <h4 className="font-medium text-sm">Top Campanhas por Clientes</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {topByClientes.map((item, index) => (
-                                <div key={`cac-${item.campaign}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-600'}`}>
-                                      {index + 1}
-                                    </span>
-                                    <span className="text-sm truncate">{item.campaign}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">{item.leads} leads →</span>
-                                    <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600 ml-2">
-                                      {item.clientes} clientes
-                                    </Badge>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* CARD 1: Top Performers by Funnel Stage - RESULTS */}
           {funnelData && (funnelData.byAdset.length > 0 || funnelData.byAd.length > 0) && (
@@ -2000,8 +1797,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         const adsetsWithCPL = funnelData.byAdset
                           .filter(f => f.leads > 0)
                           .map(f => {
-                            const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
-                            const spend = spendData?.spend || 0;
+                            const spend = spendMaps.adsetSpendByName.get(normName(f.adset)) || 0;
                             const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
                             return { ...f, spend, cpl };
                           })
@@ -2026,7 +1822,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                     <span className="text-sm truncate">{item.adset}</span>
                                   </div>
                                   <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 ml-2">
-                                    R$ {item.cpl?.toFixed(2)}
+                                    {formatBRL(item.cpl || 0)}
                                   </Badge>
                                 </div>
                               ))}
@@ -2038,8 +1834,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         const adsWithCPL = funnelData.byAd
                           .filter(f => f.leads > 0)
                           .map(f => {
-                            const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
-                            const spend = spendData?.spend || 0;
+                            const spend = spendMaps.adSpendByName.get(normName(f.ad)) || 0;
                             const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
                             return { ...f, spend, cpl };
                           })
@@ -2064,7 +1859,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                     <span className="text-sm truncate">{item.ad}</span>
                                   </div>
                                   <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 ml-2">
-                                    R$ {item.cpl?.toFixed(2)}
+                                    {formatBRL(item.cpl || 0)}
                                   </Badge>
                                 </div>
                               ))}
@@ -2086,8 +1881,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         const adsetsWithCPA = funnelData.byAdset
                           .filter(f => f.agendados > 0)
                           .map(f => {
-                            const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
-                            const spend = spendData?.spend || 0;
+                            const spend = spendMaps.adsetSpendByName.get(normName(f.adset)) || 0;
                             const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
                             return { ...f, spend, cpa };
                           })
@@ -2112,7 +1906,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                     <span className="text-sm truncate">{item.adset}</span>
                                   </div>
                                   <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 ml-2">
-                                    R$ {item.cpa?.toFixed(2)}
+                                    {formatBRL(item.cpa || 0)}
                                   </Badge>
                                 </div>
                               ))}
@@ -2124,8 +1918,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         const adsWithCPA = funnelData.byAd
                           .filter(f => f.agendados > 0)
                           .map(f => {
-                            const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
-                            const spend = spendData?.spend || 0;
+                            const spend = spendMaps.adSpendByName.get(normName(f.ad)) || 0;
                             const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
                             return { ...f, spend, cpa };
                           })
@@ -2150,7 +1943,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                     <span className="text-sm truncate">{item.ad}</span>
                                   </div>
                                   <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600 ml-2">
-                                    R$ {item.cpa?.toFixed(2)}
+                                    {formatBRL(item.cpa || 0)}
                                   </Badge>
                                 </div>
                               ))}
@@ -2172,8 +1965,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         const adsetsWithCPC = funnelData.byAdset
                           .filter(f => f.compareceu > 0)
                           .map(f => {
-                            const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
-                            const spend = spendData?.spend || 0;
+                            const spend = spendMaps.adsetSpendByName.get(normName(f.adset)) || 0;
                             const costPerComp = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
                             return { ...f, spend, costPerComp };
                           })
@@ -2198,7 +1990,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                     <span className="text-sm truncate">{item.adset}</span>
                                   </div>
                                   <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600 ml-2">
-                                    R$ {item.costPerComp?.toFixed(2)}
+                                    {formatBRL(item.costPerComp || 0)}
                                   </Badge>
                                 </div>
                               ))}
@@ -2210,8 +2002,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         const adsWithCPC = funnelData.byAd
                           .filter(f => f.compareceu > 0)
                           .map(f => {
-                            const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
-                            const spend = spendData?.spend || 0;
+                            const spend = spendMaps.adSpendByName.get(normName(f.ad)) || 0;
                             const costPerComp = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
                             return { ...f, spend, costPerComp };
                           })
@@ -2236,7 +2027,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                     <span className="text-sm truncate">{item.ad}</span>
                                   </div>
                                   <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600 ml-2">
-                                    R$ {item.costPerComp?.toFixed(2)}
+                                    {formatBRL(item.costPerComp || 0)}
                                   </Badge>
                                 </div>
                               ))}
@@ -2258,8 +2049,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         const adsetsWithCAC = funnelData.byAdset
                           .filter(f => f.clientes > 0)
                           .map(f => {
-                            const spendData = adsSpendData.adsets.find(a => a.adset_name === f.adset);
-                            const spend = spendData?.spend || 0;
+                            const spend = spendMaps.adsetSpendByName.get(normName(f.adset)) || 0;
                             const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
                             return { ...f, spend, cac };
                           })
@@ -2284,7 +2074,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                     <span className="text-sm truncate">{item.adset}</span>
                                   </div>
                                   <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600 ml-2">
-                                    R$ {item.cac?.toFixed(2)}
+                                    {formatBRL(item.cac || 0)}
                                   </Badge>
                                 </div>
                               ))}
@@ -2296,8 +2086,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         const adsWithCAC = funnelData.byAd
                           .filter(f => f.clientes > 0)
                           .map(f => {
-                            const spendData = adsSpendData.ads.find(a => a.ad_name === f.ad);
-                            const spend = spendData?.spend || 0;
+                            const spend = spendMaps.adSpendByName.get(normName(f.ad)) || 0;
                             const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
                             return { ...f, spend, cac };
                           })
@@ -2322,7 +2111,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                                     <span className="text-sm truncate">{item.ad}</span>
                                   </div>
                                   <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600 ml-2">
-                                    R$ {item.cac?.toFixed(2)}
+                                    {formatBRL(item.cac || 0)}
                                   </Badge>
                                 </div>
                               ))}
