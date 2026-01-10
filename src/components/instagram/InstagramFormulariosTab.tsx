@@ -12,8 +12,9 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, FileText, Copy, ExternalLink, Users } from "lucide-react";
+import { Plus, Trash2, Loader2, FileText, Copy, ExternalLink, Users, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -55,13 +56,23 @@ interface Resposta {
   created_at: string;
 }
 
+interface CampoPersonalizado {
+  id: string;
+  label: string;
+  tipo: "text" | "tel" | "email" | "textarea";
+  obrigatorio: boolean;
+}
+
 export function InstagramFormulariosTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
   const [selectedCampos, setSelectedCampos] = useState<string[]>(["nome", "telefone", "email"]);
+  const [camposPersonalizados, setCamposPersonalizados] = useState<CampoPersonalizado[]>([]);
+  const [novoCampoLabel, setNovoCampoLabel] = useState("");
+  const [novoCampoTipo, setNovoCampoTipo] = useState<"text" | "textarea">("text");
   const queryClient = useQueryClient();
 
-  const availableCampos = [
+  const camposPadrao = [
     { id: "nome", label: "Nome" },
     { id: "telefone", label: "Telefone" },
     { id: "email", label: "Email" },
@@ -123,7 +134,12 @@ export function InstagramFormulariosTab() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
 
-      if (selectedCampos.length === 0) {
+      const todosCampos = [
+        ...selectedCampos,
+        ...camposPersonalizados.map(c => JSON.stringify(c))
+      ];
+
+      if (todosCampos.length === 0) {
         throw new Error("Selecione ao menos um campo");
       }
 
@@ -136,7 +152,7 @@ export function InstagramFormulariosTab() {
         mensagem_sucesso: data.mensagem_sucesso,
         cor_primaria: data.cor_primaria || "#8B5CF6",
         imagem_url: data.imagem_url || null,
-        campos: selectedCampos,
+        campos: todosCampos,
       });
 
       if (error) throw error;
@@ -147,6 +163,7 @@ export function InstagramFormulariosTab() {
       setDialogOpen(false);
       form.reset();
       setSelectedCampos(["nome", "telefone", "email"]);
+      setCamposPersonalizados([]);
     },
     onError: (error) => {
       console.error("Erro ao criar formulário:", error);
@@ -314,10 +331,12 @@ export function InstagramFormulariosTab() {
                   )}
                 />
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <FormLabel>Campos do Formulário</FormLabel>
+                  
+                  {/* Campos padrão */}
                   <div className="flex flex-wrap gap-4 p-3 border rounded-lg">
-                    {availableCampos.map((campo) => (
+                    {camposPadrao.map((campo) => (
                       <div key={campo.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={campo.id}
@@ -332,15 +351,86 @@ export function InstagramFormulariosTab() {
                         />
                         <label
                           htmlFor={campo.id}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          className="text-sm font-medium leading-none"
                         >
                           {campo.label}
                         </label>
                       </div>
                     ))}
                   </div>
+
+                  {/* Campos personalizados */}
+                  {camposPersonalizados.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Perguntas adicionais:</p>
+                      {camposPersonalizados.map((campo, index) => (
+                        <div key={campo.id} className="flex items-center gap-2 p-2 border rounded-lg bg-muted/50">
+                          <span className="flex-1 text-sm">{campo.label}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {campo.tipo === "textarea" ? "Texto longo" : "Texto curto"}
+                          </Badge>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => {
+                              setCamposPersonalizados(camposPersonalizados.filter((_, i) => i !== index));
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Adicionar nova pergunta */}
+                  <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+                    <p className="text-sm font-medium">Adicionar pergunta personalizada</p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Ex: Qual seu interesse?"
+                        value={novoCampoLabel}
+                        onChange={(e) => setNovoCampoLabel(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Select value={novoCampoTipo} onValueChange={(v: "text" | "textarea") => setNovoCampoTipo(v)}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text">Curto</SelectItem>
+                          <SelectItem value="textarea">Longo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          if (novoCampoLabel.trim()) {
+                            const novoId = `custom_${Date.now()}`;
+                            setCamposPersonalizados([
+                              ...camposPersonalizados,
+                              {
+                                id: novoId,
+                                label: novoCampoLabel.trim(),
+                                tipo: novoCampoTipo,
+                                obrigatorio: true,
+                              }
+                            ]);
+                            setNovoCampoLabel("");
+                            setNovoCampoTipo("text");
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
                   <p className="text-xs text-muted-foreground">
-                    Selecione os campos que aparecerão no formulário
+                    Selecione os campos padrão e/ou adicione perguntas personalizadas
                   </p>
                 </div>
 
