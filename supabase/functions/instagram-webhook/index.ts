@@ -171,21 +171,58 @@ async function processMessage(supabase: any, event: any) {
       .eq('user_id', config.user_id)
       .single();
 
-    if (gatilho) {
-      // Log the button click
-      await supabase.from('instagram_mensagens').insert({
-        user_id: config.user_id,
-        instagram_user_id: senderId,
-        tipo: 'dm_recebida',
-        conteudo: message.text || '[Clicou no botão de liberar]',
-        gatilho_id: gatilhoId,
-        metadata: { tipo: 'release_button_click', payload: message.quick_reply.payload },
-      });
+     if (gatilho) {
+       // Log the button click
+       await supabase.from('instagram_mensagens').insert({
+         user_id: config.user_id,
+         instagram_user_id: senderId,
+         tipo: 'dm_recebida',
+         conteudo: message.text || '[Clicou no botão de liberar]',
+         gatilho_id: gatilhoId,
+         metadata: { tipo: 'release_button_click', payload: message.quick_reply.payload },
+       });
 
-      // Send the actual content (form, text, media, buttons, etc.)
-      await sendGatilhoContent(supabase, config, gatilho, senderId);
-      return; // Content sent, stop processing
-    }
+       // Safety: re-check follower status before releasing content
+       if (gatilho.verificar_seguidor && gatilho.mensagem_pedir_seguir) {
+         const followerInfo = await checkIfFollower(config.page_access_token, senderId);
+         const isFollower = !!(followerInfo && followerInfo.is_user_follow_business);
+
+         if (!isFollower) {
+           console.log('Release blocked - user is not confirmed follower (or follower check failed).');
+
+           let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
+           if (followerInfo?.username) {
+             followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
+           }
+
+           const buttonText = gatilho.botao_liberar_texto || 'Já sigo! Liberar material';
+           const releasePayload = `release_content_${gatilho.id}`;
+
+           await sendInstagramButtons(
+             config.page_access_token,
+             config.instagram_account_id,
+             senderId,
+             [{ type: 'quick_reply', title: buttonText, payload: releasePayload }],
+             followMessage
+           );
+
+           await supabase.from('instagram_mensagens').insert({
+             user_id: config.user_id,
+             instagram_user_id: senderId,
+             tipo: 'dm_enviada',
+             conteudo: `${followMessage}\n[Botão: ${buttonText}]`,
+             gatilho_id: gatilho.id,
+             metadata: { tipo: 'pedir_seguir_release_block', follower_info: followerInfo, release_payload: releasePayload },
+           });
+
+           return; // do not release
+         }
+       }
+
+       // Send the actual content (form, text, media, buttons, etc.)
+       await sendGatilhoContent(supabase, config, gatilho, senderId);
+       return; // Content sent, stop processing
+     }
   }
 
   // Check if this is first interaction
@@ -258,23 +295,25 @@ async function processMessage(supabase: any, event: any) {
       // Check if this trigger requires follower verification
       if (gatilho.verificar_seguidor && gatilho.mensagem_pedir_seguir) {
         const followerInfo = await checkIfFollower(config.page_access_token, senderId);
-        
-        if (followerInfo && !followerInfo.is_user_follow_business) {
-          console.log('User does not follow business, sending follow request with button for trigger:', gatilho.nome);
-          
+        const isFollower = !!(followerInfo && followerInfo.is_user_follow_business);
+
+        // Fail-safe: if we cannot confirm follower status, do NOT release content
+        if (!isFollower) {
+          console.log('User is not confirmed follower (or follower check failed), sending follow request with button for trigger:', gatilho.nome);
+
           // Replace {nome} with username if available and process spintax
           let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
-          if (followerInfo.username) {
+          if (followerInfo?.username) {
             followMessage = followMessage.replace(/{nome}/g, followerInfo.username);
           }
 
           // Get button text (default if not set)
           const buttonText = gatilho.botao_liberar_texto || 'Já sigo! Liberar material';
-          
+
           // Send message with a quick reply button to release content
           // The payload will be used to identify this as a "release content" action
           const releasePayload = `release_content_${gatilho.id}`;
-          
+
           await sendInstagramButtons(
             config.page_access_token,
             config.instagram_account_id,
@@ -287,7 +326,7 @@ async function processMessage(supabase: any, event: any) {
           await supabase.from('instagram_mensagens').insert({
             user_id: config.user_id,
             instagram_user_id: senderId,
-            instagram_username: followerInfo.username,
+            instagram_username: followerInfo?.username,
             tipo: 'dm_enviada',
             conteudo: `${followMessage}\n[Botão: ${buttonText}]`,
             gatilho_id: gatilho.id,
@@ -771,8 +810,11 @@ async function processComment(supabase: any, comment: any) {
           const followerInfo = await checkIfFollower(config.page_access_token, comment.from.id);
           console.log('Follower check for commenter:', followerInfo);
 
-          if (followerInfo && !followerInfo.is_user_follow_business) {
-            console.log('Commenter does not follow business, sending follow request with button via private reply');
+          const isFollower = !!(followerInfo && followerInfo.is_user_follow_business);
+
+          // Fail-safe: if we cannot confirm follower status, do NOT release content
+          if (!isFollower) {
+            console.log('Commenter is not confirmed follower (or follower check failed), sending follow request with button via private reply');
 
             let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
             if (comment.from?.username) {
@@ -784,7 +826,6 @@ async function processComment(supabase: any, comment: any) {
             const releasePayload = `release_content_${gatilho.id}`;
 
             // Send message with quick reply button via private reply to comment
-            // Note: Private replies to comments support quick_reply buttons
             await sendPrivateReplyQuickReplyToComment(
               config.page_access_token,
               commentId,
