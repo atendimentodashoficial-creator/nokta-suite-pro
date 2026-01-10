@@ -63,7 +63,7 @@ export function PixelStatusBadge({
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("Não autenticado");
 
-      // Get the lead's instancia_nome to find the correct instance
+      // Get the lead's instancia_nome and origem to find the correct instance
       const { data: leadData } = await supabase
         .from("leads")
         .select("instancia_nome, origem")
@@ -71,12 +71,14 @@ export function PixelStatusBadge({
         .single();
 
       const leadInstanciaNome = leadData?.instancia_nome;
-      const isDisparos = clienteOrigem?.toLowerCase() === "disparos" || leadData?.origem?.toLowerCase() === "disparos";
+      const leadOrigem = leadData?.origem || clienteOrigem;
+      const isDisparos = leadOrigem?.toLowerCase() === "disparos";
 
-      // If lead has instancia_nome, find the matching instance
+      // Determine which instance to use based on origem and instancia_nome
       let instanceConfig = null;
-      if (leadInstanciaNome) {
-        // First check in disparos_instancias
+
+      if (isDisparos && leadInstanciaNome) {
+        // For Disparos origin, find the matching instance in disparos_instancias
         const { data: disparosInstance } = await supabase
           .from("disparos_instancias")
           .select("id, base_url, api_key")
@@ -91,32 +93,33 @@ export function PixelStatusBadge({
             baseUrl: disparosInstance.base_url,
             apiKey: disparosInstance.api_key,
           };
-        } else {
-          // Check if it matches the main WhatsApp instance name
-          const { data: mainConfig } = await supabase
-            .from("uazapi_config")
-            .select("base_url, api_key, instance_name")
-            .eq("user_id", user?.id)
-            .eq("is_active", true)
-            .maybeSingle();
+        }
+      } else if (!isDisparos) {
+        // For WhatsApp origin, use the main instance from uazapi_config
+        const { data: mainConfig } = await supabase
+          .from("uazapi_config")
+          .select("base_url, api_key")
+          .eq("user_id", user?.id)
+          .eq("is_active", true)
+          .maybeSingle();
 
-          if (mainConfig && mainConfig.instance_name === leadInstanciaNome) {
-            instanceConfig = {
-              type: "whatsapp",
-              baseUrl: mainConfig.base_url,
-              apiKey: mainConfig.api_key,
-            };
-          }
+        if (mainConfig) {
+          instanceConfig = {
+            type: "whatsapp",
+            baseUrl: mainConfig.base_url,
+            apiKey: mainConfig.api_key,
+          };
         }
       }
 
-      // If we found a specific instance, send directly
+      // If we found a specific instance, send directly via UAZapi API
       if (instanceConfig) {
-        const sendResponse = await fetch(`${instanceConfig.baseUrl}/message/sendText`, {
+        const sendResponse = await fetch(`${instanceConfig.baseUrl}/send/text`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            apikey: instanceConfig.apiKey,
+            "Accept": "application/json",
+            token: instanceConfig.apiKey,
           },
           body: JSON.stringify({
             number: clienteTelefone,
@@ -129,7 +132,7 @@ export function PixelStatusBadge({
           throw new Error(errorData.error || `Erro ${sendResponse.status}`);
         }
       } else {
-        // Fallback to edge function based on origem
+        // Fallback to edge function if no direct instance config found
         const functionName = isDisparos ? "disparos-send-message" : "uazapi-send-message";
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`,
