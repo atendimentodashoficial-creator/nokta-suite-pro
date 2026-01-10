@@ -81,7 +81,18 @@ serve(async (req) => {
       // Check if OpenAI key is configured
       const openaiKey = Deno.env.get("OPENAI_API_KEY");
       return new Response(
-        JSON.stringify({ configured: !!openaiKey }),
+        JSON.stringify({ configured: !!openaiKey && openaiKey.length > 0 }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (action === "clear_info") {
+      // Just return info that user needs to clear the secret manually
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Para remover a chave OpenAI, acesse as configurações do projeto e remova o secret OPENAI_API_KEY." 
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
