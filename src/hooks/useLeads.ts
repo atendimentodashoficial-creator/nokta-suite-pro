@@ -112,27 +112,24 @@ export const useLeads = (status?: LeadStatus) => {
         phonePresencesMap.set(key, deduped);
       }
       
-      // Deduplica leads pelo últimos 8 dígitos do telefone + origem
-      // Mantém o mais recente de cada combinação (re-sort DESC for this)
-      const leadsDescending = [...leadsData].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      // Deduplica leads pelos últimos 8 dígitos do telefone
+      // Mantém o PRIMEIRO cadastro (mais antigo) como o "dono" do lead
+      // A origem do primeiro cadastro define onde o lead pertence
+      const leadsAscending = [...leadsData].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       
       const seen = new Map<string, Lead>();
       
-      for (const lead of leadsDescending) {
+      for (const lead of leadsAscending) {
         const last8 = getLast8Digits(lead.telefone);
-        // Normalize origem: treat null/empty as 'whatsapp' for deduplication
-        // This matches the webhook logic to prevent counting same contact twice
-        const origemRaw = (lead.origem || "").toLowerCase();
-        const origem = origemRaw === "" ? "whatsapp" : origemRaw;
-        const key = `${last8}-${origem}`;
+        if (!last8) continue;
         
-        // Como a lista está ordenada por created_at DESC, o primeiro é o mais recente
-        if (!seen.has(key)) {
+        // Se já vimos este telefone, pular (mantém o primeiro)
+        if (!seen.has(last8)) {
           // Attach all presences to the lead
           const allPresences = phonePresencesMap.get(last8) || [];
-          seen.set(key, { ...lead, allPresences });
+          seen.set(last8, { ...lead, allPresences });
         }
       }
       
