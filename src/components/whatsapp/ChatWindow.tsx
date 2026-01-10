@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MessageBubble } from "./MessageBubble";
 import { DateSeparator, isDifferentDay } from "./DateSeparator";
+import { HeaderAttributionBadge } from "./HeaderAttributionBadge";
 
 import { getInitials, normalizePhoneNumber, formatPhoneNumber, getLast8Digits } from "@/utils/whatsapp";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
@@ -1552,6 +1553,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         </div>
         {/* Ícones fixos à direita */}
         <div className="flex gap-1 flex-shrink-0 items-center">
+          <HeaderAttributionBadge contactNumber={chat.contact_number} chatId={chat.id} />
           <Button
             variant="ghost"
             size="icon"
