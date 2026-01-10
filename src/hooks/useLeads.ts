@@ -56,7 +56,7 @@ export interface Lead {
 
 export const useLeads = (status?: LeadStatus) => {
   return useQuery({
-    queryKey: ["leads", status],
+    queryKey: ["leads", status, "phone-dedupe-v2"],
     queryFn: async () => {
       let query = supabase
         .from("leads")
