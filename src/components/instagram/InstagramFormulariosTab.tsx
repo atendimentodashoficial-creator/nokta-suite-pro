@@ -80,6 +80,7 @@ export function InstagramFormulariosTab() {
   const [novoCampoLabel, setNovoCampoLabel] = useState("");
   const [novoCampoTipo, setNovoCampoTipo] = useState<"text" | "textarea" | "multipla_escolha" | "sim_nao">("text");
   const [novasOpcoes, setNovasOpcoes] = useState<string[]>(["", ""]);
+  const [simNaoOpcoes, setSimNaoOpcoes] = useState<[string, string]>(["Sim", "Não"]);
   const [novaOpcaoTexto, setNovaOpcaoTexto] = useState("");
   const queryClient = useQueryClient();
 
@@ -296,6 +297,7 @@ export function InstagramFormulariosTab() {
     setNovoCampoLabel("");
     setNovoCampoTipo("text");
     setNovasOpcoes(["", ""]);
+    setSimNaoOpcoes(["Sim", "Não"]);
   };
 
   const handleFormSubmit = (data: FormData) => {
@@ -518,7 +520,7 @@ export function InstagramFormulariosTab() {
                         <div key={campo.id} className="flex items-center gap-2 p-2 border rounded-lg bg-muted/50">
                           <div className="flex-1">
                             <span className="text-sm">{campo.label}</span>
-                            {campo.tipo === "multipla_escolha" && campo.opcoes && (
+                            {(campo.tipo === "multipla_escolha" || campo.tipo === "sim_nao") && campo.opcoes && (
                               <p className="text-xs text-muted-foreground">
                                 Opções: {campo.opcoes.join(", ")}
                               </p>
@@ -559,6 +561,9 @@ export function InstagramFormulariosTab() {
                         setNovoCampoTipo(v);
                         if (v === "multipla_escolha") {
                           setNovasOpcoes(["", ""]);
+                        }
+                        if (v === "sim_nao") {
+                          setSimNaoOpcoes(["Sim", "Não"]);
                         }
                       }}>
                         <SelectTrigger className="w-40">
@@ -618,6 +623,27 @@ export function InstagramFormulariosTab() {
                         )}
                       </div>
                     )}
+
+                    {/* Opções para sim/não personalizadas */}
+                    {novoCampoTipo === "sim_nao" && (
+                      <div className="space-y-2 pl-2 border-l-2 border-muted">
+                        <p className="text-xs text-muted-foreground">Personalize as opções (opcional):</p>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Sim"
+                            value={simNaoOpcoes[0]}
+                            onChange={(e) => setSimNaoOpcoes([e.target.value, simNaoOpcoes[1]])}
+                            className="flex-1 h-8 text-sm"
+                          />
+                          <Input
+                            placeholder="Não"
+                            value={simNaoOpcoes[1]}
+                            onChange={(e) => setSimNaoOpcoes([simNaoOpcoes[0], e.target.value])}
+                            className="flex-1 h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                    )}
                     
                       <Button
                         type="button"
@@ -649,10 +675,17 @@ export function InstagramFormulariosTab() {
                             novoCampo.opcoes = novasOpcoes.map(o => o.trim()).filter(Boolean);
                           }
 
+                          if (novoCampoTipo === "sim_nao") {
+                            const op1 = simNaoOpcoes[0].trim() || "Sim";
+                            const op2 = simNaoOpcoes[1].trim() || "Não";
+                            novoCampo.opcoes = [op1, op2];
+                          }
+
                           setCamposPersonalizados((prev) => [...prev, novoCampo]);
                           setNovoCampoLabel("");
                           setNovoCampoTipo("text");
                           setNovasOpcoes(["", ""]);
+                          setSimNaoOpcoes(["Sim", "Não"]);
                         }}
                       >
                         <Plus className="h-4 w-4 mr-1" />
