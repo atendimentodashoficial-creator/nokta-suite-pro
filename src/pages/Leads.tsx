@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Phone, Mail, Calendar, MessageCircle, Trash2, CheckSquare, Square, X, UserPlus } from "lucide-react";
+import { Search, Phone, Mail, Calendar, MessageCircle, Trash2, CheckSquare, Square, X, UserPlus, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -298,6 +298,22 @@ export default function Leads() {
                     <Calendar className="h-4 w-4 flex-shrink-0" />
                     <span>Lead desde {new Date(lead.created_at).toLocaleDateString('pt-BR')}</span>
                   </div>
+
+                  {/* Respondeu badge - only show for Disparos leads */}
+                  {origemFilter === "disparos" && (
+                    <div className="flex items-center gap-2">
+                      {lead.respondeu ? (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                          <MessageSquare className="h-3 w-3" />
+                          Respondeu
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                          Aguardando resposta
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Attribution / Campaign info */}
                   <LeadCampaignBadge lead={lead} />

@@ -30,6 +30,7 @@ export interface Lead {
   origem: string | null;
   origem_lead: boolean;
   instancia_nome: string | null;
+  respondeu: boolean | null;
 
   // Attribution fields
   utm_source: string | null;
