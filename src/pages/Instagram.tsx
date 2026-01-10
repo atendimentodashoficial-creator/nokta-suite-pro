@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Zap, MessageSquare, BarChart3, FileText } from "lucide-react";
+import { Settings, Zap, BarChart3, FileText } from "lucide-react";
 import { InstagramConfigTab } from "@/components/instagram/InstagramConfigTab";
 import { InstagramGatilhosTab } from "@/components/instagram/InstagramGatilhosTab";
-import { InstagramFluxosTab } from "@/components/instagram/InstagramFluxosTab";
 import { InstagramHistoricoTab } from "@/components/instagram/InstagramHistoricoTab";
 import { InstagramFormulariosTab } from "@/components/instagram/InstagramFormulariosTab";
 
@@ -36,10 +35,6 @@ export default function Instagram() {
               <span className="hidden sm:inline">Formulários</span>
               <span className="sm:hidden">Forms</span>
             </TabsTrigger>
-            <TabsTrigger value="fluxos" className="flex-1 min-w-fit flex items-center justify-center gap-1.5 text-xs md:text-sm px-2 md:px-4">
-              <MessageSquare className="h-4 w-4" />
-              <span>Fluxos</span>
-            </TabsTrigger>
             <TabsTrigger value="historico" className="flex-1 min-w-fit flex items-center justify-center gap-1.5 text-xs md:text-sm px-2 md:px-4">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Histórico</span>
@@ -57,10 +52,6 @@ export default function Instagram() {
 
           <TabsContent value="formularios">
             <InstagramFormulariosTab />
-          </TabsContent>
-
-          <TabsContent value="fluxos">
-            <InstagramFluxosTab />
           </TabsContent>
 
           <TabsContent value="historico">
