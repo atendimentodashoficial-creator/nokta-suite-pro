@@ -224,27 +224,20 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
     };
   }, [contactNumber, chatId, user?.id]);
 
-  // Não mostrar nada se não há dados de atribuição E já carregou pelo menos uma vez
-  if (attributions.length === 0 && hasLoadedOnce) {
-    return null;
-  }
-
-  // Ainda carregando pela primeira vez - não mostrar nada ainda
-  if (attributions.length === 0 && isLoading) {
-    return null;
-  }
+  // Sempre renderiza o ícone: quando não há atribuição, ele aparece em estado “neutro”.
+  const hasAttribution = attributions.length > 0;
 
   const getSourceInfo = (attr: AttributionEntry) => {
     if (attr.source === 'meta') {
-      return { label: 'Meta Ads', color: 'bg-blue-500' };
+      return { label: 'Meta Ads', className: 'bg-primary text-primary-foreground' };
     }
     if (attr.source === 'google') {
-      return { label: 'Google Ads', color: 'bg-green-500' };
+      return { label: 'Google Ads', className: 'bg-secondary text-secondary-foreground' };
     }
     if (attr.utm_source) {
-      return { label: attr.utm_source, color: 'bg-purple-500' };
+      return { label: attr.utm_source, className: 'bg-muted text-foreground' };
     }
-    return { label: 'Campanha', color: 'bg-gray-500' };
+    return { label: 'Campanha', className: 'bg-muted text-foreground' };
   };
 
   const formatDate = (timestamp: string) => {
@@ -262,11 +255,11 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
           variant="ghost"
           size="icon"
           className="h-6 w-6 flex-shrink-0 relative"
-          title="Ver origens de campanhas"
+          title={hasAttribution ? "Ver origens de campanhas" : "Sem dados de campanha"}
         >
-          <Megaphone className="w-4 h-4 text-blue-500" />
+          <Megaphone className={hasAttribution ? "w-4 h-4 text-primary" : "w-4 h-4 text-muted-foreground"} />
           {attributions.length > 1 && (
-            <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
               {attributions.length}
             </span>
           )}
@@ -275,31 +268,36 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
       <PopoverContent className="w-80 p-3" align="start">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Megaphone className="w-4 h-4 text-blue-500" />
+            <Megaphone className={hasAttribution ? "w-4 h-4 text-primary" : "w-4 h-4 text-muted-foreground"} />
             <span className="font-semibold text-sm">
-              Histórico de Campanhas ({attributions.length})
+              {hasAttribution ? `Histórico de Campanhas (${attributions.length})` : "Sem dados de campanha"}
             </span>
           </div>
           
-          <ScrollArea className={attributions.length > 2 ? "h-64" : ""}>
-            <div className="space-y-3 pr-2">
-              {attributions.map((attr, index) => {
-                const sourceInfo = getSourceInfo(attr);
-                return (
-                  <div 
-                    key={attr.id} 
-                    className={`space-y-2 p-2 rounded-lg ${index === 0 ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800' : 'bg-muted/50'}`}
-                  >
-                    {/* Header com data e fonte */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Calendar className="w-3 h-3" />
-                        <span>{formatDate(attr.timestamp)}</span>
+          {!hasAttribution ? (
+            <div className="text-xs text-muted-foreground">
+              Se este contato veio de anúncio, verifique se há mensagens com UTM/FB Ad ID ou se o lead foi criado com atribuição.
+            </div>
+          ) : (
+            <ScrollArea className={attributions.length > 2 ? "h-64" : ""}>
+              <div className="space-y-3 pr-2">
+                {attributions.map((attr, index) => {
+                  const sourceInfo = getSourceInfo(attr);
+                  return (
+                    <div
+                      key={attr.id}
+                      className={`space-y-2 p-2 rounded-lg ${index === 0 ? 'bg-muted/60 border border-border' : 'bg-muted/40'}`}
+                    >
+                      {/* Header com data e fonte */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="w-3 h-3" />
+                          <span>{formatDate(attr.timestamp)}</span>
+                        </div>
+                        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${sourceInfo.className}`}>
+                          {sourceInfo.label}
+                        </Badge>
                       </div>
-                      <Badge variant="secondary" className={`text-white text-[10px] px-1.5 py-0 ${sourceInfo.color}`}>
-                        {sourceInfo.label}
-                      </Badge>
-                    </div>
 
                     {/* Thumbnail do anúncio */}
                     {attr.ad_thumbnail_url && (
@@ -377,7 +375,7 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
 
                     {/* Indicador de mais recente */}
                     {index === 0 && attributions.length > 1 && (
-                      <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                      <div className="text-[10px] text-primary font-medium">
                         ★ Mais recente
                       </div>
                     )}
@@ -386,6 +384,7 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
               })}
             </div>
           </ScrollArea>
+        )}
         </div>
       </PopoverContent>
     </Popover>
