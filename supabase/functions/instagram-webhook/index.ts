@@ -451,6 +451,21 @@ async function processComment(supabase: any, comment: any) {
 
   const config = configs[0];
 
+  // IMPORTANT: Skip comments from own account to prevent infinite loops
+  const commenterId = comment.from?.id;
+  const ownAccountId = config.instagram_account_id;
+  
+  if (commenterId && ownAccountId && commenterId === ownAccountId) {
+    console.log('Skipping comment from own account:', commenterId);
+    return;
+  }
+
+  // Also skip if the commenter ID matches the entry ID (self-comment)
+  if (comment.from?.self_ig_scoped_id) {
+    console.log('Skipping self-scoped comment');
+    // This indicates it might be a comment from the page itself
+  }
+
   // Log the comment
   await supabase.from('instagram_mensagens').insert({
     user_id: config.user_id,
