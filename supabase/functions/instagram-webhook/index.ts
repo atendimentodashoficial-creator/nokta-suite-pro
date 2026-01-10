@@ -772,26 +772,37 @@ async function processComment(supabase: any, comment: any) {
           console.log('Follower check for commenter:', followerInfo);
 
           if (followerInfo && !followerInfo.is_user_follow_business) {
-            console.log('Commenter does not follow business, sending follow request (private reply)');
+            console.log('Commenter does not follow business, sending follow request with button via private reply');
 
             let followMessage = processSpintax(gatilho.mensagem_pedir_seguir);
             if (comment.from?.username) {
               followMessage = followMessage.replace(/{nome}/g, comment.from.username);
             }
 
-            await sendPrivateReplyToComment(config.page_access_token, commentId, followMessage);
+            // Get button text (default if not set)
+            const buttonText = gatilho.botao_liberar_texto || 'Já sigo! Liberar material';
+            const releasePayload = `release_content_${gatilho.id}`;
+
+            // Send message with quick reply button via private reply to comment
+            // Note: Private replies to comments support quick_reply buttons
+            await sendPrivateReplyQuickReplyToComment(
+              config.page_access_token,
+              commentId,
+              [{ title: buttonText, payload: releasePayload }],
+              followMessage
+            );
 
             await supabase.from('instagram_mensagens').insert({
               user_id: config.user_id,
               instagram_user_id: comment.from.id,
               instagram_username: comment.from.username,
               tipo: 'dm_enviada',
-              conteudo: followMessage,
+              conteudo: `${followMessage}\n[Botão: ${buttonText}]`,
               gatilho_id: gatilho.id,
-              metadata: { tipo: 'pedir_seguir_comentario', via: 'private_reply', follower_info: followerInfo, comment_id: commentId },
+              metadata: { tipo: 'pedir_seguir_com_botao_comentario', via: 'private_reply', follower_info: followerInfo, comment_id: commentId, release_payload: releasePayload },
             });
 
-            break; // Stop processing - user needs to follow first
+            break; // Stop processing - user needs to follow first and click button
           }
         }
 
@@ -1326,6 +1337,57 @@ async function sendPrivateReplyButtonsToComment(
 
   if (!response.ok) {
     console.error('Button template to commenter failed:', result);
+    return null;
+  }
+
+  return result;
+}
+
+// Send quick replies via private reply to a comment (uses comment_id in recipient)
+async function sendPrivateReplyQuickReplyToComment(
+  accessToken: string,
+  commentId: string,
+  quickReplies: { title: string; payload: string }[],
+  messageText: string,
+) {
+  const trimmed = (accessToken || "").trim();
+  const isInstagramGraphToken = trimmed.startsWith("IG");
+
+  const url = isInstagramGraphToken
+    ? `https://graph.instagram.com/v24.0/me/messages`
+    : `https://graph.facebook.com/v18.0/me/messages`;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (isInstagramGraphToken) {
+    headers['Authorization'] = `Bearer ${trimmed}`;
+  }
+
+  const messagePayload = {
+    text: messageText || " ",
+    quick_replies: quickReplies.slice(0, 13).map((qr) => ({
+      content_type: "text",
+      title: qr.title.substring(0, 20), // Max 20 chars for quick reply title
+      payload: qr.payload
+    }))
+  };
+
+  const body = isInstagramGraphToken
+    ? { recipient: { comment_id: commentId }, message: messagePayload }
+    : { recipient: { comment_id: commentId }, message: messagePayload, access_token: trimmed };
+
+  console.log('Sending quick reply to commenter via private reply:', { commentId, quickReplies, url });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  console.log('Quick reply to commenter result:', { url, status: response.status, result });
+
+  if (!response.ok) {
+    console.error('Quick reply to commenter failed:', result);
     return null;
   }
 
