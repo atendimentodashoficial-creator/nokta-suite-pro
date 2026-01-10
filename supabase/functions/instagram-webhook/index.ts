@@ -599,7 +599,15 @@ async function processComment(supabase: any, comment: any) {
       // 2. Send "DM" to commenter.
       // IMPORTANT: Instagram does not allow initiating a normal DM to a user just from a comment.
       // The correct behavior is a *private reply to the comment*, which appears in Inbox/Requests.
-      if (commentId && (gatilho.resposta_texto || gatilho.verificar_seguidor)) {
+      const shouldSendDM = gatilho.resposta_texto || gatilho.resposta_midia_url || gatilho.resposta_link_url || gatilho.formulario_id || gatilho.verificar_seguidor;
+      if (commentId && shouldSendDM) {
+        console.log('Will send DM to commenter, trigger has:', { 
+          resposta_texto: !!gatilho.resposta_texto, 
+          resposta_midia_url: !!gatilho.resposta_midia_url,
+          resposta_link_url: !!gatilho.resposta_link_url,
+          formulario_id: !!gatilho.formulario_id,
+          verificar_seguidor: gatilho.verificar_seguidor 
+        });
         // Avoid double private replies if Meta retries the webhook
         const { data: existingPrivate } = await supabase
           .from('instagram_mensagens')
