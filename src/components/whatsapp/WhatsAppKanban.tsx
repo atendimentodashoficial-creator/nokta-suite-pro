@@ -467,13 +467,21 @@ export function WhatsAppKanban({
     );
 
     try {
-      const { error } = await supabase.functions.invoke("whatsapp-delete-chat", {
-        body: { chat_ids: chatIdsToDelete },
-      });
+      // Process in batches of 50 to avoid request size limits
+      const BATCH_SIZE = 50;
+      let totalDeleted = 0;
+      
+      for (let i = 0; i < chatIdsToDelete.length; i += BATCH_SIZE) {
+        const batch = chatIdsToDelete.slice(i, i + BATCH_SIZE);
+        const { error } = await supabase.functions.invoke("whatsapp-delete-chat", {
+          body: { chat_ids: batch },
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+        totalDeleted += batch.length;
+      }
 
-      toast.success(`${chatIdsToDelete.length} conversa(s) excluída(s)`);
+      toast.success(`${totalDeleted} conversa(s) excluída(s)`);
       setSelectedChats(new Set());
       setSelectionMode(false);
       setDeleteDialogOpen(false);
@@ -481,7 +489,7 @@ export function WhatsAppKanban({
       onChatsDeleted?.({ ids: chatIdsToDelete, normalizedNumbers });
     } catch (error: any) {
       console.error("Error deleting chats:", error);
-      toast.error(`Erro ao excluir conversas: ${error.message || "Erro desconhecido"}`);
+      toast.error("Erro ao excluir chats");
     } finally {
       setIsDeleting(false);
     }
