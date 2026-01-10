@@ -584,8 +584,22 @@ async function processComment(supabase: any, comment: any) {
         }
 
         // User follows or no verification required - send the actual DM response (private reply)
-        if (gatilho.resposta_texto) {
-          const dmText = processSpintax(gatilho.resposta_texto);
+        const hasDmText = !!gatilho.resposta_texto;
+        const hasDmLink = !!gatilho.resposta_link_url;
+
+        if (hasDmText || hasDmLink) {
+          const parts: string[] = [];
+
+          if (hasDmText) {
+            parts.push(processSpintax(gatilho.resposta_texto));
+          }
+
+          if (hasDmLink) {
+            const linkLabel = processSpintax(gatilho.resposta_link_texto || gatilho.resposta_link_url);
+            parts.push(`${linkLabel}\n${gatilho.resposta_link_url}`);
+          }
+
+          const dmText = parts.filter(Boolean).join("\n\n");
 
           await sendPrivateReplyToComment(config.page_access_token, commentId, dmText);
 
@@ -596,7 +610,7 @@ async function processComment(supabase: any, comment: any) {
             tipo: 'dm_enviada',
             conteudo: dmText,
             gatilho_id: gatilho.id,
-            metadata: { via: 'private_reply', comment_id: commentId },
+            metadata: { via: 'private_reply', comment_id: commentId, includes_link: hasDmLink },
           });
         }
       }
