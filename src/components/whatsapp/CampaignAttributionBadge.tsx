@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Megaphone, Calendar, ExternalLink } from "lucide-react";
+import { Megaphone, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getLast8Digits } from "@/utils/whatsapp";
 import { format } from "date-fns";
@@ -33,19 +33,51 @@ interface AttributionEntry {
 
 interface CampaignAttributionBadgeProps {
   contactNumber: string;
+  chatId?: string; // whatsapp_chats.id (uuid)
 }
 
-export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionBadgeProps) {
+export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttributionBadgeProps) {
+  const [userId, setUserId] = useState<string | null>(null);
   const [attributions, setAttributions] = useState<AttributionEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  // Mantém o userId em sincronia com a sessão real (sem depender do AuthContext).
+  useEffect(() => {
+    let active = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      setUserId(data.session?.user?.id ?? null);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadAttributions = async () => {
+      // Sem sessão válida não dá pra ler as tabelas (RLS). Mantém o ícone, mas sem dados.
+      if (!userId) {
+        if (isMounted) {
+          setIsLoading(false);
+          setHasLoadedOnce(true);
+          setAttributions([]);
+        }
+        return;
+      }
+
       setIsLoading(true);
       try {
+
         const last8Digits = getLast8Digits(contactNumber);
         if (!last8Digits || last8Digits.length < 8) {
           if (isMounted && !hasLoadedOnce) {
@@ -57,124 +89,198 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
         const allAttributions: AttributionEntry[] = [];
         const seenAdIds = new Set<string>();
 
-        // 1. Buscar de mensagens do WhatsApp (whatsapp_messages)
-        const { data: wpMessages } = await supabase
-          .from('whatsapp_messages')
-          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id')
-          .or(`fb_ad_id.not.is.null,fbclid.not.is.null,gclid.not.is.null,utm_source.not.is.null`);
+        // 1) WhatsApp: tenta pelo chatId; se não achar, cai para busca por telefone (últimos 8 dígitos)
+        let wpChatIds = chatId ? [chatId] : [];
 
-        // Filtrar por número de contato
-        if (wpMessages) {
-          // Precisamos buscar os chats para filtrar por número
+        // Fallback: algumas telas podem abrir o ChatWindow com id diferente/temporário;
+        // então garantimos que vamos achar o chat do usuário pelo telefone.
+        if (wpChatIds.length === 0) {
           const { data: wpChats } = await supabase
             .from('whatsapp_chats')
-            .select('id, contact_number');
-          
-          const chatMap = new Map(wpChats?.map(c => [c.id, c.contact_number]) || []);
-          
-          for (const msg of wpMessages) {
-            const chatNumber = chatMap.get(msg.chat_id);
-            if (chatNumber && getLast8Digits(chatNumber) === last8Digits) {
-              const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
-              if (!seenAdIds.has(key)) {
-                seenAdIds.add(key);
-                allAttributions.push({
-                  id: msg.id,
-                  source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
-                  fb_ad_id: msg.fb_ad_id,
-                  fb_ad_name: msg.fb_ad_name,
-                  fb_campaign_name: msg.fb_campaign_name,
-                  fb_adset_name: msg.fb_adset_name,
-                  utm_source: msg.utm_source,
-                  utm_campaign: msg.utm_campaign,
-                  utm_medium: msg.utm_medium,
-                  utm_content: msg.utm_content,
-                  utm_term: msg.utm_term,
-                  fbclid: msg.fbclid,
-                  gclid: null,
-                  ad_thumbnail_url: msg.ad_thumbnail_url,
-                  timestamp: msg.timestamp,
-                });
-              }
-            }
+            .select('id, contact_number, normalized_number')
+            .eq('user_id', userId)
+            .or(`contact_number.like.%${last8Digits},normalized_number.like.%${last8Digits}`)
+            .limit(20);
+
+          wpChatIds = (wpChats || [])
+            .filter((c) => getLast8Digits(c.contact_number || c.normalized_number || '') === last8Digits)
+            .map((c) => c.id);
+        }
+
+        if (wpChatIds.length > 0) {
+          const { data: wpMessages } = await supabase
+            .from('whatsapp_messages')
+            .select(
+              'id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id'
+            )
+            .in('chat_id', wpChatIds)
+            .or('fb_ad_id.not.is.null,fbclid.not.is.null,utm_source.not.is.null')
+            .order('timestamp', { ascending: false })
+            .limit(50);
+
+          for (const msg of wpMessages || []) {
+            const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
+            if (seenAdIds.has(key)) continue;
+            seenAdIds.add(key);
+
+            allAttributions.push({
+              id: msg.id,
+              source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
+              fb_ad_id: msg.fb_ad_id,
+              fb_ad_name: msg.fb_ad_name,
+              fb_campaign_name: msg.fb_campaign_name,
+              fb_adset_name: msg.fb_adset_name,
+              utm_source: msg.utm_source,
+              utm_campaign: msg.utm_campaign,
+              utm_medium: msg.utm_medium,
+              utm_content: msg.utm_content,
+              utm_term: msg.utm_term,
+              fbclid: msg.fbclid,
+              gclid: null,
+              ad_thumbnail_url: msg.ad_thumbnail_url,
+              timestamp: msg.timestamp,
+            });
           }
         }
 
-        // 2. Buscar de mensagens de Disparos (disparos_messages)
-        const { data: dispMessages } = await supabase
-          .from('disparos_messages')
-          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id')
-          .or(`fb_ad_id.not.is.null,fbclid.not.is.null,utm_source.not.is.null`);
+        // 2) Disparos (opcional): mantém como estava, mas filtrando por user quando possível.
+        const { data: dispChats } = await supabase
+          .from('disparos_chats')
+          .select('id, contact_number')
+          .eq('user_id', userId || '00000000-0000-0000-0000-000000000000');
 
-        if (dispMessages) {
-          const { data: dispChats } = await supabase
-            .from('disparos_chats')
-            .select('id, contact_number');
-          
-          const dispChatMap = new Map(dispChats?.map(c => [c.id, c.contact_number]) || []);
-          
-          for (const msg of dispMessages) {
-            const chatNumber = dispChatMap.get(msg.chat_id);
-            if (chatNumber && getLast8Digits(chatNumber) === last8Digits) {
-              const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
-              if (!seenAdIds.has(key)) {
-                seenAdIds.add(key);
-                allAttributions.push({
-                  id: msg.id,
-                  source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
-                  fb_ad_id: msg.fb_ad_id,
-                  fb_ad_name: msg.fb_ad_name,
-                  fb_campaign_name: msg.fb_campaign_name,
-                  fb_adset_name: msg.fb_adset_name,
-                  utm_source: msg.utm_source,
-                  utm_campaign: msg.utm_campaign,
-                  utm_medium: msg.utm_medium,
-                  utm_content: msg.utm_content,
-                  utm_term: msg.utm_term,
-                  fbclid: msg.fbclid,
-                  gclid: null,
-                  ad_thumbnail_url: msg.ad_thumbnail_url,
-                  timestamp: msg.timestamp,
-                });
-              }
-            }
+        const dispChatIds = (dispChats || [])
+          .filter((c) => getLast8Digits(c.contact_number) === last8Digits)
+          .map((c) => c.id);
+
+        if (dispChatIds.length > 0) {
+          const { data: dispMessages } = await supabase
+            .from('disparos_messages')
+            .select(
+              'id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id'
+            )
+            .in('chat_id', dispChatIds)
+            .or('fb_ad_id.not.is.null,fbclid.not.is.null,utm_source.not.is.null')
+            .order('timestamp', { ascending: false })
+            .limit(50);
+
+          for (const msg of dispMessages || []) {
+            const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
+            if (seenAdIds.has(key)) continue;
+            seenAdIds.add(key);
+
+            allAttributions.push({
+              id: msg.id,
+              source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
+              fb_ad_id: msg.fb_ad_id,
+              fb_ad_name: msg.fb_ad_name,
+              fb_campaign_name: msg.fb_campaign_name,
+              fb_adset_name: msg.fb_adset_name,
+              utm_source: msg.utm_source,
+              utm_campaign: msg.utm_campaign,
+              utm_medium: msg.utm_medium,
+              utm_content: msg.utm_content,
+              utm_term: msg.utm_term,
+              fbclid: msg.fbclid,
+              gclid: null,
+              ad_thumbnail_url: msg.ad_thumbnail_url,
+              timestamp: msg.timestamp,
+            });
           }
         }
 
-        // 3. Buscar dos leads
-        const { data: allLeads } = await supabase
+        // 3) Leads: filtra por user quando possível.
+        const leadsQuery = supabase
           .from('leads')
-          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, gclid, telefone, created_at')
-          .is('deleted_at', null);
+          .select(
+            'id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, gclid, telefone, created_at'
+          )
+          .is('deleted_at', null)
+          .like('telefone', `%${last8Digits}`)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-        if (allLeads) {
-          for (const lead of allLeads) {
-            if (getLast8Digits(lead.telefone) === last8Digits) {
-              const hasAttribution = lead.fb_ad_id || lead.utm_source || lead.fbclid || lead.gclid;
-              if (hasAttribution) {
-                const key = lead.fb_ad_id || lead.gclid || lead.fbclid || `${lead.utm_source}-${lead.utm_campaign}-${lead.created_at}`;
-                if (!seenAdIds.has(key)) {
-                  seenAdIds.add(key);
-                  allAttributions.push({
-                    id: lead.id,
-                    source: lead.gclid ? 'google' : (lead.fb_ad_id || lead.fbclid ? 'meta' : 'other'),
-                    fb_ad_id: lead.fb_ad_id,
-                    fb_ad_name: lead.fb_ad_name,
-                    fb_campaign_name: lead.fb_campaign_name,
-                    fb_adset_name: lead.fb_adset_name,
-                    utm_source: lead.utm_source,
-                    utm_campaign: lead.utm_campaign,
-                    utm_medium: lead.utm_medium,
-                    utm_content: lead.utm_content,
-                    utm_term: lead.utm_term,
-                    fbclid: lead.fbclid,
-                    gclid: lead.gclid,
-                    ad_thumbnail_url: null,
-                    timestamp: lead.created_at || new Date().toISOString(),
-                  });
-                }
+        const { data: leads } = userId ? await leadsQuery.eq('user_id', userId) : await leadsQuery;
+
+        for (const lead of leads || []) {
+          if (getLast8Digits(lead.telefone) !== last8Digits) continue;
+
+          const hasAttribution = lead.fb_ad_id || lead.utm_source || lead.fbclid || lead.gclid;
+          if (!hasAttribution) continue;
+
+          const key = lead.fb_ad_id || lead.gclid || lead.fbclid || `${lead.utm_source}-${lead.utm_campaign}-${lead.created_at}`;
+          if (seenAdIds.has(key)) continue;
+          seenAdIds.add(key);
+
+          allAttributions.push({
+            id: lead.id,
+            source: lead.gclid ? 'google' : lead.fb_ad_id || lead.fbclid ? 'meta' : 'other',
+            fb_ad_id: lead.fb_ad_id,
+            fb_ad_name: lead.fb_ad_name,
+            fb_campaign_name: lead.fb_campaign_name,
+            fb_adset_name: lead.fb_adset_name,
+            utm_source: lead.utm_source,
+            utm_campaign: lead.utm_campaign,
+            utm_medium: lead.utm_medium,
+            utm_content: lead.utm_content,
+            utm_term: lead.utm_term,
+            fbclid: lead.fbclid,
+            gclid: lead.gclid,
+            ad_thumbnail_url: null,
+            timestamp: lead.created_at || new Date().toISOString(),
+          });
+        }
+
+        // Enriquecer Meta Ads (campanha/conjunto/anúncio) via backend quando só temos o fb_ad_id.
+        // (Isso é o que deixa igual ao da Lenir.)
+        const needEnrich = allAttributions
+          .filter((a) => a.source === 'meta' && a.fb_ad_id)
+          .filter((a) => !a.fb_campaign_name || !a.fb_adset_name || !a.fb_ad_name || !a.ad_thumbnail_url);
+
+        if (needEnrich.length > 0) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+
+          const cache = new Map<string, Partial<AttributionEntry>>();
+          const uniqueAdIds = Array.from(new Set(needEnrich.map((a) => a.fb_ad_id!).filter(Boolean)));
+
+          await Promise.all(
+            uniqueAdIds.map(async (adId) => {
+              try {
+                const resp = await supabase.functions.invoke('fetch-facebook-ad-info', {
+                  headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                  body: { ad_id: adId },
+                });
+
+                if (resp.error) return;
+
+                const r: any = resp.data;
+                cache.set(adId, {
+                  fb_ad_id: r.ad_id ?? adId,
+                  fb_ad_name: r.ad_name ?? null,
+                  fb_campaign_name: r.campaign_name ?? null,
+                  fb_adset_name: r.adset_name ?? null,
+                  ad_thumbnail_url: r.thumbnail_url ?? null,
+                });
+              } catch {
+                // silencioso
               }
-            }
+            })
+          );
+
+          // aplica cache
+          for (let i = 0; i < allAttributions.length; i++) {
+            const a = allAttributions[i];
+            if (a.source !== 'meta' || !a.fb_ad_id) continue;
+            const extra = cache.get(a.fb_ad_id);
+            if (!extra) continue;
+            allAttributions[i] = {
+              ...a,
+              fb_ad_name: a.fb_ad_name ?? extra.fb_ad_name ?? null,
+              fb_campaign_name: a.fb_campaign_name ?? extra.fb_campaign_name ?? null,
+              fb_adset_name: a.fb_adset_name ?? extra.fb_adset_name ?? null,
+              ad_thumbnail_url: a.ad_thumbnail_url ?? extra.ad_thumbnail_url ?? null,
+            };
           }
         }
 
@@ -199,29 +305,22 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
     return () => {
       isMounted = false;
     };
-  }, [contactNumber]);
+  }, [contactNumber, chatId, userId]);
 
-  // Não mostrar nada se não há dados de atribuição E já carregou pelo menos uma vez
-  if (attributions.length === 0 && hasLoadedOnce) {
-    return null;
-  }
-
-  // Ainda carregando pela primeira vez - não mostrar nada ainda
-  if (attributions.length === 0 && isLoading) {
-    return null;
-  }
+  // Sempre renderiza o ícone: quando não há atribuição, ele aparece em estado “neutro”.
+  const hasAttribution = attributions.length > 0;
 
   const getSourceInfo = (attr: AttributionEntry) => {
     if (attr.source === 'meta') {
-      return { label: 'Meta Ads', color: 'bg-blue-500' };
+      return { label: 'Meta Ads', className: 'bg-primary text-primary-foreground' };
     }
     if (attr.source === 'google') {
-      return { label: 'Google Ads', color: 'bg-green-500' };
+      return { label: 'Google Ads', className: 'bg-secondary text-secondary-foreground' };
     }
     if (attr.utm_source) {
-      return { label: attr.utm_source, color: 'bg-purple-500' };
+      return { label: attr.utm_source, className: 'bg-muted text-foreground' };
     }
-    return { label: 'Campanha', color: 'bg-gray-500' };
+    return { label: 'Campanha', className: 'bg-muted text-foreground' };
   };
 
   const formatDate = (timestamp: string) => {
@@ -239,11 +338,11 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
           variant="ghost"
           size="icon"
           className="h-6 w-6 flex-shrink-0 relative"
-          title="Ver origens de campanhas"
+          title={hasAttribution ? "Ver origens de campanhas" : "Sem dados de campanha"}
         >
-          <Megaphone className="w-4 h-4 text-blue-500" />
+          <Megaphone className={hasAttribution ? "w-4 h-4 text-primary" : "w-4 h-4 text-muted-foreground"} />
           {attributions.length > 1 && (
-            <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
               {attributions.length}
             </span>
           )}
@@ -252,31 +351,36 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
       <PopoverContent className="w-80 p-3" align="start">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Megaphone className="w-4 h-4 text-blue-500" />
+            <Megaphone className={hasAttribution ? "w-4 h-4 text-primary" : "w-4 h-4 text-muted-foreground"} />
             <span className="font-semibold text-sm">
-              Histórico de Campanhas ({attributions.length})
+              {hasAttribution ? `Histórico de Campanhas (${attributions.length})` : "Sem dados de campanha"}
             </span>
           </div>
           
-          <ScrollArea className={attributions.length > 2 ? "h-64" : ""}>
-            <div className="space-y-3 pr-2">
-              {attributions.map((attr, index) => {
-                const sourceInfo = getSourceInfo(attr);
-                return (
-                  <div 
-                    key={attr.id} 
-                    className={`space-y-2 p-2 rounded-lg ${index === 0 ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800' : 'bg-muted/50'}`}
-                  >
-                    {/* Header com data e fonte */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Calendar className="w-3 h-3" />
-                        <span>{formatDate(attr.timestamp)}</span>
+          {!hasAttribution ? (
+            <div className="text-xs text-muted-foreground">
+              Se este contato veio de anúncio, verifique se há mensagens com UTM/FB Ad ID ou se o lead foi criado com atribuição.
+            </div>
+          ) : (
+            <ScrollArea className={attributions.length > 2 ? "h-64" : ""}>
+              <div className="space-y-3 pr-2">
+                {attributions.map((attr, index) => {
+                  const sourceInfo = getSourceInfo(attr);
+                  return (
+                    <div
+                      key={attr.id}
+                      className={`space-y-2 p-2 rounded-lg ${index === 0 ? 'bg-muted/60 border border-border' : 'bg-muted/40'}`}
+                    >
+                      {/* Header com data e fonte */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="w-3 h-3" />
+                          <span>{formatDate(attr.timestamp)}</span>
+                        </div>
+                        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${sourceInfo.className}`}>
+                          {sourceInfo.label}
+                        </Badge>
                       </div>
-                      <Badge variant="secondary" className={`text-white text-[10px] px-1.5 py-0 ${sourceInfo.color}`}>
-                        {sourceInfo.label}
-                      </Badge>
-                    </div>
 
                     {/* Thumbnail do anúncio */}
                     {attr.ad_thumbnail_url && (
@@ -354,7 +458,7 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
 
                     {/* Indicador de mais recente */}
                     {index === 0 && attributions.length > 1 && (
-                      <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                      <div className="text-[10px] text-primary font-medium">
                         ★ Mais recente
                       </div>
                     )}
@@ -363,6 +467,7 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
               })}
             </div>
           </ScrollArea>
+        )}
         </div>
       </PopoverContent>
     </Popover>
