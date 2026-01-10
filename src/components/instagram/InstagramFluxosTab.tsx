@@ -247,23 +247,23 @@ export function InstagramFluxosTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Fluxos de Conversa</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-base font-semibold">Fluxos de Conversa</h2>
+          <p className="text-xs text-muted-foreground">
             Crie sequências automatizadas de mensagens
           </p>
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Novo Fluxo
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Criar Novo Fluxo</DialogTitle>
             </DialogHeader>
@@ -274,6 +274,7 @@ export function InstagramFluxosTab() {
                   placeholder="Ex: Onboarding de novos seguidores"
                   value={fluxoNome}
                   onChange={(e) => setFluxoNome(e.target.value)}
+                  className="mt-1.5"
                 />
               </div>
               <div>
@@ -282,14 +283,16 @@ export function InstagramFluxosTab() {
                   placeholder="Descreva o objetivo deste fluxo..."
                   value={fluxoDescricao}
                   onChange={(e) => setFluxoDescricao(e.target.value)}
-                  rows={3}
+                  rows={2}
+                  className="mt-1.5"
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
                   Cancelar
                 </Button>
                 <Button 
+                  size="sm"
                   onClick={() => createFluxo.mutate()}
                   disabled={!fluxoNome || createFluxo.isPending}
                 >
@@ -472,28 +475,40 @@ export function InstagramFluxosTab() {
 
       {/* Flows List */}
       {fluxos?.length === 0 ? (
-        <Card>
+        <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <GitBranch className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">Nenhum fluxo criado</h3>
-            <p className="text-sm text-muted-foreground">
-              Crie seu primeiro fluxo de conversa automatizada
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <GitBranch className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-medium">Nenhum fluxo criado</h3>
+            <p className="text-xs text-muted-foreground text-center mt-1">
+              Crie seu primeiro fluxo automatizado
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           {fluxos?.map((fluxo) => (
-            <Card key={fluxo.id} className={!fluxo.ativo ? "opacity-60" : ""}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-base">{fluxo.nome}</CardTitle>
-                    <Badge variant={fluxo.ativo ? "default" : "secondary"}>
-                      {fluxo.ativo ? "Ativo" : "Inativo"}
+            <Card key={fluxo.id} className={`transition-all hover:shadow-md ${!fluxo.ativo ? "opacity-60" : ""}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-sm truncate">{fluxo.nome}</h3>
+                      <Badge variant={fluxo.ativo ? "default" : "secondary"} className="text-[10px] h-5">
+                        {fluxo.ativo ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </div>
+                    {fluxo.descricao && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                        {fluxo.descricao}
+                      </p>
+                    )}
+                    <Badge variant="outline" className="text-[10px]">
+                      {fluxo.nodes?.length || 0} etapas
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <Switch
                       checked={fluxo.ativo}
                       onCheckedChange={(ativo) =>
@@ -503,6 +518,7 @@ export function InstagramFluxosTab() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
                       onClick={() => openEditor(fluxo)}
                     >
                       <Edit2 className="h-4 w-4" />
@@ -510,23 +526,12 @@ export function InstagramFluxosTab() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
                       onClick={() => deleteFluxo.mutate(fluxo.id)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {fluxo.descricao && (
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {fluxo.descricao}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">
-                    {fluxo.nodes?.length || 0} etapas
-                  </Badge>
                 </div>
               </CardContent>
             </Card>

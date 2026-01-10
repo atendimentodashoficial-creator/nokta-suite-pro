@@ -90,62 +90,65 @@ export function PrimeiraInteracaoConfig() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <UserPlus className="h-5 w-5 text-green-500" />
-          Boas-vindas (Primeira Interação)
-        </CardTitle>
-        <CardDescription>
-          Mensagem automática para quem te manda a primeira mensagem
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Alert>
-          <Sparkles className="h-4 w-4" />
-          <AlertDescription>
-            Esta mensagem é enviada automaticamente quando alguém inicia uma conversa 
-            com você pela primeira vez. Funciona como boas-vindas para novos contatos!
-          </AlertDescription>
-        </Alert>
-
+    <Card className="border-l-4 border-l-green-500">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <Label htmlFor="ativo" className="flex items-center gap-2 cursor-pointer">
-            Ativar boas-vindas automáticas
-          </Label>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <UserPlus className="h-5 w-5 text-green-500" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Boas-vindas</CardTitle>
+              <CardDescription className="text-xs">
+                Mensagem para primeira interação
+              </CardDescription>
+            </div>
+          </div>
           <Switch
-            id="ativo"
             checked={ativo}
             onCheckedChange={setAtivo}
           />
         </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {ativo && (
+          <>
+            <div className="p-3 bg-muted/50 rounded-lg flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                Enviada automaticamente quando alguém inicia uma conversa pela primeira vez.
+              </p>
+            </div>
 
-        <div className="space-y-2">
-          <Label>Mensagem de boas-vindas</Label>
-          <Textarea
-            placeholder="Olá! 👋 Seja bem-vindo(a)! Como posso te ajudar hoje?"
-            rows={4}
-            value={mensagem}
-            onChange={(e) => setMensagem(e.target.value)}
-            disabled={!ativo}
-          />
-          <p className="text-xs text-muted-foreground">
-            Use {"{nome}"} para incluir o nome do usuário (quando disponível)
-          </p>
-        </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Mensagem</Label>
+              <Textarea
+                placeholder="Olá! 👋 Seja bem-vindo(a)! Como posso te ajudar hoje?"
+                rows={3}
+                value={mensagem}
+                onChange={(e) => setMensagem(e.target.value)}
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Use {"{nome}"} para incluir o nome do usuário
+              </p>
+            </div>
 
-        <Button
-          onClick={() => saveGatilho.mutate()}
-          disabled={saveGatilho.isPending || !ativo}
-          className="w-full"
-        >
-          {saveGatilho.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          Salvar Configuração
-        </Button>
+            <Button
+              onClick={() => saveGatilho.mutate()}
+              disabled={saveGatilho.isPending}
+              className="w-full"
+              size="sm"
+            >
+              {saveGatilho.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Salvar
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );

@@ -383,12 +383,12 @@ export function InstagramGatilhosTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Gatilhos por Palavra-chave</h2>
-          <p className="text-sm text-muted-foreground">
-            Configure respostas automáticas com texto, mídia, links e botões
+          <h2 className="text-base font-semibold">Gatilhos por Palavra-chave</h2>
+          <p className="text-xs text-muted-foreground">
+            Configure respostas automáticas
           </p>
         </div>
 
@@ -397,7 +397,7 @@ export function InstagramGatilhosTab() {
           else setDialogOpen(open);
         }}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingGatilho(null)}>
+            <Button size="sm" onClick={() => setEditingGatilho(null)}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Gatilho
             </Button>
@@ -967,52 +967,77 @@ export function InstagramGatilhosTab() {
       </div>
 
       {gatilhos?.length === 0 ? (
-        <Card>
+        <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Zap className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">Nenhum gatilho configurado</h3>
-            <p className="text-sm text-muted-foreground">
-              Crie seu primeiro gatilho para responder automaticamente
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <Zap className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-medium">Nenhum gatilho configurado</h3>
+            <p className="text-xs text-muted-foreground text-center mt-1">
+              Crie seu primeiro gatilho automático
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {gatilhos?.map((gatilho) => (
-            <Card key={gatilho.id} className={!gatilho.ativo ? "opacity-60" : ""}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-base">{gatilho.nome}</CardTitle>
-                    <Badge variant={gatilho.tipo === "dm" ? "default" : "secondary"}>
-                      {gatilho.tipo === "dm" ? "DM" : "Comentário"}
-                    </Badge>
-                    {gatilho.resposta_midia_url && (
-                      <Badge variant="outline">
-                        <Image className="h-3 w-3 mr-1" />
-                        {gatilho.resposta_midia_tipo}
-                      </Badge>
-                    )}
-                    {gatilho.resposta_link_url && (
-                      <Badge variant="outline">
-                        <Link2 className="h-3 w-3 mr-1" />
-                        Link
-                      </Badge>
-                    )}
-                    {gatilho.resposta_botoes && gatilho.resposta_botoes.length > 0 && (
-                      <Badge variant="outline">
-                        <MousePointerClick className="h-3 w-3 mr-1" />
-                        {gatilho.resposta_botoes.length} botões
-                      </Badge>
-                    )}
-                    {gatilho.responder_comentario && (
-                      <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20">
-                        <Reply className="h-3 w-3 mr-1" />
-                        Resposta pública
-                      </Badge>
+            <Card key={gatilho.id} className={`transition-all hover:shadow-md ${!gatilho.ativo ? "opacity-60" : ""}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    {/* Header com nome e badges */}
+                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                      <h3 className="font-medium text-sm">{gatilho.nome}</h3>
+                      {gatilho.ativo_em_dm && (
+                        <Badge variant="default" className="text-[10px] h-5">
+                          <MessageCircle className="h-3 w-3 mr-1" />
+                          DM
+                        </Badge>
+                      )}
+                      {gatilho.ativo_em_comentario && (
+                        <Badge variant="secondary" className="text-[10px] h-5">
+                          <AtSign className="h-3 w-3 mr-1" />
+                          Comentário
+                        </Badge>
+                      )}
+                      {gatilho.resposta_midia_url && (
+                        <Badge variant="outline" className="text-[10px] h-5">
+                          <Image className="h-3 w-3 mr-1" />
+                          {gatilho.resposta_midia_tipo}
+                        </Badge>
+                      )}
+                      {gatilho.responder_comentario && (
+                        <Badge variant="outline" className="text-[10px] h-5 bg-blue-500/10 text-blue-700 border-blue-500/20">
+                          <Reply className="h-3 w-3 mr-1" />
+                          Público
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Palavras-chave */}
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {gatilho.palavras_chave.slice(0, 5).map((palavra, i) => (
+                        <span key={i} className="text-[10px] px-2 py-0.5 bg-muted rounded-full">
+                          {palavra}
+                        </span>
+                      ))}
+                      {gatilho.palavras_chave.length > 5 && (
+                        <span className="text-[10px] px-2 py-0.5 text-muted-foreground">
+                          +{gatilho.palavras_chave.length - 5}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Texto de resposta */}
+                    {gatilho.resposta_texto && (
+                      <p className="text-xs text-muted-foreground line-clamp-1 bg-muted/50 px-2 py-1 rounded">
+                        {gatilho.resposta_texto}
+                      </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  {/* Ações */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <Switch
                       checked={gatilho.ativo}
                       onCheckedChange={(ativo) =>
@@ -1022,6 +1047,7 @@ export function InstagramGatilhosTab() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
                       onClick={() => openEditDialog(gatilho)}
                     >
                       <Pencil className="h-4 w-4" />
@@ -1029,42 +1055,13 @@ export function InstagramGatilhosTab() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
                       onClick={() => deleteGatilho.mutate(gatilho.id)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Palavras-chave:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {gatilho.palavras_chave.map((palavra, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">
-                        {palavra}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                {gatilho.resposta_texto && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Texto:</p>
-                    <p className="text-sm bg-muted p-2 rounded-md line-clamp-2">
-                      {gatilho.resposta_texto}
-                    </p>
-                  </div>
-                )}
-                {gatilho.resposta_midia_url && gatilho.resposta_midia_tipo === "image" && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Imagem:</p>
-                    <img 
-                      src={gatilho.resposta_midia_url} 
-                      alt="Mídia" 
-                      className="max-h-20 rounded"
-                    />
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))}

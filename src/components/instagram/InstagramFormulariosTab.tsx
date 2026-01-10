@@ -342,12 +342,12 @@ export function InstagramFormulariosTab() {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>;
   }
-  return <div className="space-y-6">
+  return <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Formulários de Captura</h2>
-          <p className="text-sm text-muted-foreground">
-            Crie formulários para capturar dados dos seus leads via Instagram
+          <h2 className="text-base font-semibold">Formulários de Captura</h2>
+          <p className="text-xs text-muted-foreground">
+            Capture dados dos seus leads via Instagram
           </p>
         </div>
 
@@ -355,7 +355,7 @@ export function InstagramFormulariosTab() {
         if (!open) closeDialog();else setDialogOpen(true);
       }}>
           <DialogTrigger asChild>
-            <Button onClick={() => {
+            <Button size="sm" onClick={() => {
             setEditingFormulario(null);
             setDialogOpen(true);
           }}>
@@ -634,61 +634,52 @@ export function InstagramFormulariosTab() {
         </Dialog>
       </div>
 
-      {formularios?.length === 0 ? <Card>
+      {formularios?.length === 0 ? <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">Nenhum formulário criado</h3>
-            <p className="text-sm text-muted-foreground">
-              Crie seu primeiro formulário para capturar leads
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <FileText className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-medium">Nenhum formulário criado</h3>
+            <p className="text-xs text-muted-foreground text-center mt-1">
+              Crie seu primeiro formulário de captura
             </p>
           </CardContent>
         </Card> : <Tabs defaultValue="formularios">
-          <TabsList>
-            <TabsTrigger value="formularios">Formulários</TabsTrigger>
-            <TabsTrigger value="respostas" disabled={!selectedFormId}>
-              <Users className="h-4 w-4 mr-1" />
+          <TabsList className="h-9">
+            <TabsTrigger value="formularios" className="text-xs">Formulários</TabsTrigger>
+            <TabsTrigger value="respostas" className="text-xs" disabled={!selectedFormId}>
+              <Users className="h-3.5 w-3.5 mr-1" />
               Respostas
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="formularios" className="mt-4">
-            <div className="grid gap-4">
-              {formularios?.map(formulario => <Card key={formulario.id} className={`cursor-pointer transition-colors ${selectedFormId === formulario.id ? "ring-2 ring-primary" : ""} ${!formulario.ativo ? "opacity-60" : ""}`} onClick={() => setSelectedFormId(formulario.id)}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <CardTitle className="text-base">{formulario.nome}</CardTitle>
-                        <Badge variant="outline">
-                          {formulario.campos.length} campos
-                        </Badge>
+          <TabsContent value="formularios" className="mt-3">
+            <div className="grid gap-3">
+              {formularios?.map(formulario => <Card key={formulario.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedFormId === formulario.id ? "ring-2 ring-primary" : ""} ${!formulario.ativo ? "opacity-60" : ""}`} onClick={() => setSelectedFormId(formulario.id)}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: formulario.cor_primaria }} />
+                          <h3 className="font-medium text-sm truncate">{formulario.nome}</h3>
+                          <Badge variant="outline" className="text-[10px] h-5">
+                            {formulario.campos.length} campos
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{formulario.titulo_pagina}</p>
                       </div>
-                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(formulario)} title="Editar">
+                      <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(formulario)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => copyFormUrl(formulario.id)} title="Copiar link">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyFormUrl(formulario.id)}>
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => window.open(getFormUrl(formulario.id), "_blank")} title="Visualizar">
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                        <Switch checked={formulario.ativo} onCheckedChange={ativo => toggleFormulario.mutate({
-                    id: formulario.id,
-                    ativo
-                  })} />
-                        <Button variant="ghost" size="icon" onClick={() => deleteFormulario.mutate(formulario.id)}>
+                        <Switch checked={formulario.ativo} onCheckedChange={ativo => toggleFormulario.mutate({ id: formulario.id, ativo })} />
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteFormulario.mutate(formulario.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>Título: {formulario.titulo_pagina}</span>
-                      <span>•</span>
-                      <span className="w-4 h-4 rounded-full" style={{
-                  backgroundColor: formulario.cor_primaria
-                }} />
                     </div>
                   </CardContent>
                 </Card>)}
