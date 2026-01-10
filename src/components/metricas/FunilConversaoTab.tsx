@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,7 +100,7 @@ interface SelectedFunnelData {
   spend: number;
 }
 
-// Componente para exibir item de Conjunto com tooltip
+// Componente para exibir item de Conjunto com popover estilo LeadCampaignBadge
 interface AdsetItemProps {
   item: { adset: string; campaign: string };
   index: number;
@@ -111,8 +112,8 @@ interface AdsetItemProps {
 
 function AdsetItem({ item, index, numberBgClass, numberBgInactiveClass, numberTextClass, badge }: AdsetItemProps) {
   return (
-    <HoverCard openDelay={200} closeDelay={100}>
-      <HoverCardTrigger asChild>
+    <Popover>
+      <PopoverTrigger asChild>
         <div className="flex items-center justify-between p-2 bg-background/50 rounded-lg cursor-pointer hover:bg-background/80 transition-colors">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? `${numberBgClass} text-white` : `${numberBgInactiveClass} ${numberTextClass}`}`}>
@@ -122,24 +123,43 @@ function AdsetItem({ item, index, numberBgClass, numberBgInactiveClass, numberTe
           </div>
           {badge}
         </div>
-      </HoverCardTrigger>
-      <HoverCardContent side="right" align="start" className="w-80 p-4">
-        <div className="space-y-3">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Conjunto de Anúncios</p>
-            <p className="text-sm font-medium break-words">{item.adset}</p>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[280px] sm:w-80 p-0"
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+      >
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2 p-3 border-b bg-background">
+            <Layers className="w-4 h-4 text-blue-500" />
+            <span className="font-semibold text-sm">Detalhes do Conjunto</span>
           </div>
-          <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground mb-1">Campanha</p>
-            <p className="text-sm break-words">{item.campaign}</p>
+          <div className="p-3 space-y-3">
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground">Conjunto de Anúncios:</span>
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-2">
+                <span className="text-xs font-semibold text-green-700 dark:text-green-300 break-words">
+                  {item.adset}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground">Campanha:</span>
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-2">
+                <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 break-words">
+                  {item.campaign}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
   );
 }
 
-// Componente para exibir item de Anúncio com tooltip e preview
+// Componente para exibir item de Anúncio com popover estilo LeadCampaignBadge
 interface AdItemProps {
   item: { ad: string; adset: string; campaign: string; ad_id?: string | null };
   index: number;
@@ -151,49 +171,98 @@ interface AdItemProps {
 }
 
 function AdItem({ item, index, numberBgClass, numberBgInactiveClass, numberTextClass, badge, thumbnailUrl }: AdItemProps) {
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  
   return (
-    <HoverCard openDelay={200} closeDelay={100}>
-      <HoverCardTrigger asChild>
-        <div className="flex items-center justify-between p-2 bg-background/50 rounded-lg cursor-pointer hover:bg-background/80 transition-colors">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? `${numberBgClass} text-white` : `${numberBgInactiveClass} ${numberTextClass}`}`}>
-              {index + 1}
-            </span>
-            <span className="text-sm truncate">{item.ad}</span>
+    <>
+      <Popover>
+        <PopoverTrigger asChild>
+          <div className="flex items-center justify-between p-2 bg-background/50 rounded-lg cursor-pointer hover:bg-background/80 transition-colors">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? `${numberBgClass} text-white` : `${numberBgInactiveClass} ${numberTextClass}`}`}>
+                {index + 1}
+              </span>
+              <span className="text-sm truncate">{item.ad}</span>
+            </div>
+            {badge}
           </div>
-          {badge}
-        </div>
-      </HoverCardTrigger>
-      <HoverCardContent side="right" align="start" className="w-80 p-4">
-        <div className="space-y-3">
-          {thumbnailUrl && (
-            <div className="mb-3">
-              <p className="text-xs text-muted-foreground mb-2">Preview do Anúncio</p>
-              <img 
-                src={thumbnailUrl} 
-                alt="Preview do anúncio" 
-                className="w-full h-auto max-h-40 object-contain rounded-lg border bg-muted"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[280px] sm:w-80 p-0"
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+        >
+          <div className="flex flex-col max-h-[70vh]">
+            <div className="flex items-center gap-2 p-3 border-b bg-background shrink-0">
+              <Megaphone className="w-4 h-4 text-purple-500" />
+              <span className="font-semibold text-sm">Detalhes do Anúncio</span>
+            </div>
+            <div className="p-3 space-y-3 overflow-y-auto">
+              {thumbnailUrl && (
+                <div 
+                  className="relative group cursor-pointer" 
+                  onClick={() => setIsImageModalOpen(true)}
+                >
+                  <img
+                    src={thumbnailUrl}
+                    alt="Preview do anúncio"
+                    className="w-full h-auto max-h-40 object-cover rounded-lg border shadow-sm hover:shadow-md transition-shadow"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                    <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              )}
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Anúncio:</span>
+                <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-md p-2">
+                  <span className="text-xs font-semibold text-orange-700 dark:text-orange-300 break-words">
+                    {item.ad}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Conjunto de Anúncios:</span>
+                <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-2">
+                  <span className="text-xs font-semibold text-green-700 dark:text-green-300 break-words">
+                    {item.adset}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">Campanha:</span>
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-2">
+                  <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 break-words">
+                    {item.campaign}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {thumbnailUrl && (
+        <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+          <DialogContent className="max-w-3xl p-0 overflow-hidden">
+            <DialogHeader className="p-4 pb-0">
+              <DialogTitle className="flex items-center gap-2">
+                <Megaphone className="w-5 h-5 text-purple-500" />
+                Imagem do Anúncio
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-4">
+              <img
+                src={thumbnailUrl}
+                alt="Imagem do anúncio em tamanho completo"
+                className="w-full h-auto rounded-lg"
               />
             </div>
-          )}
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Anúncio</p>
-            <p className="text-sm font-medium break-words">{item.ad}</p>
-          </div>
-          <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground mb-1">Conjunto de Anúncios</p>
-            <p className="text-sm break-words">{item.adset}</p>
-          </div>
-          <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground mb-1">Campanha</p>
-            <p className="text-sm break-words">{item.campaign}</p>
-          </div>
-        </div>
-      </HoverCardContent>
-    </HoverCard>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
