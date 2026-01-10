@@ -54,49 +54,53 @@ export function InstagramHistoricoTab() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold">Histórico de Interações</h2>
-        <p className="text-sm text-muted-foreground">
-          Últimas 100 mensagens e comentários processados
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Histórico de Interações</h2>
+          <p className="text-xs text-muted-foreground">
+            Últimas 100 mensagens processadas
+          </p>
+        </div>
       </div>
 
       {mensagens?.length === 0 ? (
-        <Card>
+        <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Inbox className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">Nenhuma interação ainda</h3>
-            <p className="text-sm text-muted-foreground">
-              As mensagens e comentários aparecerão aqui quando chegarem
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <Inbox className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-medium">Nenhuma interação ainda</h3>
+            <p className="text-xs text-muted-foreground text-center mt-1">
+              As mensagens aparecerão aqui quando chegarem
             </p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardContent className="p-0">
-            <ScrollArea className="h-[600px]">
+            <ScrollArea className="h-[500px] md:h-[600px]">
               <div className="divide-y">
                 {mensagens?.map((msg) => {
                   const config = tipoConfig[msg.tipo] || tipoConfig.dm_recebida;
                   const Icon = config.icon;
 
                   return (
-                    <div key={msg.id} className="p-4 hover:bg-muted/50">
+                    <div key={msg.id} className="p-3 md:p-4 hover:bg-muted/30 transition-colors">
                       <div className="flex items-start gap-3">
-                        <div className="mt-1">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
+                        <div className="p-2 rounded-full bg-muted flex-shrink-0">
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-sm">
-                              @{msg.instagram_username || msg.instagram_user_id}
+                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                            <span className="font-medium text-sm truncate">
+                              @{msg.instagram_username || msg.instagram_user_id.slice(0, 8)}
                             </span>
-                            <Badge variant={config.variant} className="text-xs">
+                            <Badge variant={config.variant} className="text-[10px] h-5">
                               {config.label}
                             </Badge>
                             {msg.gatilho_id && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-[10px] h-5">
                                 Via Gatilho
                               </Badge>
                             )}
@@ -106,8 +110,8 @@ export function InstagramHistoricoTab() {
                               {msg.conteudo}
                             </p>
                           )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(msg.created_at), "dd MMM yyyy 'às' HH:mm", {
+                          <p className="text-[10px] text-muted-foreground mt-1.5">
+                            {format(new Date(msg.created_at), "dd MMM 'às' HH:mm", {
                               locale: ptBR,
                             })}
                           </p>

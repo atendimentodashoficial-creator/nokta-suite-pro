@@ -119,43 +119,49 @@ export function IceBreakersConfig({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Snowflake className="h-5 w-5 text-blue-500" />
-          Ice Breakers
-        </CardTitle>
-        <CardDescription>
-          Botões que aparecem quando alguém abre o chat pela primeira vez (máx. 4)
-        </CardDescription>
+    <Card className="border-l-4 border-l-blue-500">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-blue-500/10">
+            <Snowflake className="h-5 w-5 text-blue-500" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Ice Breakers</CardTitle>
+            <CardDescription className="text-xs">
+              Botões para novos contatos (máx. 4)
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Alert>
-          <AlertDescription>
-            Ice Breakers são perguntas pré-definidas que aparecem para novos contatos.
-            Quando clicadas, enviam a pergunta como mensagem e ativam o gatilho correspondente.
-          </AlertDescription>
-        </Alert>
+        <div className="p-3 bg-muted/50 rounded-lg">
+          <p className="text-xs text-muted-foreground">
+            Perguntas pré-definidas que aparecem para novos contatos. Ao clicar, ativam o gatilho correspondente.
+          </p>
+        </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {iceBreakers.map((ib, index) => (
-            <div key={index} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-              <div className="flex-1 grid grid-cols-2 gap-2">
+            <div key={index} className="flex items-center gap-2 p-3 border rounded-lg bg-background hover:shadow-sm transition-shadow">
+              <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Input
-                  placeholder="Pergunta exibida (ex: Qual o preço?)"
+                  placeholder="Pergunta (ex: Qual o preço?)"
                   value={ib.question}
                   onChange={(e) => updateIceBreaker(index, "question", e.target.value)}
+                  className="h-9 text-sm"
                 />
                 <Input
-                  placeholder="Payload/gatilho (ex: preco)"
+                  placeholder="Payload (ex: preco)"
                   value={ib.payload}
                   onChange={(e) => updateIceBreaker(index, "payload", e.target.value)}
+                  className="h-9 text-sm"
                 />
               </div>
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8 flex-shrink-0"
                 onClick={() => removeIceBreaker(index)}
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -164,26 +170,30 @@ export function IceBreakersConfig({
           ))}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
+            size="sm"
             onClick={addIceBreaker}
             disabled={iceBreakers.length >= 4}
+            className="flex-1"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Adicionar Ice Breaker
+            Adicionar
           </Button>
 
           <Button
+            size="sm"
             onClick={() => saveIceBreakers.mutate()}
             disabled={saveIceBreakers.isPending}
+            className="flex-1"
           >
             {saveIceBreakers.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            Salvar Ice Breakers
+            Salvar
           </Button>
         </div>
       </CardContent>

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Eye, EyeOff, Save, CheckCircle2, XCircle, Loader2, Copy, ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IceBreakersConfig } from "./IceBreakersConfig";
 import { PrimeiraInteracaoConfig } from "./PrimeiraInteracaoConfig";
@@ -123,90 +124,90 @@ export function InstagramConfigTab() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Status Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {config?.is_active ? (
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-            ) : (
-              <XCircle className="h-5 w-5 text-muted-foreground" />
-            )}
-            Status da Conexão
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {config?.is_active ? (
-            <p className="text-sm text-green-600">Instagram API configurada e ativa</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">Configure suas credenciais abaixo para ativar</p>
-          )}
+    <div className="space-y-4">
+      {/* Status Card - Compacto */}
+      <Card className="border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-full ${config?.is_active ? 'bg-green-500/10' : 'bg-muted'}`}>
+              {config?.is_active ? (
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+              ) : (
+                <XCircle className="h-5 w-5 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Status da Conexão</p>
+              <p className={`text-xs ${config?.is_active ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {config?.is_active ? "Instagram API configurada e ativa" : "Configure suas credenciais abaixo"}
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Webhook Info */}
+      {/* Webhook Info - Mais limpo */}
       <Card>
-        <CardHeader>
-          <CardTitle>Configuração do Webhook</CardTitle>
-          <CardDescription>
-            Configure estes valores no seu App do Meta for Developers
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Configuração do Webhook</CardTitle>
+          <CardDescription className="text-xs">
+            Configure no seu App do Meta for Developers
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Callback URL</label>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Callback URL</label>
             <div className="flex gap-2">
-              <Input value={webhookUrl} readOnly className="font-mono text-xs" />
+              <Input value={webhookUrl} readOnly className="font-mono text-xs h-9" />
               <Button
                 variant="outline"
-                size="icon"
+                size="sm"
+                className="h-9 px-3"
                 onClick={() => copyToClipboard(webhookUrl, "URL")}
               >
-                <Copy className="h-4 w-4" />
+                <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
 
           {config?.webhook_verify_token && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Verify Token</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Verify Token</label>
               <div className="flex gap-2">
                 <Input
                   value={config.webhook_verify_token}
                   readOnly
-                  className="font-mono text-xs"
+                  className="font-mono text-xs h-9"
                 />
                 <Button
                   variant="outline"
-                  size="icon"
+                  size="sm"
+                  className="h-9 px-3"
                   onClick={() => copyToClipboard(config.webhook_verify_token, "Token")}
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
           )}
 
-          <Alert>
-            <AlertTitle>Campos obrigatórios no Webhook</AlertTitle>
-            <AlertDescription className="mt-2">
-              <ul className="list-disc list-inside text-sm space-y-1">
-                <li><code className="bg-muted px-1 rounded">messages</code> - Para receber DMs</li>
-                <li><code className="bg-muted px-1 rounded">comments</code> - Para receber comentários</li>
-                <li><code className="bg-muted px-1 rounded">messaging_postbacks</code> - Para botões</li>
-              </ul>
-            </AlertDescription>
-          </Alert>
+          <div className="p-3 bg-muted/50 rounded-lg">
+            <p className="text-xs font-medium mb-2">Campos obrigatórios:</p>
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="secondary" className="text-xs font-mono">messages</Badge>
+              <Badge variant="secondary" className="text-xs font-mono">comments</Badge>
+              <Badge variant="secondary" className="text-xs font-mono">messaging_postbacks</Badge>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       {/* Credentials Form */}
       <Card>
-        <CardHeader>
-          <CardTitle>Credenciais da API</CardTitle>
-          <CardDescription>
-            Obtenha essas informações no{" "}
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Credenciais da API</CardTitle>
+          <CardDescription className="text-xs">
+            Obtenha em{" "}
             <a
               href="https://developers.facebook.com/apps"
               target="_blank"
