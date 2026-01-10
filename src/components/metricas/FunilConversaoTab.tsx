@@ -178,8 +178,31 @@ export function FunilConversaoTab() {
     queryFn: async (): Promise<FunnelQueryResult> => {
       if (!user?.id) return { data: [], totalRecords: 0, uniqueContacts: 0 };
 
-      const startDate = format(dateStart, "yyyy-MM-dd");
-      const endDate = format(dateEnd, "yyyy-MM-dd");
+      // Construir limites do período em UTC (alinha com o backend e evita diferença de fuso)
+      const startOfPeriodUTC = new Date(Date.UTC(
+        dateStart.getFullYear(),
+        dateStart.getMonth(),
+        dateStart.getDate(),
+        0,
+        0,
+        0,
+        0
+      ));
+      const endOfPeriodUTC = new Date(Date.UTC(
+        dateEnd.getFullYear(),
+        dateEnd.getMonth(),
+        dateEnd.getDate(),
+        23,
+        59,
+        59,
+        999
+      ));
+
+      const isWithinPeriod = (createdAt: string | null) => {
+        if (!createdAt) return false;
+        const d = new Date(createdAt);
+        return d >= startOfPeriodUTC && d <= endOfPeriodUTC;
+      };
 
       // Buscar TODOS os leads do usuário para poder unificar por telefone
       const { data: allLeads, error } = await supabase
@@ -202,50 +225,37 @@ export function FunilConversaoTab() {
 
       if (error) throw error;
 
-      // Identificar telefones que têm pelo menos um lead de WhatsApp (não exclusivamente Disparos)
-      // Um telefone é válido para o funil se tiver qualquer registro que NÃO seja "Disparos"
-      const phoneHasWhatsApp: Record<string, boolean> = {};
-      allLeads?.forEach(lead => {
+      // IMPORTANTE: para o período selecionado, só entra no funil quem teve
+      // pelo menos 1 registro NÃO-Disparos DENTRO do período.
+      // Isso evita contar contatos que só receberam Disparos hoje, mas tiveram WhatsApp em outra data.
+      const phoneHasNonDisparosInPeriod: Record<string, boolean> = {};
+      allLeads?.forEach((lead) => {
+        if (!isWithinPeriod(lead.created_at)) return;
         const normalizedPhone = normalizePhone(lead.telefone);
         if (lead.origem !== "Disparos") {
-          phoneHasWhatsApp[normalizedPhone] = true;
+          phoneHasNonDisparosInPeriod[normalizedPhone] = true;
         }
       });
 
-      // Filtrar leads para considerar apenas telefones válidos (que têm origem WhatsApp ou null)
-      const validLeads = allLeads?.filter(lead => {
+      // Considerar apenas leads de telefones elegíveis para o período
+      const validLeads = (allLeads || []).filter((lead) => {
         const normalizedPhone = normalizePhone(lead.telefone);
-        return phoneHasWhatsApp[normalizedPhone] === true;
+        return phoneHasNonDisparosInPeriod[normalizedPhone] === true;
       });
 
-      // Deduplicate validLeads by phone + normalized origem (same logic as useLeads hook)
-      // Treat null/empty origem as "whatsapp" for deduplication
-      const seenPhoneOrigem = new Set<string>();
-      const deduplicatedLeads = validLeads?.filter(lead => {
-        const normalizedPhone = normalizePhone(lead.telefone);
-        const origemRaw = (lead.origem || "").toLowerCase();
-        const origem = origemRaw === "" ? "whatsapp" : origemRaw;
-        const key = `${normalizedPhone}-${origem}`;
-        
-        if (seenPhoneOrigem.has(key)) {
-          return false;
+      // Criar mapa de dados de campanha por telefone normalizado (pode vir de qualquer data)
+      const campaignDataByPhone: Record<
+        string,
+        {
+          fb_campaign_name: string | null;
+          fb_adset_name: string | null;
+          fb_ad_name: string | null;
+          fb_ad_id: string | null;
         }
-        seenPhoneOrigem.add(key);
-        return true;
-      }) || [];
+      > = {};
 
-      // Criar mapa de dados de campanha por telefone normalizado
-      // Prioriza leads que têm dados de campanha
-      const campaignDataByPhone: Record<string, {
-        fb_campaign_name: string | null;
-        fb_adset_name: string | null;
-        fb_ad_name: string | null;
-        fb_ad_id: string | null;
-      }> = {};
-
-      deduplicatedLeads?.forEach(lead => {
+      validLeads.forEach((lead) => {
         const normalizedPhone = normalizePhone(lead.telefone);
-        // Se esse lead tem dados de campanha, salva no mapa
         if (lead.fb_campaign_name) {
           campaignDataByPhone[normalizedPhone] = {
             fb_campaign_name: lead.fb_campaign_name,
@@ -258,24 +268,17 @@ export function FunilConversaoTab() {
 
       // Criar mapa de todos os IDs de lead por telefone normalizado (apenas válidos)
       const leadIdsByPhone: Record<string, string[]> = {};
-      deduplicatedLeads?.forEach(lead => {
+      validLeads.forEach((lead) => {
         const normalizedPhone = normalizePhone(lead.telefone);
-        if (!leadIdsByPhone[normalizedPhone]) {
-          leadIdsByPhone[normalizedPhone] = [];
-        }
+        if (!leadIdsByPhone[normalizedPhone]) leadIdsByPhone[normalizedPhone] = [];
         leadIdsByPhone[normalizedPhone].push(lead.id);
       });
 
-      // Filtrar leads válidos pelo período
-      const leads = deduplicatedLeads?.filter(lead => {
-        const createdAt = new Date(lead.created_at);
-        const start = new Date(startDate);
-        const end = new Date(endDate + "T23:59:59");
-        return createdAt >= start && createdAt <= end;
-      });
+      // Filtrar leads válidos pelo período (UTC)
+      const leads = validLeads.filter((lead) => isWithinPeriod(lead.created_at));
 
-      // Total de registros no período (antes da unificação)
-      const totalRecords = leads?.length || 0;
+      // Total de registros no período (antes da unificação por telefone)
+      const totalRecords = leads.length;
 
       // Buscar TODOS os agendamentos do usuário com status
       const { data: agendamentos, error: agendamentosError } = await supabase
@@ -370,7 +373,7 @@ export function FunilConversaoTab() {
         grouped[key].leads++;
         
         // Pegar o melhor status entre todos os leads válidos com este telefone
-        const allLeadsWithPhone = deduplicatedLeads?.filter(l => normalizePhone(l.telefone) === normalizedPhone) || [];
+        const allLeadsWithPhone = validLeads.filter((l) => normalizePhone(l.telefone) === normalizedPhone);
         const bestStatus = allLeadsWithPhone.find(l => l.status === "cliente")?.status ||
                           allLeadsWithPhone.find(l => l.status === "follow_up")?.status ||
                           lead.status;
