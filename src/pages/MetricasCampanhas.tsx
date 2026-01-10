@@ -29,7 +29,8 @@ import {
   Filter,
   Brain,
   Wallet,
-  BarChart3
+  BarChart3,
+  TrendingDown
 } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import {
@@ -71,6 +72,7 @@ import {
 import { CampaignRow } from "@/components/metricas/CampaignRow";
 import { AIReportsTab } from "@/components/metricas/AIReportsTab";
 import { ContaAnunciosTab } from "@/components/metricas/ContaAnunciosTab";
+import { FunilConversaoTab } from "@/components/metricas/FunilConversaoTab";
 import { useMetricasPreferencias } from "@/hooks/useMetricasPreferencias";
 
 // Default presets that are always available
@@ -554,9 +556,13 @@ export default function MetricasCampanhas() {
             <BarChart3 className="h-3.5 w-3.5" />
             Campanhas
           </TabsTrigger>
+          <TabsTrigger value="funnel" className="gap-1.5 text-xs px-3 h-7">
+            <TrendingDown className="h-3.5 w-3.5" />
+            Funil
+          </TabsTrigger>
           <TabsTrigger value="ai-reports" className="gap-1.5 text-xs px-3 h-7">
             <Brain className="h-3.5 w-3.5" />
-            Relatórios de IA
+            Relatórios IA
           </TabsTrigger>
         </TabsList>
 
@@ -1062,6 +1068,10 @@ export default function MetricasCampanhas() {
         onPresetsChange={handlePresetsChange}
         onApplyPreset={handleApplyPreset}
       />
+        </TabsContent>
+
+        <TabsContent value="funnel">
+          <FunilConversaoTab />
         </TabsContent>
 
         <TabsContent value="ai-reports">
