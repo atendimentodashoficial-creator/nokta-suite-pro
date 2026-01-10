@@ -72,31 +72,52 @@ serve(async (req) => {
 
     if (config) {
       const baseUrl = config.base_url.replace(/\/+$/, "");
-      
-      // Delete each chat from UAZapi
-      for (const chat of chats) {
-        try {
-          console.log(`Deleting chat ${chat.chat_id} from UAZapi...`);
-          const response = await fetch(`${baseUrl}/chat/delete`, {
-            method: "POST",
-            headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/json",
-              "token": config.api_key,
-            },
-            body: JSON.stringify({ chatId: chat.chat_id }),
-          });
 
-          if (!response.ok) {
-            const text = await response.text();
-            console.error(`UAZapi delete error for ${chat.chat_id}:`, text);
-          } else {
-            console.log(`Chat ${chat.chat_id} deleted from UAZapi successfully`);
-          }
-        } catch (apiError) {
-          console.error(`Error deleting chat ${chat.chat_id} from UAZapi:`, apiError);
+      // Best-effort deletion on provider side. Keep this fast to avoid client timeouts.
+      const withTimeout = async (ms: number, fn: (signal: AbortSignal) => Promise<void>) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), ms);
+        try {
+          await fn(controller.signal);
+        } finally {
+          clearTimeout(timeout);
         }
-      }
+      };
+
+      const CONCURRENCY = 8;
+      const queue = [...chats];
+
+      const worker = async () => {
+        while (queue.length) {
+          const chat = queue.shift();
+          if (!chat) break;
+
+          try {
+            await withTimeout(2500, async (signal) => {
+              const response = await fetch(`${baseUrl}/chat/delete`, {
+                method: "POST",
+                signal,
+                headers: {
+                  "Accept": "application/json",
+                  "Content-Type": "application/json",
+                  "token": config.api_key,
+                },
+                body: JSON.stringify({ chatId: chat.chat_id }),
+              });
+
+              if (!response.ok) {
+                const text = await response.text();
+                console.error(`UAZapi delete error for ${chat.chat_id}:`, text);
+              }
+            });
+          } catch (apiError) {
+            // Don't fail the whole delete if provider delete fails/timeouts
+            console.error(`Error deleting chat ${chat.chat_id} from UAZapi:`, apiError);
+          }
+        }
+      };
+
+      await Promise.all(Array.from({ length: CONCURRENCY }, worker));
     }
 
     // Get all chat DB IDs to delete (including any with same normalized_number)
