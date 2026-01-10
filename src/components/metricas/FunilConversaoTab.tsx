@@ -101,21 +101,36 @@ export function FunilConversaoTab() {
     }
   };
 
+  // Função para normalizar telefone (remover caracteres e garantir formato consistente)
+  const normalizePhone = (phone: string): string => {
+    const clean = phone.replace(/\D/g, "");
+    // Se começa com 55 e tem 12-13 dígitos, está ok
+    if (clean.startsWith("55") && clean.length >= 12) {
+      return clean;
+    }
+    // Se tem 10-11 dígitos, adiciona 55
+    if (clean.length >= 10 && clean.length <= 11) {
+      return "55" + clean;
+    }
+    return clean;
+  };
+
   // Buscar dados do funil
   const { data: funnelData, isLoading: loadingFunnel } = useQuery({
-    queryKey: ["funnel-data", user?.id, dateStart, dateEnd],
+    queryKey: ["funnel-data", user?.id, dateStart, dateEnd, viewLevel],
     queryFn: async () => {
       if (!user?.id) return [];
 
       const startDate = format(dateStart, "yyyy-MM-dd");
       const endDate = format(dateEnd, "yyyy-MM-dd");
 
-      // Buscar leads com dados de campanha
-      const { data: leads, error } = await supabase
+      // Buscar TODOS os leads do usuário para poder unificar por telefone
+      const { data: allLeads, error } = await supabase
         .from("leads")
         .select(`
           id, 
           nome, 
+          telefone,
           status, 
           fb_campaign_name, 
           fb_adset_name, 
@@ -125,23 +140,59 @@ export function FunilConversaoTab() {
           valor_tratamento
         `)
         .eq("user_id", user.id)
-        .gte("created_at", startDate)
-        .lte("created_at", endDate + "T23:59:59")
         .is("deleted_at", null);
 
       if (error) throw error;
 
-      // Buscar agendamentos para contar quantos leads têm agendamentos
+      // Criar mapa de dados de campanha por telefone normalizado
+      // Prioriza leads que têm dados de campanha
+      const campaignDataByPhone: Record<string, {
+        fb_campaign_name: string | null;
+        fb_adset_name: string | null;
+        fb_ad_name: string | null;
+        fb_ad_id: string | null;
+      }> = {};
+
+      allLeads?.forEach(lead => {
+        const normalizedPhone = normalizePhone(lead.telefone);
+        // Se esse lead tem dados de campanha, salva no mapa
+        if (lead.fb_campaign_name) {
+          campaignDataByPhone[normalizedPhone] = {
+            fb_campaign_name: lead.fb_campaign_name,
+            fb_adset_name: lead.fb_adset_name,
+            fb_ad_name: lead.fb_ad_name,
+            fb_ad_id: lead.fb_ad_id,
+          };
+        }
+      });
+
+      // Criar mapa de todos os IDs de lead por telefone normalizado
+      const leadIdsByPhone: Record<string, string[]> = {};
+      allLeads?.forEach(lead => {
+        const normalizedPhone = normalizePhone(lead.telefone);
+        if (!leadIdsByPhone[normalizedPhone]) {
+          leadIdsByPhone[normalizedPhone] = [];
+        }
+        leadIdsByPhone[normalizedPhone].push(lead.id);
+      });
+
+      // Filtrar leads pelo período
+      const leads = allLeads?.filter(lead => {
+        const createdAt = new Date(lead.created_at);
+        const start = new Date(startDate);
+        const end = new Date(endDate + "T23:59:59");
+        return createdAt >= start && createdAt <= end;
+      });
+
+      // Buscar TODOS os agendamentos do usuário
       const { data: agendamentos, error: agendamentosError } = await supabase
         .from("agendamentos")
-        .select("cliente_id, status")
-        .eq("user_id", user.id)
-        .gte("created_at", startDate)
-        .lte("created_at", endDate + "T23:59:59");
+        .select("cliente_id, status, created_at")
+        .eq("user_id", user.id);
 
       if (agendamentosError) throw agendamentosError;
 
-      // Criar set de clientes com agendamento
+      // Criar set de clientes com agendamento (por ID e por telefone normalizado)
       const clientesComAgendamento = new Set<string>();
       agendamentos?.forEach(a => {
         if (a.cliente_id) {
@@ -160,9 +211,7 @@ export function FunilConversaoTab() {
           created_at
         `)
         .eq("user_id", user.id)
-        .eq("status", "fechado")
-        .gte("created_at", startDate)
-        .lte("created_at", endDate + "T23:59:59");
+        .eq("status", "fechado");
 
       if (faturasError) throw faturasError;
 
@@ -175,12 +224,23 @@ export function FunilConversaoTab() {
       });
 
       // Agrupar por campanha/conjunto/anúncio
+      // Usar telefone normalizado para unificar leads duplicados
+      const processedPhones = new Set<string>();
       const grouped: Record<string, FunnelData> = {};
 
       leads?.forEach(lead => {
-        const campaignKey = lead.fb_campaign_name || "Sem campanha";
-        const adsetKey = lead.fb_adset_name || "Sem conjunto";
-        const adKey = lead.fb_ad_name || "Sem anúncio";
+        const normalizedPhone = normalizePhone(lead.telefone);
+        
+        // Pular se já processamos este telefone
+        if (processedPhones.has(normalizedPhone)) return;
+        processedPhones.add(normalizedPhone);
+
+        // Obter dados de campanha do mapa (pode vir de outro registro do mesmo telefone)
+        const campaignData = campaignDataByPhone[normalizedPhone];
+        const campaignKey = campaignData?.fb_campaign_name || lead.fb_campaign_name || "Sem campanha";
+        const adsetKey = campaignData?.fb_adset_name || lead.fb_adset_name || "Sem conjunto";
+        const adKey = campaignData?.fb_ad_name || lead.fb_ad_name || "Sem anúncio";
+        const adId = campaignData?.fb_ad_id || lead.fb_ad_id;
         
         // Chave única baseada no nível de visualização
         let key: string;
@@ -197,7 +257,7 @@ export function FunilConversaoTab() {
             campaign_name: campaignKey,
             adset_name: viewLevel !== "campaign" ? adsetKey : null,
             ad_name: viewLevel === "ad" ? adKey : null,
-            ad_id: lead.fb_ad_id,
+            ad_id: adId,
             leads: 0,
             agendados: 0,
             em_negociacao: 0,
@@ -208,21 +268,39 @@ export function FunilConversaoTab() {
 
         grouped[key].leads++;
         
-        // Verificar se o lead tem agendamento
-        if (clientesComAgendamento.has(lead.id)) {
+        // Verificar se QUALQUER lead com este telefone tem agendamento
+        const allLeadIds = leadIdsByPhone[normalizedPhone] || [lead.id];
+        const hasAgendamento = allLeadIds.some(id => clientesComAgendamento.has(id));
+        if (hasAgendamento) {
           grouped[key].agendados++;
         }
         
+        // Pegar o melhor status entre todos os leads com este telefone
+        const allLeadsWithPhone = allLeads?.filter(l => normalizePhone(l.telefone) === normalizedPhone) || [];
+        const bestStatus = allLeadsWithPhone.find(l => l.status === "cliente")?.status ||
+                          allLeadsWithPhone.find(l => l.status === "follow_up")?.status ||
+                          lead.status;
+        
         // Verificar status do lead (follow_up = em negociação)
-        if (lead.status === "follow_up") {
+        if (bestStatus === "follow_up") {
           grouped[key].em_negociacao++;
-        } else if (lead.status === "cliente") {
+        } else if (bestStatus === "cliente") {
           grouped[key].clientes++;
-          // Adicionar valor da fatura se existir
-          if (faturaPorCliente[lead.id]) {
-            grouped[key].valor_fechado += faturaPorCliente[lead.id];
-          } else if (lead.valor_tratamento) {
-            grouped[key].valor_fechado += lead.valor_tratamento;
+          // Adicionar valor da fatura se existir (de qualquer lead com este telefone)
+          let valorFechado = 0;
+          allLeadIds.forEach(id => {
+            if (faturaPorCliente[id]) {
+              valorFechado += faturaPorCliente[id];
+            }
+          });
+          if (valorFechado > 0) {
+            grouped[key].valor_fechado += valorFechado;
+          } else {
+            // Fallback para valor_tratamento
+            const valorTratamento = allLeadsWithPhone.find(l => l.valor_tratamento)?.valor_tratamento;
+            if (valorTratamento) {
+              grouped[key].valor_fechado += valorTratamento;
+            }
           }
         }
       });
