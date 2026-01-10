@@ -244,6 +244,51 @@ async function processMessage(supabase: any, event: any) {
         }
       }
       
+      // If a form is required, send the form link instead of other content
+      if (gatilho.formulario_id) {
+        console.log('Trigger has form requirement:', gatilho.formulario_id);
+        
+        // Build form URL with tracking
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        // Extract project ref from supabase URL to build the form link
+        // URL format: https://<project-ref>.supabase.co
+        const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase/)?.[1];
+        
+        // For the form, we need to use the app URL, not Supabase URL
+        // The form is hosted at /f/:formId in the frontend
+        // We'll use a simple approach - the message should contain {link_formulario}
+        const formUrl = `https://app.noktaodonto.com.br/f/${gatilho.formulario_id}?t=${senderId}`;
+        
+        let formMessage = gatilho.mensagem_formulario || 'Preencha seus dados para receber o material:\n{link_formulario}';
+        formMessage = processSpintax(formMessage);
+        formMessage = formMessage.replace(/{link_formulario}/g, formUrl);
+        
+        // Get username for {nome} replacement
+        const userInfo = await checkIfFollower(config.page_access_token, senderId);
+        if (userInfo?.username) {
+          formMessage = formMessage.replace(/{nome}/g, userInfo.username);
+        }
+        
+        await sendInstagramMessage(
+          config.page_access_token,
+          config.instagram_account_id,
+          senderId,
+          formMessage
+        );
+
+        // Log response
+        await supabase.from('instagram_mensagens').insert({
+          user_id: config.user_id,
+          instagram_user_id: senderId,
+          tipo: 'dm_enviada',
+          conteudo: formMessage,
+          gatilho_id: gatilho.id,
+          metadata: { tipo: 'formulario', formulario_id: gatilho.formulario_id },
+        });
+        
+        break; // Form was sent, don't send other content
+      }
+      
       // Send text response
       if (gatilho.resposta_texto) {
         const responseText = processSpintax(gatilho.resposta_texto);
@@ -583,35 +628,63 @@ async function processComment(supabase: any, comment: any) {
           }
         }
 
-        // User follows or no verification required - send the actual DM response (private reply)
-        const hasDmText = !!gatilho.resposta_texto;
-        const hasDmLink = !!gatilho.resposta_link_url;
-
-        if (hasDmText || hasDmLink) {
-          const parts: string[] = [];
-
-          if (hasDmText) {
-            parts.push(processSpintax(gatilho.resposta_texto));
+        // If a form is required, send the form link instead of other content
+        if (gatilho.formulario_id) {
+          console.log('Comment trigger has form requirement:', gatilho.formulario_id);
+          
+          // Build form URL with tracking
+          const formUrl = `https://app.noktaodonto.com.br/f/${gatilho.formulario_id}?t=${comment.from.id}`;
+          
+          let formMessage = gatilho.mensagem_formulario || 'Preencha seus dados para receber o material:\n{link_formulario}';
+          formMessage = processSpintax(formMessage);
+          formMessage = formMessage.replace(/{link_formulario}/g, formUrl);
+          
+          if (comment.from?.username) {
+            formMessage = formMessage.replace(/{nome}/g, comment.from.username);
           }
-
-          if (hasDmLink) {
-            const linkLabel = processSpintax(gatilho.resposta_link_texto || gatilho.resposta_link_url);
-            parts.push(`${linkLabel}\n${gatilho.resposta_link_url}`);
-          }
-
-          const dmText = parts.filter(Boolean).join("\n\n");
-
-          await sendPrivateReplyToComment(config.page_access_token, commentId, dmText);
+          
+          await sendPrivateReplyToComment(config.page_access_token, commentId, formMessage);
 
           await supabase.from('instagram_mensagens').insert({
             user_id: config.user_id,
             instagram_user_id: comment.from.id,
             instagram_username: comment.from.username,
             tipo: 'dm_enviada',
-            conteudo: dmText,
+            conteudo: formMessage,
             gatilho_id: gatilho.id,
-            metadata: { via: 'private_reply', comment_id: commentId, includes_link: hasDmLink },
+            metadata: { via: 'private_reply', comment_id: commentId, tipo: 'formulario', formulario_id: gatilho.formulario_id },
           });
+        } else {
+          // User follows or no verification required - send the actual DM response (private reply)
+          const hasDmText = !!gatilho.resposta_texto;
+          const hasDmLink = !!gatilho.resposta_link_url;
+
+          if (hasDmText || hasDmLink) {
+            const parts: string[] = [];
+
+            if (hasDmText) {
+              parts.push(processSpintax(gatilho.resposta_texto));
+            }
+
+            if (hasDmLink) {
+              const linkLabel = processSpintax(gatilho.resposta_link_texto || gatilho.resposta_link_url);
+              parts.push(`${linkLabel}\n${gatilho.resposta_link_url}`);
+            }
+
+            const dmText = parts.filter(Boolean).join("\n\n");
+
+            await sendPrivateReplyToComment(config.page_access_token, commentId, dmText);
+
+            await supabase.from('instagram_mensagens').insert({
+              user_id: config.user_id,
+              instagram_user_id: comment.from.id,
+              instagram_username: comment.from.username,
+              tipo: 'dm_enviada',
+              conteudo: dmText,
+              gatilho_id: gatilho.id,
+              metadata: { via: 'private_reply', comment_id: commentId, includes_link: hasDmLink },
+            });
+          }
         }
       }
 
