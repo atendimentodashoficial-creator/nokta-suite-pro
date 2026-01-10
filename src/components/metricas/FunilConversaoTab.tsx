@@ -285,23 +285,29 @@ export function FunilConversaoTab() {
 
         grouped[key].leads++;
         
-        // Verificar se QUALQUER lead com este telefone tem agendamento
-        const allLeadIds = leadIdsByPhone[normalizedPhone] || [lead.id];
-        const hasAgendamento = allLeadIds.some(id => clientesComAgendamento.has(id));
-        if (hasAgendamento) {
-          grouped[key].agendados++;
-        }
-        
         // Pegar o melhor status entre todos os leads com este telefone
         const allLeadsWithPhone = allLeads?.filter(l => normalizePhone(l.telefone) === normalizedPhone) || [];
         const bestStatus = allLeadsWithPhone.find(l => l.status === "cliente")?.status ||
                           allLeadsWithPhone.find(l => l.status === "follow_up")?.status ||
                           lead.status;
         
+        // Verificar se QUALQUER lead com este telefone tem agendamento
+        const allLeadIds = leadIdsByPhone[normalizedPhone] || [lead.id];
+        const hasAgendamento = allLeadIds.some(id => clientesComAgendamento.has(id));
+        
+        // Se está em negociação ou é cliente, obrigatoriamente passou pelo agendamento
+        // Então conta como agendado mesmo se não tiver registro na tabela de agendamentos
+        if (hasAgendamento || bestStatus === "follow_up" || bestStatus === "cliente") {
+          grouped[key].agendados++;
+        }
+        
         // Verificar status do lead (follow_up = em negociação)
-        if (bestStatus === "follow_up") {
+        // Se é cliente, também passou pela negociação
+        if (bestStatus === "follow_up" || bestStatus === "cliente") {
           grouped[key].em_negociacao++;
-        } else if (bestStatus === "cliente") {
+        }
+        
+        if (bestStatus === "cliente") {
           grouped[key].clientes++;
           // Adicionar valor da fatura se existir (de qualquer lead com este telefone)
           let valorFechado = 0;
