@@ -1150,19 +1150,34 @@ export default function AdminWhatsApp() {
   const handleBulkDelete = async () => {
     if (selectedChatIds.size === 0) return;
     setIsDeleting(true);
+
+    const idsToDelete = Array.from(selectedChatIds);
+
     try {
-      const idsToDelete = Array.from(selectedChatIds);
-      const {
-        error
-      } = await supabase.from('whatsapp_chats').update({
-        deleted_at: new Date().toISOString()
-      }).in('id', idsToDelete);
-      if (error) throw error;
-      toast.success(`${idsToDelete.length} chat(s) excluído(s) com sucesso!`);
+      // Use backend function (same flow as individual delete) and batch to avoid URL/request limits
+      const BATCH_SIZE = 50;
+      let totalDeleted = 0;
+
+      for (let i = 0; i < idsToDelete.length; i += BATCH_SIZE) {
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+        const batch = idsToDelete.slice(i, i + BATCH_SIZE);
+
+        const { error } = await supabase.functions.invoke("whatsapp-delete-chat", {
+          body: { chat_ids: batch },
+        });
+
+        if (error) {
+          throw new Error(`Lote ${batchNumber}: ${error.message || "Erro ao excluir"}`);
+        }
+
+        totalDeleted += batch.length;
+      }
+
+      toast.success(`${totalDeleted} chat(s) excluído(s) com sucesso!`);
 
       // Update local state
-      setChats(prev => prev.filter(c => !selectedChatIds.has(c.id)));
-      setFilteredChats(prev => prev.filter(c => !selectedChatIds.has(c.id)));
+      setChats((prev) => prev.filter((c) => !selectedChatIds.has(c.id)));
+      setFilteredChats((prev) => prev.filter((c) => !selectedChatIds.has(c.id)));
 
       // Clear selection
       setSelectedChatIds(new Set());
@@ -1175,8 +1190,8 @@ export default function AdminWhatsApp() {
         setShowChatWindow(false);
       }
     } catch (error: any) {
-      console.error('Error deleting chats:', error);
-      toast.error('Erro ao excluir chats');
+      console.error("Error deleting chats:", error);
+      toast.error(`Erro ao excluir chats: ${error?.message || "Erro desconhecido"}`);
     } finally {
       setIsDeleting(false);
     }
