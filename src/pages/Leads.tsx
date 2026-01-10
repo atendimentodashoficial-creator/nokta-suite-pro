@@ -54,6 +54,14 @@ export default function Leads() {
     return lead.allPresences?.some(p => (p.origem || "").toLowerCase() === "disparos") || false;
   };
 
+  // Função para verificar se lead tem presença em WhatsApp (via allPresences)
+  const hasWhatsAppPresence = (lead: typeof leads[0]) => {
+    return lead.allPresences?.some(p => {
+      const o = (p.origem || "").toLowerCase();
+      return o === "whatsapp" || o === "";
+    }) || false;
+  };
+
   // Conta leads por origem ORIGINAL no período
   const leadsWhatsAppCount = leadsInPeriod?.filter((lead) => isWhatsAppOrigin(lead.origem)).length || 0;
   const leadsDisparosCount = leadsInPeriod?.filter((lead) => isDisparosOrigin(lead.origem)).length || 0;
@@ -63,19 +71,30 @@ export default function Leads() {
     isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead)
   ) || [];
 
+  // Leads de Disparos que também interagiram via WhatsApp (para mostrar na aba WhatsApp como "extras")
+  const disparosLeadsWithWhatsApp = leadsInPeriod?.filter((lead) => 
+    isDisparosOrigin(lead.origem) && hasWhatsAppPresence(lead)
+  ) || [];
+
   // Filtra por origem
   const leadsByOrigem = leadsInPeriod?.filter((lead) => {
     if (origemFilter === "whatsapp") {
-      // Aba WhatsApp: apenas leads originalmente de WhatsApp
-      return isWhatsAppOrigin(lead.origem);
+      // Aba WhatsApp: leads originalmente de WhatsApp + leads de Disparos que interagiram via WhatsApp
+      return isWhatsAppOrigin(lead.origem) || (isDisparosOrigin(lead.origem) && hasWhatsAppPresence(lead));
     }
     // Aba Disparos: leads originalmente de Disparos + leads de WhatsApp que receberam disparo
     return isDisparosOrigin(lead.origem) || (isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead));
   });
 
-  // Marca quais leads são "extras" (origem WhatsApp mas aparecendo na aba Disparos)
+  // Marca quais leads são "extras" (aparecendo em aba diferente da origem)
   const isExtraLead = (lead: typeof leads[0]) => {
-    return origemFilter === "disparos" && isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead);
+    if (origemFilter === "disparos") {
+      return isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead);
+    }
+    if (origemFilter === "whatsapp") {
+      return isDisparosOrigin(lead.origem) && hasWhatsAppPresence(lead);
+    }
+    return false;
   };
 
   const filteredLeads = leadsByOrigem?.filter((lead) => {
@@ -293,6 +312,15 @@ export default function Leads() {
                 </span>
               </>
             )}
+            {origemFilter === "whatsapp" && disparosLeadsWithWhatsApp.length > 0 && (
+              <>
+                <span className="text-border">|</span>
+                <span className="flex items-center gap-1.5 text-amber-600">
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  +{disparosLeadsWithWhatsApp.length} de Disparos
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div className="relative">
@@ -339,7 +367,7 @@ export default function Leads() {
                     <h3 className="text-lg font-semibold text-foreground truncate">{lead.nome}</h3>
                     {isExtra && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 flex-shrink-0">
-                        Via WhatsApp
+                        {origemFilter === "disparos" ? "Via WhatsApp" : "Via Disparos"}
                       </span>
                     )}
                   </div>
