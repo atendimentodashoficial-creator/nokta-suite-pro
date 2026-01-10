@@ -140,8 +140,8 @@ export function PixelStatusBadge({
               Authorization: `Bearer ${session.session.access_token}`,
             },
             body: JSON.stringify({
-              phone: clienteTelefone,
-              message,
+              number: clienteTelefone,
+              text: message,
             }),
           }
         );
