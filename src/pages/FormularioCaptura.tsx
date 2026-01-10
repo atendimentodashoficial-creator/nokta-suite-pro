@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
 import { formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface CampoPersonalizado {
   id: string;
   label: string;
-  tipo: "text" | "tel" | "email" | "textarea" | "multipla_escolha" | "sim_nao";
+  tipo: "text" | "tel" | "email" | "textarea" | "multipla_escolha" | "sim_nao" | string;
   obrigatorio: boolean;
   opcoes?: string[]; // Para múltipla escolha
 }
@@ -35,9 +35,39 @@ interface FormConfig {
   botao_sucesso_url: string | null;
 }
 
-const phoneSchema = z.string().regex(/^[\d\s\-\+\(\)]+$/, "Telefone inválido").min(8, "Telefone muito curto");
+type FormValue = string | string[];
+
+const phoneSchema = z
+  .string()
+  .regex(/^[\d\s\-\+\(\)]+$/, "Telefone inválido")
+  .min(8, "Telefone muito curto");
 const emailSchema = z.string().email("Email inválido");
 const nameSchema = z.string().min(2, "Nome muito curto").max(100, "Nome muito longo");
+
+const normalizeTipo = (tipo: string): string => {
+  const t = (tipo || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[\s-]+/g, "_")
+    .replace(/\//g, "_");
+
+  // Compat: alguns cadastros antigos podem ter variações
+  if (t.includes("multipla") || t.includes("opcoes") || t.includes("escolha")) return "multipla_escolha";
+  if (t.includes("sim") && t.includes("nao")) return "sim_nao";
+  return t;
+};
+
+const valueToString = (v: FormValue | undefined): string => {
+  if (Array.isArray(v)) return v.join(", ");
+  return v || "";
+};
+
+const isEmptyValue = (v: FormValue | undefined): boolean => {
+  if (Array.isArray(v)) return v.length === 0;
+  return !v?.trim();
+};
 
 export default function FormularioCaptura() {
   const { formId } = useParams<{ formId: string }>();
@@ -51,7 +81,7 @@ export default function FormularioCaptura() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState<Record<string, FormValue>>({});
   const [countryCode, setCountryCode] = useState("55");
 
   useEffect(() => {
@@ -62,11 +92,7 @@ export default function FormularioCaptura() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("instagram_formularios")
-        .select("*")
-        .eq("id", formId)
-        .maybeSingle();
+      const { data, error } = await supabase.from("instagram_formularios").select("*").eq("id", formId).maybeSingle();
 
       if (error || !data) {
         setError("Formulário não encontrado");
@@ -97,7 +123,7 @@ export default function FormularioCaptura() {
         }
         return c as CampoPersonalizado;
       });
-      
+
       setConfig({
         ...data,
         campos,
@@ -133,7 +159,8 @@ export default function FormularioCaptura() {
       };
       return tipos[campo] || "text";
     }
-    return campo.tipo;
+
+    return normalizeTipo(String(campo.tipo));
   };
 
   const getCampoPlaceholder = (campo: string | CampoPersonalizado): string => {
@@ -148,17 +175,18 @@ export default function FormularioCaptura() {
     return "";
   };
 
-  const validateField = (campo: string | CampoPersonalizado, value: string): string | null => {
+  const validateField = (campo: string | CampoPersonalizado, value: FormValue): string | null => {
     const id = getCampoId(campo);
-    
+    const valueStr = valueToString(value);
+
     try {
       if (id === "nome") {
-        nameSchema.parse(value);
+        nameSchema.parse(valueStr);
       } else if (id === "telefone") {
-        phoneSchema.parse(value);
+        phoneSchema.parse(valueStr);
       } else if (id === "email") {
-        emailSchema.parse(value);
-      } else if (typeof campo !== "string" && campo.obrigatorio && !value.trim()) {
+        emailSchema.parse(valueStr);
+      } else if (typeof campo !== "string" && campo.obrigatorio && isEmptyValue(value)) {
         return "Campo obrigatório";
       }
       return null;
@@ -170,27 +198,27 @@ export default function FormularioCaptura() {
     }
   };
 
-  const handleChange = (campoId: string, value: string) => {
-    // For phone field, format with country code
+  const handleChange = (campoId: string, value: FormValue) => {
+    // For phone field, format with country code and keep exactly (XX) XXXXX-XXXX / (XX) XXXX-XXXX
     if (campoId === "telefone") {
-      const formattedPhone = formatPhoneByCountry(value, countryCode);
-      setFormData(prev => ({ ...prev, [campoId]: formattedPhone }));
+      const formattedPhone = formatPhoneByCountry(String(value ?? ""), countryCode);
+      setFormData((prev) => ({ ...prev, [campoId]: formattedPhone }));
     } else {
-      setFormData(prev => ({ ...prev, [campoId]: value }));
+      setFormData((prev) => ({ ...prev, [campoId]: value }));
     }
-    
+
     if (fieldErrors[campoId]) {
-      setFieldErrors(prev => ({ ...prev, [campoId]: "" }));
+      setFieldErrors((prev) => ({ ...prev, [campoId]: "" }));
     }
   };
 
   const handleBlur = (campo: string | CampoPersonalizado) => {
     const id = getCampoId(campo);
     const value = formData[id];
-    if (value) {
+    if (!isEmptyValue(value)) {
       const error = validateField(campo, value);
       if (error) {
-        setFieldErrors(prev => ({ ...prev, [id]: error }));
+        setFieldErrors((prev) => ({ ...prev, [id]: error }));
       }
     }
   };
@@ -201,12 +229,12 @@ export default function FormularioCaptura() {
 
     // Validate all required fields
     const errors: Record<string, string> = {};
-    
+
     for (const campo of config.campos) {
       const id = getCampoId(campo);
       const value = formData[id];
-      
-      if (!value?.trim()) {
+
+      if (isEmptyValue(value)) {
         errors[id] = "Campo obrigatório";
       } else {
         const fieldError = validateField(campo, value);
@@ -226,26 +254,24 @@ export default function FormularioCaptura() {
     try {
       // Separate standard fields from custom fields
       const dadosExtras: Record<string, string> = {};
-      
+
       for (const campo of config.campos) {
         if (typeof campo !== "string") {
           const id = getCampoId(campo);
-          dadosExtras[campo.label] = formData[id] || "";
+          dadosExtras[campo.label] = valueToString(formData[id]);
         }
       }
 
-      const { error } = await supabase
-        .from("instagram_formularios_respostas")
-        .insert({
-          formulario_id: config.id,
-          user_id: config.user_id,
-          instagram_user_id: instagramUserId || null,
-          tracking_id: trackingId || null,
-          nome: formData.nome || null,
-          telefone: formData.telefone ? `${countryCode}${formData.telefone.replace(/\D/g, '')}` : null,
-          email: formData.email || null,
-          dados_extras: Object.keys(dadosExtras).length > 0 ? dadosExtras : null,
-        });
+      const { error } = await supabase.from("instagram_formularios_respostas").insert({
+        formulario_id: config.id,
+        user_id: config.user_id,
+        instagram_user_id: instagramUserId || null,
+        tracking_id: trackingId || null,
+        nome: valueToString(formData.nome) || null,
+        telefone: formData.telefone ? `${countryCode}${valueToString(formData.telefone).replace(/\D/g, "")}` : null,
+        email: valueToString(formData.email) || null,
+        dados_extras: Object.keys(dadosExtras).length > 0 ? dadosExtras : null,
+      });
 
       if (error) throw error;
 
@@ -284,12 +310,9 @@ export default function FormularioCaptura() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
-            <CheckCircle2 
-              className="h-16 w-16" 
-              style={{ color: config.cor_primaria }} 
-            />
+            <CheckCircle2 className="h-16 w-16" style={{ color: config.cor_primaria }} />
             <p className="text-lg font-medium text-center">{config.mensagem_sucesso}</p>
-            
+
             {config.botao_sucesso_texto && config.botao_sucesso_url && (
               <Button
                 className="mt-4"
@@ -312,18 +335,12 @@ export default function FormularioCaptura() {
       <Card className="w-full max-w-md">
         {config.imagem_url && (
           <div className="w-full h-40 overflow-hidden rounded-t-lg">
-            <img 
-              src={config.imagem_url} 
-              alt="" 
-              className="w-full h-full object-cover"
-            />
+            <img src={config.imagem_url} alt="" className="w-full h-full object-cover" />
           </div>
         )}
         <CardHeader className="text-center">
           <CardTitle className="text-xl">{config.titulo_pagina}</CardTitle>
-          {config.subtitulo_pagina && (
-            <CardDescription>{config.subtitulo_pagina}</CardDescription>
-          )}
+          {config.subtitulo_pagina && <CardDescription>{config.subtitulo_pagina}</CardDescription>}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -331,75 +348,80 @@ export default function FormularioCaptura() {
               const id = getCampoId(campo);
               const tipo = getCampoTipo(campo);
               const isCustomField = typeof campo !== "string";
-              const opcoes = isCustomField && 'opcoes' in campo ? campo.opcoes : undefined;
-              
+              const opcoes = isCustomField && "opcoes" in campo ? campo.opcoes : undefined;
+
               return (
                 <div key={id} className="space-y-2">
                   <Label htmlFor={id}>{getCampoLabel(campo)}</Label>
+
                   {tipo === "textarea" ? (
                     <Textarea
                       id={id}
                       placeholder={getCampoPlaceholder(campo)}
-                      value={formData[id] || ""}
+                      value={valueToString(formData[id])}
                       onChange={(e) => handleChange(id, e.target.value)}
                       onBlur={() => handleBlur(campo)}
                       className={fieldErrors[id] ? "border-destructive" : ""}
                       rows={3}
                     />
                   ) : tipo === "multipla_escolha" ? (
-                    opcoes && opcoes.length > 0 ? (
-                      <RadioGroup
-                        value={formData[id] || ""}
-                        onValueChange={(value) => handleChange(id, value)}
-                        className="space-y-2"
-                      >
-                        {opcoes.map((opcao, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-muted/50 transition-colors"
-                          >
-                            <RadioGroupItem value={opcao} id={`${id}_${idx}`} />
-                            <Label htmlFor={`${id}_${idx}`} className="font-normal cursor-pointer flex-1">
-                              {opcao}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    ) : (
-                      <div className="text-sm text-muted-foreground p-3 border rounded-lg">
-                        Este campo de múltipla escolha está sem opções configuradas.
-                      </div>
-                    )
+                    <div className="space-y-2 rounded-md border p-3">
+                      {(opcoes || []).length > 0 ? (
+                        (opcoes || []).map((opcao, idx) => {
+                          const selected = Array.isArray(formData[id])
+                            ? (formData[id] as string[]).includes(opcao)
+                            : false;
+
+                          return (
+                            <label
+                              key={idx}
+                              className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/40 cursor-pointer"
+                            >
+                              <Checkbox
+                                checked={selected}
+                                onCheckedChange={(checked) => {
+                                  const current = Array.isArray(formData[id]) ? (formData[id] as string[]) : [];
+                                  const next = checked
+                                    ? Array.from(new Set([...current, opcao]))
+                                    : current.filter((v) => v !== opcao);
+                                  handleChange(id, next);
+                                }}
+                              />
+                              <span className="text-sm">{opcao}</span>
+                            </label>
+                          );
+                        })
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          Este campo de múltipla escolha está sem opções configuradas.
+                        </div>
+                      )}
+                    </div>
                   ) : tipo === "sim_nao" ? (
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleChange(id, "Sim")}
-                        className={`flex-1 py-3 px-4 rounded-lg border font-medium transition-all ${
-                          formData[id] === "Sim"
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-muted hover:border-muted-foreground/50"
-                        }`}
-                      >
-                        Sim
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleChange(id, "Não")}
-                        className={`flex-1 py-3 px-4 rounded-lg border font-medium transition-all ${
-                          formData[id] === "Não"
-                            ? "border-destructive bg-destructive/10 text-destructive"
-                            : "border-muted hover:border-muted-foreground/50"
-                        }`}
-                      >
-                        Não
-                      </button>
+                    <div className="space-y-2 rounded-md border p-3">
+                      {["Sim", "Não"].map((opcao) => {
+                        const selected = valueToString(formData[id]) === opcao;
+                        return (
+                          <label
+                            key={opcao}
+                            className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/40 cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={selected}
+                              onCheckedChange={(checked) => {
+                                handleChange(id, checked ? opcao : "");
+                              }}
+                            />
+                            <span className="text-sm">{opcao}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   ) : id === "telefone" ? (
                     <CountryCodeSelect
                       value={countryCode}
                       onChange={setCountryCode}
-                      phoneValue={formData[id] || ""}
+                      phoneValue={valueToString(formData[id])}
                       onPhoneChange={(value) => handleChange(id, value)}
                       onPhoneBlur={() => handleBlur(campo)}
                       placeholder={getPhonePlaceholder(countryCode)}
@@ -409,32 +431,27 @@ export default function FormularioCaptura() {
                       id={id}
                       type={tipo}
                       placeholder={getCampoPlaceholder(campo)}
-                      value={formData[id] || ""}
+                      value={valueToString(formData[id])}
                       onChange={(e) => handleChange(id, e.target.value)}
                       onBlur={() => handleBlur(campo)}
                       className={fieldErrors[id] ? "border-destructive" : ""}
                     />
                   )}
-                  {fieldErrors[id] && (
-                    <p className="text-xs text-destructive">{fieldErrors[id]}</p>
-                  )}
+
+                  {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
                 </div>
               );
             })}
 
-            {error && (
-              <p className="text-sm text-destructive text-center">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={submitting}
               style={{ backgroundColor: config.cor_primaria }}
             >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {config.texto_botao}
             </Button>
           </form>
