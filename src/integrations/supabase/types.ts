@@ -1806,6 +1806,7 @@ export type Database = {
           resposta_midia_url: string | null
           resposta_texto: string | null
           tipo: string
+          titulo_botoes: string | null
           updated_at: string
           user_id: string
           verificar_seguidor: boolean | null
@@ -1832,6 +1833,7 @@ export type Database = {
           resposta_midia_url?: string | null
           resposta_texto?: string | null
           tipo?: string
+          titulo_botoes?: string | null
           updated_at?: string
           user_id: string
           verificar_seguidor?: boolean | null
@@ -1858,6 +1860,7 @@ export type Database = {
           resposta_midia_url?: string | null
           resposta_texto?: string | null
           tipo?: string
+          titulo_botoes?: string | null
           updated_at?: string
           user_id?: string
           verificar_seguidor?: boolean | null

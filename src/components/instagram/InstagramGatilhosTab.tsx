@@ -34,6 +34,7 @@ const gatilhoSchema = z.object({
     payload: z.string().optional(),
     url: z.string().optional(),
   })).optional(),
+  titulo_botoes: z.string().optional(),
   verificar_seguidor: z.boolean().optional(),
   mensagem_pedir_seguir: z.string().optional(),
   formulario_id: z.string().optional(),
@@ -58,6 +59,7 @@ interface Gatilho {
   resposta_link_url: string | null;
   resposta_link_texto: string | null;
   resposta_botoes: any[] | null;
+  titulo_botoes: string | null;
   verificar_seguidor: boolean | null;
   mensagem_pedir_seguir: string | null;
   formulario_id: string | null;
@@ -105,6 +107,7 @@ export function InstagramGatilhosTab() {
       resposta_link_url: "",
       resposta_link_texto: "",
       resposta_botoes: [],
+      titulo_botoes: "",
       verificar_seguidor: false,
       mensagem_pedir_seguir: "",
       formulario_id: "",
@@ -231,6 +234,7 @@ export function InstagramGatilhosTab() {
         resposta_link_url: data.resposta_link_url || null,
         resposta_link_texto: data.resposta_link_texto || null,
         resposta_botoes: buttons.length > 0 ? buttons : null,
+        titulo_botoes: data.titulo_botoes || null,
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         formulario_id: data.formulario_id || null,
@@ -275,6 +279,7 @@ export function InstagramGatilhosTab() {
         resposta_link_url: data.resposta_link_url || null,
         resposta_link_texto: data.resposta_link_texto || null,
         resposta_botoes: buttons.length > 0 ? buttons : null,
+        titulo_botoes: data.titulo_botoes || null,
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         formulario_id: data.formulario_id || null,
@@ -347,6 +352,7 @@ export function InstagramGatilhosTab() {
       resposta_midia_tipo: gatilho.resposta_midia_tipo as any || undefined,
       resposta_link_url: gatilho.resposta_link_url || "",
       resposta_link_texto: gatilho.resposta_link_texto || "",
+      titulo_botoes: gatilho.titulo_botoes || "",
       verificar_seguidor: gatilho.verificar_seguidor || false,
       mensagem_pedir_seguir: gatilho.mensagem_pedir_seguir || "",
       formulario_id: gatilho.formulario_id || "",
@@ -632,6 +638,26 @@ export function InstagramGatilhosTab() {
                   </TabsContent>
 
                   <TabsContent value="botoes" className="mt-4 space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="titulo_botoes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Título acima dos botões</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Escolha uma opção:" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Texto que aparece acima dos botões. Deixe vazio para usar o texto da aba "Texto".
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <div className="space-y-3">
                       {buttons.map((button, index) => (
                         <div key={index} className="flex gap-2 items-start p-3 border rounded-lg">

@@ -320,12 +320,15 @@ async function processMessage(supabase: any, event: any) {
       if (gatilho.resposta_botoes && Array.isArray(gatilho.resposta_botoes) && gatilho.resposta_botoes.length > 0) {
         console.log('Sending buttons for trigger:', gatilho.nome, 'Buttons:', JSON.stringify(gatilho.resposta_botoes));
         
+        // Use titulo_botoes if defined, otherwise fall back to resposta_texto
+        const buttonTitle = gatilho.titulo_botoes || gatilho.resposta_texto || null;
+        
         await sendInstagramButtons(
           config.page_access_token,
           config.instagram_account_id,
           senderId,
           gatilho.resposta_botoes,
-          gatilho.resposta_texto // Use text as title if available
+          buttonTitle ? processSpintax(buttonTitle) : null
         );
 
         // Log response
@@ -926,7 +929,7 @@ async function sendInstagramButtons(
         payload: {
           template_type: "generic",
           elements: [{
-            title: messageText || "Clique no botão abaixo:",
+            title: messageText || " ",
             buttons: templateButtons.slice(0, 3) // Max 3 buttons per element
           }]
         }
@@ -956,7 +959,7 @@ async function sendInstagramButtons(
   // If we have quick replies, send them with a text message
   if (quickReplies.length > 0) {
     const messagePayload = {
-      text: messageText || "Escolha uma opção:",
+      text: messageText || " ",
       quick_replies: quickReplies.map((b: any) => ({
         content_type: "text",
         title: b.title,
