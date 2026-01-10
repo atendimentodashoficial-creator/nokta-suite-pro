@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MessageBubble } from "./MessageBubble";
 import { DateSeparator, isDifferentDay } from "./DateSeparator";
+import { CampaignAttributionBadge } from "./CampaignAttributionBadge";
 import { getInitials, normalizePhoneNumber, formatPhoneNumber, getLast8Digits } from "@/utils/whatsapp";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
 import { useMensagensPredefinidas } from "@/hooks/useMensagensPredefinidas";
@@ -1278,9 +1279,12 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
                 </Button>
               </div>
             )}
-            <p className="text-xs text-muted-foreground truncate">
-              {formatPhoneForDisplay(chat.contact_number)}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs text-muted-foreground truncate">
+                {formatPhoneForDisplay(chat.contact_number)}
+              </p>
+              <CampaignAttributionBadge contactNumber={chat.contact_number} />
+            </div>
           </div>
         </div>
         {/* Ícones fixos à direita */}
