@@ -30,7 +30,9 @@ import {
   TrendingUp,
   ArrowDownRight,
   Wallet,
-  Receipt
+  Receipt,
+  Megaphone,
+  HelpCircle
 } from "lucide-react";
 import {
   Select,
@@ -443,12 +445,21 @@ export function FunilConversaoTab() {
 
   // Calcular totais
   const totals = useMemo(() => {
-    if (!funnelData) return { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: 0 };
+    if (!funnelData) return { leads: 0, leadsTracked: 0, leadsUntracked: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: 0 };
     
     const totalSpend = Object.values(spendByCampaign).reduce((a, b) => a + b, 0);
     
+    // Contar leads rastreados vs não rastreados
+    const tracked = funnelData.filter(item => item.campaign_name !== "Sem campanha");
+    const untracked = funnelData.find(item => item.campaign_name === "Sem campanha");
+    
+    const leadsTracked = tracked.reduce((sum, item) => sum + item.leads, 0);
+    const leadsUntracked = untracked?.leads || 0;
+    
     return funnelData.reduce((acc, item) => ({
       leads: acc.leads + item.leads,
+      leadsTracked: acc.leadsTracked,
+      leadsUntracked: acc.leadsUntracked,
       agendados: acc.agendados + item.agendados,
       compareceu: acc.compareceu + item.compareceu,
       nao_compareceu: acc.nao_compareceu + item.nao_compareceu,
@@ -456,7 +467,7 @@ export function FunilConversaoTab() {
       clientes: acc.clientes + item.clientes,
       valor_fechado: acc.valor_fechado + item.valor_fechado,
       spend: totalSpend,
-    }), { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: totalSpend });
+    }), { leads: 0, leadsTracked, leadsUntracked, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0, spend: totalSpend });
   }, [funnelData, spendByCampaign]);
 
   const formatCurrency = (value: number) => {
@@ -672,13 +683,39 @@ export function FunilConversaoTab() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Leads</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-1">
+              <Megaphone className="h-4 w-4 text-blue-500" />
+              <span className="text-muted-foreground">/</span>
+              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totals.leads)}</div>
-            <p className="text-xs text-muted-foreground">
-              CPL: {totals.leads > 0 ? formatCurrency(totals.spend / totals.leads) : "—"}
-            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <Megaphone className="h-3 w-3 text-blue-500" />
+                    <span className="font-medium text-blue-600">{formatNumber(totals.leadsTracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Leads de anúncios (rastreados)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span>•</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-1">
+                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    <span>{formatNumber(totals.leadsUntracked)}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Leads sem rastreamento</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </CardContent>
         </Card>
 
