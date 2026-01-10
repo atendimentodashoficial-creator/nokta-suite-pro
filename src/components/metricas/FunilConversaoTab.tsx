@@ -23,7 +23,8 @@ import {
   DollarSign,
   Target,
   Loader2,
-  BarChart3
+  BarChart3,
+  Eye
 } from "lucide-react";
 import {
   Select,
@@ -46,6 +47,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useAuth } from "@/contexts/AuthContext";
+import { FunilVisualDialog } from "./FunilVisualDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface FunnelData {
   campaign_name: string;
@@ -64,6 +67,18 @@ interface SpendData {
   spend: number;
 }
 
+interface SelectedFunnelData {
+  campaign_name: string;
+  adset_name: string | null;
+  ad_name: string | null;
+  leads: number;
+  agendados: number;
+  em_negociacao: number;
+  clientes: number;
+  valor_fechado: number;
+  spend: number;
+}
+
 export function FunilConversaoTab() {
   const { user } = useAuth();
   const [periodFilter, setPeriodFilter] = useState("last_30_days");
@@ -73,6 +88,8 @@ export function FunilConversaoTab() {
   const [calendarEndOpen, setCalendarEndOpen] = useState(false);
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [viewLevel, setViewLevel] = useState<"campaign" | "adset" | "ad">("campaign");
+  const [selectedFunnel, setSelectedFunnel] = useState<SelectedFunnelData | null>(null);
+  const [funnelDialogOpen, setFunnelDialogOpen] = useState(false);
 
   // Atualizar datas quando o período mudar
   const handlePeriodChange = (value: string) => {
@@ -623,6 +640,7 @@ export function FunilConversaoTab() {
                     <TableHead className="text-center">CAC</TableHead>
                     <TableHead className="text-center">Faturado</TableHead>
                     <TableHead className="text-center">ROAS</TableHead>
+                    <TableHead className="text-center w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -633,8 +651,27 @@ export function FunilConversaoTab() {
                     const cac = row.clientes > 0 ? spend / row.clientes : 0;
                     const roas = spend > 0 ? row.valor_fechado / spend : 0;
 
+                    const handleRowClick = () => {
+                      setSelectedFunnel({
+                        campaign_name: row.campaign_name,
+                        adset_name: row.adset_name,
+                        ad_name: row.ad_name,
+                        leads: row.leads,
+                        agendados: row.agendados,
+                        em_negociacao: row.em_negociacao,
+                        clientes: row.clientes,
+                        valor_fechado: row.valor_fechado,
+                        spend,
+                      });
+                      setFunnelDialogOpen(true);
+                    };
+
                     return (
-                      <TableRow key={idx}>
+                      <TableRow 
+                        key={idx} 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={handleRowClick}
+                      >
                         <TableCell className="font-medium">
                           <div className="max-w-[250px]">
                             <p className="truncate" title={row.campaign_name}>{row.campaign_name}</p>
@@ -690,6 +727,20 @@ export function FunilConversaoTab() {
                             </Badge>
                           ) : "—"}
                         </TableCell>
+                        <TableCell className="text-center">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Ver funil visual</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -717,6 +768,7 @@ export function FunilConversaoTab() {
                     <TableCell className="text-center">
                       {totals.spend > 0 ? `${(totals.valor_fechado / totals.spend).toFixed(2)}x` : "—"}
                     </TableCell>
+                    <TableCell></TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -724,6 +776,13 @@ export function FunilConversaoTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog do Funil Visual */}
+      <FunilVisualDialog 
+        open={funnelDialogOpen} 
+        onOpenChange={setFunnelDialogOpen} 
+        data={selectedFunnel} 
+      />
     </div>
   );
 }
