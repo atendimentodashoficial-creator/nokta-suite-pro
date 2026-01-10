@@ -41,24 +41,16 @@ export default function FormularioConversao() {
       }
 
       try {
-        // Fetch fatura and lead data
-        const { data: fatura, error } = await supabase
-          .from("faturas")
-          .select(`
-            id,
-            pixel_status,
-            leads:cliente_id(id, nome, genero, data_nascimento, cep, cidade, estado, endereco)
-          `)
-          .eq("id", faturaId)
-          .single();
+        const { data, error } = await supabase.functions.invoke("conversao-form", {
+          body: { action: "get", faturaId },
+        });
 
-        if (error || !fatura) {
-          console.error("Error loading fatura:", error);
-          setLoading(false);
-          return;
-        }
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || "Erro ao carregar dados");
 
-        const lead = fatura.leads as any;
+        const fatura = data.fatura as any;
+        const lead = data.lead as any;
+
         if (lead) {
           setClienteNome(lead.nome || "");
           setFormData({
@@ -72,7 +64,7 @@ export default function FormularioConversao() {
         }
 
         // Check if already completed
-        if (fatura.pixel_status === "dados_completos" || fatura.pixel_status === "evento_enviado") {
+        if (fatura?.pixel_status === "dados_completos" || fatura?.pixel_status === "evento_enviado") {
           setSubmitted(true);
         }
       } catch (err) {
@@ -111,40 +103,16 @@ export default function FormularioConversao() {
 
     setSubmitting(true);
     try {
-      // Get the cliente_id from fatura
-      const { data: fatura } = await supabase
-        .from("faturas")
-        .select("cliente_id")
-        .eq("id", faturaId)
-        .single();
+      const { data, error } = await supabase.functions.invoke("conversao-form", {
+        body: {
+          action: "submit",
+          faturaId,
+          ...formData,
+        },
+      });
 
-      if (!fatura) throw new Error("Fatura não encontrada");
-
-      // Update lead data
-      const { error: leadError } = await supabase
-        .from("leads")
-        .update({
-          genero: formData.genero || null,
-          data_nascimento: formData.data_nascimento || null,
-          cep: formData.cep || null,
-          cidade: formData.cidade || null,
-          estado: formData.estado || null,
-          endereco: formData.endereco || null,
-        })
-        .eq("id", fatura.cliente_id);
-
-      if (leadError) throw leadError;
-
-      // Update fatura status
-      const { error: faturaError } = await supabase
-        .from("faturas")
-        .update({
-          pixel_status: "dados_completos",
-          pixel_data_completed_at: new Date().toISOString(),
-        })
-        .eq("id", faturaId);
-
-      if (faturaError) throw faturaError;
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Erro ao enviar dados");
 
       setSubmitted(true);
       toast.success("Dados enviados com sucesso!");
