@@ -244,24 +244,15 @@ async function processMessage(supabase: any, event: any) {
         }
       }
       
-      // If a form is required, send the form link instead of other content
+      // If a form is required, send the form with a button
       if (gatilho.formulario_id) {
         console.log('Trigger has form requirement:', gatilho.formulario_id);
         
         // Build form URL with tracking
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        // Extract project ref from supabase URL to build the form link
-        // URL format: https://<project-ref>.supabase.co
-        const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase/)?.[1];
-        
-        // For the form, we need to use the app URL, not Supabase URL
-        // The form is hosted at /f/:formId in the frontend
-        // We'll use a simple approach - the message should contain {link_formulario}
         const formUrl = `https://app.noktaodonto.com.br/f/${gatilho.formulario_id}?t=${senderId}`;
         
-        let formMessage = gatilho.mensagem_formulario || 'Preencha seus dados para receber o material:\n{link_formulario}';
+        let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
         formMessage = processSpintax(formMessage);
-        formMessage = formMessage.replace(/{link_formulario}/g, formUrl);
         
         // Get username for {nome} replacement
         const userInfo = await checkIfFollower(config.page_access_token, senderId);
@@ -269,11 +260,23 @@ async function processMessage(supabase: any, event: any) {
           formMessage = formMessage.replace(/{nome}/g, userInfo.username);
         }
         
+        const buttonText = gatilho.botao_formulario_texto || 'Preencher Formulário';
+        
+        // Send text message first
         await sendInstagramMessage(
           config.page_access_token,
           config.instagram_account_id,
           senderId,
           formMessage
+        );
+        
+        // Then send button with form link
+        await sendInstagramButtons(
+          config.page_access_token,
+          config.instagram_account_id,
+          senderId,
+          [{ type: 'url', title: buttonText, url: formUrl }],
+          null // No title needed, text was sent above
         );
 
         // Log response
@@ -281,9 +284,9 @@ async function processMessage(supabase: any, event: any) {
           user_id: config.user_id,
           instagram_user_id: senderId,
           tipo: 'dm_enviada',
-          conteudo: formMessage,
+          conteudo: `${formMessage}\n[Botão: ${buttonText}]`,
           gatilho_id: gatilho.id,
-          metadata: { tipo: 'formulario', formulario_id: gatilho.formulario_id },
+          metadata: { tipo: 'formulario', formulario_id: gatilho.formulario_id, formUrl },
         });
         
         break; // Form was sent, don't send other content
@@ -628,29 +631,33 @@ async function processComment(supabase: any, comment: any) {
           }
         }
 
-        // If a form is required, send the form link instead of other content
+        // If a form is required, send the form link (private replies don't support buttons)
         if (gatilho.formulario_id) {
           console.log('Comment trigger has form requirement:', gatilho.formulario_id);
           
           // Build form URL with tracking
           const formUrl = `https://app.noktaodonto.com.br/f/${gatilho.formulario_id}?t=${comment.from.id}`;
           
-          let formMessage = gatilho.mensagem_formulario || 'Preencha seus dados para receber o material:\n{link_formulario}';
+          let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
           formMessage = processSpintax(formMessage);
-          formMessage = formMessage.replace(/{link_formulario}/g, formUrl);
           
           if (comment.from?.username) {
             formMessage = formMessage.replace(/{nome}/g, comment.from.username);
           }
           
-          await sendPrivateReplyToComment(config.page_access_token, commentId, formMessage);
+          const buttonText = gatilho.botao_formulario_texto || 'Preencher Formulário';
+          
+          // For private replies, include the link in the message (buttons not supported)
+          const finalMessage = `${formMessage}\n\n👉 ${buttonText}:\n${formUrl}`;
+          
+          await sendPrivateReplyToComment(config.page_access_token, commentId, finalMessage);
 
           await supabase.from('instagram_mensagens').insert({
             user_id: config.user_id,
             instagram_user_id: comment.from.id,
             instagram_username: comment.from.username,
             tipo: 'dm_enviada',
-            conteudo: formMessage,
+            conteudo: finalMessage,
             gatilho_id: gatilho.id,
             metadata: { via: 'private_reply', comment_id: commentId, tipo: 'formulario', formulario_id: gatilho.formulario_id },
           });
