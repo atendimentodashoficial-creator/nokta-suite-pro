@@ -330,6 +330,8 @@ export default function FormularioCaptura() {
             {config.campos.map((campo) => {
               const id = getCampoId(campo);
               const tipo = getCampoTipo(campo);
+              const isCustomField = typeof campo !== "string";
+              const opcoes = isCustomField && 'opcoes' in campo ? campo.opcoes : undefined;
               
               return (
                 <div key={id} className="space-y-2">
@@ -344,40 +346,46 @@ export default function FormularioCaptura() {
                       className={fieldErrors[id] ? "border-destructive" : ""}
                       rows={3}
                     />
-                  ) : tipo === "multipla_escolha" && typeof campo !== "string" && campo.opcoes ? (
+                  ) : tipo === "multipla_escolha" && opcoes && opcoes.length > 0 ? (
                     <RadioGroup
                       value={formData[id] || ""}
                       onValueChange={(value) => handleChange(id, value)}
                       className="space-y-2"
                     >
-                      {campo.opcoes.map((opcao, idx) => (
-                        <div key={idx} className="flex items-center space-x-2">
+                      {opcoes.map((opcao, idx) => (
+                        <div key={idx} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-muted/50 transition-colors">
                           <RadioGroupItem value={opcao} id={`${id}_${idx}`} />
-                          <Label htmlFor={`${id}_${idx}`} className="font-normal cursor-pointer">
+                          <Label htmlFor={`${id}_${idx}`} className="font-normal cursor-pointer flex-1">
                             {opcao}
                           </Label>
                         </div>
                       ))}
                     </RadioGroup>
                   ) : tipo === "sim_nao" ? (
-                    <RadioGroup
-                      value={formData[id] || ""}
-                      onValueChange={(value) => handleChange(id, value)}
-                      className="flex space-x-4"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Sim" id={`${id}_sim`} />
-                        <Label htmlFor={`${id}_sim`} className="font-normal cursor-pointer">
-                          Sim
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Não" id={`${id}_nao`} />
-                        <Label htmlFor={`${id}_nao`} className="font-normal cursor-pointer">
-                          Não
-                        </Label>
-                      </div>
-                    </RadioGroup>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleChange(id, "Sim")}
+                        className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
+                          formData[id] === "Sim"
+                            ? "border-green-500 bg-green-50 text-green-700"
+                            : "border-muted hover:border-muted-foreground/50"
+                        }`}
+                      >
+                        ✓ Sim
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleChange(id, "Não")}
+                        className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
+                          formData[id] === "Não"
+                            ? "border-red-500 bg-red-50 text-red-700"
+                            : "border-muted hover:border-muted-foreground/50"
+                        }`}
+                      >
+                        ✕ Não
+                      </button>
+                    </div>
                   ) : id === "telefone" ? (
                     <CountryCodeSelect
                       value={countryCode}
