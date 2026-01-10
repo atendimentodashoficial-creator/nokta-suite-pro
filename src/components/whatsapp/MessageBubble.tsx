@@ -243,117 +243,122 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             <span>via {sourceInfo.label}</span>
           </button>
         </DialogTrigger>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-blue-500" />
-              Origem do Anúncio
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {/* Ad thumbnail preview */}
-            {message.ad_thumbnail_url && (
-              <div className="rounded-lg overflow-hidden border">
-                <img 
-                  src={message.ad_thumbnail_url} 
-                  alt="Preview do anúncio" 
-                  className="w-full h-auto max-h-48 object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
 
-            {/* Source badge */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Fonte:</span>
-              <Badge variant="secondary" className={`text-white ${sourceInfo.color}`}>
-                {sourceInfo.label}
-              </Badge>
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-md p-0">
+          <div className="flex flex-col max-h-[80vh] min-h-0">
+            <DialogHeader className="p-4 pb-3 border-b">
+              <DialogTitle className="flex items-center gap-2">
+                <Megaphone className="w-5 h-5 text-blue-500" />
+                Origem do Anúncio
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <div className="space-y-4">
+                {/* Ad thumbnail preview */}
+                {message.ad_thumbnail_url && (
+                  <div className="rounded-lg overflow-hidden border">
+                    <img 
+                      src={message.ad_thumbnail_url} 
+                      alt="Preview do anúncio" 
+                      className="w-full h-auto max-h-48 object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Source badge */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Fonte:</span>
+                  <Badge variant="secondary" className={`text-white ${sourceInfo.color}`}>
+                    {sourceInfo.label}
+                  </Badge>
+                </div>
+
+                {/* Real Campaign Name from Facebook API */}
+                {message.fb_campaign_name && (
+                  <div className="space-y-1">
+                    <span className="text-sm text-muted-foreground">Campanha (Gerenciador):</span>
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <span className="text-sm font-semibold text-green-800">{message.fb_campaign_name}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Adset Name from Facebook API */}
+                {message.fb_adset_name && (
+                  <div className="space-y-1">
+                    <span className="text-sm text-muted-foreground">Conjunto de Anúncios:</span>
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <span className="text-sm font-medium text-blue-800">{message.fb_adset_name}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ad Name from Facebook API */}
+                {message.fb_ad_name && (
+                  <div className="space-y-1">
+                    <span className="text-sm text-muted-foreground">Nome do Anúncio:</span>
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <span className="text-sm font-medium text-purple-800">{message.fb_ad_name}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Fallback: CTA/Title from webhook (if no real campaign name) */}
+                {!message.fb_campaign_name && message.utm_campaign && (
+                  <div className="space-y-1">
+                    <span className="text-sm text-muted-foreground">Título do Anúncio (CTA):</span>
+                    <div className="p-3 bg-muted rounded-lg">
+                      <span className="text-sm font-medium">{message.utm_campaign}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ad body text */}
+                {message.utm_term && (
+                  <div className="space-y-1">
+                    <span className="text-sm text-muted-foreground">Texto do Anúncio:</span>
+                    <div className="p-3 bg-muted rounded-lg max-h-40 overflow-y-auto">
+                      <span className="text-sm whitespace-pre-wrap">{message.utm_term}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Technical IDs */}
+                {(message.utm_content || message.fbclid || message.fb_ad_id) && (
+                  <div className="pt-3 border-t space-y-2">
+                    <span className="text-xs text-muted-foreground">Dados Técnicos:</span>
+                    {message.fb_ad_id && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">ID do Anúncio:</span>
+                        <span className="font-mono truncate max-w-[180px]" title={message.fb_ad_id}>
+                          {message.fb_ad_id}
+                        </span>
+                      </div>
+                    )}
+                    {!message.fb_ad_id && message.utm_content && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Source ID:</span>
+                        <span className="font-mono truncate max-w-[180px]" title={message.utm_content}>
+                          {message.utm_content}
+                        </span>
+                      </div>
+                    )}
+                    {message.fbclid && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">FBCLID:</span>
+                        <span className="font-mono truncate max-w-[180px]" title={message.fbclid}>
+                          {message.fbclid.slice(0, 20)}...
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-
-            {/* Real Campaign Name from Facebook API */}
-            {message.fb_campaign_name && (
-              <div className="space-y-1">
-                <span className="text-sm text-muted-foreground">Campanha (Gerenciador):</span>
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <span className="text-sm font-semibold text-green-800">{message.fb_campaign_name}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Adset Name from Facebook API */}
-            {message.fb_adset_name && (
-              <div className="space-y-1">
-                <span className="text-sm text-muted-foreground">Conjunto de Anúncios:</span>
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <span className="text-sm font-medium text-blue-800">{message.fb_adset_name}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Ad Name from Facebook API */}
-            {message.fb_ad_name && (
-              <div className="space-y-1">
-                <span className="text-sm text-muted-foreground">Nome do Anúncio:</span>
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <span className="text-sm font-medium text-purple-800">{message.fb_ad_name}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Fallback: CTA/Title from webhook (if no real campaign name) */}
-            {!message.fb_campaign_name && message.utm_campaign && (
-              <div className="space-y-1">
-                <span className="text-sm text-muted-foreground">Título do Anúncio (CTA):</span>
-                <div className="p-3 bg-muted rounded-lg">
-                  <span className="text-sm font-medium">{message.utm_campaign}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Ad body text */}
-            {message.utm_term && (
-              <div className="space-y-1">
-                <span className="text-sm text-muted-foreground">Texto do Anúncio:</span>
-                <div className="p-3 bg-muted rounded-lg max-h-40 overflow-y-auto">
-                  <span className="text-sm whitespace-pre-wrap">{message.utm_term}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Technical IDs - collapsed by default */}
-            {(message.utm_content || message.fbclid || message.fb_ad_id) && (
-              <div className="pt-3 border-t space-y-2">
-                <span className="text-xs text-muted-foreground">Dados Técnicos:</span>
-                {message.fb_ad_id && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">ID do Anúncio:</span>
-                    <span className="font-mono truncate max-w-[180px]" title={message.fb_ad_id}>
-                      {message.fb_ad_id}
-                    </span>
-                  </div>
-                )}
-                {!message.fb_ad_id && message.utm_content && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Source ID:</span>
-                    <span className="font-mono truncate max-w-[180px]" title={message.utm_content}>
-                      {message.utm_content}
-                    </span>
-                  </div>
-                )}
-                {message.fbclid && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">FBCLID:</span>
-                    <span className="font-mono truncate max-w-[180px]" title={message.fbclid}>
-                      {message.fbclid.slice(0, 20)}...
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>
