@@ -619,37 +619,40 @@ export function InstagramFormulariosTab() {
                       </div>
                     )}
                     
-                    <Button
+                      <Button
                         type="button"
                         variant="outline"
                         className="w-full"
                         onClick={() => {
-                          if (novoCampoLabel.trim()) {
-                            // Validar opções para múltipla escolha
-                            if (novoCampoTipo === "multipla_escolha") {
-                              const opcoesValidas = novasOpcoes.filter(o => o.trim());
-                              if (opcoesValidas.length < 2) {
-                                return; // Precisa de pelo menos 2 opções
-                              }
-                            }
-                            
-                            const novoId = `custom_${Date.now()}`;
-                            const novoCampo: CampoPersonalizado = {
-                              id: novoId,
-                              label: novoCampoLabel.trim(),
-                              tipo: novoCampoTipo as CampoPersonalizado["tipo"],
-                              obrigatorio: true,
-                            };
-                            
-                            if (novoCampoTipo === "multipla_escolha") {
-                              novoCampo.opcoes = novasOpcoes.filter(o => o.trim());
-                            }
-                            
-                            setCamposPersonalizados([...camposPersonalizados, novoCampo]);
-                            setNovoCampoLabel("");
-                            setNovoCampoTipo("text");
-                            setNovasOpcoes(["", ""]);
+                          if (!novoCampoLabel.trim()) {
+                            toast.error("Digite o texto da pergunta");
+                            return;
                           }
+
+                          if (novoCampoTipo === "multipla_escolha") {
+                            const opcoesValidas = novasOpcoes.map(o => o.trim()).filter(Boolean);
+                            if (opcoesValidas.length < 2) {
+                              toast.error("Adicione pelo menos 2 opções");
+                              return;
+                            }
+                          }
+
+                          const novoId = `custom_${Date.now()}`;
+                          const novoCampo: CampoPersonalizado = {
+                            id: novoId,
+                            label: novoCampoLabel.trim(),
+                            tipo: novoCampoTipo as CampoPersonalizado["tipo"],
+                            obrigatorio: true,
+                          };
+
+                          if (novoCampoTipo === "multipla_escolha") {
+                            novoCampo.opcoes = novasOpcoes.map(o => o.trim()).filter(Boolean);
+                          }
+
+                          setCamposPersonalizados((prev) => [...prev, novoCampo]);
+                          setNovoCampoLabel("");
+                          setNovoCampoTipo("text");
+                          setNovasOpcoes(["", ""]);
                         }}
                       >
                         <Plus className="h-4 w-4 mr-1" />

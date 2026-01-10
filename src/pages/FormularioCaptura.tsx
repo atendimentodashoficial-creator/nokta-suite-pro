@@ -346,44 +346,53 @@ export default function FormularioCaptura() {
                       className={fieldErrors[id] ? "border-destructive" : ""}
                       rows={3}
                     />
-                  ) : tipo === "multipla_escolha" && opcoes && opcoes.length > 0 ? (
-                    <RadioGroup
-                      value={formData[id] || ""}
-                      onValueChange={(value) => handleChange(id, value)}
-                      className="space-y-2"
-                    >
-                      {opcoes.map((opcao, idx) => (
-                        <div key={idx} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-muted/50 transition-colors">
-                          <RadioGroupItem value={opcao} id={`${id}_${idx}`} />
-                          <Label htmlFor={`${id}_${idx}`} className="font-normal cursor-pointer flex-1">
-                            {opcao}
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
+                  ) : tipo === "multipla_escolha" ? (
+                    opcoes && opcoes.length > 0 ? (
+                      <RadioGroup
+                        value={formData[id] || ""}
+                        onValueChange={(value) => handleChange(id, value)}
+                        className="space-y-2"
+                      >
+                        {opcoes.map((opcao, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <RadioGroupItem value={opcao} id={`${id}_${idx}`} />
+                            <Label htmlFor={`${id}_${idx}`} className="font-normal cursor-pointer flex-1">
+                              {opcao}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    ) : (
+                      <div className="text-sm text-muted-foreground p-3 border rounded-lg">
+                        Este campo de múltipla escolha está sem opções configuradas.
+                      </div>
+                    )
                   ) : tipo === "sim_nao" ? (
                     <div className="flex gap-3">
                       <button
                         type="button"
                         onClick={() => handleChange(id, "Sim")}
-                        className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
+                        className={`flex-1 py-3 px-4 rounded-lg border font-medium transition-all ${
                           formData[id] === "Sim"
-                            ? "border-green-500 bg-green-50 text-green-700"
+                            ? "border-primary bg-primary/10 text-primary"
                             : "border-muted hover:border-muted-foreground/50"
                         }`}
                       >
-                        ✓ Sim
+                        Sim
                       </button>
                       <button
                         type="button"
                         onClick={() => handleChange(id, "Não")}
-                        className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
+                        className={`flex-1 py-3 px-4 rounded-lg border font-medium transition-all ${
                           formData[id] === "Não"
-                            ? "border-red-500 bg-red-50 text-red-700"
+                            ? "border-destructive bg-destructive/10 text-destructive"
                             : "border-muted hover:border-muted-foreground/50"
                         }`}
                       >
-                        ✕ Não
+                        Não
                       </button>
                     </div>
                   ) : id === "telefone" ? (
