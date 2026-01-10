@@ -79,24 +79,24 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
             </button>
           </PopoverTrigger>
           <PopoverContent 
-            className="w-[280px] sm:w-96 p-0" 
+            className="w-[280px] sm:w-96 p-0 max-w-[calc(100vw-24px)]" 
             align="start"
-            sideOffset={5}
+            sideOffset={6}
+            collisionPadding={12}
             onOpenAutoFocus={(e) => e.preventDefault()}
           >
-            <div className="flex flex-col h-[50vh] sm:h-auto sm:max-h-[70vh]">
+            <div className="flex flex-col h-[55vh] sm:h-auto sm:max-h-[70vh] min-h-0">
               {/* Header fixo */}
               <div className="flex items-center gap-2 p-2 sm:p-3 border-b bg-background shrink-0">
                 <Megaphone className="w-4 h-4 text-blue-500" />
                 <span className="font-semibold text-xs sm:text-sm">Origem do Anúncio</span>
               </div>
               
-              {/* Conteúdo com scroll - touch-action para mobile */}
+              {/* Conteúdo com scroll - min-h-0 é crucial em flex no mobile */}
               <div 
-                className="flex-1 overflow-y-auto overscroll-contain p-2 sm:p-3 space-y-2 sm:space-y-3"
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:p-3 space-y-2 sm:space-y-3"
                 style={{ 
                   WebkitOverflowScrolling: 'touch',
-                  touchAction: 'pan-y',
                 }}
               >
                 {/* Thumbnail da imagem do anúncio */}
