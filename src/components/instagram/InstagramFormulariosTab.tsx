@@ -29,6 +29,8 @@ const formSchema = z.object({
   mensagem_sucesso: z.string().min(1, "Mensagem de sucesso é obrigatória"),
   cor_primaria: z.string().optional(),
   imagem_url: z.string().optional(),
+  botao_sucesso_texto: z.string().optional(),
+  botao_sucesso_url: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -88,6 +90,8 @@ export function InstagramFormulariosTab() {
       mensagem_sucesso: "Obrigado! Seus dados foram enviados com sucesso.",
       cor_primaria: "#8B5CF6",
       imagem_url: "",
+      botao_sucesso_texto: "",
+      botao_sucesso_url: "",
     },
   });
 
@@ -154,6 +158,8 @@ export function InstagramFormulariosTab() {
         imagem_url: data.imagem_url || null,
         campos: todosCampos,
         ativo: true,
+        botao_sucesso_texto: data.botao_sucesso_texto || null,
+        botao_sucesso_url: data.botao_sucesso_url || null,
       });
 
       if (error) throw error;
@@ -331,6 +337,42 @@ export function InstagramFormulariosTab() {
                     </FormItem>
                   )}
                 />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="botao_sucesso_texto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Texto do Botão de Sucesso</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Acessar Material" {...field} />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Opcional - botão exibido após envio
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="botao_sucesso_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Link do Botão</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          URL para onde o botão redireciona
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <div className="space-y-3">
                   <FormLabel>Campos do Formulário</FormLabel>

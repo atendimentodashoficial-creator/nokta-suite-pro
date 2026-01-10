@@ -1682,6 +1682,8 @@ export type Database = {
       instagram_formularios: {
         Row: {
           ativo: boolean | null
+          botao_sucesso_texto: string | null
+          botao_sucesso_url: string | null
           campos: Json
           cor_primaria: string | null
           created_at: string
@@ -1698,6 +1700,8 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean | null
+          botao_sucesso_texto?: string | null
+          botao_sucesso_url?: string | null
           campos?: Json
           cor_primaria?: string | null
           created_at?: string
@@ -1714,6 +1718,8 @@ export type Database = {
         }
         Update: {
           ativo?: boolean | null
+          botao_sucesso_texto?: string | null
+          botao_sucesso_url?: string | null
           campos?: Json
           cor_primaria?: string | null
           created_at?: string

@@ -27,6 +27,8 @@ interface FormConfig {
   campos: (string | CampoPersonalizado)[];
   cor_primaria: string;
   imagem_url: string | null;
+  botao_sucesso_texto: string | null;
+  botao_sucesso_url: string | null;
 }
 
 const phoneSchema = z.string().regex(/^[\d\s\-\+\(\)]+$/, "Telefone inválido").min(8, "Telefone muito curto");
@@ -270,12 +272,22 @@ export default function FormularioCaptura() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
-          <CardContent className="flex flex-col items-center justify-center py-12">
+          <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
             <CheckCircle2 
-              className="h-16 w-16 mb-4" 
+              className="h-16 w-16" 
               style={{ color: config.cor_primaria }} 
             />
             <p className="text-lg font-medium text-center">{config.mensagem_sucesso}</p>
+            
+            {config.botao_sucesso_texto && config.botao_sucesso_url && (
+              <Button
+                className="mt-4"
+                style={{ backgroundColor: config.cor_primaria }}
+                onClick={() => window.open(config.botao_sucesso_url!, "_blank")}
+              >
+                {config.botao_sucesso_texto}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
