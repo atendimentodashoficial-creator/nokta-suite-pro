@@ -1418,7 +1418,6 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         </div>
         {/* Ícones fixos à direita */}
         <div className="flex gap-1 flex-shrink-0 items-center">
-          <CampaignAttributionBadge contactNumber={chat.contact_number} chatId={chat.id} />
           <Button
             variant="ghost"
             size="icon"
