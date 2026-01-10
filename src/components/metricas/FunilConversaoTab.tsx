@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { format, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   CalendarIcon, 
@@ -26,7 +26,11 @@ import {
   BarChart3,
   Eye,
   UserX,
-  UserCheck
+  UserCheck,
+  TrendingUp,
+  ArrowDownRight,
+  Wallet,
+  Receipt
 } from "lucide-react";
 import {
   Select,
@@ -102,6 +106,15 @@ export function FunilConversaoTab() {
     setPeriodFilter(value);
     const now = new Date();
     switch (value) {
+      case "today":
+        setDateStart(now);
+        setDateEnd(now);
+        break;
+      case "yesterday":
+        const yesterday = subDays(now, 1);
+        setDateStart(yesterday);
+        setDateEnd(yesterday);
+        break;
       case "last_7_days":
         setDateStart(subDays(now, 6));
         setDateEnd(now);
@@ -109,6 +122,15 @@ export function FunilConversaoTab() {
       case "last_30_days":
         setDateStart(subDays(now, 29));
         setDateEnd(now);
+        break;
+      case "this_week":
+        setDateStart(startOfWeek(now, { weekStartsOn: 0 }));
+        setDateEnd(endOfWeek(now, { weekStartsOn: 0 }));
+        break;
+      case "last_week":
+        const lastWeekStart = startOfWeek(subDays(now, 7), { weekStartsOn: 0 });
+        setDateStart(lastWeekStart);
+        setDateEnd(endOfWeek(lastWeekStart, { weekStartsOn: 0 }));
         break;
       case "this_month":
         setDateStart(startOfMonth(now));
@@ -449,6 +471,17 @@ export function FunilConversaoTab() {
     return `${((value / total) * 100).toFixed(1)}%`;
   };
 
+  // Calcular métricas adicionais
+  const ticketMedio = totals.clientes > 0 ? totals.valor_fechado / totals.clientes : 0;
+  
+  // Calcular maior taxa de perda
+  const taxas = [
+    { etapa: "Lead → Agendado", taxa: totals.leads > 0 ? ((totals.leads - totals.agendados) / totals.leads) * 100 : 0, perdas: totals.leads - totals.agendados },
+    { etapa: "Agendado → Compareceu", taxa: totals.agendados > 0 ? (totals.nao_compareceu / totals.agendados) * 100 : 0, perdas: totals.nao_compareceu },
+    { etapa: "Compareceu → Fechou", taxa: totals.compareceu > 0 ? ((totals.compareceu - totals.clientes) / totals.compareceu) * 100 : 0, perdas: totals.compareceu - totals.clientes },
+  ];
+  const maiorPerda = taxas.reduce((max, item) => item.taxa > max.taxa ? item : max, taxas[0]);
+
   const isLoading = loadingFunnel || loadingSpend;
 
   return (
@@ -471,8 +504,12 @@ export function FunilConversaoTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="today">Hoje</SelectItem>
+                  <SelectItem value="yesterday">Ontem</SelectItem>
                   <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
                   <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
+                  <SelectItem value="this_week">Esta semana</SelectItem>
+                  <SelectItem value="last_week">Semana passada</SelectItem>
                   <SelectItem value="this_month">Este mês</SelectItem>
                   <SelectItem value="last_month">Mês passado</SelectItem>
                   <SelectItem value="custom">Personalizado</SelectItem>
@@ -557,9 +594,73 @@ export function FunilConversaoTab() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Indicador de período selecionado */}
+            <div className="text-sm text-muted-foreground ml-auto">
+              {format(dateStart, "dd/MM/yyyy", { locale: ptBR })} - {format(dateEnd, "dd/MM/yyyy", { locale: ptBR })}
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Cards de métricas principais */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Investimento */}
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Investimento</CardTitle>
+            <Wallet className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{formatCurrency(totals.spend)}</div>
+            <p className="text-xs text-muted-foreground">
+              Gasto no período
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Faturamento */}
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Faturamento</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.valor_fechado)}</div>
+            <p className="text-xs text-muted-foreground">
+              ROAS: {totals.spend > 0 ? `${(totals.valor_fechado / totals.spend).toFixed(2)}x` : "—"}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Ticket Médio */}
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+            <Receipt className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrency(ticketMedio)}</div>
+            <p className="text-xs text-muted-foreground">
+              Por cliente fechado
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Maior Perda */}
+        <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Maior Perda</CardTitle>
+            <ArrowDownRight className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold text-red-600">{maiorPerda.etapa}</div>
+            <p className="text-xs text-muted-foreground">
+              {maiorPerda.taxa.toFixed(1)}% de perda ({maiorPerda.perdas} leads)
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Cards de resumo do funil */}
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
@@ -645,13 +746,13 @@ export function FunilConversaoTab() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Faturamento</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium">Conversão</CardTitle>
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totals.valor_fechado)}</div>
+            <div className="text-2xl font-bold text-emerald-600">{formatPercentage(totals.clientes, totals.leads)}</div>
             <p className="text-xs text-muted-foreground">
-              ROAS: {totals.spend > 0 ? `${(totals.valor_fechado / totals.spend).toFixed(2)}x` : "—"}
+              Lead → Cliente
             </p>
           </CardContent>
         </Card>
