@@ -1,13 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { 
   Users, 
   Calendar, 
   Handshake, 
   CheckCircle,
   DollarSign,
-  TrendingDown,
-  ArrowDown
+  TrendingUp,
+  TrendingDown
 } from "lucide-react";
 
 interface FunnelData {
@@ -48,50 +47,47 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       name: "Leads",
       value: data.leads,
       icon: Users,
-      color: "bg-slate-500",
-      textColor: "text-slate-600",
-      bgLight: "bg-slate-100",
+      color: "#64748b",
+      bgColor: "bg-slate-500",
       metric: data.spend > 0 && data.leads > 0 ? `CPL: ${formatCurrency(data.spend / data.leads)}` : null,
     },
     {
       name: "Agendados",
       value: data.agendados,
       icon: Calendar,
-      color: "bg-blue-500",
-      textColor: "text-blue-600",
-      bgLight: "bg-blue-100",
+      color: "#3b82f6",
+      bgColor: "bg-blue-500",
       metric: data.spend > 0 && data.agendados > 0 ? `CPA: ${formatCurrency(data.spend / data.agendados)}` : null,
-      conversion: data.leads > 0 ? formatPercentage(data.agendados, data.leads) : null,
+      conversionRate: data.leads > 0 ? formatPercentage(data.agendados, data.leads) : null,
     },
     {
       name: "Em Negociação",
       value: data.em_negociacao,
       icon: Handshake,
-      color: "bg-yellow-500",
-      textColor: "text-yellow-600",
-      bgLight: "bg-yellow-100",
+      color: "#eab308",
+      bgColor: "bg-yellow-500",
       metric: null,
-      conversion: data.agendados > 0 ? formatPercentage(data.em_negociacao, data.agendados) : null,
+      conversionRate: data.agendados > 0 ? formatPercentage(data.em_negociacao, data.agendados) : null,
     },
     {
       name: "Clientes",
       value: data.clientes,
       icon: CheckCircle,
-      color: "bg-green-500",
-      textColor: "text-green-600",
-      bgLight: "bg-green-100",
+      color: "#22c55e",
+      bgColor: "bg-green-500",
       metric: data.spend > 0 && data.clientes > 0 ? `CAC: ${formatCurrency(data.spend / data.clientes)}` : null,
-      conversion: data.leads > 0 ? formatPercentage(data.clientes, data.leads) : null,
+      conversionRate: data.leads > 0 ? formatPercentage(data.clientes, data.leads) : null,
     },
   ];
 
   const roas = data.spend > 0 ? data.valor_fechado / data.spend : 0;
+  const maxValue = Math.max(...stages.map(s => s.value), 1);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-lg">
+          <DialogTitle className="text-base">
             <span className="block truncate">{data.campaign_name}</span>
             {data.adset_name && (
               <span className="block text-sm font-normal text-muted-foreground truncate mt-1">
@@ -106,53 +102,73 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
           </DialogTitle>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-2">
           {/* Investimento */}
           {data.spend > 0 && (
-            <div className="text-center mb-6 p-3 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Investimento</p>
-              <p className="text-2xl font-bold">{formatCurrency(data.spend)}</p>
+            <div className="text-center mb-4 p-2 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground">Investimento</p>
+              <p className="text-xl font-bold">{formatCurrency(data.spend)}</p>
             </div>
           )}
 
-          {/* Funil Visual */}
-          <div className="relative flex flex-col items-center gap-2">
+          {/* Funil Visual em formato de trapézio */}
+          <div className="relative flex flex-col items-center">
             {stages.map((stage, index) => {
               const Icon = stage.icon;
-              // Calcular largura proporcional (mínimo 40%, máximo 100%)
-              const maxValue = Math.max(...stages.map(s => s.value));
+              // Calcular largura proporcional ao valor (formato de funil)
               const widthPercent = maxValue > 0 
-                ? Math.max(40, (stage.value / maxValue) * 100) 
-                : 100 - (index * 15);
+                ? Math.max(25, (stage.value / maxValue) * 100) 
+                : 100 - (index * 20);
+              
+              // Calcular o clip-path para formato de trapézio
+              const nextWidthPercent = index < stages.length - 1 
+                ? Math.max(25, (stages[index + 1].value / maxValue) * 100)
+                : widthPercent * 0.8;
+              
+              const leftInset = (100 - widthPercent) / 2;
+              const rightInset = (100 - widthPercent) / 2;
+              const nextLeftInset = (100 - nextWidthPercent) / 2;
+              const nextRightInset = (100 - nextWidthPercent) / 2;
 
               return (
                 <div key={stage.name} className="w-full flex flex-col items-center">
-                  {/* Seta de conversão */}
-                  {index > 0 && stage.conversion && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
-                      <ArrowDown className="h-3 w-3" />
-                      <span>{stage.conversion}</span>
-                    </div>
-                  )}
-                  
-                  {/* Barra do funil */}
+                  {/* Trapézio do funil */}
                   <div 
-                    className={`relative transition-all duration-500 ease-out ${stage.bgLight} rounded-lg p-4 flex items-center justify-between`}
-                    style={{ width: `${widthPercent}%` }}
+                    className="relative transition-all duration-500 ease-out"
+                    style={{ 
+                      width: '100%',
+                      height: '70px',
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${stage.color} text-white`}>
-                        <Icon className="h-4 w-4" />
+                    <svg 
+                      viewBox="0 0 100 100" 
+                      preserveAspectRatio="none"
+                      className="absolute inset-0 w-full h-full"
+                    >
+                      <polygon
+                        points={`${leftInset},0 ${100 - rightInset},0 ${100 - nextRightInset},100 ${nextLeftInset},100`}
+                        fill={stage.color}
+                        className="transition-all duration-500"
+                      />
+                    </svg>
+                    
+                    {/* Conteúdo sobre o trapézio */}
+                    <div className="absolute inset-0 flex items-center justify-between px-4 text-white z-10">
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-5 w-5" />
+                        <div>
+                          <p className="font-semibold text-sm">{stage.name}</p>
+                          {stage.metric && (
+                            <p className="text-xs opacity-90">{stage.metric}</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className={`font-semibold ${stage.textColor}`}>{stage.name}</p>
-                        {stage.metric && (
-                          <p className="text-xs text-muted-foreground">{stage.metric}</p>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold">{stage.value}</p>
+                        {stage.conversionRate && (
+                          <p className="text-xs opacity-90">{stage.conversionRate}</p>
                         )}
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-2xl font-bold ${stage.textColor}`}>{stage.value}</p>
                     </div>
                   </div>
                 </div>
@@ -161,18 +177,18 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
           </div>
 
           {/* Resultado Final */}
-          <div className="mt-6 grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900">
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900">
               <div className="flex items-center gap-2 mb-1">
                 <DollarSign className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-green-600 font-medium">Faturamento</span>
+                <span className="text-xs text-green-600 font-medium">Faturamento</span>
               </div>
-              <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+              <p className="text-xl font-bold text-green-700 dark:text-green-400">
                 {formatCurrency(data.valor_fechado)}
               </p>
             </div>
             
-            <div className={`p-4 rounded-lg border ${
+            <div className={`p-3 rounded-lg border ${
               roas >= 1 
                 ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900" 
                 : roas > 0 
@@ -180,19 +196,23 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
                   : "bg-muted/50 border-border"
             }`}>
               <div className="flex items-center gap-2 mb-1">
-                <TrendingDown className={`h-4 w-4 ${roas >= 1 ? "text-green-600 rotate-180" : "text-yellow-600"}`} />
-                <span className={`text-sm font-medium ${roas >= 1 ? "text-green-600" : "text-yellow-600"}`}>ROAS</span>
+                {roas >= 1 ? (
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-yellow-600" />
+                )}
+                <span className={`text-xs font-medium ${roas >= 1 ? "text-green-600" : "text-yellow-600"}`}>ROAS</span>
               </div>
-              <p className={`text-2xl font-bold ${
+              <p className={`text-xl font-bold ${
                 roas >= 1 ? "text-green-700 dark:text-green-400" : "text-yellow-700 dark:text-yellow-400"
               }`}>
                 {roas > 0 ? `${roas.toFixed(2)}x` : "—"}
               </p>
               {roas > 0 && data.spend > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {roas >= 1 
-                    ? `Lucro: ${formatCurrency(data.valor_fechado - data.spend)}`
-                    : `Prejuízo: ${formatCurrency(data.spend - data.valor_fechado)}`
+                    ? `+${formatCurrency(data.valor_fechado - data.spend)}`
+                    : `-${formatCurrency(data.spend - data.valor_fechado)}`
                   }
                 </p>
               )}
@@ -200,23 +220,23 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
           </div>
 
           {/* Taxas de Conversão */}
-          <div className="mt-4 p-3 bg-muted/30 rounded-lg">
-            <p className="text-sm font-medium mb-2">Taxas de Conversão</p>
+          <div className="mt-3 p-2 bg-muted/30 rounded-lg">
+            <p className="text-xs font-medium mb-2">Taxas de Conversão</p>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div>
-                <p className="text-muted-foreground">Lead → Agendado</p>
+              <div className="p-1.5 rounded bg-background">
+                <p className="text-muted-foreground text-[10px]">Lead → Agend.</p>
                 <p className="font-semibold text-blue-600">
                   {formatPercentage(data.agendados, data.leads)}
                 </p>
               </div>
-              <div>
-                <p className="text-muted-foreground">Agendado → Negoc.</p>
+              <div className="p-1.5 rounded bg-background">
+                <p className="text-muted-foreground text-[10px]">Agend. → Negoc.</p>
                 <p className="font-semibold text-yellow-600">
                   {formatPercentage(data.em_negociacao, data.agendados)}
                 </p>
               </div>
-              <div>
-                <p className="text-muted-foreground">Lead → Cliente</p>
+              <div className="p-1.5 rounded bg-background">
+                <p className="text-muted-foreground text-[10px]">Lead → Cliente</p>
                 <p className="font-semibold text-green-600">
                   {formatPercentage(data.clientes, data.leads)}
                 </p>
