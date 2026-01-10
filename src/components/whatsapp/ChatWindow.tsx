@@ -61,6 +61,10 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [messagesOffset, setMessagesOffset] = useState(0);
+  const MESSAGES_PAGE_SIZE = 50;
   const [agendamentoDialogOpen, setAgendamentoDialogOpen] = useState(false);
   const [clienteData, setClienteData] = useState<ClienteData | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -171,30 +175,49 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     }
   }, [shouldScrollToBottom, messages]);
 
-  // Load messages from local database only (webhook handles new messages)
-  const loadMessages = async (forceScrollOnLoad = false) => {
+  // Load messages from local database with pagination (newest first, then reverse for display)
+  const loadMessages = async (forceScrollOnLoad = false, loadMore = false) => {
     const previousLength = messages.length;
-    if (previousLength === 0) {
-      setIsLoadingMessages(true);
+    
+    if (!loadMore) {
+      if (previousLength === 0) {
+        setIsLoadingMessages(true);
+      }
+      setMessagesOffset(0);
+    } else {
+      setIsLoadingMore(true);
     }
 
     try {
-      console.log('[ChatWindow] Loading messages for chat.id:', chat.id, 'chat.chat_id:', chat.chat_id);
+      console.log('[ChatWindow] Loading messages for chat.id:', chat.id, loadMore ? `(offset=${messagesOffset})` : '(initial)');
       
+      const currentOffset = loadMore ? messagesOffset : 0;
+      
+      // Get total count first
+      const { count: totalCount } = await supabase
+        .from('whatsapp_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('chat_id', chat.id);
+      
+      // Fetch page of messages (newest first for pagination)
       const { data: dbMessages, error } = await supabase
         .from('whatsapp_messages')
         .select('*')
         .eq('chat_id', chat.id)
-        .order('timestamp', { ascending: true });
+        .order('timestamp', { ascending: false })
+        .range(currentOffset, currentOffset + MESSAGES_PAGE_SIZE - 1);
 
       if (error) {
         console.error('[ChatWindow] Error loading messages:', error);
         throw error;
       }
 
-      console.log('[ChatWindow] Found', dbMessages?.length || 0, 'messages in database');
+      console.log('[ChatWindow] Found', dbMessages?.length || 0, 'messages in database (offset=', currentOffset, ')');
 
-      let formattedMessages = (dbMessages || []).map(msg => ({
+      // Reverse to show oldest first in chat
+      const reversedMessages = [...(dbMessages || [])].reverse();
+
+      const formattedMessages = reversedMessages.map(msg => ({
         id: msg.id,
         message_id: msg.message_id,
         content: msg.content,
@@ -204,7 +227,6 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         status: msg.status,
         deleted: msg.deleted,
         timestamp: msg.timestamp,
-        // Campaign attribution fields
         utm_source: msg.utm_source,
         utm_campaign: msg.utm_campaign,
         utm_medium: msg.utm_medium,
@@ -212,59 +234,72 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         utm_term: msg.utm_term,
         fbclid: msg.fbclid,
         ad_thumbnail_url: msg.ad_thumbnail_url,
-        // Real Facebook API names
         fb_ad_id: msg.fb_ad_id,
         fb_campaign_name: msg.fb_campaign_name,
         fb_adset_name: msg.fb_adset_name,
         fb_ad_name: msg.fb_ad_name,
       }));
 
-      // If no messages in DB but chat has last_message, create a virtual message
-      // This ensures user always sees something immediately
-      if (formattedMessages.length === 0 && chat.last_message && chat.last_message_time) {
-        console.log('[ChatWindow] Creating virtual message from chat preview');
-        formattedMessages = [{
-          id: `virtual-${chat.id}`,
-          message_id: `virtual-${chat.id}`,
-          content: chat.last_message,
-          sender_type: 'customer' as const,
-          media_type: null,
-          media_url: null,
-          status: 'delivered',
-          deleted: false,
-          timestamp: chat.last_message_time,
-          utm_source: null,
-          utm_campaign: null,
-          utm_medium: null,
-          utm_content: null,
-          utm_term: null,
-          fbclid: null,
-          ad_thumbnail_url: null,
-          fb_ad_id: null,
-          fb_campaign_name: null,
-          fb_adset_name: null,
-          fb_ad_name: null,
-        }];
-      }
+      // Calculate if there are more messages
+      const newOffset = currentOffset + (dbMessages?.length || 0);
+      const hasMore = (totalCount || 0) > newOffset;
+      setHasMoreMessages(hasMore);
+      setMessagesOffset(newOffset);
 
-      setMessages(formattedMessages);
-      setIsLoadingMessages(false);
+      if (loadMore) {
+        // Prepend older messages
+        setMessages(prev => [...formattedMessages, ...prev]);
+        setIsLoadingMore(false);
+      } else {
+        // Initial load or refresh
+        let finalMessages = formattedMessages;
+        
+        // If no messages in DB but chat has last_message, create a virtual message
+        if (finalMessages.length === 0 && chat.last_message && chat.last_message_time) {
+          console.log('[ChatWindow] Creating virtual message from chat preview');
+          finalMessages = [{
+            id: `virtual-${chat.id}`,
+            message_id: `virtual-${chat.id}`,
+            content: chat.last_message,
+            sender_type: 'customer' as const,
+            media_type: null,
+            media_url: null,
+            status: 'delivered',
+            deleted: false,
+            timestamp: chat.last_message_time,
+            utm_source: null,
+            utm_campaign: null,
+            utm_medium: null,
+            utm_content: null,
+            utm_term: null,
+            fbclid: null,
+            ad_thumbnail_url: null,
+            fb_ad_id: null,
+            fb_campaign_name: null,
+            fb_adset_name: null,
+            fb_ad_name: null,
+          }];
+        }
 
-      const shouldScroll = forceScrollOnLoad || previousLength === 0 || formattedMessages.length > previousLength;
-      if (shouldScroll) {
-        setShouldScrollToBottom(true);
-      }
+        setMessages(finalMessages);
+        setIsLoadingMessages(false);
 
-      // Trigger background API sync if we have no real messages (only virtual or none)
-      const hasOnlyVirtualMessages = formattedMessages.length <= 1 && formattedMessages[0]?.id?.startsWith('virtual-');
-      if ((formattedMessages.length === 0 || hasOnlyVirtualMessages) && previousLength === 0 && chat.chat_id) {
-        console.log('[ChatWindow] No real messages, triggering background API sync...');
-        // Don't await - let it run in background
-        syncMessagesFromApiSilent();
+        const shouldScroll = forceScrollOnLoad || previousLength === 0 || finalMessages.length > previousLength;
+        if (shouldScroll) {
+          setShouldScrollToBottom(true);
+        }
+
+        // Trigger background API sync if we have no real messages (only virtual or none)
+        const hasOnlyVirtualMessages = finalMessages.length <= 1 && finalMessages[0]?.id?.startsWith('virtual-');
+        if ((finalMessages.length === 0 || hasOnlyVirtualMessages) && previousLength === 0 && chat.chat_id) {
+          console.log('[ChatWindow] No real messages, triggering background API sync...');
+          syncMessagesFromApiSilent();
+        }
       }
     } catch (error: any) {
       console.error('Error loading messages:', error);
       setIsLoadingMessages(false);
+      setIsLoadingMore(false);
       
       // Fallback: show virtual message from chat preview on error
       if (messages.length === 0 && chat.last_message && chat.last_message_time) {
@@ -293,12 +328,17 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         }]);
       }
       
-      // Don't show toast for network errors on initial load
       const isNetworkError = error.message?.includes('Failed to fetch') || 
                              error.message?.includes('NetworkError');
-      if (!isNetworkError) {
+      if (!isNetworkError && !loadMore) {
         toast.error(error.message || 'Erro ao carregar mensagens');
       }
+    }
+  };
+
+  const loadMoreMessages = () => {
+    if (!isLoadingMore && hasMoreMessages) {
+      loadMessages(false, true);
     }
   };
 
@@ -1377,6 +1417,28 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
 
       {/* Histórico de mensagens com scroll */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2">
+        {/* Botão para carregar mensagens anteriores */}
+        {hasMoreMessages && !isLoadingMessages && (
+          <div className="flex justify-center mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadMoreMessages}
+              disabled={isLoadingMore}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              {isLoadingMore ? (
+                <>
+                  <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                  Carregando...
+                </>
+              ) : (
+                "↑ Carregar mensagens anteriores"
+              )}
+            </Button>
+          </div>
+        )}
+        
         {isLoadingMessages && messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-muted-foreground">Carregando mensagens...</p>
