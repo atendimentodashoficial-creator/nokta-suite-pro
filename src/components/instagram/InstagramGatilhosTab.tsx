@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload, UserCheck, Pencil, FileText } from "lucide-react";
+import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload, UserCheck, Pencil, FileText, Reply } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,6 +36,8 @@ const gatilhoSchema = z.object({
   mensagem_pedir_seguir: z.string().optional(),
   formulario_id: z.string().optional(),
   mensagem_formulario: z.string().optional(),
+  responder_comentario: z.boolean().optional(),
+  resposta_comentario_texto: z.string().optional(),
 });
 
 type GatilhoFormData = z.infer<typeof gatilhoSchema>;
@@ -54,6 +56,8 @@ interface Gatilho {
   verificar_seguidor: boolean | null;
   mensagem_pedir_seguir: string | null;
   formulario_id: string | null;
+  responder_comentario: boolean | null;
+  resposta_comentario_texto: string | null;
   ativo: boolean;
   created_at: string;
 }
@@ -96,6 +100,8 @@ export function InstagramGatilhosTab() {
       mensagem_pedir_seguir: "",
       formulario_id: "",
       mensagem_formulario: "",
+      responder_comentario: false,
+      resposta_comentario_texto: "",
     },
   });
 
@@ -216,6 +222,8 @@ export function InstagramGatilhosTab() {
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         formulario_id: data.formulario_id || null,
+        responder_comentario: data.responder_comentario || false,
+        resposta_comentario_texto: data.resposta_comentario_texto || null,
         ativo: true,
       };
 
@@ -254,6 +262,8 @@ export function InstagramGatilhosTab() {
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         formulario_id: data.formulario_id || null,
+        responder_comentario: data.responder_comentario || false,
+        resposta_comentario_texto: data.resposta_comentario_texto || null,
       };
 
       const { error } = await supabase
@@ -321,6 +331,8 @@ export function InstagramGatilhosTab() {
       mensagem_pedir_seguir: gatilho.mensagem_pedir_seguir || "",
       formulario_id: gatilho.formulario_id || "",
       mensagem_formulario: "",
+      responder_comentario: gatilho.responder_comentario || false,
+      resposta_comentario_texto: gatilho.resposta_comentario_texto || "",
     });
     setButtons(gatilho.resposta_botoes || []);
     setPreviewImage(gatilho.resposta_midia_tipo === "image" ? gatilho.resposta_midia_url : null);
@@ -435,7 +447,7 @@ export function InstagramGatilhosTab() {
                 </div>
 
                 <Tabs defaultValue="texto" className="w-full">
-                  <TabsList className="grid w-full grid-cols-6">
+                  <TabsList className={`grid w-full ${form.watch("tipo") === "comentario" ? "grid-cols-7" : "grid-cols-6"}`}>
                     <TabsTrigger value="texto" className="text-xs">
                       <MessageCircle className="h-3 w-3 mr-1" />
                       Texto
@@ -460,6 +472,12 @@ export function InstagramGatilhosTab() {
                       <UserCheck className="h-3 w-3 mr-1" />
                       Seguidor
                     </TabsTrigger>
+                    {form.watch("tipo") === "comentario" && (
+                      <TabsTrigger value="resposta_publica" className="text-xs">
+                        <Reply className="h-3 w-3 mr-1" />
+                        Público
+                      </TabsTrigger>
+                    )}
                   </TabsList>
 
                   <TabsContent value="texto" className="mt-4">
@@ -770,6 +788,66 @@ export function InstagramGatilhosTab() {
                       )}
                     </div>
                   </TabsContent>
+
+                  {/* Tab de resposta pública no comentário - só aparece quando tipo = comentario */}
+                  {form.watch("tipo") === "comentario" && (
+                    <TabsContent value="resposta_publica" className="mt-4 space-y-4">
+                      <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+                        <div className="flex items-start gap-3">
+                          <Reply className="h-5 w-5 text-primary mt-0.5" />
+                          <div>
+                            <p className="font-medium">Responder publicamente no comentário</p>
+                            <p className="text-xs text-muted-foreground">
+                              Além de enviar a DM, responde diretamente no comentário da publicação
+                            </p>
+                          </div>
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="responder_comentario"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between">
+                              <div>
+                                <FormLabel>Ativar resposta pública</FormLabel>
+                                <FormDescription className="text-xs">
+                                  Responde ao comentário na publicação
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="resposta_comentario_texto"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Texto da resposta pública</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Olá! 👋 Enviamos uma mensagem no seu Direct com as informações!"
+                                  rows={3}
+                                  disabled={!form.watch("responder_comentario")}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormDescription className="text-xs">
+                                Esta mensagem será postada como resposta ao comentário. Use {"{nome}"} para incluir o nome do usuário.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </TabsContent>
+                  )}
                 </Tabs>
 
                 <div className="flex gap-2 justify-end pt-4">
@@ -824,6 +902,12 @@ export function InstagramGatilhosTab() {
                       <Badge variant="outline">
                         <MousePointerClick className="h-3 w-3 mr-1" />
                         {gatilho.resposta_botoes.length} botões
+                      </Badge>
+                    )}
+                    {gatilho.responder_comentario && (
+                      <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-500/20">
+                        <Reply className="h-3 w-3 mr-1" />
+                        Resposta pública
                       </Badge>
                     )}
                   </div>

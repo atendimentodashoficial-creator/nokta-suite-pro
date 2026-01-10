@@ -1793,7 +1793,9 @@ export type Database = {
           mensagem_pedir_seguir: string | null
           nome: string
           palavras_chave: string[]
+          responder_comentario: boolean | null
           resposta_botoes: Json | null
+          resposta_comentario_texto: string | null
           resposta_link_texto: string | null
           resposta_link_url: string | null
           resposta_midia_tipo: string | null
@@ -1813,7 +1815,9 @@ export type Database = {
           mensagem_pedir_seguir?: string | null
           nome: string
           palavras_chave?: string[]
+          responder_comentario?: boolean | null
           resposta_botoes?: Json | null
+          resposta_comentario_texto?: string | null
           resposta_link_texto?: string | null
           resposta_link_url?: string | null
           resposta_midia_tipo?: string | null
@@ -1833,7 +1837,9 @@ export type Database = {
           mensagem_pedir_seguir?: string | null
           nome?: string
           palavras_chave?: string[]
+          responder_comentario?: boolean | null
           resposta_botoes?: Json | null
+          resposta_comentario_texto?: string | null
           resposta_link_texto?: string | null
           resposta_link_url?: string | null
           resposta_midia_tipo?: string | null
