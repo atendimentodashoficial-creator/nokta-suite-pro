@@ -924,44 +924,25 @@ export function FunilConversaoTab() {
     queryFn: async () => {
       if (!user?.id || adIds.length === 0) return { thumbnails: {}, texts: {} };
       
-      // Buscar thumbnails já salvos nos leads
+      // Buscar thumbnails e texto do anúncio (utm_term) dos leads
       const { data: leadData } = await supabase
         .from("leads")
-        .select("fb_ad_id, ad_thumbnail_url")
+        .select("fb_ad_id, ad_thumbnail_url, utm_term")
         .eq("user_id", user.id)
-        .in("fb_ad_id", adIds)
-        .not("ad_thumbnail_url", "is", null);
-      
-      // Buscar texto dos anúncios das mensagens de WhatsApp
-      let messageData: Array<{ fb_ad_id: string | null; content: string | null }> = [];
-      try {
-        // @ts-ignore - Ignorar erro de profundidade de tipo
-        const result = await (supabase.from("whatsapp_messages") as any)
-          .select("fb_ad_id, content")
-          .eq("user_id", user.id)
-          .in("fb_ad_id", adIds)
-          .limit(500);
-        messageData = result.data || [];
-      } catch (e) {
-        console.error("Error fetching message data:", e);
-      }
+        .in("fb_ad_id", adIds);
       
       const thumbnailMap: Record<string, string> = {};
-      leadData?.forEach(item => {
-        if (item.fb_ad_id && item.ad_thumbnail_url) {
-          thumbnailMap[item.fb_ad_id] = item.ad_thumbnail_url;
-        }
-      });
-      
-      // Extrair texto do anúncio da primeira mensagem de cada ad_id
       const textMap: Record<string, string> = {};
-      messageData?.forEach(item => {
-        if (item.fb_ad_id && item.content && !textMap[item.fb_ad_id]) {
-          // Limpar o texto removendo prefixos comuns e metadados
-          let text = item.content.trim();
-          // Se o texto parecer ser o texto do anúncio (não é uma resposta simples)
-          if (text.length > 10) {
-            textMap[item.fb_ad_id] = text;
+      
+      leadData?.forEach(item => {
+        if (item.fb_ad_id) {
+          // Thumbnail
+          if (item.ad_thumbnail_url && !thumbnailMap[item.fb_ad_id]) {
+            thumbnailMap[item.fb_ad_id] = item.ad_thumbnail_url;
+          }
+          // Texto do anúncio (utm_term)
+          if (item.utm_term && !textMap[item.fb_ad_id]) {
+            textMap[item.fb_ad_id] = item.utm_term;
           }
         }
       });
