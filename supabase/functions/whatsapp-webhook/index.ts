@@ -1173,9 +1173,17 @@ Deno.serve(async (req) => {
     }
 
     // Match by phone AND origem - each origin is a separate bucket
+    // For WhatsApp leads, also match leads with null/empty origem (legacy or manual leads)
     const matchingLead = allLeads?.find((lead) => {
       const phoneMatches = phonesMatch(lead.telefone, phone);
-      const origemMatches = (lead.origem || '').toLowerCase() === leadOrigem.toLowerCase();
+      const leadOrigemNormalized = (lead.origem || '').toLowerCase();
+      const targetOrigemNormalized = leadOrigem.toLowerCase();
+      
+      // WhatsApp leads should also match leads with no origem (null or empty)
+      // This prevents duplicate leads when same contact has legacy record without origem
+      const origemMatches = leadOrigemNormalized === targetOrigemNormalized ||
+        (targetOrigemNormalized === 'whatsapp' && leadOrigemNormalized === '');
+      
       return phoneMatches && origemMatches;
     });
 
