@@ -60,6 +60,7 @@ interface Gatilho {
   verificar_seguidor: boolean | null;
   mensagem_pedir_seguir: string | null;
   formulario_id: string | null;
+  mensagem_formulario: string | null;
   responder_comentario: boolean | null;
   resposta_comentario_texto: string | null;
   ativo: boolean;
@@ -230,6 +231,7 @@ export function InstagramGatilhosTab() {
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         formulario_id: data.formulario_id || null,
+        mensagem_formulario: data.mensagem_formulario || null,
         responder_comentario: data.responder_comentario || false,
         resposta_comentario_texto: data.resposta_comentario_texto || null,
         ativo: true,
@@ -272,6 +274,7 @@ export function InstagramGatilhosTab() {
         verificar_seguidor: data.verificar_seguidor || false,
         mensagem_pedir_seguir: data.mensagem_pedir_seguir || null,
         formulario_id: data.formulario_id || null,
+        mensagem_formulario: data.mensagem_formulario || null,
         responder_comentario: data.responder_comentario || false,
         resposta_comentario_texto: data.resposta_comentario_texto || null,
       };
@@ -342,7 +345,7 @@ export function InstagramGatilhosTab() {
       verificar_seguidor: gatilho.verificar_seguidor || false,
       mensagem_pedir_seguir: gatilho.mensagem_pedir_seguir || "",
       formulario_id: gatilho.formulario_id || "",
-      mensagem_formulario: "",
+      mensagem_formulario: gatilho.mensagem_formulario || "",
       responder_comentario: gatilho.responder_comentario || false,
       resposta_comentario_texto: gatilho.resposta_comentario_texto || "",
     });

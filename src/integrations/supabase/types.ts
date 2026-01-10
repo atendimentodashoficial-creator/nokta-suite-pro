@@ -1792,6 +1792,7 @@ export type Database = {
           fluxo_id: string | null
           formulario_id: string | null
           id: string
+          mensagem_formulario: string | null
           mensagem_pedir_seguir: string | null
           nome: string
           palavras_chave: string[]
@@ -1816,6 +1817,7 @@ export type Database = {
           fluxo_id?: string | null
           formulario_id?: string | null
           id?: string
+          mensagem_formulario?: string | null
           mensagem_pedir_seguir?: string | null
           nome: string
           palavras_chave?: string[]
@@ -1840,6 +1842,7 @@ export type Database = {
           fluxo_id?: string | null
           formulario_id?: string | null
           id?: string
+          mensagem_formulario?: string | null
           mensagem_pedir_seguir?: string | null
           nome?: string
           palavras_chave?: string[]
