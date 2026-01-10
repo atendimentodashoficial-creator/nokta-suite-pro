@@ -296,6 +296,71 @@ function ensureBrazilCountryCode(digits: string): string {
   return digits;
 }
 
+// Create lead when campaign sends first message to a contact
+async function createLeadFromCampaign(
+  supabase: any,
+  userId: string,
+  numero: string,
+  nome: string | null,
+  instanciaNome: string
+): Promise<void> {
+  try {
+    const digits = numero.replace(/\D/g, "");
+    const normalizedNumber = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
+    const last8Digits = normalizedNumber.slice(-8);
+    const today = new Date().toISOString().split('T')[0];
+
+    // Check if lead already exists with same phone AND origin=Disparos
+    const { data: existingLeads } = await supabase
+      .from("leads")
+      .select("id, telefone, origem")
+      .eq("user_id", userId)
+      .eq("origem", "Disparos")
+      .is("deleted_at", null);
+
+    // Find by last 8 digits
+    const matchingLead = existingLeads?.find((l: any) =>
+      String(l.telefone || "").replace(/\D/g, "").slice(-8) === last8Digits
+    );
+
+    if (matchingLead) {
+      console.log(`Lead already exists for ${numero} with origin Disparos:`, matchingLead.id);
+      return;
+    }
+
+    // Create new lead with respondeu = false (hasn't responded yet)
+    const { data: newLead, error: insertError } = await supabase
+      .from("leads")
+      .insert({
+        user_id: userId,
+        nome: nome || `Contato ${normalizedNumber}`,
+        telefone: normalizedNumber,
+        procedimento_nome: "Contato via Disparos",
+        origem: "Disparos",
+        observacoes: `Lead criado via campanha de disparos`,
+        status: "lead",
+        origem_lead: true,
+        data_contato: today,
+        instancia_nome: instanciaNome,
+        respondeu: false,
+      })
+      .select("id")
+      .single();
+
+    if (insertError) {
+      // Ignore duplicate key errors (race condition)
+      if (insertError.code !== '23505') {
+        console.error("Error creating lead from campaign:", insertError);
+      }
+      return;
+    }
+
+    console.log(`Created lead from campaign: ${newLead.id} for ${normalizedNumber} (instancia: ${instanciaNome})`);
+  } catch (error: any) {
+    console.error("Error in createLeadFromCampaign:", error);
+  }
+}
+
 async function createOrUpdateChat(
   supabase: any,
   userId: string,
@@ -696,6 +761,15 @@ async function processCampaign(
             contato.numero,
             contato.nome,
             currentInstance
+          );
+          
+          // Create lead when first message is sent successfully
+          await createLeadFromCampaign(
+            supabase,
+            campanha.user_id,
+            contato.numero,
+            contato.nome,
+            currentInstance.nome
           );
         }
 

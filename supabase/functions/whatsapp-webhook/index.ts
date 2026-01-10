@@ -1200,6 +1200,7 @@ Deno.serve(async (req) => {
         origem_lead: true,
         data_contato: today,
         updated_at: new Date().toISOString(),
+        respondeu: true, // Mark that lead has responded
       };
 
       // Atualiza nome se estiver vazio/legado
@@ -1251,9 +1252,10 @@ Deno.serve(async (req) => {
 
     // Se existe e está ativo -> atualizar data_contato (e reativar se sem_interesse)
     if (matchingLead && !matchingLead.deleted_at) {
-      const updateData: any = {
+    const updateData: any = {
         data_contato: today,
         updated_at: new Date().toISOString(),
+        respondeu: true, // Mark that lead has responded
       };
 
       if (matchingLead.status === 'sem_interesse') {
@@ -1319,6 +1321,7 @@ Deno.serve(async (req) => {
         origem_lead: true,
         data_contato: today,
         instancia_nome: instanciaNome,
+        respondeu: true, // Lead created from incoming message = already responded
         // UTM data from Click-to-WhatsApp ads
         utm_source: utmData.utm_source,
         utm_campaign: utmData.utm_campaign,

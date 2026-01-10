@@ -2030,6 +2030,7 @@ export type Database = {
           procedimento_id: string | null
           procedimento_nome: string
           profissional_id: string | null
+          respondeu: boolean | null
           status: Database["public"]["Enums"]["lead_status"] | null
           telefone: string
           updated_at: string | null
@@ -2072,6 +2073,7 @@ export type Database = {
           procedimento_id?: string | null
           procedimento_nome: string
           profissional_id?: string | null
+          respondeu?: boolean | null
           status?: Database["public"]["Enums"]["lead_status"] | null
           telefone: string
           updated_at?: string | null
@@ -2114,6 +2116,7 @@ export type Database = {
           procedimento_id?: string | null
           procedimento_nome?: string
           profissional_id?: string | null
+          respondeu?: boolean | null
           status?: Database["public"]["Enums"]["lead_status"] | null
           telefone?: string
           updated_at?: string | null
