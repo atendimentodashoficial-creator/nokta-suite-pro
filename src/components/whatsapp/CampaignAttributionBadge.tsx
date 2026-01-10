@@ -57,125 +57,134 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
         const allAttributions: AttributionEntry[] = [];
         const seenAdIds = new Set<string>();
 
-        // 1. Buscar de mensagens do WhatsApp (whatsapp_messages)
-        const { data: wpMessages } = await supabase
-          .from('whatsapp_messages')
-          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id')
-          .or(`fb_ad_id.not.is.null,fbclid.not.is.null,gclid.not.is.null,utm_source.not.is.null`);
+        // 1) WhatsApp: primeiro resolve os chats do contato e depois busca só as mensagens desses chats.
+        const { data: wpChats } = await supabase
+          .from('whatsapp_chats')
+          .select('id, contact_number');
 
-        // Filtrar por número de contato
-        if (wpMessages) {
-          // Precisamos buscar os chats para filtrar por número
-          const { data: wpChats } = await supabase
-            .from('whatsapp_chats')
-            .select('id, contact_number');
-          
-          const chatMap = new Map(wpChats?.map(c => [c.id, c.contact_number]) || []);
-          
-          for (const msg of wpMessages) {
-            const chatNumber = chatMap.get(msg.chat_id);
-            if (chatNumber && getLast8Digits(chatNumber) === last8Digits) {
-              const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
-              if (!seenAdIds.has(key)) {
-                seenAdIds.add(key);
-                allAttributions.push({
-                  id: msg.id,
-                  source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
-                  fb_ad_id: msg.fb_ad_id,
-                  fb_ad_name: msg.fb_ad_name,
-                  fb_campaign_name: msg.fb_campaign_name,
-                  fb_adset_name: msg.fb_adset_name,
-                  utm_source: msg.utm_source,
-                  utm_campaign: msg.utm_campaign,
-                  utm_medium: msg.utm_medium,
-                  utm_content: msg.utm_content,
-                  utm_term: msg.utm_term,
-                  fbclid: msg.fbclid,
-                  gclid: null,
-                  ad_thumbnail_url: msg.ad_thumbnail_url,
-                  timestamp: msg.timestamp,
-                });
-              }
-            }
+        const wpChatIds = (wpChats || [])
+          .filter((c) => getLast8Digits(c.contact_number) === last8Digits)
+          .map((c) => c.id);
+
+        if (wpChatIds.length > 0) {
+          const { data: wpMessages } = await supabase
+            .from('whatsapp_messages')
+            .select(
+              'id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id'
+            )
+            .in('chat_id', wpChatIds)
+            .or('fb_ad_id.not.is.null,fbclid.not.is.null,utm_source.not.is.null')
+            .order('timestamp', { ascending: false })
+            .limit(50);
+
+          for (const msg of wpMessages || []) {
+            const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
+            if (seenAdIds.has(key)) continue;
+            seenAdIds.add(key);
+
+            allAttributions.push({
+              id: msg.id,
+              source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
+              fb_ad_id: msg.fb_ad_id,
+              fb_ad_name: msg.fb_ad_name,
+              fb_campaign_name: msg.fb_campaign_name,
+              fb_adset_name: msg.fb_adset_name,
+              utm_source: msg.utm_source,
+              utm_campaign: msg.utm_campaign,
+              utm_medium: msg.utm_medium,
+              utm_content: msg.utm_content,
+              utm_term: msg.utm_term,
+              fbclid: msg.fbclid,
+              gclid: null,
+              ad_thumbnail_url: msg.ad_thumbnail_url,
+              timestamp: msg.timestamp,
+            });
           }
         }
 
-        // 2. Buscar de mensagens de Disparos (disparos_messages)
-        const { data: dispMessages } = await supabase
-          .from('disparos_messages')
-          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id')
-          .or(`fb_ad_id.not.is.null,fbclid.not.is.null,utm_source.not.is.null`);
+        // 2) Disparos: mesmo padrão (evita limite de 1000 e garante pegar os mais recentes).
+        const { data: dispChats } = await supabase
+          .from('disparos_chats')
+          .select('id, contact_number');
 
-        if (dispMessages) {
-          const { data: dispChats } = await supabase
-            .from('disparos_chats')
-            .select('id, contact_number');
-          
-          const dispChatMap = new Map(dispChats?.map(c => [c.id, c.contact_number]) || []);
-          
-          for (const msg of dispMessages) {
-            const chatNumber = dispChatMap.get(msg.chat_id);
-            if (chatNumber && getLast8Digits(chatNumber) === last8Digits) {
-              const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
-              if (!seenAdIds.has(key)) {
-                seenAdIds.add(key);
-                allAttributions.push({
-                  id: msg.id,
-                  source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
-                  fb_ad_id: msg.fb_ad_id,
-                  fb_ad_name: msg.fb_ad_name,
-                  fb_campaign_name: msg.fb_campaign_name,
-                  fb_adset_name: msg.fb_adset_name,
-                  utm_source: msg.utm_source,
-                  utm_campaign: msg.utm_campaign,
-                  utm_medium: msg.utm_medium,
-                  utm_content: msg.utm_content,
-                  utm_term: msg.utm_term,
-                  fbclid: msg.fbclid,
-                  gclid: null,
-                  ad_thumbnail_url: msg.ad_thumbnail_url,
-                  timestamp: msg.timestamp,
-                });
-              }
-            }
+        const dispChatIds = (dispChats || [])
+          .filter((c) => getLast8Digits(c.contact_number) === last8Digits)
+          .map((c) => c.id);
+
+        if (dispChatIds.length > 0) {
+          const { data: dispMessages } = await supabase
+            .from('disparos_messages')
+            .select(
+              'id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, timestamp, chat_id'
+            )
+            .in('chat_id', dispChatIds)
+            .or('fb_ad_id.not.is.null,fbclid.not.is.null,utm_source.not.is.null')
+            .order('timestamp', { ascending: false })
+            .limit(50);
+
+          for (const msg of dispMessages || []) {
+            const key = msg.fb_ad_id || msg.fbclid || `${msg.utm_source}-${msg.utm_campaign}-${msg.timestamp}`;
+            if (seenAdIds.has(key)) continue;
+            seenAdIds.add(key);
+
+            allAttributions.push({
+              id: msg.id,
+              source: msg.fb_ad_id || msg.fbclid ? 'meta' : 'other',
+              fb_ad_id: msg.fb_ad_id,
+              fb_ad_name: msg.fb_ad_name,
+              fb_campaign_name: msg.fb_campaign_name,
+              fb_adset_name: msg.fb_adset_name,
+              utm_source: msg.utm_source,
+              utm_campaign: msg.utm_campaign,
+              utm_medium: msg.utm_medium,
+              utm_content: msg.utm_content,
+              utm_term: msg.utm_term,
+              fbclid: msg.fbclid,
+              gclid: null,
+              ad_thumbnail_url: msg.ad_thumbnail_url,
+              timestamp: msg.timestamp,
+            });
           }
         }
 
-        // 3. Buscar dos leads
-        const { data: allLeads } = await supabase
+        // 3) Leads: pega apenas os leads que "parecem" bater pelo final do telefone e confirma no JS.
+        const { data: leads } = await supabase
           .from('leads')
-          .select('id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, gclid, telefone, created_at')
-          .is('deleted_at', null);
+          .select(
+            'id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, gclid, telefone, created_at'
+          )
+          .is('deleted_at', null)
+          .like('telefone', `%${last8Digits}`)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-        if (allLeads) {
-          for (const lead of allLeads) {
-            if (getLast8Digits(lead.telefone) === last8Digits) {
-              const hasAttribution = lead.fb_ad_id || lead.utm_source || lead.fbclid || lead.gclid;
-              if (hasAttribution) {
-                const key = lead.fb_ad_id || lead.gclid || lead.fbclid || `${lead.utm_source}-${lead.utm_campaign}-${lead.created_at}`;
-                if (!seenAdIds.has(key)) {
-                  seenAdIds.add(key);
-                  allAttributions.push({
-                    id: lead.id,
-                    source: lead.gclid ? 'google' : (lead.fb_ad_id || lead.fbclid ? 'meta' : 'other'),
-                    fb_ad_id: lead.fb_ad_id,
-                    fb_ad_name: lead.fb_ad_name,
-                    fb_campaign_name: lead.fb_campaign_name,
-                    fb_adset_name: lead.fb_adset_name,
-                    utm_source: lead.utm_source,
-                    utm_campaign: lead.utm_campaign,
-                    utm_medium: lead.utm_medium,
-                    utm_content: lead.utm_content,
-                    utm_term: lead.utm_term,
-                    fbclid: lead.fbclid,
-                    gclid: lead.gclid,
-                    ad_thumbnail_url: null,
-                    timestamp: lead.created_at || new Date().toISOString(),
-                  });
-                }
-              }
-            }
-          }
+        for (const lead of leads || []) {
+          if (getLast8Digits(lead.telefone) !== last8Digits) continue;
+
+          const hasAttribution = lead.fb_ad_id || lead.utm_source || lead.fbclid || lead.gclid;
+          if (!hasAttribution) continue;
+
+          const key = lead.fb_ad_id || lead.gclid || lead.fbclid || `${lead.utm_source}-${lead.utm_campaign}-${lead.created_at}`;
+          if (seenAdIds.has(key)) continue;
+          seenAdIds.add(key);
+
+          allAttributions.push({
+            id: lead.id,
+            source: lead.gclid ? 'google' : lead.fb_ad_id || lead.fbclid ? 'meta' : 'other',
+            fb_ad_id: lead.fb_ad_id,
+            fb_ad_name: lead.fb_ad_name,
+            fb_campaign_name: lead.fb_campaign_name,
+            fb_adset_name: lead.fb_adset_name,
+            utm_source: lead.utm_source,
+            utm_campaign: lead.utm_campaign,
+            utm_medium: lead.utm_medium,
+            utm_content: lead.utm_content,
+            utm_term: lead.utm_term,
+            fbclid: lead.fbclid,
+            gclid: lead.gclid,
+            ad_thumbnail_url: null,
+            timestamp: lead.created_at || new Date().toISOString(),
+          });
         }
 
         if (!isMounted) return;
