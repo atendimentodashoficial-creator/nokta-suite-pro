@@ -72,6 +72,12 @@ interface FunnelData {
   valor_fechado: number;
 }
 
+interface FunnelQueryResult {
+  data: FunnelData[];
+  totalRecords: number;
+  uniqueContacts: number;
+}
+
 interface SpendData {
   campaign_name: string;
   spend: number;
@@ -167,10 +173,10 @@ export function FunilConversaoTab() {
   };
 
   // Buscar dados do funil
-  const { data: funnelData, isLoading: loadingFunnel } = useQuery({
+  const { data: funnelResult, isLoading: loadingFunnel } = useQuery({
     queryKey: ["funnel-data", user?.id, dateStart, dateEnd, viewLevel],
-    queryFn: async () => {
-      if (!user?.id) return [];
+    queryFn: async (): Promise<FunnelQueryResult> => {
+      if (!user?.id) return { data: [], totalRecords: 0, uniqueContacts: 0 };
 
       const startDate = format(dateStart, "yyyy-MM-dd");
       const endDate = format(dateEnd, "yyyy-MM-dd");
@@ -234,6 +240,9 @@ export function FunilConversaoTab() {
         const end = new Date(endDate + "T23:59:59");
         return createdAt >= start && createdAt <= end;
       });
+
+      // Total de registros no período (antes da unificação)
+      const totalRecords = leads?.length || 0;
 
       // Buscar TODOS os agendamentos do usuário com status
       const { data: agendamentos, error: agendamentosError } = await supabase
@@ -379,10 +388,22 @@ export function FunilConversaoTab() {
         }
       });
 
-      return Object.values(grouped).sort((a, b) => b.leads - a.leads);
+      const uniqueContacts = processedPhones.size;
+
+      return {
+        data: Object.values(grouped).sort((a, b) => b.leads - a.leads),
+        totalRecords,
+        uniqueContacts,
+      };
     },
     enabled: !!user?.id,
   });
+
+  // Extrair dados do resultado
+  const funnelData = funnelResult?.data || [];
+  const totalRecordsInPeriod = funnelResult?.totalRecords || 0;
+  const uniqueContactsInPeriod = funnelResult?.uniqueContacts || 0;
+  const duplicatesUnified = totalRecordsInPeriod - uniqueContactsInPeriod;
 
   // Buscar gastos do Meta Ads
   const { data: spendData, isLoading: loadingSpend } = useQuery({
@@ -739,6 +760,19 @@ export function FunilConversaoTab() {
                 </Tooltip>
               </TooltipProvider>
             </div>
+            {duplicatesUnified > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="text-[10px] text-muted-foreground mt-1 block">
+                    ({duplicatesUnified} unificado{duplicatesUnified > 1 ? 's' : ''})
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{totalRecordsInPeriod} registros → {uniqueContactsInPeriod} contatos únicos</p>
+                    <p className="text-xs text-muted-foreground">Contatos duplicados foram unificados por telefone</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </CardContent>
         </Card>
 
