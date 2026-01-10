@@ -75,6 +75,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   const [chatLabels, setChatLabels] = useState<string[]>([]);
   const [leadStatus, setLeadStatus] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
+  const [leadAttribution, setLeadAttribution] = useState<any>(null);
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [mediaUrl, setMediaUrl] = useState("");
   const [mediaType, setMediaType] = useState<"image" | "ptt">("image");
@@ -519,7 +520,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       // Buscar todos os leads para comparar pelos últimos 8 dígitos
       const { data: allLeads } = await supabase
         .from('leads')
-        .select('id, status, telefone')
+        .select('id, status, telefone, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name')
         .is('deleted_at', null);
       
       // Encontrar lead pelos últimos 8 dígitos
@@ -527,6 +528,21 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       
       if (lead) {
         setLeadId(lead.id);
+        
+        // Capturar atribuição do lead (campanha/anúncio) se houver
+        setLeadAttribution({
+          utm_source: lead.utm_source,
+          utm_campaign: lead.utm_campaign,
+          utm_medium: lead.utm_medium,
+          utm_content: lead.utm_content,
+          utm_term: lead.utm_term,
+          fbclid: lead.fbclid,
+          ad_thumbnail_url: null,
+          fb_ad_id: lead.fb_ad_id,
+          fb_campaign_name: lead.fb_campaign_name,
+          fb_adset_name: lead.fb_adset_name,
+          fb_ad_name: lead.fb_ad_name,
+        });
         
         // Verificar se o lead tem algum agendamento
         const { data: agendamentos } = await supabase
@@ -544,6 +560,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       } else {
         setLeadId(null);
         setLeadStatus(null);
+        setLeadAttribution(null);
       }
     } catch (error: any) {
       console.error('Error loading lead status:', error);
@@ -1508,7 +1525,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
                     )}
 
                     {/* Mensagem */}
-                    <MessageBubble message={msg} />
+                    <MessageBubble message={msg} fallbackAttribution={leadAttribution} />
                   </div>
                 </div>
               </div>
