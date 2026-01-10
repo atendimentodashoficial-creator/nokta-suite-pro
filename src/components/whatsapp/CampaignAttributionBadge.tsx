@@ -33,9 +33,10 @@ interface AttributionEntry {
 
 interface CampaignAttributionBadgeProps {
   contactNumber: string;
+  chatId?: string; // whatsapp_chats.id (uuid)
 }
 
-export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionBadgeProps) {
+export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttributionBadgeProps) {
   const [attributions, setAttributions] = useState<AttributionEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
@@ -46,6 +47,9 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
     const loadAttributions = async () => {
       setIsLoading(true);
       try {
+        const { data: auth } = await supabase.auth.getUser();
+        const userId = auth.user?.id;
+
         const last8Digits = getLast8Digits(contactNumber);
         if (!last8Digits || last8Digits.length < 8) {
           if (isMounted && !hasLoadedOnce) {
@@ -57,14 +61,10 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
         const allAttributions: AttributionEntry[] = [];
         const seenAdIds = new Set<string>();
 
-        // 1) WhatsApp: primeiro resolve os chats do contato e depois busca só as mensagens desses chats.
-        const { data: wpChats } = await supabase
-          .from('whatsapp_chats')
-          .select('id, contact_number');
-
-        const wpChatIds = (wpChats || [])
-          .filter((c) => getLast8Digits(c.contact_number) === last8Digits)
-          .map((c) => c.id);
+        // 1) WhatsApp: busca direto pelo chatId (quando disponível) para não depender de listar chats (RLS/limite).
+        const wpChatIds = chatId
+          ? [chatId]
+          : [];
 
         if (wpChatIds.length > 0) {
           const { data: wpMessages } = await supabase
@@ -102,10 +102,11 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
           }
         }
 
-        // 2) Disparos: mesmo padrão (evita limite de 1000 e garante pegar os mais recentes).
+        // 2) Disparos (opcional): mantém como estava, mas filtrando por user quando possível.
         const { data: dispChats } = await supabase
           .from('disparos_chats')
-          .select('id, contact_number');
+          .select('id, contact_number')
+          .eq('user_id', userId || '00000000-0000-0000-0000-000000000000');
 
         const dispChatIds = (dispChats || [])
           .filter((c) => getLast8Digits(c.contact_number) === last8Digits)
@@ -147,8 +148,8 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
           }
         }
 
-        // 3) Leads: pega apenas os leads que "parecem" bater pelo final do telefone e confirma no JS.
-        const { data: leads } = await supabase
+        // 3) Leads: filtra por user quando possível.
+        const leadsQuery = supabase
           .from('leads')
           .select(
             'id, fb_ad_id, fb_ad_name, fb_campaign_name, fb_adset_name, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, gclid, telefone, created_at'
@@ -157,6 +158,8 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
           .like('telefone', `%${last8Digits}`)
           .order('created_at', { ascending: false })
           .limit(50);
+
+        const { data: leads } = userId ? await leadsQuery.eq('user_id', userId) : await leadsQuery;
 
         for (const lead of leads || []) {
           if (getLast8Digits(lead.telefone) !== last8Digits) continue;
@@ -208,7 +211,7 @@ export function CampaignAttributionBadge({ contactNumber }: CampaignAttributionB
     return () => {
       isMounted = false;
     };
-  }, [contactNumber]);
+  }, [contactNumber, chatId]);
 
   // Não mostrar nada se não há dados de atribuição E já carregou pelo menos uma vez
   if (attributions.length === 0 && hasLoadedOnce) {
