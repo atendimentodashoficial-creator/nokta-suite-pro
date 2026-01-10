@@ -521,7 +521,7 @@ export function FunilConversaoTab() {
   const taxas = [
     { etapa: "Lead → Agendado", taxa: totals.leads > 0 ? ((totals.leads - totals.agendados) / totals.leads) * 100 : 0, perdas: totals.leads - totals.agendados },
     { etapa: "Agendado → Compareceu", taxa: totals.agendados > 0 ? (totals.nao_compareceu / totals.agendados) * 100 : 0, perdas: totals.nao_compareceu },
-    { etapa: "Compareceu → Fechou", taxa: totals.compareceu > 0 ? ((totals.compareceu - totals.clientes) / totals.compareceu) * 100 : 0, perdas: totals.compareceu - totals.clientes },
+    { etapa: "Compareceu → Fatura", taxa: totals.compareceu > 0 ? ((totals.compareceu - totals.clientes) / totals.compareceu) * 100 : 0, perdas: totals.compareceu - totals.clientes },
   ];
   const maiorPerda = taxas.reduce((max, item) => item.taxa > max.taxa ? item : max, taxas[0]);
 
@@ -880,7 +880,7 @@ export function FunilConversaoTab() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+            <CardTitle className="text-sm font-medium">Faturas</CardTitle>
             <div className="flex items-center gap-1">
               <Megaphone className="h-4 w-4 text-blue-500" />
               <span className="text-muted-foreground">/</span>
@@ -897,7 +897,7 @@ export function FunilConversaoTab() {
                     <span className="font-medium text-blue-600">{formatNumber(totals.clientesTracked)}</span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Clientes de anúncios (rastreados)</p>
+                    <p>Faturas de anúncios (rastreados)</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -909,7 +909,7 @@ export function FunilConversaoTab() {
                     <span>{formatNumber(totals.clientesUntracked)}</span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Clientes sem rastreamento</p>
+                    <p>Faturas sem rastreamento</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -925,7 +925,7 @@ export function FunilConversaoTab() {
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">{formatPercentage(totals.clientes, totals.leads)}</div>
             <p className="text-xs text-muted-foreground">
-              Lead → Cliente
+              Lead → Fatura
             </p>
           </CardContent>
         </Card>
@@ -970,7 +970,7 @@ export function FunilConversaoTab() {
                     <TableHead className="text-center">CPA Agend.</TableHead>
                     <TableHead className="text-center">Faltou</TableHead>
                     <TableHead className="text-center">Em Negoc.</TableHead>
-                    <TableHead className="text-center">Clientes</TableHead>
+                    <TableHead className="text-center">Faturas</TableHead>
                     <TableHead className="text-center">CAC</TableHead>
                     <TableHead className="text-center">Faturado</TableHead>
                     <TableHead className="text-center">ROAS</TableHead>
