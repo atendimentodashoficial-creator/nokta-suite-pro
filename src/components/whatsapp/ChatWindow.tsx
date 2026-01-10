@@ -209,19 +209,26 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         utm_term: msg.utm_term,
         fbclid: msg.fbclid,
         ad_thumbnail_url: msg.ad_thumbnail_url,
+        // Real Facebook API names
+        fb_ad_id: msg.fb_ad_id,
+        fb_campaign_name: msg.fb_campaign_name,
+        fb_adset_name: msg.fb_adset_name,
+        fb_ad_name: msg.fb_ad_name,
       }));
 
       setMessages(formattedMessages);
 
-      // Se não há mensagens locais, tentar buscar da API imediatamente
-      if (formattedMessages.length === 0 && chat.chat_id) {
-        console.log('[ChatWindow] No local messages, triggering API sync...');
-        await syncMessagesFromApiSilent();
-      }
-
       const shouldScroll = forceScrollOnLoad || previousLength === 0 || formattedMessages.length > previousLength;
       if (shouldScroll) {
         setShouldScrollToBottom(true);
+      }
+
+      // Only trigger background API sync if we have ZERO messages and this is a fresh load
+      // This avoids slow calls that block the UI
+      if (formattedMessages.length === 0 && previousLength === 0 && chat.chat_id) {
+        console.log('[ChatWindow] No local messages, triggering background API sync...');
+        // Don't await - let it run in background
+        syncMessagesFromApiSilent();
       }
     } catch (error: any) {
       console.error('Error loading messages:', error);
