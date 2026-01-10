@@ -21,6 +21,8 @@ const gatilhoSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   palavras_chave: z.string().min(1, "Ao menos uma palavra-chave é obrigatória"),
   tipo: z.enum(["dm", "comentario"]),
+  ativo_em_dm: z.boolean().optional(),
+  ativo_em_comentario: z.boolean().optional(),
   resposta_texto: z.string().optional(),
   resposta_midia_url: z.string().optional(),
   resposta_midia_tipo: z.enum(["image", "video", "audio", "file"]).optional(),
@@ -47,6 +49,8 @@ interface Gatilho {
   nome: string;
   palavras_chave: string[];
   tipo: string;
+  ativo_em_dm: boolean | null;
+  ativo_em_comentario: boolean | null;
   resposta_texto: string | null;
   resposta_midia_url: string | null;
   resposta_midia_tipo: string | null;
@@ -90,6 +94,8 @@ export function InstagramGatilhosTab() {
       nome: "",
       palavras_chave: "",
       tipo: "dm",
+      ativo_em_dm: true,
+      ativo_em_comentario: false,
       resposta_texto: "",
       resposta_midia_url: "",
       resposta_midia_tipo: undefined,
@@ -213,6 +219,8 @@ export function InstagramGatilhosTab() {
         nome: data.nome,
         palavras_chave: palavrasArray,
         tipo: data.tipo,
+        ativo_em_dm: data.ativo_em_dm ?? (data.tipo === "dm"),
+        ativo_em_comentario: data.ativo_em_comentario ?? (data.tipo === "comentario"),
         resposta_texto: data.resposta_texto || null,
         resposta_midia_url: data.resposta_midia_url || null,
         resposta_midia_tipo: data.resposta_midia_tipo || null,
@@ -253,6 +261,8 @@ export function InstagramGatilhosTab() {
         nome: data.nome,
         palavras_chave: palavrasArray,
         tipo: data.tipo,
+        ativo_em_dm: data.ativo_em_dm ?? false,
+        ativo_em_comentario: data.ativo_em_comentario ?? false,
         resposta_texto: data.resposta_texto || null,
         resposta_midia_url: data.resposta_midia_url || null,
         resposta_midia_tipo: data.resposta_midia_tipo || null,
@@ -322,6 +332,8 @@ export function InstagramGatilhosTab() {
       nome: gatilho.nome,
       palavras_chave: gatilho.palavras_chave.join(", "),
       tipo: gatilho.tipo as "dm" | "comentario",
+      ativo_em_dm: gatilho.ativo_em_dm ?? false,
+      ativo_em_comentario: gatilho.ativo_em_comentario ?? false,
       resposta_texto: gatilho.resposta_texto || "",
       resposta_midia_url: gatilho.resposta_midia_url || "",
       resposta_midia_tipo: gatilho.resposta_midia_tipo as any || undefined,
@@ -395,59 +407,65 @@ export function InstagramGatilhosTab() {
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="palavras_chave"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Palavras-chave</FormLabel>
+                      <FormControl>
+                        <Input placeholder="preço, valor" {...field} />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Separe por vírgula
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex items-center gap-6 p-3 bg-muted/50 rounded-lg">
+                  <span className="text-sm font-medium">Ativar gatilho em:</span>
                   <FormField
                     control={form.control}
-                    name="tipo"
+                    name="ativo_em_dm"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de Mensagem</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="dm">
-                              <div className="flex items-center gap-2">
-                                <MessageCircle className="h-4 w-4" />
-                                DM
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="comentario">
-                              <div className="flex items-center gap-2">
-                                <AtSign className="h-4 w-4" />
-                                Comentário
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
+                      <FormItem className="flex items-center gap-2 space-y-0">
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormLabel className="text-sm font-normal flex items-center gap-1 cursor-pointer">
+                          <MessageCircle className="h-4 w-4" />
+                          DM
+                        </FormLabel>
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
-                    name="palavras_chave"
+                    name="ativo_em_comentario"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Palavras-chave</FormLabel>
+                      <FormItem className="flex items-center gap-2 space-y-0">
                         <FormControl>
-                          <Input placeholder="preço, valor" {...field} />
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
-                        <FormDescription className="text-xs">
-                          Separe por vírgula
-                        </FormDescription>
-                        <FormMessage />
+                        <FormLabel className="text-sm font-normal flex items-center gap-1 cursor-pointer">
+                          <AtSign className="h-4 w-4" />
+                          Comentário
+                        </FormLabel>
                       </FormItem>
                     )}
                   />
                 </div>
 
                 <Tabs defaultValue="texto" className="w-full">
-                  <TabsList className={`grid w-full ${form.watch("tipo") === "comentario" ? "grid-cols-7" : "grid-cols-6"}`}>
+                  <TabsList className={`grid w-full ${form.watch("ativo_em_comentario") ? "grid-cols-7" : "grid-cols-6"}`}>
                     <TabsTrigger value="texto" className="text-xs">
                       <MessageCircle className="h-3 w-3 mr-1" />
                       Texto
@@ -472,7 +490,7 @@ export function InstagramGatilhosTab() {
                       <UserCheck className="h-3 w-3 mr-1" />
                       Seguidor
                     </TabsTrigger>
-                    {form.watch("tipo") === "comentario" && (
+                    {form.watch("ativo_em_comentario") && (
                       <TabsTrigger value="resposta_publica" className="text-xs">
                         <Reply className="h-3 w-3 mr-1" />
                         Público

@@ -192,13 +192,13 @@ async function processMessage(supabase: any, event: any) {
     }
   }
 
-  // Check keyword triggers
+  // Check keyword triggers - now using ativo_em_dm flag
   const { data: gatilhos } = await supabase
     .from('instagram_gatilhos')
     .select('*')
     .eq('user_id', config.user_id)
     .eq('ativo', true)
-    .eq('tipo', 'dm');
+    .eq('ativo_em_dm', true);
 
   for (const gatilho of gatilhos || []) {
     const messageText = (message.text || '').toLowerCase();
@@ -477,13 +477,13 @@ async function processComment(supabase: any, comment: any) {
     metadata: comment,
   });
 
-  // Check comment triggers
+  // Check comment triggers - now using ativo_em_comentario flag
   const { data: gatilhos } = await supabase
     .from('instagram_gatilhos')
     .select('*')
     .eq('user_id', config.user_id)
     .eq('ativo', true)
-    .eq('tipo', 'comentario');
+    .eq('ativo_em_comentario', true);
 
   for (const gatilho of gatilhos || []) {
     const commentText = (comment.text || '').toLowerCase();
