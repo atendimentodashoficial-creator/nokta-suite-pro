@@ -35,6 +35,8 @@ interface Chat {
   chat_id: string;
   contact_name: string;
   contact_number: string;
+  last_message?: string | null;
+  last_message_time?: string | null;
 }
 
 interface ChatWindowProps {
@@ -192,7 +194,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
 
       console.log('[ChatWindow] Found', dbMessages?.length || 0, 'messages in database');
 
-      const formattedMessages = (dbMessages || []).map(msg => ({
+      let formattedMessages = (dbMessages || []).map(msg => ({
         id: msg.id,
         message_id: msg.message_id,
         content: msg.content,
@@ -217,30 +219,86 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         fb_ad_name: msg.fb_ad_name,
       }));
 
+      // If no messages in DB but chat has last_message, create a virtual message
+      // This ensures user always sees something immediately
+      if (formattedMessages.length === 0 && chat.last_message && chat.last_message_time) {
+        console.log('[ChatWindow] Creating virtual message from chat preview');
+        formattedMessages = [{
+          id: `virtual-${chat.id}`,
+          message_id: `virtual-${chat.id}`,
+          content: chat.last_message,
+          sender_type: 'customer' as const,
+          media_type: null,
+          media_url: null,
+          status: 'delivered',
+          deleted: false,
+          timestamp: chat.last_message_time,
+          utm_source: null,
+          utm_campaign: null,
+          utm_medium: null,
+          utm_content: null,
+          utm_term: null,
+          fbclid: null,
+          ad_thumbnail_url: null,
+          fb_ad_id: null,
+          fb_campaign_name: null,
+          fb_adset_name: null,
+          fb_ad_name: null,
+        }];
+      }
+
       setMessages(formattedMessages);
+      setIsLoadingMessages(false);
 
       const shouldScroll = forceScrollOnLoad || previousLength === 0 || formattedMessages.length > previousLength;
       if (shouldScroll) {
         setShouldScrollToBottom(true);
       }
 
-      // Only trigger background API sync if we have ZERO messages and this is a fresh load
-      // This avoids slow calls that block the UI
-      if (formattedMessages.length === 0 && previousLength === 0 && chat.chat_id) {
-        console.log('[ChatWindow] No local messages, triggering background API sync...');
+      // Trigger background API sync if we have no real messages (only virtual or none)
+      const hasOnlyVirtualMessages = formattedMessages.length <= 1 && formattedMessages[0]?.id?.startsWith('virtual-');
+      if ((formattedMessages.length === 0 || hasOnlyVirtualMessages) && previousLength === 0 && chat.chat_id) {
+        console.log('[ChatWindow] No real messages, triggering background API sync...');
         // Don't await - let it run in background
         syncMessagesFromApiSilent();
       }
     } catch (error: any) {
       console.error('Error loading messages:', error);
-      // Don't show toast for network errors on initial load - the sync will retry
+      setIsLoadingMessages(false);
+      
+      // Fallback: show virtual message from chat preview on error
+      if (messages.length === 0 && chat.last_message && chat.last_message_time) {
+        console.log('[ChatWindow] Error loading, using fallback virtual message');
+        setMessages([{
+          id: `virtual-${chat.id}`,
+          message_id: `virtual-${chat.id}`,
+          content: chat.last_message,
+          sender_type: 'customer' as const,
+          media_type: null,
+          media_url: null,
+          status: 'delivered',
+          deleted: false,
+          timestamp: chat.last_message_time,
+          utm_source: null,
+          utm_campaign: null,
+          utm_medium: null,
+          utm_content: null,
+          utm_term: null,
+          fbclid: null,
+          ad_thumbnail_url: null,
+          fb_ad_id: null,
+          fb_campaign_name: null,
+          fb_adset_name: null,
+          fb_ad_name: null,
+        }]);
+      }
+      
+      // Don't show toast for network errors on initial load
       const isNetworkError = error.message?.includes('Failed to fetch') || 
                              error.message?.includes('NetworkError');
       if (!isNetworkError) {
         toast.error(error.message || 'Erro ao carregar mensagens');
       }
-    } finally {
-      setIsLoadingMessages(false);
     }
   };
 
