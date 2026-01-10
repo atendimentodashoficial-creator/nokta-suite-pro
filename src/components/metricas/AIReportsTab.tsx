@@ -303,8 +303,35 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       valor: number;
     }> = {};
 
+    // Group by adset for analysis
+    const byAdset: Record<string, {
+      adset: string;
+      campaign: string;
+      leads: number;
+      agendados: number;
+      compareceu: number;
+      clientes: number;
+      valor: number;
+    }> = {};
+
+    // Group by ad for analysis
+    const byAd: Record<string, {
+      ad: string;
+      adset: string;
+      campaign: string;
+      leads: number;
+      agendados: number;
+      compareceu: number;
+      clientes: number;
+      valor: number;
+    }> = {};
+
     for (const lead of trackedLeads) {
-      const campaign = lead.utm_campaign || 'Sem campanha';
+      const campaign = lead.utm_campaign || lead.fb_campaign_name || 'Sem campanha';
+      const adset = lead.fb_adset_name || 'Sem conjunto';
+      const ad = lead.fb_ad_name || 'Sem anúncio';
+      
+      // Aggregate by campaign
       if (!byCampaign[campaign]) {
         byCampaign[campaign] = { campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
       }
@@ -314,6 +341,36 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       if (lead.status === 'cliente') {
         byCampaign[campaign].clientes++;
         byCampaign[campaign].valor += lead.valor_tratamento || 0;
+      }
+
+      // Aggregate by adset
+      if (adset !== 'Sem conjunto') {
+        const adsetKey = `${campaign}::${adset}`;
+        if (!byAdset[adsetKey]) {
+          byAdset[adsetKey] = { adset, campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
+        }
+        byAdset[adsetKey].leads++;
+        if (lead.data_agendamento) byAdset[adsetKey].agendados++;
+        if (lead.data_comparecimento) byAdset[adsetKey].compareceu++;
+        if (lead.status === 'cliente') {
+          byAdset[adsetKey].clientes++;
+          byAdset[adsetKey].valor += lead.valor_tratamento || 0;
+        }
+      }
+
+      // Aggregate by ad
+      if (ad !== 'Sem anúncio') {
+        const adKey = `${campaign}::${adset}::${ad}`;
+        if (!byAd[adKey]) {
+          byAd[adKey] = { ad, adset, campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
+        }
+        byAd[adKey].leads++;
+        if (lead.data_agendamento) byAd[adKey].agendados++;
+        if (lead.data_comparecimento) byAd[adKey].compareceu++;
+        if (lead.status === 'cliente') {
+          byAd[adKey].clientes++;
+          byAd[adKey].valor += lead.valor_tratamento || 0;
+        }
       }
     }
 
@@ -344,6 +401,8 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         conversaoGeral: taxaConversaoGeral,
       },
       byCampaign: Object.values(byCampaign).sort((a, b) => b.leads - a.leads),
+      byAdset: Object.values(byAdset).sort((a, b) => b.leads - a.leads),
+      byAd: Object.values(byAd).sort((a, b) => b.leads - a.leads),
     };
   }, [allLeads, dateStart, dateEnd]);
 
@@ -1457,6 +1516,322 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                             </div>
                           );
                         })}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Top Performers by Funnel Stage */}
+          {funnelData && (funnelData.byAdset.length > 0 || funnelData.byAd.length > 0) && (
+            <Card className="border-cyan-500/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <BarChart3 className="h-5 w-5 text-cyan-500" />
+                  Melhores Desempenhos por Etapa do Funil
+                </CardTitle>
+                <CardDescription>
+                  Conjuntos e anúncios que mais alimentam cada etapa do funil de conversão
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-8">
+                  {/* Stage 1: Leads */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                      <Users className="h-5 w-5 text-blue-500" />
+                      <h3 className="font-semibold text-base">Etapa 1: Geração de Leads</h3>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Top Adsets by Leads */}
+                      {funnelData.byAdset.length > 0 && (
+                        <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="h-4 w-4 text-blue-500" />
+                            <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAdset]
+                              .sort((a, b) => b.leads - a.leads)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.adset}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-600 ml-2">
+                                    {item.leads} leads
+                                  </Badge>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Top Ads by Leads */}
+                      {funnelData.byAd.length > 0 && (
+                        <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-4 w-4 text-purple-500" />
+                            <h4 className="font-medium text-sm">Top Anúncios</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAd]
+                              .sort((a, b) => b.leads - a.leads)
+                              .slice(0, 5)
+                              .map((item, index) => (
+                                <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-600'}`}>
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm truncate">{item.ad}</span>
+                                  </div>
+                                  <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-600 ml-2">
+                                    {item.leads} leads
+                                  </Badge>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stage 2: Agendamentos */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                      <Calendar className="h-5 w-5 text-amber-500" />
+                      <h3 className="font-semibold text-base">Etapa 2: Agendamentos</h3>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Top Adsets by Agendamentos */}
+                      {funnelData.byAdset.filter(a => a.agendados > 0).length > 0 && (
+                        <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="h-4 w-4 text-amber-500" />
+                            <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAdset]
+                              .filter(a => a.agendados > 0)
+                              .sort((a, b) => b.agendados - a.agendados)
+                              .slice(0, 5)
+                              .map((item, index) => {
+                                const rate = item.leads > 0 ? ((item.agendados / item.leads) * 100).toFixed(0) : '0';
+                                return (
+                                  <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-500 text-white' : 'bg-amber-500/20 text-amber-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <span className="text-sm truncate">{item.adset}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{rate}%</span>
+                                      <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600">
+                                        {item.agendados}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                      {/* Top Ads by Agendamentos */}
+                      {funnelData.byAd.filter(a => a.agendados > 0).length > 0 && (
+                        <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-4 w-4 text-orange-500" />
+                            <h4 className="font-medium text-sm">Top Anúncios</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAd]
+                              .filter(a => a.agendados > 0)
+                              .sort((a, b) => b.agendados - a.agendados)
+                              .slice(0, 5)
+                              .map((item, index) => {
+                                const rate = item.leads > 0 ? ((item.agendados / item.leads) * 100).toFixed(0) : '0';
+                                return (
+                                  <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <span className="text-sm truncate">{item.ad}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{rate}%</span>
+                                      <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-600">
+                                        {item.agendados}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stage 3: Comparecimentos */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                      <CheckCircle2 className="h-5 w-5 text-teal-500" />
+                      <h3 className="font-semibold text-base">Etapa 3: Comparecimentos</h3>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Top Adsets by Comparecimentos */}
+                      {funnelData.byAdset.filter(a => a.compareceu > 0).length > 0 && (
+                        <div className="p-4 bg-teal-500/5 border border-teal-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="h-4 w-4 text-teal-500" />
+                            <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAdset]
+                              .filter(a => a.compareceu > 0)
+                              .sort((a, b) => b.compareceu - a.compareceu)
+                              .slice(0, 5)
+                              .map((item, index) => {
+                                const rate = item.agendados > 0 ? ((item.compareceu / item.agendados) * 100).toFixed(0) : '0';
+                                return (
+                                  <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-teal-500 text-white' : 'bg-teal-500/20 text-teal-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <span className="text-sm truncate">{item.adset}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{rate}%</span>
+                                      <Badge variant="outline" className="bg-teal-500/10 border-teal-500/30 text-teal-600">
+                                        {item.compareceu}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                      {/* Top Ads by Comparecimentos */}
+                      {funnelData.byAd.filter(a => a.compareceu > 0).length > 0 && (
+                        <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-4 w-4 text-emerald-500" />
+                            <h4 className="font-medium text-sm">Top Anúncios</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAd]
+                              .filter(a => a.compareceu > 0)
+                              .sort((a, b) => b.compareceu - a.compareceu)
+                              .slice(0, 5)
+                              .map((item, index) => {
+                                const rate = item.agendados > 0 ? ((item.compareceu / item.agendados) * 100).toFixed(0) : '0';
+                                return (
+                                  <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/20 text-emerald-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <span className="text-sm truncate">{item.ad}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{rate}%</span>
+                                      <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-600">
+                                        {item.compareceu}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stage 4: Clientes */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+                      <UserCheck className="h-5 w-5 text-green-500" />
+                      <h3 className="font-semibold text-base">Etapa 4: Clientes Fechados</h3>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Top Adsets by Clientes */}
+                      {funnelData.byAdset.filter(a => a.clientes > 0).length > 0 && (
+                        <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Layers className="h-4 w-4 text-green-500" />
+                            <h4 className="font-medium text-sm">Top Conjuntos</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAdset]
+                              .filter(a => a.clientes > 0)
+                              .sort((a, b) => b.clientes - a.clientes)
+                              .slice(0, 5)
+                              .map((item, index) => {
+                                const rate = item.leads > 0 ? ((item.clientes / item.leads) * 100).toFixed(0) : '0';
+                                return (
+                                  <div key={`${item.campaign}-${item.adset}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-green-500 text-white' : 'bg-green-500/20 text-green-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <span className="text-sm truncate">{item.adset}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{rate}%</span>
+                                      <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-600">
+                                        {item.clientes} · R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                      {/* Top Ads by Clientes */}
+                      {funnelData.byAd.filter(a => a.clientes > 0).length > 0 && (
+                        <div className="p-4 bg-lime-500/5 border border-lime-500/20 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Megaphone className="h-4 w-4 text-lime-600" />
+                            <h4 className="font-medium text-sm">Top Anúncios</h4>
+                          </div>
+                          <div className="space-y-2">
+                            {[...funnelData.byAd]
+                              .filter(a => a.clientes > 0)
+                              .sort((a, b) => b.clientes - a.clientes)
+                              .slice(0, 5)
+                              .map((item, index) => {
+                                const rate = item.leads > 0 ? ((item.clientes / item.leads) * 100).toFixed(0) : '0';
+                                return (
+                                  <div key={`${item.campaign}-${item.adset}-${item.ad}`} className="flex items-center justify-between p-2 bg-background/50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-lime-500 text-white' : 'bg-lime-500/20 text-lime-600'}`}>
+                                        {index + 1}
+                                      </span>
+                                      <span className="text-sm truncate">{item.ad}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <span className="text-xs text-muted-foreground">{rate}%</span>
+                                      <Badge variant="outline" className="bg-lime-500/10 border-lime-500/30 text-lime-600">
+                                        {item.clientes} · R$ {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
