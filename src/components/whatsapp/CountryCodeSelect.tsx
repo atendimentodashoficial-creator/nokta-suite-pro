@@ -215,8 +215,9 @@ export function CountryCodeSelect({
       </Popover>
       <input
         type="tel"
+        name="phone"
         inputMode="tel"
-        autoComplete="tel-national"
+        autoComplete="tel"
         value={phoneValue}
         onChange={(e) => onPhoneChange(e.target.value)}
         onBlur={onPhoneBlur}
