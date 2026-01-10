@@ -413,7 +413,13 @@ export function InstagramGatilhosTab() {
           else setDialogOpen(open);
         }}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => setEditingGatilho(null)}>
+            <Button size="sm" onClick={() => {
+              setEditingGatilho(null);
+              form.reset();
+              setButtons([]);
+              setPreviewImage(null);
+              setActiveResponseTab(null);
+            }}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Gatilho
             </Button>
