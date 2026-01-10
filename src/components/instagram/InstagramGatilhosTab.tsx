@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { toast } from "sonner";
 import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MousePointerClick, X, Upload, UserCheck, Pencil, FileText, Reply } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -90,7 +90,7 @@ export function InstagramGatilhosTab() {
   const [uploading, setUploading] = useState(false);
   const [buttons, setButtons] = useState<QuickReplyButton[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [activeResponseTab, setActiveResponseTab] = useState<string>("texto");
+  const [activeResponseTab, setActiveResponseTab] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -338,7 +338,7 @@ export function InstagramGatilhosTab() {
     form.reset();
     setButtons([]);
     setPreviewImage(null);
-    setActiveResponseTab("texto");
+    setActiveResponseTab(null);
   };
 
   const openEditDialog = (gatilho: Gatilho) => {
@@ -501,61 +501,96 @@ export function InstagramGatilhosTab() {
                   />
                 </div>
 
-                <Tabs value={activeResponseTab} onValueChange={setActiveResponseTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger 
-                      value="texto" 
-                      className={`text-xs relative ${form.watch("resposta_texto") ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                <div className="w-full space-y-4">
+                  <div className="grid w-full grid-cols-5 gap-1 p-1 bg-muted rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setActiveResponseTab(activeResponseTab === "texto" ? null : "texto")}
+                      className={`text-xs relative flex items-center justify-center gap-1 px-3 py-2 rounded-md transition-colors ${
+                        activeResponseTab === "texto" 
+                          ? "bg-background shadow-sm" 
+                          : form.watch("resposta_texto") 
+                            ? "ring-2 ring-primary ring-offset-1" 
+                            : "hover:bg-background/50"
+                      }`}
                     >
-                      <MessageCircle className="h-3 w-3 mr-1" />
+                      <MessageCircle className="h-3 w-3" />
                       Texto
                       {form.watch("resposta_texto") && (
                         <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
                       )}
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="midia" 
-                      className={`text-xs relative ${form.watch("resposta_midia_url") ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveResponseTab(activeResponseTab === "midia" ? null : "midia")}
+                      className={`text-xs relative flex items-center justify-center gap-1 px-3 py-2 rounded-md transition-colors ${
+                        activeResponseTab === "midia" 
+                          ? "bg-background shadow-sm" 
+                          : form.watch("resposta_midia_url") 
+                            ? "ring-2 ring-primary ring-offset-1" 
+                            : "hover:bg-background/50"
+                      }`}
                     >
-                      <Image className="h-3 w-3 mr-1" />
+                      <Image className="h-3 w-3" />
                       Mídia
                       {form.watch("resposta_midia_url") && (
                         <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
                       )}
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="link" 
-                      className={`text-xs relative ${form.watch("resposta_link_url") ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveResponseTab(activeResponseTab === "link" ? null : "link")}
+                      className={`text-xs relative flex items-center justify-center gap-1 px-3 py-2 rounded-md transition-colors ${
+                        activeResponseTab === "link" 
+                          ? "bg-background shadow-sm" 
+                          : form.watch("resposta_link_url") 
+                            ? "ring-2 ring-primary ring-offset-1" 
+                            : "hover:bg-background/50"
+                      }`}
                     >
-                      <Link2 className="h-3 w-3 mr-1" />
+                      <Link2 className="h-3 w-3" />
                       Link
                       {form.watch("resposta_link_url") && (
                         <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
                       )}
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="botoes" 
-                      className={`text-xs relative ${buttons.length > 0 ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveResponseTab(activeResponseTab === "botoes" ? null : "botoes")}
+                      className={`text-xs relative flex items-center justify-center gap-1 px-3 py-2 rounded-md transition-colors ${
+                        activeResponseTab === "botoes" 
+                          ? "bg-background shadow-sm" 
+                          : buttons.length > 0 
+                            ? "ring-2 ring-primary ring-offset-1" 
+                            : "hover:bg-background/50"
+                      }`}
                     >
-                      <MousePointerClick className="h-3 w-3 mr-1" />
+                      <MousePointerClick className="h-3 w-3" />
                       Botões
                       {buttons.length > 0 && (
                         <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
                       )}
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="formulario" 
-                      className={`text-xs relative ${form.watch("formulario_id") ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveResponseTab(activeResponseTab === "formulario" ? null : "formulario")}
+                      className={`text-xs relative flex items-center justify-center gap-1 px-3 py-2 rounded-md transition-colors ${
+                        activeResponseTab === "formulario" 
+                          ? "bg-background shadow-sm" 
+                          : form.watch("formulario_id") 
+                            ? "ring-2 ring-primary ring-offset-1" 
+                            : "hover:bg-background/50"
+                      }`}
                     >
-                      <FileText className="h-3 w-3 mr-1" />
+                      <FileText className="h-3 w-3" />
                       Formulário
                       {form.watch("formulario_id") && (
                         <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
                       )}
-                    </TabsTrigger>
-                  </TabsList>
+                    </button>
+                  </div>
 
-                  <TabsContent value="texto" className="mt-4">
+                  {activeResponseTab === "texto" && (
                     <FormField
                       control={form.control}
                       name="resposta_texto"
@@ -576,9 +611,9 @@ export function InstagramGatilhosTab() {
                         </FormItem>
                       )}
                     />
-                  </TabsContent>
+                  )}
 
-                  <TabsContent value="midia" className="mt-4 space-y-4">
+                  {activeResponseTab === "midia" && (
                     <div className="border-2 border-dashed rounded-lg p-6 text-center">
                       <input
                         type="file"
@@ -648,122 +683,125 @@ export function InstagramGatilhosTab() {
                         </>
                       )}
                     </div>
-                  </TabsContent>
+                  )}
 
-                  <TabsContent value="link" className="mt-4 space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="resposta_link_url"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>URL do Link</FormLabel>
-                          <FormControl>
-                            <Input placeholder="https://seusite.com/produto" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="resposta_link_texto"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Texto do Link (opcional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Clique aqui para ver mais" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </TabsContent>
+                  {activeResponseTab === "link" && (
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="resposta_link_url"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>URL do Link</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://seusite.com/produto" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="resposta_link_texto"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Texto do Link (opcional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Clique aqui para ver mais" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
 
-                  <TabsContent value="botoes" className="mt-4 space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="titulo_botoes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Título acima dos botões</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Escolha uma opção:" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormDescription className="text-xs">
-                            Texto que aparece acima dos botões. Deixe vazio para usar o texto da aba "Texto".
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="space-y-3">
-                      {buttons.map((button, index) => (
-                        <div key={index} className="flex gap-2 items-start p-3 border rounded-lg">
-                          <div className="flex-1 space-y-2">
-                            <Input
-                              placeholder="Texto do botão"
-                              value={button.title}
-                              onChange={(e) => updateButton(index, "title", e.target.value)}
-                            />
-                            {button.type === "url" ? (
-                              <Input
-                                placeholder="https://..."
-                                value={button.url || ""}
-                                onChange={(e) => updateButton(index, "url", e.target.value)}
+                  {activeResponseTab === "botoes" && (
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="titulo_botoes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Título acima dos botões</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Escolha uma opção:" 
+                                {...field} 
                               />
-                            ) : (
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Texto que aparece acima dos botões. Deixe vazio para usar o texto da aba "Texto".
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="space-y-3">
+                        {buttons.map((button, index) => (
+                          <div key={index} className="flex gap-2 items-start p-3 border rounded-lg">
+                            <div className="flex-1 space-y-2">
                               <Input
-                                placeholder="Payload (identificador)"
-                                value={button.payload || ""}
-                                onChange={(e) => updateButton(index, "payload", e.target.value)}
+                                placeholder="Texto do botão"
+                                value={button.title}
+                                onChange={(e) => updateButton(index, "title", e.target.value)}
                               />
-                            )}
+                              {button.type === "url" ? (
+                                <Input
+                                  placeholder="https://..."
+                                  value={button.url || ""}
+                                  onChange={(e) => updateButton(index, "url", e.target.value)}
+                                />
+                              ) : (
+                                <Input
+                                  placeholder="Payload (identificador)"
+                                  value={button.payload || ""}
+                                  onChange={(e) => updateButton(index, "payload", e.target.value)}
+                                />
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeButton(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
+                        ))}
+                      </div>
+
+                      {buttons.length < 3 && (
+                        <div className="flex gap-2">
                           <Button
                             type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeButton(index)}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addButton("quick_reply")}
                           >
-                            <X className="h-4 w-4" />
+                            <Plus className="h-4 w-4 mr-1" />
+                            Quick Reply
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addButton("url")}
+                          >
+                            <Link2 className="h-4 w-4 mr-1" />
+                            Botão URL
                           </Button>
                         </div>
-                      ))}
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Máximo de 3 botões por mensagem
+                      </p>
                     </div>
+                  )}
 
-                    {buttons.length < 3 && (
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addButton("quick_reply")}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Quick Reply
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addButton("url")}
-                        >
-                          <Link2 className="h-4 w-4 mr-1" />
-                          Botão URL
-                        </Button>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Máximo de 3 botões por mensagem
-                    </p>
-                  </TabsContent>
-
-
-                  <TabsContent value="formulario" className="mt-4 space-y-4">
+                  {activeResponseTab === "formulario" && (
                     <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
                       <div className="flex items-start gap-3">
                         <FileText className="h-5 w-5 text-primary mt-0.5" />
@@ -891,9 +929,8 @@ export function InstagramGatilhosTab() {
                         </p>
                       )}
                     </div>
-                  </TabsContent>
-
-                </Tabs>
+                  )}
+                </div>
 
                 {/* Seção de Verificar Seguidor - Toggle separado */}
                 <div className="p-4 border rounded-lg space-y-4">
