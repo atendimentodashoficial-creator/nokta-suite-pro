@@ -39,26 +39,44 @@ export default function Leads() {
   // Filtra por período primeiro
   const leadsInPeriod = filterByPeriod(leads);
 
-  // Conta leads por origem no período
-  const leadsWhatsAppCount = leadsInPeriod?.filter((lead) => {
-    const origem = (lead.origem || "").toLowerCase();
-    return origem === "whatsapp" || origem === "" || lead.origem === null;
-  }).length || 0;
+  // Função para verificar origem original do lead
+  const isWhatsAppOrigin = (origem: string | null) => {
+    const o = (origem || "").toLowerCase();
+    return o === "whatsapp" || o === "";
+  };
 
-  const leadsDisparosCount = leadsInPeriod?.filter((lead) => {
-    const origem = (lead.origem || "").toLowerCase();
-    return origem === "disparos";
-  }).length || 0;
+  const isDisparosOrigin = (origem: string | null) => {
+    return (origem || "").toLowerCase() === "disparos";
+  };
 
-  // Filtra por origem (WhatsApp ou Disparos)
+  // Função para verificar se lead tem presença em Disparos (via allPresences)
+  const hasDisparosPresence = (lead: typeof leads[0]) => {
+    return lead.allPresences?.some(p => (p.origem || "").toLowerCase() === "disparos") || false;
+  };
+
+  // Conta leads por origem ORIGINAL no período
+  const leadsWhatsAppCount = leadsInPeriod?.filter((lead) => isWhatsAppOrigin(lead.origem)).length || 0;
+  const leadsDisparosCount = leadsInPeriod?.filter((lead) => isDisparosOrigin(lead.origem)).length || 0;
+
+  // Leads de WhatsApp que também receberam disparo (para mostrar na aba Disparos como "extras")
+  const whatsAppLeadsWithDisparos = leadsInPeriod?.filter((lead) => 
+    isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead)
+  ) || [];
+
+  // Filtra por origem
   const leadsByOrigem = leadsInPeriod?.filter((lead) => {
-    const origem = (lead.origem || "").toLowerCase();
     if (origemFilter === "whatsapp") {
-      // Inclui WhatsApp e leads sem origem definida (null ou vazio)
-      return origem === "whatsapp" || origem === "" || lead.origem === null;
+      // Aba WhatsApp: apenas leads originalmente de WhatsApp
+      return isWhatsAppOrigin(lead.origem);
     }
-    return origem === "disparos";
+    // Aba Disparos: leads originalmente de Disparos + leads de WhatsApp que receberam disparo
+    return isDisparosOrigin(lead.origem) || (isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead));
   });
+
+  // Marca quais leads são "extras" (origem WhatsApp mas aparecendo na aba Disparos)
+  const isExtraLead = (lead: typeof leads[0]) => {
+    return origemFilter === "disparos" && isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead);
+  };
 
   const filteredLeads = leadsByOrigem?.filter((lead) => {
     const searchLower = searchTerm.toLowerCase();
@@ -266,6 +284,15 @@ export default function Leads() {
               <span className="w-2 h-2 rounded-full bg-blue-500"></span>
               Disparos: <strong className="text-foreground">{leadsDisparosCount}</strong>
             </span>
+            {origemFilter === "disparos" && whatsAppLeadsWithDisparos.length > 0 && (
+              <>
+                <span className="text-border">|</span>
+                <span className="flex items-center gap-1.5 text-amber-600">
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  +{whatsAppLeadsWithDisparos.length} de WhatsApp
+                </span>
+              </>
+            )}
           </div>
         </div>
         <div className="relative">
@@ -288,12 +315,14 @@ export default function Leads() {
         </div>
       ) : filteredLeads && filteredLeads.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredLeads.map((lead) => (
+          {filteredLeads.map((lead) => {
+            const isExtra = isExtraLead(lead);
+            return (
             <Card 
               key={lead.id} 
               className={`p-6 shadow-card hover:shadow-elegant transition-all animate-fade-in flex flex-col h-full ${
                 selectedLeadIds.has(lead.id) ? 'ring-2 ring-primary bg-accent/50' : ''
-              } ${isSelectionMode ? 'cursor-pointer' : ''}`}
+              } ${isSelectionMode ? 'cursor-pointer' : ''} ${isExtra ? 'border-amber-400/50 bg-amber-50/30 dark:bg-amber-950/20' : ''}`}
               onClick={() => isSelectionMode && toggleLeadSelection(lead.id)}
             >
               <div className="flex flex-col flex-1">
@@ -308,6 +337,11 @@ export default function Leads() {
                       />
                     )}
                     <h3 className="text-lg font-semibold text-foreground truncate">{lead.nome}</h3>
+                    {isExtra && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 flex-shrink-0">
+                        Via WhatsApp
+                      </span>
+                    )}
                   </div>
                   {!isSelectionMode && (
                     <LeadActions 
@@ -425,7 +459,8 @@ export default function Leads() {
                 )}
               </div>
             </Card>
-          ))}
+          );
+          })}
         </div>
       ) : (
         <Card className="p-12">
