@@ -49,50 +49,37 @@ export default function Leads() {
     return (origem || "").toLowerCase() === "disparos";
   };
 
-  // Função para verificar se lead tem presença em Disparos (via allPresences)
-  const hasDisparosPresence = (lead: typeof leads[0]) => {
-    return lead.allPresences?.some(p => (p.origem || "").toLowerCase() === "disparos") || false;
-  };
-
-  // Função para verificar se lead tem presença em WhatsApp (via allPresences)
-  const hasWhatsAppPresence = (lead: typeof leads[0]) => {
-    return lead.allPresences?.some(p => {
-      const o = (p.origem || "").toLowerCase();
-      return o === "whatsapp" || o === "";
-    }) || false;
-  };
-
   // Conta leads por origem ORIGINAL no período
   const leadsWhatsAppCount = leadsInPeriod?.filter((lead) => isWhatsAppOrigin(lead.origem)).length || 0;
   const leadsDisparosCount = leadsInPeriod?.filter((lead) => isDisparosOrigin(lead.origem)).length || 0;
 
-  // Leads de WhatsApp que também receberam disparo (para mostrar na aba Disparos como "extras")
+  // Leads de WhatsApp que também têm CHAT REAL em Disparos (para mostrar na aba Disparos como "extras")
   const whatsAppLeadsWithDisparos = leadsInPeriod?.filter((lead) => 
-    isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead)
+    isWhatsAppOrigin(lead.origem) && lead.hasDisparosChat
   ) || [];
 
-  // Leads de Disparos que também interagiram via WhatsApp (para mostrar na aba WhatsApp como "extras")
+  // Leads de Disparos que também têm CHAT REAL em WhatsApp (para mostrar na aba WhatsApp como "extras")
   const disparosLeadsWithWhatsApp = leadsInPeriod?.filter((lead) => 
-    isDisparosOrigin(lead.origem) && hasWhatsAppPresence(lead)
+    isDisparosOrigin(lead.origem) && lead.hasWhatsAppChat
   ) || [];
 
-  // Filtra por origem
+  // Filtra por origem baseado em CHATS REAIS
   const leadsByOrigem = leadsInPeriod?.filter((lead) => {
     if (origemFilter === "whatsapp") {
-      // Aba WhatsApp: leads originalmente de WhatsApp + leads de Disparos que interagiram via WhatsApp
-      return isWhatsAppOrigin(lead.origem) || (isDisparosOrigin(lead.origem) && hasWhatsAppPresence(lead));
+      // Aba WhatsApp: leads originalmente de WhatsApp + leads de Disparos que TÊM chat real em WhatsApp
+      return isWhatsAppOrigin(lead.origem) || (isDisparosOrigin(lead.origem) && lead.hasWhatsAppChat);
     }
-    // Aba Disparos: leads originalmente de Disparos + leads de WhatsApp que receberam disparo
-    return isDisparosOrigin(lead.origem) || (isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead));
+    // Aba Disparos: leads originalmente de Disparos + leads de WhatsApp que TÊM chat real em Disparos
+    return isDisparosOrigin(lead.origem) || (isWhatsAppOrigin(lead.origem) && lead.hasDisparosChat);
   });
 
-  // Marca quais leads são "extras" (aparecendo em aba diferente da origem)
+  // Marca quais leads são "extras" (aparecendo em aba diferente da origem, baseado em chat real)
   const isExtraLead = (lead: typeof leads[0]) => {
     if (origemFilter === "disparos") {
-      return isWhatsAppOrigin(lead.origem) && hasDisparosPresence(lead);
+      return isWhatsAppOrigin(lead.origem) && lead.hasDisparosChat;
     }
     if (origemFilter === "whatsapp") {
-      return isDisparosOrigin(lead.origem) && hasWhatsAppPresence(lead);
+      return isDisparosOrigin(lead.origem) && lead.hasWhatsAppChat;
     }
     return false;
   };

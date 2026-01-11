@@ -51,13 +51,18 @@ export interface Lead {
 
   // New: all places where this contact appeared as lead (ordered by first contact)
   allPresences?: LeadPresence[];
+  
+  // NEW: Flags indicating if there's a real chat in each system
+  hasWhatsAppChat?: boolean;
+  hasDisparosChat?: boolean;
 }
 
 
 export const useLeads = (status?: LeadStatus) => {
   return useQuery({
-    queryKey: ["leads", status, "phone-dedupe-v2"],
+    queryKey: ["leads", status, "phone-dedupe-v3-chats"],
     queryFn: async () => {
+      // Fetch leads
       let query = supabase
         .from("leads")
         .select("*")
@@ -67,14 +72,36 @@ export const useLeads = (status?: LeadStatus) => {
       if (status) {
         query = query.eq("status", status);
       }
-      // Sem filtro = retorna todos os status (incluindo clientes)
-      // Para análise, cliente é um lead que converteu
 
       const { data, error } = await query;
-
       if (error) throw error;
       
       const leadsData = data as Lead[];
+      
+      // Fetch all WhatsApp chats (normalized_number contains last digits)
+      const { data: whatsappChats } = await supabase
+        .from("whatsapp_chats")
+        .select("normalized_number")
+        .is("deleted_at", null);
+      
+      // Fetch all Disparos chats
+      const { data: disparosChats } = await supabase
+        .from("disparos_chats")
+        .select("normalized_number")
+        .is("deleted_at", null);
+      
+      // Create sets of phone last8 digits that have chats
+      const whatsappChatPhones = new Set<string>();
+      (whatsappChats || []).forEach(c => {
+        const last8 = getLast8Digits(c.normalized_number || "");
+        if (last8) whatsappChatPhones.add(last8);
+      });
+      
+      const disparosChatPhones = new Set<string>();
+      (disparosChats || []).forEach(c => {
+        const last8 = getLast8Digits(c.normalized_number || "");
+        if (last8) disparosChatPhones.add(last8);
+      });
       
       // Group all leads by phone (last 8 digits) to collect all presences
       const phonePresencesMap = new Map<string, LeadPresence[]>();
@@ -129,7 +156,12 @@ export const useLeads = (status?: LeadStatus) => {
         if (!seen.has(last8)) {
           // Attach all presences to the lead
           const allPresences = phonePresencesMap.get(last8) || [];
-          seen.set(last8, { ...lead, allPresences });
+          
+          // Check if this phone has real chats in each system
+          const hasWhatsAppChat = whatsappChatPhones.has(last8);
+          const hasDisparosChat = disparosChatPhones.has(last8);
+          
+          seen.set(last8, { ...lead, allPresences, hasWhatsAppChat, hasDisparosChat });
         }
       }
       
