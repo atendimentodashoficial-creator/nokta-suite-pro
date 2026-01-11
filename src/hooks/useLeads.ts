@@ -78,27 +78,47 @@ export const useLeads = (status?: LeadStatus) => {
       
       const leadsData = data as Lead[];
       
-      // Fetch all WhatsApp chats (normalized_number contains last digits)
+      // Fetch all WhatsApp chats + message presence (so "has chat" means "has messages")
       const { data: whatsappChats } = await supabase
         .from("whatsapp_chats")
-        .select("normalized_number")
+        .select("id, normalized_number")
         .is("deleted_at", null);
-      
-      // Fetch all Disparos chats
+
+      const { data: whatsappMsgChatIds } = await supabase
+        .from("whatsapp_messages")
+        .select("chat_id");
+
+      const waChatIdsWithMessages = new Set<string>();
+      (whatsappMsgChatIds || []).forEach((m) => {
+        if (m.chat_id) waChatIdsWithMessages.add(m.chat_id);
+      });
+
+      // Fetch all Disparos chats + message presence
       const { data: disparosChats } = await supabase
         .from("disparos_chats")
-        .select("normalized_number")
+        .select("id, normalized_number")
         .is("deleted_at", null);
-      
-      // Create sets of phone last8 digits that have chats
+
+      const { data: disparosMsgChatIds } = await supabase
+        .from("disparos_messages")
+        .select("chat_id");
+
+      const dispChatIdsWithMessages = new Set<string>();
+      (disparosMsgChatIds || []).forEach((m) => {
+        if (m.chat_id) dispChatIdsWithMessages.add(m.chat_id);
+      });
+
+      // Create sets of phone last8 digits that have chats WITH messages
       const whatsappChatPhones = new Set<string>();
-      (whatsappChats || []).forEach(c => {
+      (whatsappChats || []).forEach((c) => {
+        if (!waChatIdsWithMessages.has(c.id)) return;
         const last8 = getLast8Digits(c.normalized_number || "");
         if (last8) whatsappChatPhones.add(last8);
       });
-      
+
       const disparosChatPhones = new Set<string>();
-      (disparosChats || []).forEach(c => {
+      (disparosChats || []).forEach((c) => {
+        if (!dispChatIdsWithMessages.has(c.id)) return;
         const last8 = getLast8Digits(c.normalized_number || "");
         if (last8) disparosChatPhones.add(last8);
       });
