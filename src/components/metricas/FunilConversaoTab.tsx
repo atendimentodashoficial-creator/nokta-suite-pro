@@ -937,7 +937,19 @@ export function FunilConversaoTab() {
         return candidates[candidates.length - 1];
       };
 
-      const getAttribution = (phone: string, opts?: { preferredLeadId?: string; eventTs?: number }) => {
+      const getAttribution = (phone: string, opts?: { preferredLeadId?: string; eventTs?: number; isDisparos?: boolean }) => {
+        // Se é de Disparos, retorna um grupo separado
+        if (opts?.isDisparos) {
+          const key = "___DISPAROS___";
+          return { 
+            key, 
+            campaign: "📤 Via Disparos", 
+            adset: "Campanhas de disparo em massa", 
+            ad: "—", 
+            adId: null 
+          };
+        }
+
         const fromLead = pickAttributionLead(phone, opts?.eventTs, opts?.preferredLeadId);
         const fallback = bestCampaignByPhone[phone];
 
@@ -1029,7 +1041,7 @@ export function FunilConversaoTab() {
         // Só conta se existir AGENDAMENTO ATIVO no período.
         // Se o lead avançou para fatura mas o agendamento foi removido/cancelado, não deve continuar marcando aqui.
         if (hasAgendamentoInPeriod) {
-          const gAg = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2 }));
+          const gAg = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2, isDisparos: isFromDisparos }));
           gAg.agendados++;
           if (isFromDisparos) viaDisparos.agendados++;
 
@@ -1042,7 +1054,7 @@ export function FunilConversaoTab() {
 
         // Etapa 3: Compareceu / Em negociação
         if (temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
-          const g3 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3 }));
+          const g3 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3, isDisparos: isFromDisparos }));
           g3.compareceu++;
           if (isFromDisparos) viaDisparos.compareceu++;
           
@@ -1054,7 +1066,7 @@ export function FunilConversaoTab() {
 
         // Etapa 4: Clientes
         if (temFaturaFechadaInPeriod) {
-          const g4 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage4, eventTs: tsStage4 }));
+          const g4 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage4, eventTs: tsStage4, isDisparos: isFromDisparos }));
           g4.clientes++;
           if (isFromDisparos) viaDisparos.clientes++;
 
@@ -1080,9 +1092,25 @@ export function FunilConversaoTab() {
       });
 
       const uniqueContacts = processedPhones.size;
+      // Sort: "Sem campanha" e "Via Disparos" vão para o final
+      const sortedData = Object.values(grouped).sort((a, b) => {
+        const isDisparosA = a.campaign_name.includes("Via Disparos");
+        const isDisparosB = b.campaign_name.includes("Via Disparos");
+        const isSemCampanhaA = a.campaign_name === "Sem campanha";
+        const isSemCampanhaB = b.campaign_name === "Sem campanha";
+        
+        // Via Disparos vai por último
+        if (isDisparosA && !isDisparosB) return 1;
+        if (!isDisparosA && isDisparosB) return -1;
+        // Sem campanha vai antes de Via Disparos, mas depois do resto
+        if (isSemCampanhaA && !isSemCampanhaB && !isDisparosB) return 1;
+        if (!isSemCampanhaA && isSemCampanhaB && !isDisparosA) return -1;
+        // Ordenar por leads (decrescente)
+        return b.leads - a.leads;
+      });
 
       return {
-        data: Object.values(grouped).sort((a, b) => b.leads - a.leads),
+        data: sortedData,
         totalRecords,
         uniqueContacts,
         viaDisparos,
