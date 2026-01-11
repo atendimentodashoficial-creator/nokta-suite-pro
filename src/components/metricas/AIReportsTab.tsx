@@ -360,7 +360,11 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
 
     allAgendamentos?.forEach((a: any) => {
       if (!a.cliente_id) return;
-      const phone = clienteIdToPhone[a.cliente_id];
+
+      // Prefer telefone vindo do JOIN do próprio agendamento (mais robusto)
+      const phone = a.leads?.telefone
+        ? normalizePhone(String(a.leads.telefone))
+        : clienteIdToPhone[a.cliente_id];
       if (!phone) return;
 
       const ts = periodTs(a.created_at || a.data_agendamento);
