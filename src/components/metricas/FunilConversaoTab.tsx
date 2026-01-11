@@ -611,43 +611,37 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Leads no período = telefones cujo PRIMEIRO cadastro foi WhatsApp e:
-      // 1) Ocorreu dentro do período, OU
-      // 2) Teve um agendamento (data_agendamento) dentro do período, OU
-      // 3) Teve uma fatura criada dentro do período
-      const leadsInPeriod = primaryLeads.filter((lead) => {
+      // Leads no período (coorte) = leads criados dentro do período e de origem WhatsApp.
+      // Atribuição (campanha/conjunto/anúncio) deve respeitar o período selecionado.
+      const leadsInPeriodRaw = (allLeads || []).filter((lead) => {
         if (!isWhatsAppLead(lead.origem)) return false;
-        const normalizedPhone = normalizePhone(lead.telefone);
-        return (
-          isWithinPeriod(lead.created_at) ||
-          phonesWithAgendamentoInPeriod.has(normalizedPhone) ||
-          phonesWithFaturaInPeriod.has(normalizedPhone)
-        );
+        return isWithinPeriod(lead.created_at);
       });
 
-      // Telefones que têm lead primário no período
+      // Unificar por telefone dentro do período: manter o primeiro lead do período (mais antigo)
+      const leadInPeriodByPhone: Record<string, (typeof allLeads)[number]> = {};
+      leadsInPeriodRaw.forEach((lead) => {
+        const phone = normalizePhone(lead.telefone);
+        const existing = leadInPeriodByPhone[phone];
+        if (!existing) {
+          leadInPeriodByPhone[phone] = lead;
+          return;
+        }
+        const existingTs = new Date(existing.created_at || 0).getTime();
+        const nextTs = new Date(lead.created_at || 0).getTime();
+        if (Number.isFinite(nextTs) && nextTs < existingTs) {
+          leadInPeriodByPhone[phone] = lead;
+        }
+      });
+
+      const leadsInPeriod = Object.values(leadInPeriodByPhone);
+
+      // Telefones presentes na coorte do período
       const phonesInPeriod = new Set<string>();
       leadsInPeriod.forEach((lead) => phonesInPeriod.add(normalizePhone(lead.telefone)));
 
-      // Para cada telefone, descobrir o PRIMEIRO evento dentro do período (lead/agendamento/fatura)
-      // e usar isso como referência para atribuição (evita puxar campanha antiga/irrelevante)
-      const activityTsByPhone: Record<string, number> = {};
-      const considerActivity = (phone: string, ts: number | null) => {
-        if (ts === null) return;
-        if (activityTsByPhone[phone] === undefined || ts < activityTsByPhone[phone]) {
-          activityTsByPhone[phone] = ts;
-        }
-      };
-
-      leadsInPeriod.forEach((lead) => {
-        const phone = normalizePhone(lead.telefone);
-        considerActivity(phone, periodTs(lead.created_at));
-      });
-      Object.entries(agendamentoTsByPhone).forEach(([phone, ts]) => considerActivity(phone, ts));
-      Object.entries(faturaTsByPhone).forEach(([phone, ts]) => considerActivity(phone, ts));
-
-      // Criar mapa de dados de campanha por telefone normalizado
-      // Regra: escolher o registro de lead com campanha cuja created_at é a MAIS PRÓXIMA (<=) do primeiro evento no período.
+      // Atribuição por telefone (campanha/conjunto/anúncio) baseada NOS LEADS DO PERÍODO.
+      // Se houver mais de um lead no período para o mesmo telefone, preferimos um que tenha campanha.
       const campaignDataByPhone: Record<
         string,
         {
@@ -658,85 +652,31 @@ export function FunilConversaoTab() {
         }
       > = {};
 
-      (allLeads || []).forEach((lead) => {
+      // Primeiro: atribuição do lead "primeiro do período"
+      leadsInPeriod.forEach((lead) => {
         const phone = normalizePhone(lead.telefone);
-        if (!phonesInPeriod.has(phone)) return;
-        if (!lead.fb_campaign_name) return;
-
-        const activityTs = activityTsByPhone[phone];
-        const leadTs = lead.created_at ? new Date(lead.created_at).getTime() : NaN;
-        if (!Number.isFinite(leadTs)) return;
-
-        const current = campaignDataByPhone[phone] as any;
-        const currentTs = current?.__ts as number | undefined;
-
-        // Preferir leads que aconteceram ANTES (ou no mesmo instante) do evento no período
-        // Se não houver, cair no mais próximo mesmo assim.
-        const isCandidateBefore = Number.isFinite(activityTs) ? leadTs <= activityTs : true;
-
-        if (!current) {
-          (campaignDataByPhone as any)[phone] = {
-            fb_campaign_name: lead.fb_campaign_name,
-            fb_adset_name: lead.fb_adset_name,
-            fb_ad_name: lead.fb_ad_name,
-            fb_ad_id: lead.fb_ad_id,
-            __ts: leadTs,
-            __before: isCandidateBefore,
-          };
-          return;
-        }
-
-        const currentBefore = current.__before as boolean;
-
-        // Se já temos uma opção "before" e a nova também é "before", pegamos a mais recente (maior ts)
-        if (currentBefore && isCandidateBefore) {
-          if (leadTs > (currentTs ?? -Infinity)) {
-            (campaignDataByPhone as any)[phone] = {
-              fb_campaign_name: lead.fb_campaign_name,
-              fb_adset_name: lead.fb_adset_name,
-              fb_ad_name: lead.fb_ad_name,
-              fb_ad_id: lead.fb_ad_id,
-              __ts: leadTs,
-              __before: true,
-            };
-          }
-          return;
-        }
-
-        // Se não temos "before" ainda e a nova é "before", ela ganha
-        if (!currentBefore && isCandidateBefore) {
-          (campaignDataByPhone as any)[phone] = {
-            fb_campaign_name: lead.fb_campaign_name,
-            fb_adset_name: lead.fb_adset_name,
-            fb_ad_name: lead.fb_ad_name,
-            fb_ad_id: lead.fb_ad_id,
-            __ts: leadTs,
-            __before: true,
-          };
-          return;
-        }
-
-        // Se nenhuma é "before", escolher a mais próxima do activityTs (menor |ts-activityTs|)
-        if (!currentBefore && !isCandidateBefore && Number.isFinite(activityTs)) {
-          const currentDist = Math.abs((currentTs ?? Infinity) - activityTs);
-          const nextDist = Math.abs(leadTs - activityTs);
-          if (nextDist < currentDist) {
-            (campaignDataByPhone as any)[phone] = {
-              fb_campaign_name: lead.fb_campaign_name,
-              fb_adset_name: lead.fb_adset_name,
-              fb_ad_name: lead.fb_ad_name,
-              fb_ad_id: lead.fb_ad_id,
-              __ts: leadTs,
-              __before: false,
-            };
-          }
-        }
+        campaignDataByPhone[phone] = {
+          fb_campaign_name: lead.fb_campaign_name || null,
+          fb_adset_name: lead.fb_adset_name || null,
+          fb_ad_name: lead.fb_ad_name || null,
+          fb_ad_id: lead.fb_ad_id || null,
+        };
       });
 
-      // Remover metacampos internos
-      Object.keys(campaignDataByPhone).forEach((phone) => {
-        delete (campaignDataByPhone as any)[phone].__ts;
-        delete (campaignDataByPhone as any)[phone].__before;
+      // Segundo: se o primeiro do período não tiver campanha, buscar outro lead (ainda dentro do período) que tenha
+      leadsInPeriodRaw.forEach((lead) => {
+        const phone = normalizePhone(lead.telefone);
+        if (!phonesInPeriod.has(phone)) return;
+        const current = campaignDataByPhone[phone];
+        if (current?.fb_campaign_name) return;
+        if (!lead.fb_campaign_name) return;
+
+        campaignDataByPhone[phone] = {
+          fb_campaign_name: lead.fb_campaign_name,
+          fb_adset_name: lead.fb_adset_name,
+          fb_ad_name: lead.fb_ad_name,
+          fb_ad_id: lead.fb_ad_id,
+        };
       });
 
       // Criar mapa de todos os IDs de lead por telefone normalizado (todos os leads do mesmo telefone)
