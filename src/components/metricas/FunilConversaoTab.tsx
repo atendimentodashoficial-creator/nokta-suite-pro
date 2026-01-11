@@ -785,13 +785,15 @@ export function FunilConversaoTab() {
 
       // O "phonesInPeriod" inclui:
       // - TODOS os leads WhatsApp criados no período
-      // - Phones com eventos no período (se têm atribuição para atribuir corretamente)
-      // - Phones de Disparos que tiveram eventos (para sinalização)
-      const phonesInPeriod = new Set<string>(phonesWithLeadInPeriod);
+      // - TODOS os leads cujo primário é Disparos criados no período (para o Funil bater com a aba Leads)
+      // - Phones com eventos no período (agendamento/fatura)
+      const phonesInPeriod = new Set<string>([
+        ...Array.from(phonesWithLeadInPeriod),
+        ...Array.from(phonesWithDisparosLeadInPeriod),
+      ]);
       
       // Adicionar phones que tiveram agendamento no período (WhatsApp OU Disparos)
       phonesWithAgendamentoInPeriod.forEach((p) => {
-        // Incluímos todos para poder contar e sinalizar "via Disparos"
         phonesInPeriod.add(p);
       });
       // Adicionar phones que tiveram fatura no período (WhatsApp OU Disparos)
@@ -915,7 +917,9 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Lead "representante" para a linha do telefone (primeiro lead WhatsApp do telefone)
+      // Lead "representante" para a linha do telefone:
+      // - preferir o primeiro lead WhatsApp do telefone (para atribuição)
+      // - fallback para o lead primário (ex.: telefones que só existem em Disparos)
       const firstWhatsAppLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
       (allLeads || []).forEach((l) => {
         const phone = phoneKey(l.telefone);
@@ -933,8 +937,13 @@ export function FunilConversaoTab() {
         }
       });
 
+      const representativeLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
+      Array.from(phonesInPeriod).forEach((p) => {
+        representativeLeadByPhone[p] = firstWhatsAppLeadByPhone[p] || firstLeadByPhone[p];
+      });
+
       const leads = Array.from(phonesInPeriod)
-        .map((p) => firstWhatsAppLeadByPhone[p])
+        .map((p) => representativeLeadByPhone[p])
         .filter(Boolean);
 
       // Total de registros no período (antes da unificação por telefone)
