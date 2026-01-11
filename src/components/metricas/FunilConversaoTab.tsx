@@ -1202,8 +1202,10 @@ export function FunilConversaoTab() {
     
     const totalSpend = Object.values(spendByCampaign).reduce((a, b) => a + b, 0);
     
-    // Contar rastreados vs não rastreados
-    const tracked = funnelData.filter(item => item.campaign_name !== "Sem campanha");
+    // Contar rastreados vs não rastreados (excluindo "Via Disparos" dos rastreados por anúncio)
+    const tracked = funnelData.filter(item => 
+      item.campaign_name !== "Sem campanha" && !item.campaign_name.includes("Via Disparos")
+    );
     const untracked = funnelData.find(item => item.campaign_name === "Sem campanha");
     
     const leadsTracked = tracked.reduce((sum, item) => sum + item.leads, 0);
