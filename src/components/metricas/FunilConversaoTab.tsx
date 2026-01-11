@@ -626,11 +626,9 @@ export function FunilConversaoTab() {
         if (isWhatsAppLead(l.origem)) hasWhatsAppByPhone[phone] = true;
       });
 
-      // Leads no período (coorte) = telefones que:
-      // - tiveram lead criado no período OU
-      // - tiveram agendamento (data_agendamento) no período OU
-      // - tiveram fatura no período
-      // E que possuem pelo menos um lead de origem WhatsApp (ou origem vazia).
+      // Leads no período (coorte) = telefones que tiveram LEAD WhatsApp CRIADO no período
+      // O funil é baseado na data de ENTRADA do lead, não de eventos posteriores (agendamentos/faturas)
+      // Isso garante que cada lead seja contado apenas uma vez, no período correto de aquisição.
       const phonesInPeriod = new Set<string>();
 
       (allLeads || []).forEach((lead) => {
@@ -639,13 +637,9 @@ export function FunilConversaoTab() {
           phonesInPeriod.add(phone);
         }
       });
-      phonesWithAgendamentoInPeriod.forEach((p) => phonesInPeriod.add(p));
-      phonesWithFaturaInPeriod.forEach((p) => phonesInPeriod.add(p));
 
-      // remover phones que são apenas Disparos
-      Array.from(phonesInPeriod).forEach((phone) => {
-        if (!hasWhatsAppByPhone[phone]) phonesInPeriod.delete(phone);
-      });
+      // IMPORTANTE: NÃO adicionar telefones via agendamento/fatura se o lead não foi criado no período
+      // A lógica anterior estava inflando o funil ao contar leads antigos que tiveram eventos no período
 
       // Mapa rápido de lead por id
       const leadById: Record<string, (typeof allLeads)[number]> = {};
