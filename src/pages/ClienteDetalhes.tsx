@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, Calendar, Tag, DollarSign, CalendarCheck, Edit, Plus, RefreshCw, UserCheck, ChevronDown, ShoppingBag, Clock, CreditCard, Trash2, MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Calendar, Tag, DollarSign, CalendarCheck, Edit, Plus, RefreshCw, UserCheck, ChevronDown, ShoppingBag, Clock, CreditCard, Trash2, MessageCircle, Send, History, CalendarX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useLeads } from "@/hooks/useLeads";
-import { useAgendamentos, Agendamento, useDeleteAgendamento } from "@/hooks/useAgendamentos";
+import { useAgendamentos, Agendamento, useDeleteAgendamento, useAgendamentosExcluidos } from "@/hooks/useAgendamentos";
 import { useFaturas, useDeleteFatura } from "@/hooks/useFaturas";
 import { EditarClienteDialog } from "@/components/clientes/EditarClienteDialog";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
@@ -91,6 +91,9 @@ export default function ClienteDetalhes() {
   const {
     data: faturas
   } = useFaturas();
+  const {
+    data: agendamentosExcluidos
+  } = useAgendamentosExcluidos();
   const { toast } = useToast();
   const deleteAgendamento = useDeleteAgendamento();
   const deleteFatura = useDeleteFatura();
@@ -98,6 +101,7 @@ export default function ClienteDetalhes() {
   const clienteAgendamentos = agendamentos?.filter(a => a.cliente_id === id) || [];
   const agendamentosPassados = clienteAgendamentos.filter(a => new Date(a.data_agendamento) < new Date());
   const proximosAgendamentos = clienteAgendamentos.filter(a => new Date(a.data_agendamento) >= new Date());
+  const clienteAgendamentosExcluidos = agendamentosExcluidos?.filter(a => a.cliente_id === id) || [];
   const clienteFaturas = faturas?.filter(f => f.cliente_id === id) || [];
   const receitaFechada = clienteFaturas.filter(f => f.status === "fechado").reduce((sum, f) => {
     const valorBruto = Number(f.valor);
@@ -312,11 +316,13 @@ export default function ClienteDetalhes() {
                   <SelectItem value="proximos">Próximos Agendamentos</SelectItem>
                   <SelectItem value="agendamentos">Agendamentos Passados</SelectItem>
                   <SelectItem value="faturas">Faturas</SelectItem>
+                  <SelectItem value="historico">Histórico de Exclusões</SelectItem>
                 </SelectContent>
               </Select> : <TabsList className="h-8">
                 <TabsTrigger value="proximos" className="text-xs px-3 h-7">Próximos Agendamentos</TabsTrigger>
                 <TabsTrigger value="agendamentos" className="text-xs px-3 h-7">Agendamentos Passados</TabsTrigger>
                 <TabsTrigger value="faturas" className="text-xs px-3 h-7">Faturas</TabsTrigger>
+                <TabsTrigger value="historico" className="text-xs px-3 h-7">Histórico de Exclusões</TabsTrigger>
               </TabsList>}
           </CardHeader>
 
@@ -770,6 +776,86 @@ export default function ClienteDetalhes() {
                   </div> : <p className="text-center text-muted-foreground py-8">
                     Nenhuma fatura encontrada
                   </p>}
+              </ScrollArea>
+            </TabsContent>
+
+            {/* Aba Histórico de Exclusões */}
+            <TabsContent value="historico" className="mt-0">
+              <ScrollArea className="h-[400px] pr-4">
+                {clienteAgendamentosExcluidos.length > 0 ? (
+                  <div className="space-y-3">
+                    {clienteAgendamentosExcluidos.map(agendamento => (
+                      <Card key={agendamento.id} className="p-4 bg-red-500/5 border-red-500/20">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className="bg-red-500/20 text-red-700">
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Excluído
+                            </Badge>
+                            {agendamento.tipo && (
+                              <Badge variant="outline">{agendamento.tipo}</Badge>
+                            )}
+                            {agendamento.status && (
+                              <Badge variant="outline" className="bg-muted">
+                                Status anterior: {agendamento.status}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              <span>Agendado para: {new Date(agendamento.data_agendamento).toLocaleString('pt-BR', {
+                                timeZone: 'America/Sao_Paulo',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <CalendarX className="h-4 w-4" />
+                              <span>Excluído em: {new Date(agendamento.excluido_em).toLocaleString('pt-BR', {
+                                timeZone: 'America/Sao_Paulo',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 text-sm text-muted-foreground">
+                            {agendamento.procedimento_nome && (
+                              <p>📋 {agendamento.procedimento_nome}</p>
+                            )}
+                            {agendamento.profissional_nome && (
+                              <p>👤 {agendamento.profissional_nome}</p>
+                            )}
+                          </div>
+
+                          {agendamento.observacoes && (
+                            <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
+                              {agendamento.observacoes}
+                            </p>
+                          )}
+
+                          {agendamento.motivo_exclusao && (
+                            <p className="text-sm text-red-600 bg-red-500/10 rounded p-2">
+                              <strong>Motivo:</strong> {agendamento.motivo_exclusao}
+                            </p>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum agendamento excluído
+                  </p>
+                )}
               </ScrollArea>
             </TabsContent>
           </CardContent>
