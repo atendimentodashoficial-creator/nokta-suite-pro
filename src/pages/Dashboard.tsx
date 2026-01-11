@@ -109,8 +109,51 @@ export default function Dashboard() {
       return true;
     }) || [];
 
+    const fats = faturas?.filter(fat => {
+      if (!dataInicial && !dataFinal) return true;
+      const fatDate = new Date(fat.created_at);
+      if (dataInicial && fatDate < dataInicial) return false;
+      if (dataFinal && fatDate > dataFinal) return false;
+      return true;
+    }) || [];
+
+    // Criar set de IDs de leads não-excluídos (allLeads já filtra deleted_at)
+    // Precisamos usar allLeads + clientes pois ambos são leads válidos
+    const leadsNaoExcluidosIds = new Set<string>();
+    allLeads?.forEach(l => leadsNaoExcluidosIds.add(l.id));
+    clientes?.forEach(l => leadsNaoExcluidosIds.add(l.id));
+
+    // Criar set de clientes que têm fatura (para validar agendamentos "realizado")
+    const clientesComFatura = new Set<string>();
+    fats?.forEach((f: any) => {
+      if (f.cliente_id && (f.status === "negociacao" || f.status === "fechado")) {
+        clientesComFatura.add(f.cliente_id);
+      }
+    });
+
+    // IDs de agendamentos que têm fatura vinculada
+    const agendamentoIdsComFatura = new Set<string>();
+    fats?.forEach((f: any) => {
+      (f.fatura_agendamentos || []).forEach((fa: any) => {
+        if (fa.agendamento_id) agendamentoIdsComFatura.add(fa.agendamento_id);
+      });
+    });
+
+    // Função para verificar se agendamento é visível no app
+    const isAgendamentoVisivel = (ag: any) => {
+      // Ignorar agendamentos de leads excluídos
+      if (!leadsNaoExcluidosIds.has(ag.cliente_id)) return false;
+      
+      // Ignorar agendamentos "realizado" sem fatura vinculada
+      const hasFatura = agendamentoIdsComFatura.has(ag.id) || clientesComFatura.has(ag.cliente_id);
+      if (ag.status === "realizado" && !hasFatura) return false;
+      
+      return true;
+    };
+
     // Filtrar agendamentos por created_at (quando foi REGISTRADO/criado)
     const agendsRegistrados = agendamentos?.filter(ag => {
+      if (!isAgendamentoVisivel(ag)) return false;
       if (!dataInicial && !dataFinal) return true;
       const agDate = new Date(ag.created_at);
       if (dataInicial && agDate < dataInicial) return false;
@@ -120,18 +163,11 @@ export default function Dashboard() {
 
     // Filtrar agendamentos por data_agendamento (quando foi REALIZADO/marcado para acontecer)
     const agendsRealizados = agendamentos?.filter(ag => {
+      if (!isAgendamentoVisivel(ag)) return false;
       if (!dataInicial && !dataFinal) return true;
       const agDate = new Date(ag.data_agendamento);
       if (dataInicial && agDate < dataInicial) return false;
       if (dataFinal && agDate > dataFinal) return false;
-      return true;
-    }) || [];
-
-    const fats = faturas?.filter(fat => {
-      if (!dataInicial && !dataFinal) return true;
-      const fatDate = new Date(fat.created_at);
-      if (dataInicial && fatDate < dataInicial) return false;
-      if (dataFinal && fatDate > dataFinal) return false;
       return true;
     }) || [];
 
