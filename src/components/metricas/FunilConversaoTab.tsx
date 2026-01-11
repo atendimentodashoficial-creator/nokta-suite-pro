@@ -1184,12 +1184,16 @@ export function FunilConversaoTab() {
         const tsStage4 = latestFaturaFechTsByPhone[phone];
 
         // Etapa 1: Leads - conta se o lead foi CRIADO no período (WhatsApp OU Disparos)
-        // O total principal deve somar ambos; as badges "via Disparos" são separadas
+        // Regra alinhada com a aba Leads:
+        // - Se a origem primária do telefone é Disparos (e o cadastro primário caiu no período), esse lead entra no grupo "📤 Via Disparos"
+        // - Caso contrário, conta como WhatsApp e pode cair em "Sem campanha" (sem rastreio)
         const isWhatsAppLeadCreatedInPeriod = phonesWithLeadInPeriod.has(phone);
         const isDisparosLeadCreatedInPeriod = phonesWithDisparosLeadInPeriod.has(phone);
-        const leadCreatedInPeriod = isWhatsAppLeadCreatedInPeriod || isDisparosLeadCreatedInPeriod;
-        
-        if (leadCreatedInPeriod) {
+
+        if (isDisparosLeadCreatedInPeriod) {
+          const attr = getAttribution(phone, { isDisparos: true });
+          bumpMetric(attr, "leads", 1);
+        } else if (isWhatsAppLeadCreatedInPeriod) {
           const attr = getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1, strictPreferred: true });
           bumpMetric(attr, "leads", 1);
         }
@@ -1522,10 +1526,9 @@ export function FunilConversaoTab() {
     );
     const untracked = funnelDataByCampaign.find(item => item.campaign_name === "Sem campanha");
     
-    // Leads "não rastreados" = "Sem campanha" MENOS os que vieram de Disparos
-    // (pois Disparos aparecem em badge separada)
+    // Leads "não rastreados" = item "Sem campanha" (não mistura com "Via Disparos")
     const leadsTracked = tracked.reduce((sum, item) => sum + item.leads, 0);
-    const leadsUntracked = Math.max(0, (untracked?.leads || 0) - (viaDisparos?.leads || 0));
+    const leadsUntracked = untracked?.leads || 0;
     const agendadosTracked = tracked.reduce((sum, item) => sum + item.agendados, 0);
     const agendadosUntracked = untracked?.agendados || 0;
     const compareceuTracked = tracked.reduce((sum, item) => sum + item.compareceu, 0);
