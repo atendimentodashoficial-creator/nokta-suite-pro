@@ -35,8 +35,9 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, parseISO } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, parseISO, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toZonedTime } from "date-fns-tz";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +49,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useLeads } from "@/hooks/useLeads";
+import { useAgendamentos } from "@/hooks/useAgendamentos";
+import { useFaturas } from "@/hooks/useFaturas";
 
 interface BaseMetrics {
   impressions: number;
@@ -146,6 +149,8 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
   const { user } = useAuth();
   const { toast } = useToast();
   const { data: allLeads } = useLeads();
+  const { data: allAgendamentos } = useAgendamentos();
+  const { data: allFaturas } = useFaturas();
   
   const [apiKeyConfigured, setApiKeyConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -236,70 +241,213 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
   };
 
   // Calculate funnel data for the selected period
+  // Using the same logic as FunilConversaoTab for consistency
   const funnelData = useMemo(() => {
     if (!allLeads) return null;
 
-    const startDate = dateStart;
-    const endDate = dateEnd;
+    const TZ = "America/Sao_Paulo";
+    const startOfPeriod = toZonedTime(startOfDay(dateStart), TZ);
+    const endOfPeriod = toZonedTime(endOfDay(dateEnd), TZ);
 
-    // Filter leads by period (using created_at)
-    const leadsInPeriod = allLeads.filter(lead => {
-      const leadDate = new Date(lead.created_at);
-      return leadDate >= startDate && leadDate <= endDate;
+    // Helper: timestamp dentro do período
+    const periodTs = (iso: string | null | undefined) => {
+      if (!iso) return null;
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return null;
+      return d >= startOfPeriod && d <= endOfPeriod ? d.getTime() : null;
+    };
+
+    // Normalize phone to last 8 digits
+    const normalizePhone = (phone: string) => phone.replace(/\D/g, "").slice(-8);
+
+    // Build phone -> lead mapping (deduplicated by oldest)
+    const leadsByPhone: Record<string, typeof allLeads[0]> = {};
+    const allLeadsSorted = [...allLeads].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    
+    for (const lead of allLeadsSorted) {
+      const phoneKey = normalizePhone(lead.telefone);
+      if (!leadsByPhone[phoneKey]) {
+        leadsByPhone[phoneKey] = lead;
+      }
+    }
+
+    // Filter leads by period (deduplicados)
+    const phonesInPeriod = new Set<string>();
+    const phonesTracked = new Set<string>();
+    const phonesUntracked = new Set<string>();
+    const phonesDisparos = new Set<string>();
+
+    for (const [phoneKey, lead] of Object.entries(leadsByPhone)) {
+      const ts = periodTs(lead.created_at);
+      if (ts === null) continue;
+
+      phonesInPeriod.add(phoneKey);
+
+      // Check if from Disparos
+      if (lead.origem === "Disparos") {
+        phonesDisparos.add(phoneKey);
+      } else if (lead.utm_campaign || lead.fbclid || lead.utm_source || lead.fb_campaign_name) {
+        phonesTracked.add(phoneKey);
+      } else {
+        phonesUntracked.add(phoneKey);
+      }
+    }
+
+    // Build cliente_id -> phone mapping
+    const clienteIdToPhone: Record<string, string> = {};
+    for (const lead of allLeads) {
+      if (lead.id) {
+        const phoneKey = normalizePhone(lead.telefone);
+        // Prefer the primary lead's phone
+        if (!clienteIdToPhone[lead.id] || leadsByPhone[phoneKey]?.id === lead.id) {
+          clienteIdToPhone[lead.id] = phoneKey;
+        }
+      }
+    }
+
+    // Create set of clientes with fatura (to validate "realizado" agendamentos)
+    const clientesComFatura = new Set<string>();
+    allFaturas?.forEach((f: any) => {
+      if (f.cliente_id && (f.status === "negociacao" || f.status === "fechado")) {
+        clientesComFatura.add(f.cliente_id);
+      }
     });
 
-    // Separate tracked (from ads) vs untracked
-    const trackedLeads = leadsInPeriod.filter(lead => 
-      lead.utm_campaign || lead.fbclid || lead.utm_source
-    );
-    const untrackedLeads = leadsInPeriod.filter(lead => 
-      !lead.utm_campaign && !lead.fbclid && !lead.utm_source
-    );
+    // Count agendamentos (same logic as FunilConversaoTab)
+    const phonesWithAgendamento = new Set<string>();
+    const phonesWithNaoCompareceu = new Set<string>();
+    const phonesAgendadosTracked = new Set<string>();
+    const phonesAgendadosUntracked = new Set<string>();
+    const phonesAgendadosDisparos = new Set<string>();
+    const phonesNaoCompareceuTracked = new Set<string>();
+    const phonesNaoCompareceuUntracked = new Set<string>();
+    const phonesNaoCompareceuDisparos = new Set<string>();
 
-    // Calculate funnel metrics
-    const totalLeads = leadsInPeriod.length;
-    const trackedCount = trackedLeads.length;
-    const untrackedCount = untrackedLeads.length;
+    allAgendamentos?.forEach((a: any) => {
+      if (!a.cliente_id) return;
+      const phone = clienteIdToPhone[a.cliente_id];
+      if (!phone) return;
 
-    // Get agendamentos for these leads
-    const agendados = leadsInPeriod.filter(lead => 
-      lead.data_agendamento !== null
-    );
-    const agendadosTracked = trackedLeads.filter(lead => lead.data_agendamento !== null).length;
-    const agendadosUntracked = untrackedLeads.filter(lead => lead.data_agendamento !== null).length;
+      const ts = periodTs(a.created_at || a.data_agendamento);
+      if (ts === null) return;
 
-    // Comparecimentos (leads with data_comparecimento)
-    const compareceu = leadsInPeriod.filter(lead => lead.data_comparecimento !== null);
-    const compareceuTracked = trackedLeads.filter(lead => lead.data_comparecimento !== null).length;
-    const compareceuUntracked = untrackedLeads.filter(lead => lead.data_comparecimento !== null).length;
+      // Agendamentos "realizado" without fatura are not visible in app
+      if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
+        return;
+      }
 
-    // Clientes (status = 'cliente')
-    const clientes = leadsInPeriod.filter(lead => lead.status === 'cliente');
-    const clientesTracked = trackedLeads.filter(lead => lead.status === 'cliente').length;
-    const clientesUntracked = untrackedLeads.filter(lead => lead.status === 'cliente').length;
+      phonesWithAgendamento.add(phone);
 
-    // Valor fechado
-    const valorTotal = clientes.reduce((sum, lead) => sum + (lead.valor_tratamento || 0), 0);
-    const valorTracked = trackedLeads.filter(lead => lead.status === 'cliente')
-      .reduce((sum, lead) => sum + (lead.valor_tratamento || 0), 0);
-    const valorUntracked = untrackedLeads.filter(lead => lead.status === 'cliente')
-      .reduce((sum, lead) => sum + (lead.valor_tratamento || 0), 0);
+      // Attribution
+      const lead = leadsByPhone[phone];
+      if (lead?.origem === "Disparos") {
+        phonesAgendadosDisparos.add(phone);
+        if (a.status === "cancelado") phonesNaoCompareceuDisparos.add(phone);
+      } else if (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name) {
+        phonesAgendadosTracked.add(phone);
+        if (a.status === "cancelado") phonesNaoCompareceuTracked.add(phone);
+      } else {
+        phonesAgendadosUntracked.add(phone);
+        if (a.status === "cancelado") phonesNaoCompareceuUntracked.add(phone);
+      }
 
-    // Em negociação
-    const emNegociacao = leadsInPeriod.filter(lead => 
-      lead.data_comparecimento !== null && lead.status !== 'cliente'
-    );
+      if (a.status === "cancelado") {
+        phonesWithNaoCompareceu.add(phone);
+      }
+    });
+
+    // Count faturas (compareceu/negociação and conversão)
+    const phonesCompareceu = new Set<string>();
+    const phonesFechado = new Set<string>();
+    const phonesCompareceuTracked = new Set<string>();
+    const phonesCompareceuUntracked = new Set<string>();
+    const phonesCompareceuDisparos = new Set<string>();
+    const phonesFechadoTracked = new Set<string>();
+    const phonesFechadoUntracked = new Set<string>();
+    const phonesFechadoDisparos = new Set<string>();
+    let valorTotal = 0;
+    let valorTracked = 0;
+    let valorUntracked = 0;
+    let valorDisparos = 0;
+
+    allFaturas?.forEach((f: any) => {
+      if (!f.cliente_id) return;
+      if (f.status === "cancelado" || f.status === "deletado") return;
+      
+      const phone = clienteIdToPhone[f.cliente_id];
+      if (!phone) return;
+
+      const tsCreated = periodTs(f.created_at);
+      const tsClosed = periodTs(f.updated_at);
+
+      const lead = leadsByPhone[phone];
+      const isDisparos = lead?.origem === "Disparos";
+      const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
+
+      // Negociação uses created_at
+      if ((f.status === "negociacao" || f.status === "fechado") && tsCreated !== null) {
+        phonesCompareceu.add(phone);
+        if (isDisparos) phonesCompareceuDisparos.add(phone);
+        else if (isTracked) phonesCompareceuTracked.add(phone);
+        else phonesCompareceuUntracked.add(phone);
+      }
+
+      // Fechado uses updated_at
+      if (f.status === "fechado" && tsClosed !== null) {
+        phonesFechado.add(phone);
+        valorTotal += f.valor || 0;
+        
+        if (isDisparos) {
+          phonesFechadoDisparos.add(phone);
+          valorDisparos += f.valor || 0;
+        } else if (isTracked) {
+          phonesFechadoTracked.add(phone);
+          valorTracked += f.valor || 0;
+        } else {
+          phonesFechadoUntracked.add(phone);
+          valorUntracked += f.valor || 0;
+        }
+      }
+    });
+
+    // Calculate totals
+    const totalLeads = phonesInPeriod.size;
+    const trackedCount = phonesTracked.size;
+    const untrackedCount = phonesUntracked.size;
+    const disparosCount = phonesDisparos.size;
+
+    const agendadosTotal = phonesWithAgendamento.size;
+    const agendadosTracked = phonesAgendadosTracked.size;
+    const agendadosUntracked = phonesAgendadosUntracked.size;
+    const agendadosDisparos = phonesAgendadosDisparos.size;
+
+    const naoCompareceuTotal = phonesWithNaoCompareceu.size;
+
+    const compareceuTotal = phonesCompareceu.size;
+    const compareceuTracked = phonesCompareceuTracked.size;
+    const compareceuUntracked = phonesCompareceuUntracked.size;
+    const compareceuDisparos = phonesCompareceuDisparos.size;
+
+    const clientesTotal = phonesFechado.size;
+    const clientesTracked = phonesFechadoTracked.size;
+    const clientesUntracked = phonesFechadoUntracked.size;
+    const clientesDisparos = phonesFechadoDisparos.size;
+
+    // Em negociação = compareceu - fechado
+    const emNegociacao = compareceuTotal - clientesTotal;
 
     // Calculate conversion rates
-    const taxaAgendamento = totalLeads > 0 ? (agendados.length / totalLeads) * 100 : 0;
-    const taxaComparecimento = agendados.length > 0 ? (compareceu.length / agendados.length) * 100 : 0;
-    const taxaFechamento = compareceu.length > 0 ? (clientes.length / compareceu.length) * 100 : 0;
-    const taxaConversaoGeral = totalLeads > 0 ? (clientes.length / totalLeads) * 100 : 0;
+    const taxaAgendamento = totalLeads > 0 ? (agendadosTotal / totalLeads) * 100 : 0;
+    const taxaComparecimento = agendadosTotal > 0 ? (compareceuTotal / agendadosTotal) * 100 : 0;
+    const taxaFechamento = compareceuTotal > 0 ? (clientesTotal / compareceuTotal) * 100 : 0;
+    const taxaConversaoGeral = totalLeads > 0 ? (clientesTotal / totalLeads) * 100 : 0;
 
     // Ticket médio
-    const ticketMedio = clientes.length > 0 ? valorTotal / clientes.length : 0;
+    const ticketMedio = clientesTotal > 0 ? valorTotal / clientesTotal : 0;
 
-    // Group by campaign for analysis
+    // Group by campaign for analysis (using tracked leads only)
     const byCampaign: Record<string, {
       campaign: string;
       leads: number;
@@ -309,7 +457,6 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       valor: number;
     }> = {};
 
-    // Group by adset for analysis
     const byAdset: Record<string, {
       adset: string;
       campaign: string;
@@ -320,7 +467,6 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       valor: number;
     }> = {};
 
-    // Group by ad for analysis
     const byAd: Record<string, {
       ad: string;
       adset: string;
@@ -332,7 +478,11 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       valor: number;
     }> = {};
 
-    for (const lead of trackedLeads) {
+    // Process tracked phones
+    for (const phoneKey of phonesTracked) {
+      const lead = leadsByPhone[phoneKey];
+      if (!lead) continue;
+
       const campaign = lead.utm_campaign || lead.fb_campaign_name || 'Sem campanha';
       const adset = lead.fb_adset_name || 'Sem conjunto';
       const ad = lead.fb_ad_name || 'Sem anúncio';
@@ -342,11 +492,16 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         byCampaign[campaign] = { campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
       }
       byCampaign[campaign].leads++;
-      if (lead.data_agendamento) byCampaign[campaign].agendados++;
-      if (lead.data_comparecimento) byCampaign[campaign].compareceu++;
-      if (lead.status === 'cliente') {
+      if (phonesAgendadosTracked.has(phoneKey)) byCampaign[campaign].agendados++;
+      if (phonesCompareceuTracked.has(phoneKey)) byCampaign[campaign].compareceu++;
+      if (phonesFechadoTracked.has(phoneKey)) {
         byCampaign[campaign].clientes++;
-        byCampaign[campaign].valor += lead.valor_tratamento || 0;
+        // Get valor from fatura
+        const fatura = allFaturas?.find((f: any) => {
+          const fPhone = clienteIdToPhone[f.cliente_id];
+          return fPhone === phoneKey && f.status === "fechado";
+        });
+        byCampaign[campaign].valor += fatura?.valor || 0;
       }
 
       // Aggregate by adset
@@ -356,11 +511,15 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
           byAdset[adsetKey] = { adset, campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
         }
         byAdset[adsetKey].leads++;
-        if (lead.data_agendamento) byAdset[adsetKey].agendados++;
-        if (lead.data_comparecimento) byAdset[adsetKey].compareceu++;
-        if (lead.status === 'cliente') {
+        if (phonesAgendadosTracked.has(phoneKey)) byAdset[adsetKey].agendados++;
+        if (phonesCompareceuTracked.has(phoneKey)) byAdset[adsetKey].compareceu++;
+        if (phonesFechadoTracked.has(phoneKey)) {
           byAdset[adsetKey].clientes++;
-          byAdset[adsetKey].valor += lead.valor_tratamento || 0;
+          const fatura = allFaturas?.find((f: any) => {
+            const fPhone = clienteIdToPhone[f.cliente_id];
+            return fPhone === phoneKey && f.status === "fechado";
+          });
+          byAdset[adsetKey].valor += fatura?.valor || 0;
         }
       }
 
@@ -371,11 +530,15 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
           byAd[adKey] = { ad, adset, campaign, leads: 0, agendados: 0, compareceu: 0, clientes: 0, valor: 0 };
         }
         byAd[adKey].leads++;
-        if (lead.data_agendamento) byAd[adKey].agendados++;
-        if (lead.data_comparecimento) byAd[adKey].compareceu++;
-        if (lead.status === 'cliente') {
+        if (phonesAgendadosTracked.has(phoneKey)) byAd[adKey].agendados++;
+        if (phonesCompareceuTracked.has(phoneKey)) byAd[adKey].compareceu++;
+        if (phonesFechadoTracked.has(phoneKey)) {
           byAd[adKey].clientes++;
-          byAd[adKey].valor += lead.valor_tratamento || 0;
+          const fatura = allFaturas?.find((f: any) => {
+            const fPhone = clienteIdToPhone[f.cliente_id];
+            return fPhone === phoneKey && f.status === "fechado";
+          });
+          byAd[adKey].valor += fatura?.valor || 0;
         }
       }
     }
@@ -385,19 +548,25 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         leads: totalLeads,
         leadsTracked: trackedCount,
         leadsUntracked: untrackedCount,
-        agendados: agendados.length,
+        leadsDisparos: disparosCount,
+        agendados: agendadosTotal,
         agendadosTracked,
         agendadosUntracked,
-        compareceu: compareceu.length,
+        agendadosDisparos,
+        naoCompareceu: naoCompareceuTotal,
+        compareceu: compareceuTotal,
         compareceuTracked,
         compareceuUntracked,
-        emNegociacao: emNegociacao.length,
-        clientes: clientes.length,
+        compareceuDisparos,
+        emNegociacao,
+        clientes: clientesTotal,
         clientesTracked,
         clientesUntracked,
+        clientesDisparos,
         valorTotal,
         valorTracked,
         valorUntracked,
+        valorDisparos,
         ticketMedio,
       },
       taxas: {
@@ -410,7 +579,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       byAdset: Object.values(byAdset).sort((a, b) => b.leads - a.leads),
       byAd: Object.values(byAd).sort((a, b) => b.leads - a.leads),
     };
-  }, [allLeads, dateStart, dateEnd]);
+  }, [allLeads, allAgendamentos, allFaturas, dateStart, dateEnd]);
 
   const normName = (v?: string | null) => (v ?? "").toString().trim().toLowerCase();
 
