@@ -313,12 +313,24 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     }
     
     // Also build leadsByPhone from allLeadsForMapping for attribution lookup
+    // IMPORTANTE: Priorizar leads COM atribuição (origem = Disparos ou dados de rastreio)
+    // Se existem múltiplos leads para o mesmo telefone, preferir aquele que tem dados de origem
     const leadsByPhoneAll: Record<string, typeof allLeadsForMapping[0]> = {};
     for (const lead of allLeadsForMapping) {
       const phoneKey = normalizePhone(lead.telefone);
-      // Keep the first (oldest) lead per phone
-      if (!leadsByPhoneAll[phoneKey]) {
+      const existing = leadsByPhoneAll[phoneKey];
+      
+      if (!existing) {
         leadsByPhoneAll[phoneKey] = lead;
+      } else {
+        // Verificar se o novo lead tem atribuição melhor que o existente
+        const existingHasAttribution = existing.origem === 'Disparos' || existing.utm_campaign || existing.fbclid || existing.utm_source || existing.fb_campaign_name;
+        const newHasAttribution = lead.origem === 'Disparos' || lead.utm_campaign || lead.fbclid || lead.utm_source || lead.fb_campaign_name;
+        
+        // Se o novo tem atribuição e o existente não, usar o novo
+        if (newHasAttribution && !existingHasAttribution) {
+          leadsByPhoneAll[phoneKey] = lead;
+        }
       }
     }
 

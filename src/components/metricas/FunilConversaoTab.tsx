@@ -551,8 +551,8 @@ export function FunilConversaoTab() {
         return o === "whatsapp" || o === "";
       };
 
-      // Lead "oficial" por telefone = primeiro cadastro (mais antigo).
-      // Assim o lead pertence à aba de origem onde foi cadastrado.
+      // Lead "oficial" por telefone = prioriza lead COM atribuição (origem/rastreio)
+      // Se múltiplos leads existem para o mesmo telefone, preferir aquele que tem dados de origem
       // IMPORTANTE: usamos phoneKey (últimos 8 dígitos) para bater com a aba Leads.
       const firstLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
       (allLeads || []).forEach((lead) => {
@@ -562,10 +562,21 @@ export function FunilConversaoTab() {
           firstLeadByPhone[phone] = lead;
           return;
         }
-        const existingTime = new Date(existing.created_at || 0).getTime();
-        const nextTime = new Date(lead.created_at || 0).getTime();
-        if (Number.isFinite(nextTime) && nextTime < existingTime) {
+        
+        // Verificar se o novo lead tem atribuição melhor que o existente
+        const existingHasAttribution = existing.origem === 'Disparos' || existing.fbclid || existing.utm_source || existing.fb_campaign_name;
+        const newHasAttribution = lead.origem === 'Disparos' || lead.fbclid || lead.utm_source || lead.fb_campaign_name;
+        
+        // Se o novo tem atribuição e o existente não, usar o novo
+        if (newHasAttribution && !existingHasAttribution) {
           firstLeadByPhone[phone] = lead;
+        } else if (!newHasAttribution && !existingHasAttribution) {
+          // Se nenhum tem atribuição, usar o mais antigo
+          const existingTime = new Date(existing.created_at || 0).getTime();
+          const nextTime = new Date(lead.created_at || 0).getTime();
+          if (Number.isFinite(nextTime) && nextTime < existingTime) {
+            firstLeadByPhone[phone] = lead;
+          }
         }
       });
 
