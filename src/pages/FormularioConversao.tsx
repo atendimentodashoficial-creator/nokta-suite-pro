@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { CheckCircle, Loader2 } from "lucide-react";
 
 interface FormData {
+  nome: string;
   genero: string;
   data_nascimento: string;
   cep: string;
@@ -23,8 +24,8 @@ export default function FormularioConversao() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [clienteNome, setClienteNome] = useState("");
   const [formData, setFormData] = useState<FormData>({
+    nome: "",
     genero: "",
     data_nascimento: "",
     cep: "",
@@ -52,8 +53,8 @@ export default function FormularioConversao() {
         const lead = data.lead as any;
 
         if (lead) {
-          setClienteNome(lead.nome || "");
           setFormData({
+            nome: lead.nome || "",
             genero: lead.genero || "",
             data_nascimento: lead.data_nascimento || "",
             cep: lead.cep || "",
@@ -140,7 +141,7 @@ export default function FormularioConversao() {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Obrigado, {clienteNome}!</h2>
+            <h2 className="text-2xl font-bold mb-2">Obrigado, {formData.nome || ""}!</h2>
             <p className="text-muted-foreground">
               Seus dados foram enviados com sucesso. Você já pode fechar esta página.
             </p>
@@ -156,11 +157,22 @@ export default function FormularioConversao() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Complete seus dados</CardTitle>
           <CardDescription>
-            Olá{clienteNome ? `, ${clienteNome}` : ""}! Para finalizar seu cadastro, precisamos de algumas informações adicionais.
+            Olá{formData.nome ? `, ${formData.nome}` : ""}! Para finalizar seu cadastro, precisamos de algumas informações adicionais.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nome">Nome Completo</Label>
+              <Input
+                id="nome"
+                placeholder="Seu nome completo"
+                value={formData.nome}
+                onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                autoComplete="name"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="genero">Gênero</Label>
               <Select

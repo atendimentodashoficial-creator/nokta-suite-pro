@@ -10,6 +10,7 @@ const corsHeaders = {
 const BodySchema = z.object({
   action: z.enum(["get", "submit"]),
   faturaId: z.string().min(1),
+  nome: z.string().optional(),
   genero: z.string().optional(),
   data_nascimento: z.string().optional(),
   cep: z.string().optional(),
@@ -39,7 +40,7 @@ serve(async (req) => {
       );
     }
 
-    const { action, faturaId, genero, data_nascimento, cep, cidade, estado, endereco } = parsed.data;
+    const { action, faturaId, nome, genero, data_nascimento, cep, cidade, estado, endereco } = parsed.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -91,6 +92,7 @@ serve(async (req) => {
     // action === "submit"
     // Basic normalization (keep nulls to avoid overwriting with empty strings)
     const leadUpdate = {
+      nome: nome?.trim() ? nome.trim() : undefined,
       genero: genero?.trim() ? genero.trim() : null,
       data_nascimento: data_nascimento?.trim() ? data_nascimento.trim() : null,
       cep: cep?.trim() ? cep.trim() : null,
@@ -98,6 +100,13 @@ serve(async (req) => {
       estado: estado?.trim() ? estado.trim() : null,
       endereco: endereco?.trim() ? endereco.trim() : null,
     };
+    
+    // Remove undefined values to avoid overwriting nome with null if not provided
+    Object.keys(leadUpdate).forEach(key => {
+      if (leadUpdate[key as keyof typeof leadUpdate] === undefined) {
+        delete leadUpdate[key as keyof typeof leadUpdate];
+      }
+    });
 
     const { error: leadError } = await admin
       .from("leads")
