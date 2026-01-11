@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, Loader2, Trash2, Search, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, Search, CheckCircle2, Calendar } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,17 +14,39 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 
+// Orphan cleanup options
 interface CleanupOptions {
   leadsSoftDeleted: boolean;
   leadsDuplicados: boolean;
   agendamentosOrfaos: boolean;
   chatsOrfaos: boolean;
   mensagensOrfas: boolean;
+}
+
+// Full reset options
+interface ResetOptions {
+  leads: boolean;
+  agendamentos: boolean;
+  faturas: boolean;
+  chatsWhatsApp: boolean;
+  chatsDisparos: boolean;
+  campanhasDisparos: boolean;
+  listasExtrator: boolean;
+  historico: boolean;
 }
 
 interface CleanupResult {
@@ -37,7 +59,28 @@ interface CleanupResult {
   mensagensDisparosOrfas: number;
 }
 
-const defaultOptions: CleanupOptions = {
+interface ResetResult {
+  leads: number;
+  agendamentos: number;
+  faturas: number;
+  chatsWhatsApp: number;
+  chatsDisparos: number;
+  campanhasDisparos: number;
+  listasExtrator: number;
+  historico: number;
+}
+
+type PeriodOption = "7d" | "30d" | "90d" | "1y" | "max";
+
+const periodOptions: { value: PeriodOption; label: string }[] = [
+  { value: "7d", label: "Últimos 7 dias" },
+  { value: "30d", label: "Últimos 30 dias" },
+  { value: "90d", label: "Últimos 90 dias" },
+  { value: "1y", label: "Último ano" },
+  { value: "max", label: "Tudo (Máximo)" },
+];
+
+const defaultCleanupOptions: CleanupOptions = {
   leadsSoftDeleted: true,
   leadsDuplicados: true,
   agendamentosOrfaos: true,
@@ -45,7 +88,18 @@ const defaultOptions: CleanupOptions = {
   mensagensOrfas: true,
 };
 
-const optionLabels: Record<keyof CleanupOptions, { label: string; description: string }> = {
+const defaultResetOptions: ResetOptions = {
+  leads: false,
+  agendamentos: false,
+  faturas: false,
+  chatsWhatsApp: false,
+  chatsDisparos: false,
+  campanhasDisparos: false,
+  listasExtrator: false,
+  historico: false,
+};
+
+const cleanupLabels: Record<keyof CleanupOptions, { label: string; description: string }> = {
   leadsSoftDeleted: { 
     label: "Leads Excluídos", 
     description: "Leads que foram deletados mas ainda estão no banco (soft delete)" 
@@ -68,25 +122,78 @@ const optionLabels: Record<keyof CleanupOptions, { label: string; description: s
   },
 };
 
+const resetLabels: Record<keyof ResetOptions, { label: string; description: string }> = {
+  leads: { 
+    label: "Leads", 
+    description: "Todos os leads cadastrados no período selecionado" 
+  },
+  agendamentos: { 
+    label: "Agendamentos", 
+    description: "Todos os agendamentos no período selecionado" 
+  },
+  faturas: { 
+    label: "Faturas", 
+    description: "Todas as faturas e vendas no período selecionado" 
+  },
+  chatsWhatsApp: { 
+    label: "Chats WhatsApp", 
+    description: "Conversas e mensagens do WhatsApp no período" 
+  },
+  chatsDisparos: { 
+    label: "Chats Disparos", 
+    description: "Conversas e mensagens de Disparos no período" 
+  },
+  campanhasDisparos: { 
+    label: "Campanhas de Disparos", 
+    description: "Campanhas e contatos de disparos no período" 
+  },
+  listasExtrator: { 
+    label: "Listas do Extrator", 
+    description: "Listas salvas do extrator no período" 
+  },
+  historico: { 
+    label: "Histórico de Leads", 
+    description: "Histórico de alterações de status dos leads" 
+  },
+};
+
 export function ResetDataConfig() {
-  const [options, setOptions] = useState<CleanupOptions>(defaultOptions);
+  const [activeTab, setActiveTab] = useState<"orphan" | "reset">("orphan");
+  const [period, setPeriod] = useState<PeriodOption>("max");
+  
+  // Orphan cleanup state
+  const [cleanupOptions, setCleanupOptions] = useState<CleanupOptions>(defaultCleanupOptions);
+  const [scanResult, setScanResult] = useState<CleanupResult | null>(null);
+  
+  // Full reset state
+  const [resetOptions, setResetOptions] = useState<ResetOptions>(defaultResetOptions);
+  const [resetScanResult, setResetScanResult] = useState<ResetResult | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  
+  // UI state
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
-  const [scanResult, setScanResult] = useState<CleanupResult | null>(null);
+  
   const queryClient = useQueryClient();
 
-  const selectedCount = Object.values(options).filter(Boolean).length;
+  const cleanupSelectedCount = Object.values(cleanupOptions).filter(Boolean).length;
+  const resetSelectedCount = Object.values(resetOptions).filter(Boolean).length;
 
-  const handleOptionChange = (key: keyof CleanupOptions, checked: boolean) => {
-    setOptions(prev => ({ ...prev, [key]: checked }));
-    setScanResult(null); // Reset scan when options change
+  const handleCleanupOptionChange = (key: keyof CleanupOptions, checked: boolean) => {
+    setCleanupOptions(prev => ({ ...prev, [key]: checked }));
+    setScanResult(null);
   };
 
-  const handleSelectAll = () => {
-    const allSelected = Object.values(options).every(Boolean);
+  const handleResetOptionChange = (key: keyof ResetOptions, checked: boolean) => {
+    setResetOptions(prev => ({ ...prev, [key]: checked }));
+    setResetScanResult(null);
+  };
+
+  const handleSelectAllCleanup = () => {
+    const allSelected = Object.values(cleanupOptions).every(Boolean);
     const newValue = !allSelected;
-    setOptions({
+    setCleanupOptions({
       leadsSoftDeleted: newValue,
       leadsDuplicados: newValue,
       agendamentosOrfaos: newValue,
@@ -96,9 +203,26 @@ export function ResetDataConfig() {
     setScanResult(null);
   };
 
+  const handleSelectAllReset = () => {
+    const allSelected = Object.values(resetOptions).every(Boolean);
+    const newValue = !allSelected;
+    setResetOptions({
+      leads: newValue,
+      agendamentos: newValue,
+      faturas: newValue,
+      chatsWhatsApp: newValue,
+      chatsDisparos: newValue,
+      campanhasDisparos: newValue,
+      listasExtrator: newValue,
+      historico: newValue,
+    });
+    setResetScanResult(null);
+  };
+
   const handleScan = async () => {
     setIsScanning(true);
     setScanResult(null);
+    setResetScanResult(null);
     
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -108,7 +232,12 @@ export function ResetDataConfig() {
       }
 
       const response = await supabase.functions.invoke("cleanup-orphan-data", {
-        body: { options, dryRun: true },
+        body: { 
+          mode: activeTab,
+          options: activeTab === "orphan" ? cleanupOptions : resetOptions,
+          period,
+          dryRun: true 
+        },
         headers: {
           Authorization: `Bearer ${session.session.access_token}`,
         },
@@ -122,13 +251,19 @@ export function ResetDataConfig() {
         throw new Error(response.data.error);
       }
 
-      setScanResult(response.data.result);
-      
-      const total = Object.values(response.data.result as CleanupResult).reduce((a, b) => a + b, 0);
-      if (total === 0) {
-        toast.success("Nenhum dado órfão encontrado! Seu banco está limpo.");
+      if (activeTab === "orphan") {
+        setScanResult(response.data.result);
       } else {
-        toast.info(`Encontrados ${total} registros órfãos para limpeza`);
+        setResetScanResult(response.data.result);
+      }
+      
+      const total = Object.values(response.data.result).reduce((a: number, b: number) => a + b, 0);
+      if (total === 0) {
+        toast.success(activeTab === "orphan" 
+          ? "Nenhum dado órfão encontrado! Seu banco está limpo."
+          : "Nenhum registro encontrado no período selecionado.");
+      } else {
+        toast.info(`Encontrados ${total} registros para ${activeTab === "orphan" ? "limpeza" : "remoção"}`);
       }
     } catch (error: any) {
       console.error("Scan error:", error);
@@ -138,7 +273,12 @@ export function ResetDataConfig() {
     }
   };
 
-  const handleCleanup = async () => {
+  const handleExecute = async () => {
+    if (activeTab === "reset" && confirmText !== "RESETAR") {
+      toast.error("Digite RESETAR para confirmar");
+      return;
+    }
+
     setIsCleaning(true);
     
     try {
@@ -149,31 +289,37 @@ export function ResetDataConfig() {
       }
 
       const response = await supabase.functions.invoke("cleanup-orphan-data", {
-        body: { options, dryRun: false },
+        body: { 
+          mode: activeTab,
+          options: activeTab === "orphan" ? cleanupOptions : resetOptions,
+          period,
+          dryRun: false 
+        },
         headers: {
           Authorization: `Bearer ${session.session.access_token}`,
         },
       });
 
       if (response.error) {
-        throw new Error(response.error.message || "Erro ao limpar dados");
+        throw new Error(response.error.message || "Erro ao executar limpeza");
       }
 
       if (response.data?.error) {
         throw new Error(response.data.error);
       }
 
-      const total = Object.values(response.data.result as CleanupResult).reduce((a, b) => a + b, 0);
-      toast.success(`${total} registros órfãos removidos com sucesso!`);
+      const total = Object.values(response.data.result).reduce((a: number, b: number) => a + b, 0);
+      toast.success(`${total} registros removidos com sucesso!`);
       
-      // Invalidate all queries to refresh data
       queryClient.invalidateQueries();
       
       setScanResult(null);
+      setResetScanResult(null);
+      setConfirmText("");
       setShowConfirmDialog(false);
     } catch (error: any) {
       console.error("Cleanup error:", error);
-      toast.error(error.message || "Erro ao limpar dados");
+      toast.error(error.message || "Erro ao executar limpeza");
     } finally {
       setIsCleaning(false);
     }
@@ -183,110 +329,199 @@ export function ResetDataConfig() {
     ? Object.values(scanResult).reduce((a, b) => a + b, 0) 
     : 0;
 
+  const totalReset = resetScanResult 
+    ? Object.values(resetScanResult).reduce((a, b) => a + b, 0) 
+    : 0;
+
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trash2 className="w-5 h-5" />
-            Limpar Dados Órfãos
+            Limpeza de Dados
           </CardTitle>
           <CardDescription>
-            Remove apenas registros que não são visíveis no app (duplicados, soft-deleted, órfãos).
-            Dados ativos e visíveis nas abas do app <strong>não serão afetados</strong>.
+            Escolha entre limpar dados órfãos (invisíveis) ou fazer um reset completo de categorias específicas.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              {selectedCount} categoria(s) selecionada(s)
-            </span>
-            <Button variant="ghost" size="sm" onClick={handleSelectAll}>
-              {Object.values(options).every(Boolean) ? "Desmarcar todos" : "Selecionar todos"}
-            </Button>
-          </div>
+          <Tabs value={activeTab} onValueChange={(v) => {
+            setActiveTab(v as "orphan" | "reset");
+            setScanResult(null);
+            setResetScanResult(null);
+          }}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="orphan">Dados Órfãos</TabsTrigger>
+              <TabsTrigger value="reset">Reset Completo</TabsTrigger>
+            </TabsList>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(Object.keys(optionLabels) as Array<keyof CleanupOptions>).map((key) => (
-              <div
-                key={key}
-                className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors ${
-                  options[key] ? "border-primary/50 bg-primary/5" : "border-border"
-                }`}
-              >
-                <Checkbox
-                  id={key}
-                  checked={options[key]}
-                  onCheckedChange={(checked) => handleOptionChange(key, checked as boolean)}
-                />
-                <div className="space-y-0.5 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor={key} className="cursor-pointer font-medium">
-                      {optionLabels[key].label}
-                    </Label>
-                    {scanResult && (
-                      <Badge variant={getResultCount(scanResult, key) > 0 ? "destructive" : "secondary"} className="text-xs">
-                        {getResultCount(scanResult, key)}
-                      </Badge>
-                    )}
+            <TabsContent value="orphan" className="space-y-4 mt-4">
+              <p className="text-sm text-muted-foreground">
+                Remove apenas registros que <strong>não são visíveis</strong> no app (duplicados, soft-deleted, órfãos).
+                Dados ativos nas abas do app não serão afetados.
+              </p>
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {cleanupSelectedCount} categoria(s) selecionada(s)
+                </span>
+                <Button variant="ghost" size="sm" onClick={handleSelectAllCleanup}>
+                  {Object.values(cleanupOptions).every(Boolean) ? "Desmarcar todos" : "Selecionar todos"}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(Object.keys(cleanupLabels) as Array<keyof CleanupOptions>).map((key) => (
+                  <div
+                    key={key}
+                    className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors ${
+                      cleanupOptions[key] ? "border-primary/50 bg-primary/5" : "border-border"
+                    }`}
+                  >
+                    <Checkbox
+                      id={`cleanup-${key}`}
+                      checked={cleanupOptions[key]}
+                      onCheckedChange={(checked) => handleCleanupOptionChange(key, checked as boolean)}
+                    />
+                    <div className="space-y-0.5 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`cleanup-${key}`} className="cursor-pointer font-medium">
+                          {cleanupLabels[key].label}
+                        </Label>
+                        {scanResult && (
+                          <Badge variant={getCleanupResultCount(scanResult, key) > 0 ? "destructive" : "secondary"} className="text-xs">
+                            {getCleanupResultCount(scanResult, key)}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {cleanupLabels[key].description}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {optionLabels[key].description}
-                  </p>
+                ))}
+              </div>
+
+              {scanResult && totalOrphans > 0 && (
+                <ScanResultAlert 
+                  type="warning" 
+                  total={totalOrphans} 
+                  items={[
+                    { count: scanResult.leadsSoftDeleted, label: "lead(s) excluído(s)" },
+                    { count: scanResult.leadsDuplicados, label: "lead(s) duplicado(s)" },
+                    { count: scanResult.agendamentosOrfaos, label: "agendamento(s) órfão(s)" },
+                    { count: scanResult.chatsWhatsAppOrfaos, label: "chat(s) WhatsApp órfão(s)" },
+                    { count: scanResult.chatsDisparosOrfaos, label: "chat(s) Disparos órfão(s)" },
+                    { count: scanResult.mensagensWhatsAppOrfas, label: "mensagem(ns) WhatsApp órfã(s)" },
+                    { count: scanResult.mensagensDisparosOrfas, label: "mensagem(ns) Disparos órfã(s)" },
+                  ]}
+                />
+              )}
+
+              {scanResult && totalOrphans === 0 && (
+                <ScanResultAlert type="success" message="Nenhum dado órfão encontrado! Seu banco está limpo." />
+              )}
+            </TabsContent>
+
+            <TabsContent value="reset" className="space-y-4 mt-4">
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="font-medium text-sm">
+                    Atenção: Esta ação remove dados visíveis e ativos do app!
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
 
-          {scanResult && totalOrphans > 0 && (
-            <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800">
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-                <AlertTriangle className="w-5 h-5" />
-                <span className="font-medium">
-                  {totalOrphans} registro(s) órfão(s) encontrado(s)
-                </span>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <Label className="text-sm font-medium">Período:</Label>
+                </div>
+                <Select value={period} onValueChange={(v) => {
+                  setPeriod(v as PeriodOption);
+                  setResetScanResult(null);
+                }}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {periodOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <ul className="mt-2 text-sm text-amber-600 dark:text-amber-400 space-y-1">
-                {scanResult.leadsSoftDeleted > 0 && (
-                  <li>• {scanResult.leadsSoftDeleted} lead(s) excluído(s)</li>
-                )}
-                {scanResult.leadsDuplicados > 0 && (
-                  <li>• {scanResult.leadsDuplicados} lead(s) duplicado(s)</li>
-                )}
-                {scanResult.agendamentosOrfaos > 0 && (
-                  <li>• {scanResult.agendamentosOrfaos} agendamento(s) órfão(s)</li>
-                )}
-                {scanResult.chatsWhatsAppOrfaos > 0 && (
-                  <li>• {scanResult.chatsWhatsAppOrfaos} chat(s) WhatsApp órfão(s)</li>
-                )}
-                {scanResult.chatsDisparosOrfaos > 0 && (
-                  <li>• {scanResult.chatsDisparosOrfaos} chat(s) Disparos órfão(s)</li>
-                )}
-                {scanResult.mensagensWhatsAppOrfas > 0 && (
-                  <li>• {scanResult.mensagensWhatsAppOrfas} mensagem(ns) WhatsApp órfã(s)</li>
-                )}
-                {scanResult.mensagensDisparosOrfas > 0 && (
-                  <li>• {scanResult.mensagensDisparosOrfas} mensagem(ns) Disparos órfã(s)</li>
-                )}
-              </ul>
-            </div>
-          )}
 
-          {scanResult && totalOrphans === 0 && (
-            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
-              <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
-                <CheckCircle2 className="w-5 h-5" />
-                <span className="font-medium">
-                  Nenhum dado órfão encontrado! Seu banco está limpo.
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {resetSelectedCount} categoria(s) selecionada(s)
                 </span>
+                <Button variant="ghost" size="sm" onClick={handleSelectAllReset}>
+                  {Object.values(resetOptions).every(Boolean) ? "Desmarcar todos" : "Selecionar todos"}
+                </Button>
               </div>
-            </div>
-          )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(Object.keys(resetLabels) as Array<keyof ResetOptions>).map((key) => (
+                  <div
+                    key={key}
+                    className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors ${
+                      resetOptions[key] ? "border-destructive/50 bg-destructive/5" : "border-border"
+                    }`}
+                  >
+                    <Checkbox
+                      id={`reset-${key}`}
+                      checked={resetOptions[key]}
+                      onCheckedChange={(checked) => handleResetOptionChange(key, checked as boolean)}
+                    />
+                    <div className="space-y-0.5 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`reset-${key}`} className="cursor-pointer font-medium">
+                          {resetLabels[key].label}
+                        </Label>
+                        {resetScanResult && (
+                          <Badge variant={resetScanResult[key] > 0 ? "destructive" : "secondary"} className="text-xs">
+                            {resetScanResult[key]}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {resetLabels[key].description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {resetScanResult && totalReset > 0 && (
+                <ScanResultAlert 
+                  type="destructive" 
+                  total={totalReset} 
+                  items={[
+                    { count: resetScanResult.leads, label: "lead(s)" },
+                    { count: resetScanResult.agendamentos, label: "agendamento(s)" },
+                    { count: resetScanResult.faturas, label: "fatura(s)" },
+                    { count: resetScanResult.chatsWhatsApp, label: "chat(s) WhatsApp" },
+                    { count: resetScanResult.chatsDisparos, label: "chat(s) Disparos" },
+                    { count: resetScanResult.campanhasDisparos, label: "campanha(s) de disparos" },
+                    { count: resetScanResult.listasExtrator, label: "lista(s) do extrator" },
+                    { count: resetScanResult.historico, label: "registro(s) de histórico" },
+                  ]}
+                />
+              )}
+
+              {resetScanResult && totalReset === 0 && (
+                <ScanResultAlert type="success" message="Nenhum registro encontrado no período selecionado." />
+              )}
+            </TabsContent>
+          </Tabs>
 
           <div className="pt-4 border-t flex flex-col sm:flex-row gap-3">
             <Button
               variant="outline"
-              disabled={selectedCount === 0 || isScanning}
+              disabled={(activeTab === "orphan" ? cleanupSelectedCount : resetSelectedCount) === 0 || isScanning}
               onClick={handleScan}
               className="flex-1 sm:flex-none"
             >
@@ -298,57 +533,87 @@ export function ResetDataConfig() {
               ) : (
                 <>
                   <Search className="w-4 h-4 mr-2" />
-                  Escanear Dados Órfãos
+                  Escanear {activeTab === "orphan" ? "Órfãos" : "Dados"}
                 </>
               )}
             </Button>
             
             <Button
               variant="destructive"
-              disabled={!scanResult || totalOrphans === 0}
+              disabled={
+                (activeTab === "orphan" && (!scanResult || totalOrphans === 0)) ||
+                (activeTab === "reset" && (!resetScanResult || totalReset === 0))
+              }
               onClick={() => setShowConfirmDialog(true)}
               className="flex-1 sm:flex-none"
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              Limpar {totalOrphans > 0 ? `(${totalOrphans})` : ""}
+              {activeTab === "orphan" 
+                ? `Limpar ${totalOrphans > 0 ? `(${totalOrphans})` : ""}` 
+                : `Resetar ${totalReset > 0 ? `(${totalReset})` : ""}`
+              }
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <AlertDialog open={showConfirmDialog} onOpenChange={(open) => {
+        setShowConfirmDialog(open);
+        if (!open) setConfirmText("");
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Confirmar Limpeza
+              <AlertTriangle className={`w-5 h-5 ${activeTab === "reset" ? "text-destructive" : "text-amber-500"}`} />
+              {activeTab === "orphan" ? "Confirmar Limpeza" : "Confirmar Reset"}
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <p>
-                Você está prestes a remover <strong>{totalOrphans}</strong> registro(s) órfão(s).
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Esses registros não são visíveis no app e não afetam as funcionalidades.
-                A limpeza irá liberar espaço e melhorar a performance.
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>
+                  Você está prestes a remover <strong>{activeTab === "orphan" ? totalOrphans : totalReset}</strong> registro(s).
+                </p>
+                {activeTab === "orphan" ? (
+                  <p className="text-sm text-muted-foreground">
+                    Esses registros não são visíveis no app e não afetam as funcionalidades.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-destructive font-medium">
+                      ⚠️ Esta ação irá remover dados VISÍVEIS e ATIVOS do app. Esta ação é IRREVERSÍVEL!
+                    </p>
+                    <div>
+                      <Label htmlFor="confirm-input" className="text-sm">
+                        Digite <strong>RESETAR</strong> para confirmar:
+                      </Label>
+                      <Input
+                        id="confirm-input"
+                        value={confirmText}
+                        onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
+                        placeholder="RESETAR"
+                        className="mt-2"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isCleaning}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleCleanup}
-              disabled={isCleaning}
+              onClick={handleExecute}
+              disabled={isCleaning || (activeTab === "reset" && confirmText !== "RESETAR")}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isCleaning ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Limpando...
+                  {activeTab === "orphan" ? "Limpando..." : "Resetando..."}
                 </>
               ) : (
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Confirmar Limpeza
+                  {activeTab === "orphan" ? "Confirmar Limpeza" : "Confirmar Reset"}
                 </>
               )}
             </AlertDialogAction>
@@ -359,8 +624,56 @@ export function ResetDataConfig() {
   );
 }
 
-// Helper to get result count for each option
-function getResultCount(result: CleanupResult, key: keyof CleanupOptions): number {
+// Helper components
+function ScanResultAlert({ 
+  type, 
+  total, 
+  items, 
+  message 
+}: { 
+  type: "warning" | "destructive" | "success";
+  total?: number;
+  items?: { count: number; label: string }[];
+  message?: string;
+}) {
+  const colors = {
+    warning: "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300",
+    destructive: "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300",
+    success: "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300",
+  };
+
+  if (type === "success" && message) {
+    return (
+      <div className={`p-4 rounded-lg border ${colors.success}`}>
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5" />
+          <span className="font-medium">{message}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`p-4 rounded-lg border ${colors[type]}`}>
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-5 h-5" />
+        <span className="font-medium">
+          {total} registro(s) encontrado(s)
+        </span>
+      </div>
+      {items && items.length > 0 && (
+        <ul className="mt-2 text-sm opacity-80 space-y-1">
+          {items.filter(i => i.count > 0).map((item, idx) => (
+            <li key={idx}>• {item.count} {item.label}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Helper to get result count for cleanup options
+function getCleanupResultCount(result: CleanupResult, key: keyof CleanupOptions): number {
   switch (key) {
     case "leadsSoftDeleted":
       return result.leadsSoftDeleted;
