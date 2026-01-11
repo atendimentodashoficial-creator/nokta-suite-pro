@@ -162,6 +162,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
   const [loadingStoredReport, setLoadingStoredReport] = useState(true);
   
   // Period selection - use the same hook as Leads page for consistency
+  // Use "max" as default to match Leads page default
   const { 
     periodFilter, 
     setPeriodFilter: setPeriodFilterHook, 
@@ -170,7 +171,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     dateEnd, 
     setDateEnd,
     filterByPeriod 
-  } = usePeriodFilter("last_7_days");
+  } = usePeriodFilter("max");
   
   // Comparison dialog
   const [showCompareDialog, setShowCompareDialog] = useState(false);
@@ -250,32 +251,35 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     };
 
     // USAR filterByPeriod idêntico à aba Leads (mesma lógica exata)
+    // allLeads já vem DEDUPLICADO pelo hook useLeads (pelos últimos 8 dígitos do telefone)
     const leadsInPeriod = filterByPeriod(allLeads);
 
-    // Filter leads by period - já vem deduplicado e filtrado
+    // Separar leads por origem (igual à aba Leads)
+    const leadsWhatsApp = leadsInPeriod.filter(l => isWhatsAppLead(l.origem));
+    const leadsDisparos = leadsInPeriod.filter(l => isDisparosLead(l.origem));
+
+    // Contagem direta (igual à aba Leads)
     const phonesInPeriod = new Set<string>();
     const phonesTracked = new Set<string>();
     const phonesUntracked = new Set<string>();
     const phonesDisparos = new Set<string>();
 
-    // Percorrer leads no período (já deduplicados e filtrados)
-    for (const lead of leadsInPeriod) {
+    // Percorrer leads de WhatsApp no período
+    for (const lead of leadsWhatsApp) {
       const phoneKey = normalizePhone(lead.telefone);
+      phonesInPeriod.add(phoneKey);
 
-      // Check if from Disparos (case-insensitive)
-      if (isDisparosLead(lead.origem)) {
-        phonesDisparos.add(phoneKey);
-        // Don't add to phonesInPeriod - Disparos are counted separately
+      if (lead.utm_campaign || lead.fbclid || lead.utm_source || lead.fb_campaign_name) {
+        phonesTracked.add(phoneKey);
       } else {
-        // WhatsApp leads (including empty origin)
-        phonesInPeriod.add(phoneKey);
-
-        if (lead.utm_campaign || lead.fbclid || lead.utm_source || lead.fb_campaign_name) {
-          phonesTracked.add(phoneKey);
-        } else {
-          phonesUntracked.add(phoneKey);
-        }
+        phonesUntracked.add(phoneKey);
       }
+    }
+
+    // Percorrer leads de Disparos no período
+    for (const lead of leadsDisparos) {
+      const phoneKey = normalizePhone(lead.telefone);
+      phonesDisparos.add(phoneKey);
     }
 
     // Build cliente_id -> phone mapping
@@ -395,11 +399,11 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       }
     });
 
-    // Calculate totals
-    const totalLeads = phonesInPeriod.size;
+    // Calculate totals - usar diretamente o tamanho do array filtrado (igual à aba Leads)
+    const totalLeads = leadsWhatsApp.length; // Idêntico à contagem da aba Leads WhatsApp
     const trackedCount = phonesTracked.size;
     const untrackedCount = phonesUntracked.size;
-    const disparosCount = phonesDisparos.size;
+    const disparosCount = leadsDisparos.length; // Idêntico à contagem da aba Leads Disparos
 
     const agendadosTotal = phonesWithAgendamento.size;
     const agendadosTracked = phonesAgendadosTracked.size;
