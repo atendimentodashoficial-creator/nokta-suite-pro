@@ -1201,7 +1201,8 @@ export function FunilConversaoTab() {
 
   // Buscar gastos detalhados por adset e ad (para filtros de conjunto/anúncio)
   const { data: spendBreakdown } = useQuery({
-    queryKey: ["spend-breakdown", user?.id, dateStart, dateEnd],
+    // "v2" para bust do cache quando a estrutura de agregação mudou
+    queryKey: ["spend-breakdown-v2", user?.id, dateStart, dateEnd],
     queryFn: async () => {
       if (!user?.id) return { adset_spend: [], ad_spend: [] };
 
@@ -2096,6 +2097,18 @@ export function FunilConversaoTab() {
                     } else if (viewLevel === "adset" && row.adset_name) {
                       const adsetKey = `${row.campaign_name}::${row.adset_name}`;
                       spend = spendByAdset[adsetKey] || 0;
+
+                      // Debug: entender quando o adset cai no gasto da campanha
+                      if (idx < 5) {
+                        console.log("[FUNIL][ADSET][SPEND]", {
+                          campaign: row.campaign_name,
+                          adset: row.adset_name,
+                          adsetKey,
+                          spendFromAdset: spendByAdset[adsetKey] ?? 0,
+                          spendFromCampaign: spendByCampaign[row.campaign_name] ?? 0,
+                          picked: spend,
+                        });
+                      }
                     } else {
                       spend = spendByCampaign[row.campaign_name] || 0;
                     }
