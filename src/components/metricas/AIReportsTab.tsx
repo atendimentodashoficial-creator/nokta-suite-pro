@@ -35,7 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   AlertDialog,
@@ -48,6 +48,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useLeads } from "@/hooks/useLeads";
+import { usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
 import { useFaturas } from "@/hooks/useFaturas";
 
@@ -160,10 +161,16 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
   const [checkingApiKey, setCheckingApiKey] = useState(true);
   const [loadingStoredReport, setLoadingStoredReport] = useState(true);
   
-  // Period selection - default to last 7 days
-  const [periodFilter, setPeriodFilter] = useState("last_7_days");
-  const [dateStart, setDateStart] = useState<Date>(subDays(new Date(), 7));
-  const [dateEnd, setDateEnd] = useState<Date>(new Date());
+  // Period selection - use the same hook as Leads page for consistency
+  const { 
+    periodFilter, 
+    setPeriodFilter: setPeriodFilterHook, 
+    dateStart, 
+    setDateStart, 
+    dateEnd, 
+    setDateEnd,
+    filterByPeriod 
+  } = usePeriodFilter("last_7_days");
   
   // Comparison dialog
   const [showCompareDialog, setShowCompareDialog] = useState(false);
@@ -187,60 +194,10 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     }
   }, [selectedAccount, user]);
 
-  useEffect(() => {
-    handlePeriodChange(periodFilter);
-  }, [periodFilter]);
-
-  const handlePeriodChange = (value: string) => {
-    const today = new Date();
-    let start: Date;
-    let end: Date = today;
-
-    switch (value) {
-      case "today":
-        start = today;
-        break;
-      case "yesterday":
-        start = subDays(today, 1);
-        end = subDays(today, 1);
-        break;
-      case "last_7_days":
-        start = subDays(today, 6);
-        break;
-      case "last_30_days":
-        start = subDays(today, 29);
-        break;
-      case "this_week":
-        start = startOfWeek(today, { weekStartsOn: 0 });
-        end = endOfWeek(today, { weekStartsOn: 0 });
-        break;
-      case "last_week":
-        const lastWeekStart = startOfWeek(subDays(today, 7), { weekStartsOn: 0 });
-        start = lastWeekStart;
-        end = endOfWeek(lastWeekStart, { weekStartsOn: 0 });
-        break;
-      case "this_month":
-        start = startOfMonth(today);
-        end = endOfMonth(today);
-        break;
-      case "last_month":
-        start = startOfMonth(subMonths(today, 1));
-        end = endOfMonth(subMonths(today, 1));
-        break;
-      case "max":
-        start = new Date(2020, 0, 1);
-        end = today;
-        break;
-      default:
-        start = subDays(today, 6);
-    }
-
-    setDateStart(start);
-    setDateEnd(end);
-  };
+  // Note: The usePeriodFilter hook already handles period changes internally
 
   // Calculate funnel data for the selected period
-  // Using the same logic as FunilConversaoTab and PeriodFilter for consistency
+  // Using the same logic as Leads page - allLeads is ALREADY deduplicated by useLeads hook
   const funnelData = useMemo(() => {
     if (!allLeads) return null;
 
@@ -271,17 +228,14 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     // Normalize phone to last 8 digits
     const normalizePhone = (phone: string) => phone.replace(/\D/g, "").slice(-8);
 
-    // Build phone -> lead mapping (deduplicated by oldest)
-    const leadsByPhone: Record<string, typeof allLeads[0]> = {};
-    const allLeadsSorted = [...allLeads].sort((a, b) => 
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
+    // IMPORTANTE: allLeads já vem DEDUPLICADO pelo hook useLeads (pelos últimos 8 dígitos do telefone)
+    // Então usamos filterByPeriod exatamente como a aba Leads faz
     
-    for (const lead of allLeadsSorted) {
+    // Build phone -> lead mapping (allLeads já está deduplicado, mas precisamos do mapa)
+    const leadsByPhone: Record<string, typeof allLeads[0]> = {};
+    for (const lead of allLeads) {
       const phoneKey = normalizePhone(lead.telefone);
-      if (!leadsByPhone[phoneKey]) {
-        leadsByPhone[phoneKey] = lead;
-      }
+      leadsByPhone[phoneKey] = lead;
     }
 
     // Helper: check if lead is from WhatsApp (same logic as FunilConversaoTab)
@@ -295,28 +249,18 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       return o === "disparos";
     };
 
-    // Helper to check if a lead is within period (same logic as FunilConversaoTab)
-    const isWithinPeriod = (createdAt: string | null) => {
-      if (!createdAt) return false;
-      const d = new Date(createdAt);
-      return d >= startOfPeriod && d <= endOfPeriod;
-    };
+    // USAR filterByPeriod idêntico à aba Leads (mesma lógica exata)
+    const leadsInPeriod = filterByPeriod(allLeads);
 
-    // Filter leads by period (deduplicados)
-    // IMPORTANTE: Usar a mesma lógica do Funil - verificar se o lead PRIMÁRIO 
-    // (primeiro registro absoluto por telefone) foi criado no período
+    // Filter leads by period - já vem deduplicado e filtrado
     const phonesInPeriod = new Set<string>();
     const phonesTracked = new Set<string>();
     const phonesUntracked = new Set<string>();
     const phonesDisparos = new Set<string>();
 
-    // Percorrer o lead primário (primeiro cadastro) de cada telefone
-    // e verificar se foi criado no período (mesma lógica do Funil)
-    for (const lead of Object.values(leadsByPhone)) {
+    // Percorrer leads no período (já deduplicados e filtrados)
+    for (const lead of leadsInPeriod) {
       const phoneKey = normalizePhone(lead.telefone);
-      
-      // Verificar se o lead PRIMÁRIO foi criado no período
-      if (!isWithinPeriod(lead.created_at)) continue;
 
       // Check if from Disparos (case-insensitive)
       if (isDisparosLead(lead.origem)) {
@@ -1262,7 +1206,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
               </Badge>
               
               {/* Period Selector */}
-              <Select value={periodFilter} onValueChange={setPeriodFilter}>
+              <Select value={periodFilter} onValueChange={(v) => setPeriodFilterHook(v as any)}>
                 <SelectTrigger className="w-[180px]">
                   <Calendar className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Período" />
