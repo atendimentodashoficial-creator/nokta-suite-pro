@@ -229,13 +229,13 @@ export default function Dashboard() {
   // Total de clientes no período
   const totalClientes = dadosFiltrados.clientes.length;
   
-  // AGENDAMENTOS - Mesma lógica do Funil e abas do app
+  // AGENDAMENTOS - Conta TODOS os agendamentos criados no período
   // 
-  // A aba NaoCompareceu usa useAgendamentos() SEM filtro de período e mostra TODOS os cancelados.
-  // Para o Dashboard, precisamos:
-  // 1. Agendamentos "agendado"/"confirmado" = visíveis na Agenda (não usamos aqui)
-  // 2. Agendamentos "realizado" = contam apenas se tiverem fatura vinculada
-  // 3. Agendamentos "cancelado" = Não Compareceu (se não tiver fatura)
+  // "Agendamentos Realizados" = Total de agendamentos criados no período
+  // Isso inclui: agendado, confirmado, realizado, cancelado
+  // Detalhamento:
+  // - Compareceu = agendamentos com fatura vinculada (cliente fechou/está negociando)
+  // - Não Compareceu = status "cancelado" sem fatura
   
   // Identificar agendamentos que têm fatura vinculada
   const agendamentoIdsComFatura = new Set(
@@ -244,8 +244,8 @@ export default function Dashboard() {
     )
   );
 
-  // Para compareceu/não compareceu: contar apenas agendamentos que já passaram pelo fluxo
-  // (realizado com fatura OU cancelado)
+  // TOTAL = Todos os agendamentos criados no período (independente do status)
+  const numeroAgendamentos = dadosFiltrados.agendamentos.length;
   
   // Compareceu = agendamentos com fatura vinculada (independente do status do agendamento)
   const agendamentosRealizados = dadosFiltrados.agendamentos.filter((a: any) =>
@@ -257,9 +257,6 @@ export default function Dashboard() {
   const agendamentosNaoCompareceu = dadosFiltrados.agendamentos.filter(
     (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
   ).length;
-  
-  // Total = apenas agendamentos que já passaram pelo fluxo (concluídos)
-  const numeroAgendamentos = agendamentosRealizados + agendamentosNaoCompareceu;
 
   const percentualComparecimento = numeroAgendamentos > 0
     ? Math.round((agendamentosRealizados / numeroAgendamentos) * 100)
