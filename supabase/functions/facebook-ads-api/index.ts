@@ -995,6 +995,90 @@ serve(async (req) => {
       );
     }
 
+    // Nova action para buscar gastos detalhados por conjunto e anúncio
+    if (action === "get_spend_breakdown") {
+      if (!ad_account_id) {
+        return new Response(
+          JSON.stringify({ error: "Ad Account ID não fornecido" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const normalizedAccountId = ad_account_id.startsWith("act_") 
+        ? ad_account_id 
+        : `act_${ad_account_id}`;
+
+      const timeRange = date_start && date_end
+        ? `&time_range=${encodeURIComponent(JSON.stringify({ since: date_start, until: date_end }))}`
+        : "";
+
+      console.log("Fetching spend breakdown for account:", normalizedAccountId);
+
+      // Buscar gastos por conjunto de anúncios
+      const adsetSpendUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=adset_name,adset_id,campaign_name,spend${timeRange}&level=adset&limit=500&access_token=${accessToken}`;
+      
+      const adsetResponse = await fetch(adsetSpendUrl);
+      const adsetData = await adsetResponse.json();
+
+      const spendByAdset: Record<string, { spend: number; campaign: string }> = {};
+      if (adsetData.data && Array.isArray(adsetData.data)) {
+        for (const item of adsetData.data) {
+          const name = item.adset_name || "Sem conjunto";
+          if (!spendByAdset[name]) {
+            spendByAdset[name] = { spend: 0, campaign: item.campaign_name || "" };
+          }
+          spendByAdset[name].spend += parseFloat(item.spend || 0);
+        }
+      }
+
+      // Buscar gastos por anúncio
+      const adSpendUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=ad_name,ad_id,adset_name,campaign_name,spend${timeRange}&level=ad&limit=500&access_token=${accessToken}`;
+      
+      const adResponse = await fetch(adSpendUrl);
+      const adData = await adResponse.json();
+
+      const spendByAd: Record<string, { spend: number; adset: string; campaign: string; ad_id: string }> = {};
+      if (adData.data && Array.isArray(adData.data)) {
+        for (const item of adData.data) {
+          const name = item.ad_name || "Sem anúncio";
+          const key = `${item.campaign_name}::${item.adset_name}::${name}`;
+          if (!spendByAd[key]) {
+            spendByAd[key] = { 
+              spend: 0, 
+              adset: item.adset_name || "", 
+              campaign: item.campaign_name || "",
+              ad_id: item.ad_id || ""
+            };
+          }
+          spendByAd[key].spend += parseFloat(item.spend || 0);
+        }
+      }
+
+      // Converter para arrays
+      const adsetSpendArray = Object.entries(spendByAdset).map(([name, data]) => ({
+        adset_name: name,
+        campaign_name: data.campaign,
+        spend: data.spend
+      }));
+
+      const adSpendArray = Object.entries(spendByAd).map(([_, data]) => ({
+        ad_name: _.split("::")[2] || "Sem anúncio",
+        adset_name: data.adset,
+        campaign_name: data.campaign,
+        ad_id: data.ad_id,
+        spend: data.spend
+      }));
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          adset_spend: adsetSpendArray,
+          ad_spend: adSpendArray
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: "Ação não reconhecida" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

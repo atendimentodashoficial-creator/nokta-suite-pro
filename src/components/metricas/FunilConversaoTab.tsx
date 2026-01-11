@@ -1149,7 +1149,7 @@ export function FunilConversaoTab() {
   const duplicatesUnified = totalRecordsInPeriod - uniqueContactsInPeriod;
   const viaDisparos = funnelResult?.viaDisparos || { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 };
 
-  // Buscar gastos do Meta Ads
+  // Buscar gastos do Meta Ads (por campanha)
   const { data: spendData, isLoading: loadingSpend } = useQuery({
     queryKey: ["campaign-spend", user?.id, dateStart, dateEnd],
     queryFn: async () => {
@@ -1199,6 +1199,54 @@ export function FunilConversaoTab() {
     enabled: !!user?.id,
   });
 
+  // Buscar gastos detalhados por adset e ad (para filtros de conjunto/anúncio)
+  const { data: spendBreakdown } = useQuery({
+    queryKey: ["spend-breakdown", user?.id, dateStart, dateEnd],
+    queryFn: async () => {
+      if (!user?.id) return { adset_spend: [], ad_spend: [] };
+
+      const { data: session } = await supabase.auth.getSession();
+      
+      const { data: accounts } = await supabase
+        .from("facebook_ad_accounts")
+        .select("ad_account_id")
+        .eq("user_id", user.id)
+        .limit(1);
+
+      if (!accounts || accounts.length === 0) return { adset_spend: [], ad_spend: [] };
+
+      const accountId = accounts[0].ad_account_id;
+
+      try {
+        const response = await supabase.functions.invoke("facebook-ads-api", {
+          body: {
+            action: "get_spend_breakdown",
+            ad_account_id: accountId,
+            date_start: format(dateStart, "yyyy-MM-dd"),
+            date_end: format(dateEnd, "yyyy-MM-dd"),
+          },
+          headers: {
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+        });
+
+        if (response.error || !response.data?.success) {
+          console.error("Error fetching spend breakdown:", response.error);
+          return { adset_spend: [], ad_spend: [] };
+        }
+
+        return {
+          adset_spend: response.data.adset_spend || [],
+          ad_spend: response.data.ad_spend || [],
+        };
+      } catch (error) {
+        console.error("Error fetching spend breakdown:", error);
+        return { adset_spend: [], ad_spend: [] };
+      }
+    },
+    enabled: !!user?.id && (viewLevel === "adset" || viewLevel === "ad"),
+  });
+
   // Criar mapa de gastos por campanha
   const spendByCampaign = useMemo(() => {
     const map: Record<string, number> = {};
@@ -1207,6 +1255,25 @@ export function FunilConversaoTab() {
     });
     return map;
   }, [spendData]);
+
+  // Criar mapa de gastos por adset (chave: adset_name)
+  const spendByAdset = useMemo(() => {
+    const map: Record<string, number> = {};
+    spendBreakdown?.adset_spend?.forEach((s: { adset_name: string; spend: number }) => {
+      map[s.adset_name] = (map[s.adset_name] || 0) + s.spend;
+    });
+    return map;
+  }, [spendBreakdown]);
+
+  // Criar mapa de gastos por ad (chave: campaign::adset::ad)
+  const spendByAd = useMemo(() => {
+    const map: Record<string, number> = {};
+    spendBreakdown?.ad_spend?.forEach((s: { ad_name: string; adset_name: string; campaign_name: string; spend: number }) => {
+      const key = `${s.campaign_name}::${s.adset_name}::${s.ad_name}`;
+      map[key] = (map[key] || 0) + s.spend;
+    });
+    return map;
+  }, [spendBreakdown]);
 
   // Calcular totais
   const totals = useMemo(() => {
@@ -2020,7 +2087,16 @@ export function FunilConversaoTab() {
                 </TableHeader>
                 <TableBody>
                   {funnelData.map((row, idx) => {
-                    const spend = spendByCampaign[row.campaign_name] || 0;
+                    // Calcular gasto baseado no nível de visualização
+                    let spend = 0;
+                    if (viewLevel === "ad" && row.ad_name) {
+                      const adKey = `${row.campaign_name}::${row.adset_name}::${row.ad_name}`;
+                      spend = spendByAd[adKey] || 0;
+                    } else if (viewLevel === "adset" && row.adset_name) {
+                      spend = spendByAdset[row.adset_name] || 0;
+                    } else {
+                      spend = spendByCampaign[row.campaign_name] || 0;
+                    }
                     const cpl = row.leads > 0 ? spend / row.leads : 0;
                     const cpaAgendado = row.agendados > 0 ? spend / row.agendados : 0;
                     const cac = row.clientes > 0 ? spend / row.clientes : 0;
@@ -2546,7 +2622,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAdset
                       .filter(f => f.leads > 0)
                       .map(f => {
-                        const spend = spendByCampaign[f.campaign] || 0;
+                        const spend = spendByAdset[f.adset] || 0;
                         const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
                         return { ...f, spend, cpl };
                       })
@@ -2585,7 +2661,8 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAd
                       .filter(f => f.leads > 0)
                       .map(f => {
-                        const spend = spendByCampaign[f.campaign] || 0;
+                        const adKey = `${f.campaign}::${f.adset}::${f.ad}`;
+                        const spend = spendByAd[adKey] || 0;
                         const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
                         return { ...f, spend, cpl };
                       })
@@ -2636,7 +2713,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAdset
                       .filter(f => f.agendados > 0)
                       .map(f => {
-                        const spend = spendByCampaign[f.campaign] || 0;
+                        const spend = spendByAdset[f.adset] || 0;
                         const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
                         return { ...f, spend, cpa };
                       })
@@ -2675,7 +2752,8 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAd
                       .filter(f => f.agendados > 0)
                       .map(f => {
-                        const spend = spendByCampaign[f.campaign] || 0;
+                        const adKey = `${f.campaign}::${f.adset}::${f.ad}`;
+                        const spend = spendByAd[adKey] || 0;
                         const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
                         return { ...f, spend, cpa };
                       })
@@ -2726,7 +2804,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAdset
                       .filter(f => f.compareceu > 0)
                       .map(f => {
-                        const spend = spendByCampaign[f.campaign] || 0;
+                        const spend = spendByAdset[f.adset] || 0;
                         const costPerComp = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
                         return { ...f, spend, costPerComp };
                       })
@@ -2765,7 +2843,8 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAd
                       .filter(f => f.compareceu > 0)
                       .map(f => {
-                        const spend = spendByCampaign[f.campaign] || 0;
+                        const adKey = `${f.campaign}::${f.adset}::${f.ad}`;
+                        const spend = spendByAd[adKey] || 0;
                         const costPerComp = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
                         return { ...f, spend, costPerComp };
                       })
@@ -2816,7 +2895,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAdset
                       .filter(f => f.clientes > 0)
                       .map(f => {
-                        const spend = spendByCampaign[f.campaign] || 0;
+                        const spend = spendByAdset[f.adset] || 0;
                         const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
                         return { ...f, spend, cac };
                       })
@@ -2855,7 +2934,8 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAd
                       .filter(f => f.clientes > 0)
                       .map(f => {
-                        const spend = spendByCampaign[f.campaign] || 0;
+                        const adKey = `${f.campaign}::${f.adset}::${f.ad}`;
+                        const spend = spendByAd[adKey] || 0;
                         const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
                         return { ...f, spend, cac };
                       })
