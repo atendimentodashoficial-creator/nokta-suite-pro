@@ -1199,14 +1199,15 @@ Deno.serve(async (req) => {
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Se existe e está deletado -> restaurar
+    // Se existe e está deletado -> restaurar mantendo a data original (created_at)
     if (matchingLead && matchingLead.deleted_at) {
       const updateData: any = {
         deleted_at: null,
         status: 'lead',
         origem: leadOrigem,
         origem_lead: true,
-        data_contato: today,
+        // NÃO sobrescrever data_contato - manter a data original do primeiro contato
+        // O created_at já preserva quando o lead foi criado originalmente
         updated_at: new Date().toISOString(),
         respondeu: true, // Mark that lead has responded
       };
@@ -1249,8 +1250,8 @@ Deno.serve(async (req) => {
         );
       }
 
-      console.log('Lead restored successfully from webhook:', matchingLead.id);
-      await logEvent(userId, 'info', `Lead restaurado com sucesso: ${name} (ID: ${matchingLead.id})`);
+      console.log('Lead restored successfully from webhook (keeping original created_at):', matchingLead.id);
+      await logEvent(userId, 'info', `Lead restaurado com dados originais: ${name} (ID: ${matchingLead.id})`);
 
       return new Response(
         JSON.stringify({ message: 'Lead restored successfully', lead_id: matchingLead.id, action: 'restored' }),
