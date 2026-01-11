@@ -86,6 +86,7 @@ interface FunnelQueryResult {
   uniqueContacts: number;
   // Contadores de eventos de leads que vieram originalmente de "Disparos"
   viaDisparos: {
+    leads: number;
     agendados: number;
     compareceu: number;
     nao_compareceu: number;
@@ -414,7 +415,7 @@ export function FunilConversaoTab() {
   const { data: funnelResult, isLoading: loadingFunnel } = useQuery({
     queryKey: ["funnel-data", user?.id, dateStart, dateEnd, viewLevel],
     queryFn: async (): Promise<FunnelQueryResult> => {
-      if (!user?.id) return { data: [], totalRecords: 0, uniqueContacts: 0, viaDisparos: { agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 } };
+      if (!user?.id) return { data: [], totalRecords: 0, uniqueContacts: 0, viaDisparos: { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 } };
 
       // Construir limites do período em UTC (alinha com o backend e evita diferença de fuso)
       const startOfPeriodUTC = new Date(Date.UTC(
@@ -998,6 +999,7 @@ export function FunilConversaoTab() {
 
       // Contadores para eventos de leads que vieram originalmente de "Disparos"
       const viaDisparos = {
+        leads: 0,
         agendados: 0,
         compareceu: 0,
         nao_compareceu: 0,
@@ -1041,6 +1043,7 @@ export function FunilConversaoTab() {
         if (leadCreatedInPeriod) {
           const gLead = ensureGroup(getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1 }));
           gLead.leads++;
+          if (isFromDisparos) viaDisparos.leads++;
         }
 
         // Etapa 2: Agendados
@@ -1129,7 +1132,7 @@ export function FunilConversaoTab() {
   const totalRecordsInPeriod = funnelResult?.totalRecords || 0;
   const uniqueContactsInPeriod = funnelResult?.uniqueContacts || 0;
   const duplicatesUnified = totalRecordsInPeriod - uniqueContactsInPeriod;
-  const viaDisparos = funnelResult?.viaDisparos || { agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 };
+  const viaDisparos = funnelResult?.viaDisparos || { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 };
 
   // Buscar gastos do Meta Ads
   const { data: spendData, isLoading: loadingSpend } = useQuery({
@@ -1621,6 +1624,19 @@ export function FunilConversaoTab() {
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Leads sem rastreamento de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {viaDisparos.leads > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5">
+                      <Send className="h-2.5 w-2.5" />
+                      <span>{viaDisparos.leads} via Disparos</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Leads originados de campanhas de disparos em massa</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
