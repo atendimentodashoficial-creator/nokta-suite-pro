@@ -7,13 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useAgendamentos } from "@/hooks/useAgendamentos";
+import { useAgendamentos, useDeleteAgendamento } from "@/hooks/useAgendamentos";
 import { formatInTimeZone } from "date-fns-tz";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
 import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +29,7 @@ export default function NaoCompareceu() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<any>(null);
-  const [deleteAgendamento, setDeleteAgendamento] = useState<any>(null);
+  const [deleteAgendamentoState, setDeleteAgendamentoState] = useState<any>(null);
   const [dialogReagendarOpen, setDialogReagendarOpen] = useState(false);
   
   // Selection state for bulk delete
@@ -40,6 +39,7 @@ export default function NaoCompareceu() {
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   
   const queryClient = useQueryClient();
+  const deleteAgendamento = useDeleteAgendamento();
   
   const { data: todosAgendamentos, isLoading } = useAgendamentos();
 
@@ -58,28 +58,20 @@ export default function NaoCompareceu() {
     setDialogReagendarOpen(true);
   };
 
-  const deletarAgendamento = useMutation({
-    mutationFn: async (agendamentoId: string) => {
-      const { error } = await supabase
-        .from("agendamentos")
-        .delete()
-        .eq("id", agendamentoId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
-      toast.success("Agendamento deletado com sucesso");
-      setDeleteAgendamento(null);
-    },
-    onError: () => {
-      toast.error("Erro ao deletar agendamento");
-    },
-  });
-
   const handleDeletar = (agendamento: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    setDeleteAgendamento(agendamento);
+    setDeleteAgendamentoState(agendamento);
+  };
+
+  const confirmarDeletar = async () => {
+    if (!deleteAgendamentoState) return;
+    try {
+      await deleteAgendamento.mutateAsync(deleteAgendamentoState.id);
+      toast.success("Agendamento deletado com sucesso");
+      setDeleteAgendamentoState(null);
+    } catch (error) {
+      toast.error("Erro ao deletar agendamento");
+    }
   };
 
   // Toggle selection mode
@@ -123,15 +115,12 @@ export default function NaoCompareceu() {
     try {
       const idsToDelete = Array.from(selectedAgendamentoIds);
       
-      const { error } = await supabase
-        .from("agendamentos")
-        .delete()
-        .in("id", idsToDelete);
-      
-      if (error) throw error;
+      // Delete one by one to ensure logging
+      for (const id of idsToDelete) {
+        await deleteAgendamento.mutateAsync(id);
+      }
       
       toast.success(`${idsToDelete.length} agendamento(s) excluído(s) com sucesso!`);
-      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
       
       setSelectedAgendamentoIds(new Set());
       setIsSelectionMode(false);
@@ -368,24 +357,24 @@ export default function NaoCompareceu() {
       />
 
       {/* AlertDialog Deletar */}
-      {deleteAgendamento && (
-        <AlertDialog open={!!deleteAgendamento} onOpenChange={(open) => !open && setDeleteAgendamento(null)}>
+      {deleteAgendamentoState && (
+        <AlertDialog open={!!deleteAgendamentoState} onOpenChange={(open) => !open && setDeleteAgendamentoState(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
               <AlertDialogDescription>
-                Tem certeza que deseja deletar o agendamento de <strong>{deleteAgendamento.leads?.nome}</strong>? 
+                Tem certeza que deseja deletar o agendamento de <strong>{deleteAgendamentoState.leads?.nome}</strong>? 
                 Esta ação não pode ser desfeita.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction
-                onClick={() => deletarAgendamento.mutate(deleteAgendamento.id)}
-                disabled={deletarAgendamento.isPending}
+                onClick={confirmarDeletar}
+                disabled={deleteAgendamento.isPending}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {deletarAgendamento.isPending ? "Deletando..." : "Deletar"}
+                {deleteAgendamento.isPending ? "Deletando..." : "Deletar"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
