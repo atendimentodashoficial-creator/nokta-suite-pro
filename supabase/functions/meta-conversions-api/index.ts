@@ -184,23 +184,24 @@ serve(async (req) => {
       user_data: userData,
     };
 
-    // Add custom data if value is provided
+    // Add custom data - always include for Purchase events
     let customData: Record<string, unknown> = {};
     
-    if (value !== undefined && value !== null) {
+    // For Purchase events, currency and value are REQUIRED by Meta
+    if (event_name === "Purchase") {
+      const purchaseValue = value !== undefined && value !== null ? parseFloat(value) : 0;
+      customData = {
+        value: purchaseValue,
+        currency: currency || "BRL",
+        content_type: "product",
+        contents: [{ id: fatura_id || lead_id || "product", quantity: 1, item_price: purchaseValue }],
+      };
+    } else if (value !== undefined && value !== null) {
+      // For other events, only add value if provided
       customData = {
         value: parseFloat(value),
-        currency,
+        currency: currency || "BRL",
       };
-
-      // Add content info for Purchase events
-      if (event_name === "Purchase") {
-        customData = {
-          ...customData,
-          content_type: "product",
-          contents: [{ id: fatura_id || lead_id || "product", quantity: 1, item_price: parseFloat(value) }],
-        };
-      }
     }
 
     // Add campaign attribution
