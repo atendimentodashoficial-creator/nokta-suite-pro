@@ -998,19 +998,42 @@ export function FunilConversaoTab() {
         return candidates[candidates.length - 1];
       };
 
-      const getAttribution = (phone: string, opts?: { preferredLeadId?: string; eventTs?: number; isDisparos?: boolean }) => {
+      const getAttribution = (
+        phone: string,
+        opts?: { preferredLeadId?: string; eventTs?: number; isDisparos?: boolean; strictPreferred?: boolean }
+      ) => {
         // Se é de Disparos, retorna um grupo separado
         if (opts?.isDisparos) {
           const key = "___DISPAROS___";
-          return { 
-            key, 
+          return {
+            key,
             campaignId: null,
-            campaign: "📤 Via Disparos", 
+            campaign: "📤 Via Disparos",
             adsetId: null,
             adset: "Campanhas de disparo em massa",
             adId: null,
-            ad: "—"
+            ad: "—",
           };
+        }
+
+        // Alinhado com a aba Leads (contagem de LEADS):
+        // quando estamos contando o lead "dono" do telefone, usamos APENAS o próprio registro.
+        // Se esse lead não tiver campanha, ele deve ficar como "Sem campanha" mesmo que exista atribuição em registros futuros.
+        if (opts?.strictPreferred && opts.preferredLeadId) {
+          const preferred = leadById[opts.preferredLeadId];
+          const campaignId = preferred?.fb_campaign_id || null;
+          const campaign = preferred?.fb_campaign_name || "Sem campanha";
+          const adsetId = preferred?.fb_adset_id || null;
+          const adset = preferred?.fb_adset_name || "Sem conjunto";
+          const adId = preferred?.fb_ad_id || null;
+          const ad = preferred?.fb_ad_name || "Sem anúncio";
+
+          let key: string;
+          if (viewLevel === "campaign") key = campaignId ? campaignId : campaign;
+          else if (viewLevel === "adset") key = adsetId ? `${campaignId || campaign}|||${adsetId}` : `${campaign}|||${adset}`;
+          else key = adId ? `${campaignId || campaign}|||${adsetId || adset}|||${adId}` : `${campaign}|||${adsetId || adset}|||${ad}`;
+
+          return { key, campaignId, campaign, adsetId, adset, adId, ad };
         }
 
         const fromLead = pickAttributionLead(phone, opts?.eventTs, opts?.preferredLeadId);
@@ -1165,7 +1188,7 @@ export function FunilConversaoTab() {
         const leadCreatedInPeriod = isWhatsAppLeadCreatedInPeriod || isDisparosLeadCreatedInPeriod;
         
         if (leadCreatedInPeriod) {
-          const attr = getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1 });
+          const attr = getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1, strictPreferred: true });
           bumpMetric(attr, "leads", 1);
         }
 
