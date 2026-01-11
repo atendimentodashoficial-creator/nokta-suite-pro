@@ -1231,8 +1231,10 @@ export function FunilConversaoTab() {
     );
     const untracked = funnelData.find(item => item.campaign_name === "Sem campanha");
     
+    // Leads "não rastreados" = "Sem campanha" MENOS os que vieram de Disparos
+    // (pois Disparos aparecem em badge separada)
     const leadsTracked = tracked.reduce((sum, item) => sum + item.leads, 0);
-    const leadsUntracked = untracked?.leads || 0;
+    const leadsUntracked = Math.max(0, (untracked?.leads || 0) - (viaDisparos?.leads || 0));
     const agendadosTracked = tracked.reduce((sum, item) => sum + item.agendados, 0);
     const agendadosUntracked = untracked?.agendados || 0;
     const compareceuTracked = tracked.reduce((sum, item) => sum + item.compareceu, 0);
