@@ -1311,6 +1311,8 @@ export function FunilConversaoTab() {
     
     funnelData.forEach(item => {
       if (item.campaign_name === "Sem campanha") return;
+      // Excluir campanhas de Disparos
+      if (item.campaign_name.includes("Via Disparos")) return;
       // Só considerar se tiver um nome de conjunto real (não "Sem conjunto")
       const adsetName = item.adset_name;
       if (!adsetName || adsetName === "Sem conjunto") return;
@@ -1355,6 +1357,8 @@ export function FunilConversaoTab() {
     
     funnelData.forEach(item => {
       if (item.campaign_name === "Sem campanha") return;
+      // Excluir campanhas de Disparos
+      if (item.campaign_name.includes("Via Disparos")) return;
       // Só considerar se tiver um nome de anúncio real (não "Sem anúncio")
       const adName = item.ad_name;
       const adsetName = item.adset_name;
