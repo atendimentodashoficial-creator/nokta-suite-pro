@@ -229,25 +229,36 @@ export default function Dashboard() {
   // Total de clientes no período
   const totalClientes = dadosFiltrados.clientes.length;
   
-  // AGENDAMENTOS
-  // Observação: na Agenda, o fluxo de "Compareceu" passa por criar fatura.
-  // Para as métricas de Relatórios, consideramos "realizado" apenas quando existe fatura vinculada ao agendamento.
+  // AGENDAMENTOS - Mesma lógica do Funil e abas do app
+  // 
+  // A aba NaoCompareceu usa useAgendamentos() SEM filtro de período e mostra TODOS os cancelados.
+  // Para o Dashboard, precisamos:
+  // 1. Agendamentos "agendado"/"confirmado" = visíveis na Agenda (não usamos aqui)
+  // 2. Agendamentos "realizado" = contam apenas se tiverem fatura vinculada
+  // 3. Agendamentos "cancelado" = Não Compareceu (se não tiver fatura)
+  
+  // Identificar agendamentos que têm fatura vinculada
   const agendamentoIdsComFatura = new Set(
     (dadosFiltrados.faturas || []).flatMap((f: any) =>
       (f.fatura_agendamentos || []).map((fa: any) => fa.agendamento_id)
     )
   );
 
-  const agendamentosComFatura = dadosFiltrados.agendamentos.filter((a: any) =>
+  // Para compareceu/não compareceu: contar apenas agendamentos que já passaram pelo fluxo
+  // (realizado com fatura OU cancelado)
+  
+  // Compareceu = agendamentos com fatura vinculada (independente do status do agendamento)
+  const agendamentosRealizados = dadosFiltrados.agendamentos.filter((a: any) =>
     agendamentoIdsComFatura.has(a.id)
-  );
-
-  // Não Compareceu: Igual à aba NaoCompareceu - agendamentos status "cancelado" no período, mas considerando APENAS agendamentos
-  // que NÃO estão vinculados a faturas (pois se tem fatura, é "realizado", não "não compareceu")
+  ).length;
+  
+  // Não Compareceu = agendamentos com status "cancelado" que NÃO têm fatura
+  // (se tem fatura, o cliente compareceu e fechou/está negociando)
   const agendamentosNaoCompareceu = dadosFiltrados.agendamentos.filter(
     (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
   ).length;
-  const agendamentosRealizados = agendamentosComFatura.length;
+  
+  // Total = apenas agendamentos que já passaram pelo fluxo (concluídos)
   const numeroAgendamentos = agendamentosRealizados + agendamentosNaoCompareceu;
 
   const percentualComparecimento = numeroAgendamentos > 0
