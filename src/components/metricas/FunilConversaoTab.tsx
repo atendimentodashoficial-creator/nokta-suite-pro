@@ -559,15 +559,17 @@ export function FunilConversaoTab() {
         return d >= startOfPeriodUTC && d <= endOfPeriodUTC ? d.getTime() : null;
       };
 
-      // Identificar telefones que tiveram AGENDAMENTO CRIADO dentro do período
-      // IMPORTANTE: usar created_at (momento em que o lead virou agendamento)
-      // e NÃO data_agendamento (data futura do procedimento), senão o filtro exclui agendamentos recém-criados.
+      // Identificar telefones que tiveram AGENDAMENTO ATIVO no período
+      // Considera estado atual: só conta se status NÃO é "cancelado"
       const phonesWithAgendamentoInPeriod = new Set<string>();
       const phonesWithAgendamentoInPeriodForStage = new Set<string>();
       const agendamentoTsByPhone: Record<string, number> = {};
 
       agendamentos?.forEach((a) => {
         if (!a.cliente_id) return;
+        // Ignorar agendamentos cancelados (estado atual)
+        if (a.status === "cancelado") return;
+
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone) return;
 
@@ -577,13 +579,14 @@ export function FunilConversaoTab() {
         phonesWithAgendamentoInPeriod.add(phone);
         phonesWithAgendamentoInPeriodForStage.add(phone);
 
-        // Guardar o primeiro agendamento (criado) dentro do período (para atribuição correta)
+        // Guardar o primeiro agendamento (criado) dentro do período
         if (agendamentoTsByPhone[phone] === undefined || ts < agendamentoTsByPhone[phone]) {
           agendamentoTsByPhone[phone] = ts;
         }
       });
 
-      // Identificar telefones que tiveram fatura criada no período
+      // Identificar telefones que tiveram fatura ATIVA criada no período
+      // Considera estado atual: só conta faturas que ainda existem com status válido
       const phonesWithFaturaInPeriod = new Set<string>();
       const phonesWithFaturaNegociacaoInPeriod = new Set<string>();
       const phonesWithFaturaFechadaInPeriod = new Set<string>();
@@ -592,6 +595,9 @@ export function FunilConversaoTab() {
 
       faturas?.forEach((f) => {
         if (!f.cliente_id) return;
+        // Ignorar faturas canceladas (se houver esse status)
+        if (f.status === "cancelado" || f.status === "deletado") return;
+
         const phone = clienteIdToPhone[f.cliente_id];
         if (!phone) return;
 
@@ -599,6 +605,7 @@ export function FunilConversaoTab() {
         if (ts === null) return;
 
         phonesWithFaturaInPeriod.add(phone);
+        // Status atual da fatura determina a etapa
         if (f.status === "negociacao") {
           phonesWithFaturaNegociacaoInPeriod.add(phone);
         }
