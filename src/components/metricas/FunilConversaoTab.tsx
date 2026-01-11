@@ -593,16 +593,16 @@ export function FunilConversaoTab() {
         return d >= startOfPeriodUTC && d <= endOfPeriodUTC ? d.getTime() : null;
       };
 
-      // Identificar telefones que tiveram AGENDAMENTO ATIVO no período
-      // Considera estado atual: só conta se status NÃO é "cancelado"
+      // Identificar telefones que tiveram AGENDAMENTO no período
+      // IMPORTANTE: Agendamentos "cancelado" representam "não compareceu" e DEVEM ser contados
+      // na etapa de Agendados (com flag de não compareceu), não excluídos
       const phonesWithAgendamentoInPeriod = new Set<string>();
       const phonesWithAgendamentoInPeriodForStage = new Set<string>();
+      const phonesWithNaoCompareceuInPeriod = new Set<string>();
       const agendamentoTsByPhone: Record<string, number> = {};
 
       agendamentos?.forEach((a) => {
         if (!a.cliente_id) return;
-        // Ignorar agendamentos cancelados (estado atual)
-        if (a.status === "cancelado") return;
 
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone) return;
@@ -610,8 +610,14 @@ export function FunilConversaoTab() {
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
 
+        // Todos os agendamentos (incluindo cancelados/não compareceu) contam para a etapa
         phonesWithAgendamentoInPeriod.add(phone);
         phonesWithAgendamentoInPeriodForStage.add(phone);
+
+        // Marcar se é não compareceu (status cancelado)
+        if (a.status === "cancelado") {
+          phonesWithNaoCompareceuInPeriod.add(phone);
+        }
 
         // Guardar o primeiro agendamento (criado) dentro do período
         if (agendamentoTsByPhone[phone] === undefined || ts < agendamentoTsByPhone[phone]) {
@@ -800,7 +806,7 @@ export function FunilConversaoTab() {
       const latestAgendamentoTsByPhone: Record<string, number> = {};
       agendamentos?.forEach((a) => {
         if (!a.cliente_id) return;
-        if (a.status === "cancelado") return;
+        // Incluir agendamentos cancelados também (são "não compareceu")
         
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone) return;
@@ -1037,16 +1043,15 @@ export function FunilConversaoTab() {
           gLead.leads++;
         }
 
-        // Etapa 2: Agendados (estado atual)
-        // Só conta se existir AGENDAMENTO ATIVO no período.
-        // Se o lead avançou para fatura mas o agendamento foi removido/cancelado, não deve continuar marcando aqui.
+        // Etapa 2: Agendados
+        // Conta todos os agendamentos do período, incluindo cancelados (não compareceu)
         if (hasAgendamentoInPeriod) {
           const gAg = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2, isDisparos: isFromDisparos }));
           gAg.agendados++;
           if (isFromDisparos) viaDisparos.agendados++;
 
-          const naoCompareceu = allIds.some((id) => clientesNaoCompareceram.has(id));
-          if (naoCompareceu) {
+          // Usar o set de período para marcar não compareceu
+          if (phonesWithNaoCompareceuInPeriod.has(phone)) {
             gAg.nao_compareceu++;
             if (isFromDisparos) viaDisparos.nao_compareceu++;
           }
