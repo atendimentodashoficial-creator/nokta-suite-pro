@@ -35,9 +35,8 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, parseISO, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { toZonedTime } from "date-fns-tz";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -241,13 +240,25 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
   };
 
   // Calculate funnel data for the selected period
-  // Using the same logic as FunilConversaoTab for consistency
+  // Using the same logic as FunilConversaoTab and PeriodFilter for consistency
   const funnelData = useMemo(() => {
     if (!allLeads) return null;
 
-    const TZ = "America/Sao_Paulo";
-    const startOfPeriod = toZonedTime(startOfDay(dateStart), TZ);
-    const endOfPeriod = toZonedTime(endOfDay(dateEnd), TZ);
+    // Use LOCAL timezone to match how dates are displayed in the UI
+    // (same logic as PeriodFilter.filterByPeriod)
+    const startOfPeriod = new Date(
+      dateStart.getFullYear(),
+      dateStart.getMonth(),
+      dateStart.getDate(),
+      0, 0, 0, 0
+    );
+    
+    const endOfPeriod = new Date(
+      dateEnd.getFullYear(),
+      dateEnd.getMonth(),
+      dateEnd.getDate(),
+      23, 59, 59, 999
+    );
 
     // Helper: timestamp dentro do período
     const periodTs = (iso: string | null | undefined) => {
@@ -273,6 +284,17 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       }
     }
 
+    // Helper: check if lead is from WhatsApp (same logic as FunilConversaoTab)
+    const isWhatsAppLead = (origem: string | null) => {
+      const o = (origem || "").toLowerCase();
+      return o === "whatsapp" || o === "";
+    };
+
+    const isDisparosLead = (origem: string | null) => {
+      const o = (origem || "").toLowerCase();
+      return o === "disparos";
+    };
+
     // Filter leads by period (deduplicados)
     const phonesInPeriod = new Set<string>();
     const phonesTracked = new Set<string>();
@@ -283,15 +305,19 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       const ts = periodTs(lead.created_at);
       if (ts === null) continue;
 
-      phonesInPeriod.add(phoneKey);
-
-      // Check if from Disparos
-      if (lead.origem === "Disparos") {
+      // Check if from Disparos (case-insensitive)
+      if (isDisparosLead(lead.origem)) {
         phonesDisparos.add(phoneKey);
-      } else if (lead.utm_campaign || lead.fbclid || lead.utm_source || lead.fb_campaign_name) {
-        phonesTracked.add(phoneKey);
+        // Don't add to phonesInPeriod - Disparos are counted separately
       } else {
-        phonesUntracked.add(phoneKey);
+        // WhatsApp leads (including empty origin)
+        phonesInPeriod.add(phoneKey);
+
+        if (lead.utm_campaign || lead.fbclid || lead.utm_source || lead.fb_campaign_name) {
+          phonesTracked.add(phoneKey);
+        } else {
+          phonesUntracked.add(phoneKey);
+        }
       }
     }
 
@@ -340,9 +366,9 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
 
       phonesWithAgendamento.add(phone);
 
-      // Attribution
+      // Attribution (using helper functions)
       const lead = leadsByPhone[phone];
-      if (lead?.origem === "Disparos") {
+      if (isDisparosLead(lead?.origem)) {
         phonesAgendadosDisparos.add(phone);
         if (a.status === "cancelado") phonesNaoCompareceuDisparos.add(phone);
       } else if (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name) {
@@ -383,7 +409,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       const tsClosed = periodTs(f.updated_at);
 
       const lead = leadsByPhone[phone];
-      const isDisparos = lead?.origem === "Disparos";
+      const isDisparos = isDisparosLead(lead?.origem);
       const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
 
       // Negociação uses created_at
