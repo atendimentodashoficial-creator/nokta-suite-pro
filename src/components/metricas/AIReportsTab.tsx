@@ -338,30 +338,24 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       const ts = periodTs(a.created_at || a.data_agendamento);
       if (ts === null) return;
 
-      // Agendamentos "realizado" without fatura are not visible in app - skip
-      if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
-        return;
-      }
+      // CONTAR TODOS os agendamentos criados no período (independente do status)
+      // Isso reflete todos que passaram pelo calendário
+      phonesWithAgendamento.add(phone);
 
       // Attribution check
       const lead = leadsByPhone[phone];
       const isDisparos = isDisparosLead(lead?.origem);
       const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
 
+      if (isDisparos) phonesAgendadosDisparos.add(phone);
+      else if (isTracked) phonesAgendadosTracked.add(phone);
+      else phonesAgendadosUntracked.add(phone);
+
       // Check if this agendamento has fatura linked (= compareceu)
       const hasFatura = agendamentoIdsComFatura.has(a.id);
-      
-      // Count only if status is cancelado (não compareceu) OR has fatura (compareceu)
-      if (a.status === "cancelado" || hasFatura) {
-        phonesWithAgendamento.add(phone);
-        
-        if (isDisparos) phonesAgendadosDisparos.add(phone);
-        else if (isTracked) phonesAgendadosTracked.add(phone);
-        else phonesAgendadosUntracked.add(phone);
-      }
 
-      // Não Compareceu = cancelado WITHOUT fatura
-      if (a.status === "cancelado" && !hasFatura) {
+      // Não Compareceu = cancelado (sem fatura = não fechou negócio após não comparecer)
+      if (a.status === "cancelado") {
         phonesWithNaoCompareceu.add(phone);
         if (isDisparos) phonesNaoCompareceuDisparos.add(phone);
         else if (isTracked) phonesNaoCompareceuTracked.add(phone);
@@ -437,11 +431,10 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     const untrackedCount = phonesUntracked.size;
     const disparosCount = leadsDisparos.length; // Idêntico à contagem da aba Leads Disparos
 
-    // Agendados = apenas os que passaram pelo fluxo (compareceu via fatura OU não compareceu)
-    // Isso é igual à lógica do Dashboard e FunilConversaoTab
+    // Agendados = TODOS que passaram pelo calendário no período
+    const agendadosTotal = phonesWithAgendamento.size;
     const compareceuViaAgendamento = phonesWithCompareceu.size;
     const naoCompareceuTotal = phonesWithNaoCompareceu.size;
-    const agendadosTotal = compareceuViaAgendamento + naoCompareceuTotal;
     
     const agendadosTracked = phonesAgendadosTracked.size;
     const agendadosUntracked = phonesAgendadosUntracked.size;
