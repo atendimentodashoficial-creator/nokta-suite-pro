@@ -71,6 +71,19 @@ export function PixelStatusBadge({
       const leadOrigem = leadData?.origem || clienteOrigem;
       const leadInstanciaNome = leadData?.instancia_nome;
 
+      // Update fatura status to "formulario_enviado" before navigating
+      if (status === "pendente") {
+        await supabase
+          .from("faturas")
+          .update({
+            pixel_status: "formulario_enviado",
+            pixel_form_sent_at: new Date().toISOString(),
+          })
+          .eq("id", faturaId);
+        
+        queryClient.invalidateQueries({ queryKey: ["faturas"] });
+      }
+
       // Navigate to chat with prefilled message
       await navigateToChat(navigate, clienteTelefone, leadOrigem, {
         instanciaNome: leadInstanciaNome,
