@@ -1244,7 +1244,7 @@ export function FunilConversaoTab() {
         return { adset_spend: [], ad_spend: [] };
       }
     },
-    enabled: !!user?.id && (viewLevel === "adset" || viewLevel === "ad"),
+    enabled: !!user?.id, // Sempre buscar para os quadros de Melhor Custo que usam adset/ad
   });
 
   // Criar mapa de gastos por campanha
