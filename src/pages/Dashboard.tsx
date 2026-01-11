@@ -242,7 +242,11 @@ export default function Dashboard() {
     agendamentoIdsComFatura.has(a.id)
   );
 
-  const agendamentosNaoCompareceu = dadosFiltrados.agendamentos.filter((a: any) => a.status === "cancelado").length;
+  // Não Compareceu: Igual à aba NaoCompareceu - agendamentos status "cancelado" no período, mas considerando APENAS agendamentos
+  // que NÃO estão vinculados a faturas (pois se tem fatura, é "realizado", não "não compareceu")
+  const agendamentosNaoCompareceu = dadosFiltrados.agendamentos.filter(
+    (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
+  ).length;
   const agendamentosRealizados = agendamentosComFatura.length;
   const numeroAgendamentos = agendamentosRealizados + agendamentosNaoCompareceu;
 
