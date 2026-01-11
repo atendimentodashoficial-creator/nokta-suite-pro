@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useLeads } from "@/hooks/useLeads";
-import { useAgendamentos, Agendamento, useDeleteAgendamento, useAgendamentosExcluidos } from "@/hooks/useAgendamentos";
-import { useFaturas, useDeleteFatura, useFaturasExcluidas } from "@/hooks/useFaturas";
+import { useAgendamentos, Agendamento, useDeleteAgendamento, useAgendamentosExcluidos, useDeleteAgendamentoExcluidoLog } from "@/hooks/useAgendamentos";
+import { useFaturas, useDeleteFatura, useFaturasExcluidas, useDeleteFaturaExcluidaLog } from "@/hooks/useFaturas";
 import { EditarClienteDialog } from "@/components/clientes/EditarClienteDialog";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
 import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
@@ -100,6 +100,8 @@ export default function ClienteDetalhes() {
   const { toast } = useToast();
   const deleteAgendamento = useDeleteAgendamento();
   const deleteFatura = useDeleteFatura();
+  const deleteAgendamentoLog = useDeleteAgendamentoExcluidoLog();
+  const deleteFaturaLog = useDeleteFaturaExcluidaLog();
   const cliente = clientes?.find(c => c.id === id);
   const clienteAgendamentos = agendamentos?.filter(a => a.cliente_id === id) || [];
   const agendamentosPassados = clienteAgendamentos.filter(a => new Date(a.data_agendamento) < new Date());
@@ -791,67 +793,100 @@ export default function ClienteDetalhes() {
                     {/* Agendamentos excluídos */}
                     {clienteAgendamentosExcluidos.map(agendamento => (
                       <Card key={`ag-${agendamento.id}`} className="p-4 bg-red-500/5 border-red-500/20">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge className="bg-red-500/20 text-red-700 border-red-500/30">
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Agendamento Excluído
-                            </Badge>
-                            {agendamento.tipo && (
-                              <Badge variant="outline">{agendamento.tipo}</Badge>
-                            )}
-                            {agendamento.status && (
-                              <Badge variant="outline" className="bg-muted">
-                                Status anterior: {agendamento.status}
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className="bg-red-500/20 text-red-700 border-red-500/30">
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Agendamento Excluído
                               </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Calendar className="h-4 w-4" />
-                              <span>Agendado para: {new Date(agendamento.data_agendamento).toLocaleString('pt-BR', {
-                                timeZone: 'America/Sao_Paulo',
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}</span>
+                              {agendamento.tipo && (
+                                <Badge variant="outline">{agendamento.tipo}</Badge>
+                              )}
+                              {agendamento.status && (
+                                <Badge variant="outline" className="bg-muted">
+                                  Status anterior: {agendamento.status}
+                                </Badge>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <CalendarX className="h-4 w-4" />
-                              <span>Excluído em: {new Date(agendamento.excluido_em).toLocaleString('pt-BR', {
-                                timeZone: 'America/Sao_Paulo',
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}</span>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-4 w-4" />
+                                <span>Agendado para: {new Date(agendamento.data_agendamento).toLocaleString('pt-BR', {
+                                  timeZone: 'America/Sao_Paulo',
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <CalendarX className="h-4 w-4" />
+                                <span>Excluído em: {new Date(agendamento.excluido_em).toLocaleString('pt-BR', {
+                                  timeZone: 'America/Sao_Paulo',
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}</span>
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="space-y-1 text-sm text-muted-foreground">
-                            {agendamento.procedimento_nome && (
-                              <p>📋 {agendamento.procedimento_nome}</p>
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                              {agendamento.procedimento_nome && (
+                                <p>📋 {agendamento.procedimento_nome}</p>
+                              )}
+                              {agendamento.profissional_nome && (
+                                <p>👤 {agendamento.profissional_nome}</p>
+                              )}
+                            </div>
+
+                            {agendamento.observacoes && (
+                              <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
+                                {agendamento.observacoes}
+                              </p>
                             )}
-                            {agendamento.profissional_nome && (
-                              <p>👤 {agendamento.profissional_nome}</p>
+
+                            {agendamento.motivo_exclusao && (
+                              <p className="text-sm text-red-600 bg-red-500/10 rounded p-2">
+                                <strong>Motivo:</strong> {agendamento.motivo_exclusao}
+                              </p>
                             )}
                           </div>
-
-                          {agendamento.observacoes && (
-                            <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
-                              {agendamento.observacoes}
-                            </p>
-                          )}
-
-                          {agendamento.motivo_exclusao && (
-                            <p className="text-sm text-red-600 bg-red-500/10 rounded p-2">
-                              <strong>Motivo:</strong> {agendamento.motivo_exclusao}
-                            </p>
-                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remover do histórico</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja remover este registro do histórico? Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={async () => {
+                                    try {
+                                      await deleteAgendamentoLog.mutateAsync(agendamento.id);
+                                      toast({ title: "Registro removido do histórico" });
+                                    } catch {
+                                      toast({ title: "Erro ao remover", variant: "destructive" });
+                                    }
+                                  }}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Remover
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </Card>
                     ))}
@@ -859,58 +894,91 @@ export default function ClienteDetalhes() {
                     {/* Faturas excluídas */}
                     {clienteFaturasExcluidas.map(fatura => (
                       <Card key={`fat-${fatura.id}`} className="p-4 bg-orange-500/5 border-orange-500/20">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge className="bg-orange-500/20 text-orange-700 border-orange-500/30">
-                              <DollarSign className="h-3 w-3 mr-1" />
-                              Fatura Excluída
-                            </Badge>
-                            <Badge variant="outline" className="bg-muted">
-                              Status anterior: {fatura.status === 'fechado' ? 'Fechado' : 'Em Negociação'}
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <DollarSign className="h-4 w-4" />
-                              <span>Valor: {Number(fatura.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className="bg-orange-500/20 text-orange-700 border-orange-500/30">
+                                <DollarSign className="h-3 w-3 mr-1" />
+                                Fatura Excluída
+                              </Badge>
+                              <Badge variant="outline" className="bg-muted">
+                                Status anterior: {fatura.status === 'fechado' ? 'Fechado' : 'Em Negociação'}
+                              </Badge>
                             </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <CalendarX className="h-4 w-4" />
-                              <span>Excluído em: {new Date(fatura.excluido_em).toLocaleString('pt-BR', {
-                                timeZone: 'America/Sao_Paulo',
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}</span>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <DollarSign className="h-4 w-4" />
+                                <span>Valor: {Number(fatura.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <CalendarX className="h-4 w-4" />
+                                <span>Excluído em: {new Date(fatura.excluido_em).toLocaleString('pt-BR', {
+                                  timeZone: 'America/Sao_Paulo',
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}</span>
+                              </div>
                             </div>
+
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                              {fatura.procedimento_nome && (
+                                <p>📋 {fatura.procedimento_nome}</p>
+                              )}
+                              {fatura.profissional_nome && (
+                                <p>👤 {fatura.profissional_nome}</p>
+                              )}
+                              {fatura.forma_pagamento && (
+                                <p>💳 {fatura.forma_pagamento}</p>
+                              )}
+                            </div>
+
+                            {fatura.observacoes && (
+                              <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
+                                {fatura.observacoes}
+                              </p>
+                            )}
+
+                            {fatura.motivo_exclusao && (
+                              <p className="text-sm text-orange-600 bg-orange-500/10 rounded p-2">
+                                <strong>Motivo:</strong> {fatura.motivo_exclusao}
+                              </p>
+                            )}
                           </div>
-
-                          <div className="space-y-1 text-sm text-muted-foreground">
-                            {fatura.procedimento_nome && (
-                              <p>📋 {fatura.procedimento_nome}</p>
-                            )}
-                            {fatura.profissional_nome && (
-                              <p>👤 {fatura.profissional_nome}</p>
-                            )}
-                            {fatura.forma_pagamento && (
-                              <p>💳 {fatura.forma_pagamento}</p>
-                            )}
-                          </div>
-
-                          {fatura.observacoes && (
-                            <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
-                              {fatura.observacoes}
-                            </p>
-                          )}
-
-                          {fatura.motivo_exclusao && (
-                            <p className="text-sm text-orange-600 bg-orange-500/10 rounded p-2">
-                              <strong>Motivo:</strong> {fatura.motivo_exclusao}
-                            </p>
-                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remover do histórico</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja remover este registro do histórico? Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={async () => {
+                                    try {
+                                      await deleteFaturaLog.mutateAsync(fatura.id);
+                                      toast({ title: "Registro removido do histórico" });
+                                    } catch {
+                                      toast({ title: "Erro ao remover", variant: "destructive" });
+                                    }
+                                  }}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Remover
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </Card>
                     ))}
