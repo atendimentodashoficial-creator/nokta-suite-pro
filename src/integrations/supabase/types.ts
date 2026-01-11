@@ -1539,6 +1539,66 @@ export type Database = {
           },
         ]
       }
+      faturas_excluidas_log: {
+        Row: {
+          cliente_id: string
+          cliente_nome: string
+          cliente_telefone: string
+          created_at: string
+          excluido_em: string
+          forma_pagamento: string | null
+          id: string
+          meio_pagamento: string | null
+          motivo_exclusao: string | null
+          observacoes: string | null
+          procedimento_id: string | null
+          procedimento_nome: string | null
+          profissional_id: string | null
+          profissional_nome: string | null
+          status: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          cliente_id: string
+          cliente_nome: string
+          cliente_telefone: string
+          created_at?: string
+          excluido_em?: string
+          forma_pagamento?: string | null
+          id?: string
+          meio_pagamento?: string | null
+          motivo_exclusao?: string | null
+          observacoes?: string | null
+          procedimento_id?: string | null
+          procedimento_nome?: string | null
+          profissional_id?: string | null
+          profissional_nome?: string | null
+          status: string
+          user_id: string
+          valor: number
+        }
+        Update: {
+          cliente_id?: string
+          cliente_nome?: string
+          cliente_telefone?: string
+          created_at?: string
+          excluido_em?: string
+          forma_pagamento?: string | null
+          id?: string
+          meio_pagamento?: string | null
+          motivo_exclusao?: string | null
+          observacoes?: string | null
+          procedimento_id?: string | null
+          procedimento_nome?: string | null
+          profissional_id?: string | null
+          profissional_nome?: string | null
+          status?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       google_ads_accounts: {
         Row: {
           account_name: string | null

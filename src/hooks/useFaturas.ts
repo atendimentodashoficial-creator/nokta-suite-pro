@@ -93,6 +93,49 @@ export const useDeleteFatura = () => {
   
   return useMutation({
     mutationFn: async (faturaId: string) => {
+      // Primeiro buscar os dados da fatura para logar
+      const { data: fatura, error: fetchError } = await supabase
+        .from("faturas")
+        .select(`
+          *,
+          leads:cliente_id(nome, telefone),
+          procedimentos:procedimento_id(nome),
+          profissionais:profissional_id(nome)
+        `)
+        .eq("id", faturaId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!fatura) throw new Error("Fatura não encontrada");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // Logar a exclusão antes de deletar
+      const { error: logError } = await supabase
+        .from("faturas_excluidas_log")
+        .insert({
+          user_id: user.id,
+          cliente_id: fatura.cliente_id,
+          cliente_nome: (fatura.leads as any)?.nome || "Desconhecido",
+          cliente_telefone: (fatura.leads as any)?.telefone || "",
+          procedimento_id: fatura.procedimento_id,
+          procedimento_nome: (fatura.procedimentos as any)?.nome || null,
+          profissional_id: fatura.profissional_id,
+          profissional_nome: (fatura.profissionais as any)?.nome || null,
+          valor: fatura.valor,
+          status: fatura.status,
+          observacoes: fatura.observacoes,
+          meio_pagamento: fatura.meio_pagamento,
+          forma_pagamento: fatura.forma_pagamento,
+          motivo_exclusao: "Excluído manualmente"
+        });
+
+      if (logError) {
+        console.error("Erro ao logar exclusão de fatura:", logError);
+        // Não bloquear a exclusão se falhar o log
+      }
+
       // Delete related records first
       await supabase.from("fatura_upsells").delete().eq("fatura_id", faturaId);
       await supabase.from("fatura_agendamentos").delete().eq("fatura_id", faturaId);
@@ -106,8 +149,29 @@ export const useDeleteFatura = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
+      queryClient.invalidateQueries({ queryKey: ["faturas-excluidas"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+    },
+  });
+};
+
+// Hook para buscar faturas excluídas
+export const useFaturasExcluidas = () => {
+  return useQuery({
+    queryKey: ["faturas-excluidas"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("faturas_excluidas_log")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("excluido_em", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     },
   });
 };
