@@ -67,11 +67,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 interface FunnelData {
+  campaign_id: string | null;
   campaign_name: string;
-  adset_name: string | null;
   adset_id: string | null;
-  ad_name: string | null;
+  adset_name: string | null;
   ad_id: string | null;
+  ad_name: string | null;
   leads: number;
   agendados: number;
   compareceu: number;
@@ -491,11 +492,12 @@ export function FunilConversaoTab() {
         nome: string;
         telefone: string;
         status: any;
+        fb_campaign_id: string | null;
         fb_campaign_name: string | null;
-        fb_adset_name: string | null;
         fb_adset_id: string | null;
-        fb_ad_name: string | null;
+        fb_adset_name: string | null;
         fb_ad_id: string | null;
+        fb_ad_name: string | null;
         fbclid: string | null;
         gclid: string | null;
         utm_source: string | null;
@@ -511,11 +513,12 @@ export function FunilConversaoTab() {
           nome,
           telefone,
           status,
+          fb_campaign_id,
           fb_campaign_name,
-          fb_adset_name,
           fb_adset_id,
-          fb_ad_name,
+          fb_adset_name,
           fb_ad_id,
+          fb_ad_name,
           fbclid,
           gclid,
           utm_source,
@@ -793,11 +796,12 @@ export function FunilConversaoTab() {
       const bestCampaignByPhone: Record<
         string,
         {
+          fb_campaign_id: string | null;
           fb_campaign_name: string | null;
-          fb_adset_name: string | null;
           fb_adset_id: string | null;
-          fb_ad_name: string | null;
+          fb_adset_name: string | null;
           fb_ad_id: string | null;
+          fb_ad_name: string | null;
         }
       > = {};
       const bestCampaignTsByPhone: Record<string, number> = {};
@@ -814,11 +818,12 @@ export function FunilConversaoTab() {
 
         bestCampaignTsByPhone[phone] = t;
         bestCampaignByPhone[phone] = {
+          fb_campaign_id: l.fb_campaign_id,
           fb_campaign_name: l.fb_campaign_name,
-          fb_adset_name: l.fb_adset_name,
           fb_adset_id: l.fb_adset_id,
-          fb_ad_name: l.fb_ad_name,
+          fb_adset_name: l.fb_adset_name,
           fb_ad_id: l.fb_ad_id,
+          fb_ad_name: l.fb_ad_name,
         };
       });
 
@@ -972,31 +977,34 @@ export function FunilConversaoTab() {
           const key = "___DISPAROS___";
           return { 
             key, 
+            campaignId: null,
             campaign: "📤 Via Disparos", 
-            adset: "Campanhas de disparo em massa",
             adsetId: null,
-            ad: "—", 
-            adId: null 
+            adset: "Campanhas de disparo em massa",
+            adId: null,
+            ad: "—"
           };
         }
 
         const fromLead = pickAttributionLead(phone, opts?.eventTs, opts?.preferredLeadId);
         const fallback = bestCampaignByPhone[phone];
 
+        const campaignId = fromLead?.fb_campaign_id || fallback?.fb_campaign_id || null;
         const campaign = fromLead?.fb_campaign_name || fallback?.fb_campaign_name || "Sem campanha";
-        const adset = fromLead?.fb_adset_name || fallback?.fb_adset_name || "Sem conjunto";
         const adsetId = fromLead?.fb_adset_id || fallback?.fb_adset_id || null;
-        const ad = fromLead?.fb_ad_name || fallback?.fb_ad_name || "Sem anúncio";
+        const adset = fromLead?.fb_adset_name || fallback?.fb_adset_name || "Sem conjunto";
         const adId = fromLead?.fb_ad_id || fallback?.fb_ad_id || null;
+        const ad = fromLead?.fb_ad_name || fallback?.fb_ad_name || "Sem anúncio";
 
         let key: string;
-        if (viewLevel === "campaign") key = campaign;
+        // Use campaignId when available for unique identification, fallback to name
+        if (viewLevel === "campaign") key = campaignId ? campaignId : campaign;
         // Use adsetId when available for unique identification, fallback to name
-        else if (viewLevel === "adset") key = adsetId ? `${campaign}|||${adsetId}` : `${campaign}|||${adset}`;
+        else if (viewLevel === "adset") key = adsetId ? `${campaignId || campaign}|||${adsetId}` : `${campaign}|||${adset}`;
         // Use adId when available for unique identification, fallback to name
-        else key = adId ? `${campaign}|||${adsetId || adset}|||${adId}` : `${campaign}|||${adsetId || adset}|||${ad}`;
+        else key = adId ? `${campaignId || campaign}|||${adsetId || adset}|||${adId}` : `${campaign}|||${adsetId || adset}|||${ad}`;
 
-        return { key, campaign, adset, adsetId, ad, adId };
+        return { key, campaignId, campaign, adsetId, adset, adId, ad };
       };
 
       // Agrupar por campanha/conjunto/anúncio
@@ -1025,48 +1033,53 @@ export function FunilConversaoTab() {
       };
 
       const bumpAllLevels = (attr: ReturnType<typeof getAttribution>) => {
-        // Campaign
-        ensureGroup(groupedCampaign, attr.campaign, {
+        // Campaign - use campaignId for unique key when available
+        const campaignKey = attr.campaignId ? attr.campaignId : attr.campaign;
+        ensureGroup(groupedCampaign, campaignKey, {
+          campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
-          adset_name: null,
           adset_id: null,
-          ad_name: null,
+          adset_name: null,
           ad_id: null,
+          ad_name: null,
         });
 
         // Adset - use adsetId for unique key when available
-        const adsetKey = attr.adsetId ? `${attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
+        const adsetKey = attr.adsetId ? `${attr.campaignId || attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
         ensureGroup(groupedAdset, adsetKey, {
+          campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
-          adset_name: attr.adset,
           adset_id: attr.adsetId,
-          ad_name: null,
+          adset_name: attr.adset,
           ad_id: null,
+          ad_name: null,
         });
 
         // Ad - use adId for unique key when available
         const adKey = attr.adId 
-          ? `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.adId}` 
+          ? `${attr.campaignId || attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.adId}` 
           : `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
         ensureGroup(groupedAd, adKey, {
+          campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
-          adset_name: attr.adset,
           adset_id: attr.adsetId,
-          ad_name: attr.ad,
+          adset_name: attr.adset,
           ad_id: attr.adId,
+          ad_name: attr.ad,
         });
       };
 
       const bumpMetric = (attr: ReturnType<typeof getAttribution>, field: keyof Pick<FunnelData, "leads" | "agendados" | "compareceu" | "nao_compareceu" | "em_negociacao" | "clientes" | "valor_fechado">, amount: number) => {
         bumpAllLevels(attr);
 
-        groupedCampaign[attr.campaign][field] += amount;
+        const campaignKey = attr.campaignId ? attr.campaignId : attr.campaign;
+        groupedCampaign[campaignKey][field] += amount;
 
-        const adsetKey = attr.adsetId ? `${attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
+        const adsetKey = attr.adsetId ? `${attr.campaignId || attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
         groupedAdset[adsetKey][field] += amount;
 
         const adKey = attr.adId 
-          ? `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.adId}` 
+          ? `${attr.campaignId || attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.adId}` 
           : `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
         groupedAd[adKey][field] += amount;
       };
