@@ -109,9 +109,10 @@ export default function Dashboard() {
       return true;
     }) || [];
 
+    // Filtrar agendamentos por created_at (quando foi criado), não data_agendamento (quando está marcado)
     const agends = agendamentos?.filter(ag => {
       if (!dataInicial && !dataFinal) return true;
-      const agDate = new Date(ag.data_agendamento);
+      const agDate = new Date(ag.created_at);
       if (dataInicial && agDate < dataInicial) return false;
       if (dataFinal && agDate > dataFinal) return false;
       return true;
