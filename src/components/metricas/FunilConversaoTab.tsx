@@ -1258,12 +1258,25 @@ export function FunilConversaoTab() {
   }, [spendData]);
 
   // Criar mapa de gastos por adset (chave: campaign::adset)
+  // Mesma lógica do anúncio: somar o spend dos anúncios pertencentes ao conjunto.
+  // (Evita qualquer inconsistência quando o breakdown de adset vier agregado de forma diferente.)
   const spendByAdset = useMemo(() => {
     const map: Record<string, number> = {};
-    spendBreakdown?.adset_spend?.forEach((s: { adset_name: string; campaign_name: string; spend: number }) => {
+
+    // Preferir derivar do nível "ad" (mais granular)
+    spendBreakdown?.ad_spend?.forEach((s: { ad_name: string; adset_name: string; campaign_name: string; spend: number }) => {
       const key = `${s.campaign_name}::${s.adset_name}`;
-      map[key] = (map[key] || 0) + s.spend;
+      map[key] = (map[key] || 0) + (s.spend || 0);
     });
+
+    // Fallback: se não vier ad_spend, usar adset_spend
+    if (Object.keys(map).length === 0) {
+      spendBreakdown?.adset_spend?.forEach((s: { adset_name: string; campaign_name: string; spend: number }) => {
+        const key = `${s.campaign_name}::${s.adset_name}`;
+        map[key] = (map[key] || 0) + (s.spend || 0);
+      });
+    }
+
     return map;
   }, [spendBreakdown]);
 
@@ -2097,18 +2110,6 @@ export function FunilConversaoTab() {
                     } else if (viewLevel === "adset" && row.adset_name) {
                       const adsetKey = `${row.campaign_name}::${row.adset_name}`;
                       spend = spendByAdset[adsetKey] || 0;
-
-                      // Debug: entender quando o adset cai no gasto da campanha
-                      if (idx < 5) {
-                        console.log("[FUNIL][ADSET][SPEND]", {
-                          campaign: row.campaign_name,
-                          adset: row.adset_name,
-                          adsetKey,
-                          spendFromAdset: spendByAdset[adsetKey] ?? 0,
-                          spendFromCampaign: spendByCampaign[row.campaign_name] ?? 0,
-                          picked: spend,
-                        });
-                      }
                     } else {
                       spend = spendByCampaign[row.campaign_name] || 0;
                     }
