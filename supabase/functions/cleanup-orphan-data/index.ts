@@ -13,6 +13,17 @@ interface CleanupOptions {
   mensagensOrfas: boolean;
 }
 
+interface ResetOptions {
+  leads: boolean;
+  agendamentos: boolean;
+  faturas: boolean;
+  chatsWhatsApp: boolean;
+  chatsDisparos: boolean;
+  campanhasDisparos: boolean;
+  listasExtrator: boolean;
+  historico: boolean;
+}
+
 interface CleanupResult {
   leadsSoftDeleted: number;
   leadsDuplicados: number;
@@ -21,6 +32,35 @@ interface CleanupResult {
   chatsDisparosOrfaos: number;
   mensagensWhatsAppOrfas: number;
   mensagensDisparosOrfas: number;
+}
+
+interface ResetResult {
+  leads: number;
+  agendamentos: number;
+  faturas: number;
+  chatsWhatsApp: number;
+  chatsDisparos: number;
+  campanhasDisparos: number;
+  listasExtrator: number;
+  historico: number;
+}
+
+type PeriodOption = "7d" | "30d" | "90d" | "1y" | "max";
+
+function getPeriodDate(period: PeriodOption): Date | null {
+  const now = new Date();
+  switch (period) {
+    case "7d":
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case "30d":
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    case "90d":
+      return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    case "1y":
+      return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    case "max":
+      return null; // No date filter
+  }
 }
 
 Deno.serve(async (req) => {
@@ -40,7 +80,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Client with user token to get user ID
     const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -54,241 +93,451 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-
-    // Service role client for deletions
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { options, dryRun = false } = await req.json() as { options: CleanupOptions; dryRun?: boolean };
-    const result: CleanupResult = {
-      leadsSoftDeleted: 0,
-      leadsDuplicados: 0,
-      agendamentosOrfaos: 0,
-      chatsWhatsAppOrfaos: 0,
-      chatsDisparosOrfaos: 0,
-      mensagensWhatsAppOrfas: 0,
-      mensagensDisparosOrfas: 0,
+    const { mode, options, period = "max", dryRun = false } = await req.json() as { 
+      mode: "orphan" | "reset";
+      options: CleanupOptions | ResetOptions;
+      period?: PeriodOption;
+      dryRun?: boolean;
     };
 
-    // Helper: normalize phone to last 8 digits (same as app logic)
+    const periodDate = getPeriodDate(period);
+    const periodIso = periodDate?.toISOString();
+
+    // Helper functions
     const phoneKey = (phone: string): string => {
       const clean = phone.replace(/\D/g, "");
       return clean.length > 8 ? clean.slice(-8) : clean;
     };
 
-    // 1. Leads soft-deleted (deleted_at IS NOT NULL)
-    if (options.leadsSoftDeleted) {
-      const { data: softDeleted } = await supabase
-        .from("leads")
-        .select("id")
-        .eq("user_id", userId)
-        .not("deleted_at", "is", null);
+    if (mode === "orphan") {
+      const cleanupOpts = options as CleanupOptions;
+      const result: CleanupResult = {
+        leadsSoftDeleted: 0,
+        leadsDuplicados: 0,
+        agendamentosOrfaos: 0,
+        chatsWhatsAppOrfaos: 0,
+        chatsDisparosOrfaos: 0,
+        mensagensWhatsAppOrfas: 0,
+        mensagensDisparosOrfas: 0,
+      };
 
-      result.leadsSoftDeleted = softDeleted?.length || 0;
+      // 1. Leads soft-deleted
+      if (cleanupOpts.leadsSoftDeleted) {
+        const { data: softDeleted } = await supabase
+          .from("leads")
+          .select("id")
+          .eq("user_id", userId)
+          .not("deleted_at", "is", null);
 
-      if (!dryRun && softDeleted && softDeleted.length > 0) {
-        const ids = softDeleted.map(l => l.id);
-        // Delete related records first
-        await supabase.from("historico_leads").delete().in("lead_id", ids);
-        await supabase.from("leads").delete().in("id", ids);
-      }
-    }
+        result.leadsSoftDeleted = softDeleted?.length || 0;
 
-    // 2. Leads duplicados (mesmo telefone, apenas o mais antigo é visível)
-    if (options.leadsDuplicados) {
-      const { data: allLeads } = await supabase
-        .from("leads")
-        .select("id, telefone, created_at")
-        .eq("user_id", userId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: true });
-
-      if (allLeads) {
-        // Group by phone key, keep only the first (oldest)
-        const primaryByPhone: Record<string, string> = {};
-        const duplicateIds: string[] = [];
-
-        for (const lead of allLeads) {
-          const key = phoneKey(lead.telefone);
-          if (!primaryByPhone[key]) {
-            primaryByPhone[key] = lead.id;
-          } else {
-            duplicateIds.push(lead.id);
-          }
-        }
-
-        result.leadsDuplicados = duplicateIds.length;
-
-        if (!dryRun && duplicateIds.length > 0) {
-          // Soft delete duplicates (set deleted_at)
-          await supabase
-            .from("leads")
-            .update({ deleted_at: new Date().toISOString() })
-            .in("id", duplicateIds);
+        if (!dryRun && softDeleted && softDeleted.length > 0) {
+          const ids = softDeleted.map(l => l.id);
+          await supabase.from("historico_leads").delete().in("lead_id", ids);
+          await supabase.from("leads").delete().in("id", ids);
         }
       }
-    }
 
-    // 3. Agendamentos órfãos (status "realizado" sem fatura vinculada)
-    if (options.agendamentosOrfaos) {
-      // Get all faturas with their agendamento links
-      const { data: faturas } = await supabase
-        .from("faturas")
-        .select("id, fatura_agendamentos(agendamento_id)")
-        .eq("user_id", userId);
+      // 2. Leads duplicados
+      if (cleanupOpts.leadsDuplicados) {
+        const { data: allLeads } = await supabase
+          .from("leads")
+          .select("id, telefone, created_at")
+          .eq("user_id", userId)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: true });
 
-      const agendamentoIdsComFatura = new Set<string>();
-      faturas?.forEach((f: any) => {
-        f.fatura_agendamentos?.forEach((fa: any) => {
-          if (fa.agendamento_id) {
-            agendamentoIdsComFatura.add(fa.agendamento_id);
+        if (allLeads) {
+          const primaryByPhone: Record<string, string> = {};
+          const duplicateIds: string[] = [];
+
+          for (const lead of allLeads) {
+            const key = phoneKey(lead.telefone);
+            if (!primaryByPhone[key]) {
+              primaryByPhone[key] = lead.id;
+            } else {
+              duplicateIds.push(lead.id);
+            }
           }
+
+          result.leadsDuplicados = duplicateIds.length;
+
+          if (!dryRun && duplicateIds.length > 0) {
+            await supabase
+              .from("leads")
+              .update({ deleted_at: new Date().toISOString() })
+              .in("id", duplicateIds);
+          }
+        }
+      }
+
+      // 3. Agendamentos órfãos
+      if (cleanupOpts.agendamentosOrfaos) {
+        const { data: faturas } = await supabase
+          .from("faturas")
+          .select("id, fatura_agendamentos(agendamento_id)")
+          .eq("user_id", userId);
+
+        const agendamentoIdsComFatura = new Set<string>();
+        faturas?.forEach((f: any) => {
+          f.fatura_agendamentos?.forEach((fa: any) => {
+            if (fa.agendamento_id) {
+              agendamentoIdsComFatura.add(fa.agendamento_id);
+            }
+          });
         });
-      });
 
-      // Find agendamentos with status "realizado" but no fatura
-      const { data: agendamentos } = await supabase
+        const { data: agendamentos } = await supabase
+          .from("agendamentos")
+          .select("id, status")
+          .eq("user_id", userId)
+          .eq("status", "realizado");
+
+        const orphanAgendamentos = agendamentos?.filter(
+          a => !agendamentoIdsComFatura.has(a.id)
+        ) || [];
+
+        result.agendamentosOrfaos = orphanAgendamentos.length;
+
+        if (!dryRun && orphanAgendamentos.length > 0) {
+          const ids = orphanAgendamentos.map(a => a.id);
+          await supabase.from("avisos_enviados_log").delete().in("agendamento_id", ids);
+          await supabase.from("fatura_agendamentos").delete().in("agendamento_id", ids);
+          await supabase.from("agendamentos").delete().in("id", ids);
+        }
+      }
+
+      // 4. Chats órfãos
+      if (cleanupOpts.chatsOrfaos) {
+        const { data: activeLeads } = await supabase
+          .from("leads")
+          .select("telefone")
+          .eq("user_id", userId)
+          .is("deleted_at", null);
+
+        const activePhoneKeys = new Set<string>();
+        activeLeads?.forEach(l => {
+          activePhoneKeys.add(phoneKey(l.telefone));
+        });
+
+        // WhatsApp chats
+        const { data: whatsappChats } = await supabase
+          .from("whatsapp_chats")
+          .select("id, contact_number")
+          .eq("user_id", userId)
+          .is("deleted_at", null);
+
+        const orphanWhatsappChats = whatsappChats?.filter(c => {
+          const key = phoneKey(c.contact_number);
+          return !activePhoneKeys.has(key);
+        }) || [];
+
+        result.chatsWhatsAppOrfaos = orphanWhatsappChats.length;
+
+        if (!dryRun && orphanWhatsappChats.length > 0) {
+          const ids = orphanWhatsappChats.map(c => c.id);
+          await supabase.from("whatsapp_messages").delete().in("chat_id", ids);
+          await supabase.from("whatsapp_chat_kanban").delete().in("chat_id", ids);
+          await supabase.from("whatsapp_chats").delete().in("id", ids);
+        }
+
+        // Disparos chats
+        const { data: disparosChats } = await supabase
+          .from("disparos_chats")
+          .select("id, contact_number")
+          .eq("user_id", userId)
+          .is("deleted_at", null);
+
+        const orphanDisparosChats = disparosChats?.filter(c => {
+          const key = phoneKey(c.contact_number);
+          return !activePhoneKeys.has(key);
+        }) || [];
+
+        result.chatsDisparosOrfaos = orphanDisparosChats.length;
+
+        if (!dryRun && orphanDisparosChats.length > 0) {
+          const ids = orphanDisparosChats.map(c => c.id);
+          await supabase.from("disparos_messages").delete().in("chat_id", ids);
+          await supabase.from("disparos_chat_kanban").delete().in("chat_id", ids);
+          await supabase.from("disparos_chats").delete().in("id", ids);
+        }
+      }
+
+      // 5. Mensagens órfãs
+      if (cleanupOpts.mensagensOrfas) {
+        const { data: validWhatsappChatIds } = await supabase
+          .from("whatsapp_chats")
+          .select("id")
+          .eq("user_id", userId);
+
+        const validWaChatSet = new Set(validWhatsappChatIds?.map(c => c.id) || []);
+
+        const { data: waMessages } = await supabase
+          .from("whatsapp_messages")
+          .select("id, chat_id");
+
+        const orphanWaMessageIds = waMessages?.filter(m => !validWaChatSet.has(m.chat_id)).map(m => m.id) || [];
+        result.mensagensWhatsAppOrfas = orphanWaMessageIds.length;
+
+        if (!dryRun && orphanWaMessageIds.length > 0) {
+          for (let i = 0; i < orphanWaMessageIds.length; i += 500) {
+            const batch = orphanWaMessageIds.slice(i, i + 500);
+            await supabase.from("whatsapp_messages").delete().in("id", batch);
+          }
+        }
+
+        const { data: validDisparosChatIds } = await supabase
+          .from("disparos_chats")
+          .select("id")
+          .eq("user_id", userId);
+
+        const validDispChatSet = new Set(validDisparosChatIds?.map(c => c.id) || []);
+
+        const { data: dispMessages } = await supabase
+          .from("disparos_messages")
+          .select("id, chat_id");
+
+        const orphanDispMessageIds = dispMessages?.filter(m => !validDispChatSet.has(m.chat_id)).map(m => m.id) || [];
+        result.mensagensDisparosOrfas = orphanDispMessageIds.length;
+
+        if (!dryRun && orphanDispMessageIds.length > 0) {
+          for (let i = 0; i < orphanDispMessageIds.length; i += 500) {
+            const batch = orphanDispMessageIds.slice(i, i + 500);
+            await supabase.from("disparos_messages").delete().in("id", batch);
+          }
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, dryRun, result }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // MODE: RESET
+    const resetOpts = options as ResetOptions;
+    const result: ResetResult = {
+      leads: 0,
+      agendamentos: 0,
+      faturas: 0,
+      chatsWhatsApp: 0,
+      chatsDisparos: 0,
+      campanhasDisparos: 0,
+      listasExtrator: 0,
+      historico: 0,
+    };
+
+    // Helper to build period query
+    const withPeriod = (query: any, dateColumn: string = "created_at") => {
+      if (periodIso) {
+        return query.gte(dateColumn, periodIso);
+      }
+      return query;
+    };
+
+    // 1. Histórico (must be deleted before leads due to FK)
+    if (resetOpts.historico) {
+      let query = supabase
+        .from("historico_leads")
+        .select("id", { count: "exact" })
+        .eq("user_id", userId);
+      
+      query = withPeriod(query, "data_alteracao");
+      const { count } = await query;
+      result.historico = count || 0;
+
+      if (!dryRun && result.historico > 0) {
+        let deleteQuery = supabase
+          .from("historico_leads")
+          .delete()
+          .eq("user_id", userId);
+        
+        if (periodIso) {
+          deleteQuery = deleteQuery.gte("data_alteracao", periodIso);
+        }
+        await deleteQuery;
+      }
+    }
+
+    // 2. Faturas (before agendamentos due to fatura_agendamentos FK)
+    if (resetOpts.faturas) {
+      let query = supabase
+        .from("faturas")
+        .select("id", { count: "exact" })
+        .eq("user_id", userId);
+      
+      query = withPeriod(query);
+      const { data: faturaIds, count } = await query;
+      result.faturas = count || 0;
+
+      if (!dryRun && faturaIds && faturaIds.length > 0) {
+        const ids = faturaIds.map((f: any) => f.id);
+        // Delete related records
+        await supabase.from("fatura_upsells").delete().in("fatura_id", ids);
+        await supabase.from("fatura_agendamentos").delete().in("fatura_id", ids);
+        await supabase.from("meta_conversion_events").delete().in("fatura_id", ids);
+        await supabase.from("faturas").delete().in("id", ids);
+      }
+    }
+
+    // 3. Agendamentos
+    if (resetOpts.agendamentos) {
+      let query = supabase
         .from("agendamentos")
-        .select("id, status")
-        .eq("user_id", userId)
-        .eq("status", "realizado");
+        .select("id", { count: "exact" })
+        .eq("user_id", userId);
+      
+      query = withPeriod(query);
+      const { data: agendamentoIds, count } = await query;
+      result.agendamentos = count || 0;
 
-      const orphanAgendamentos = agendamentos?.filter(
-        a => !agendamentoIdsComFatura.has(a.id)
-      ) || [];
-
-      result.agendamentosOrfaos = orphanAgendamentos.length;
-
-      if (!dryRun && orphanAgendamentos.length > 0) {
-        const ids = orphanAgendamentos.map(a => a.id);
-        // Delete avisos first
+      if (!dryRun && agendamentoIds && agendamentoIds.length > 0) {
+        const ids = agendamentoIds.map((a: any) => a.id);
         await supabase.from("avisos_enviados_log").delete().in("agendamento_id", ids);
         await supabase.from("fatura_agendamentos").delete().in("agendamento_id", ids);
+        await supabase.from("meta_conversion_events").delete().in("agendamento_id", ids);
         await supabase.from("agendamentos").delete().in("id", ids);
       }
     }
 
-    // 4. Chats órfãos (sem lead correspondente ativo)
-    if (options.chatsOrfaos) {
-      // Get all active leads' phone keys
-      const { data: activeLeads } = await supabase
+    // 4. Leads
+    if (resetOpts.leads) {
+      let query = supabase
         .from("leads")
-        .select("telefone")
-        .eq("user_id", userId)
-        .is("deleted_at", null);
+        .select("id", { count: "exact" })
+        .eq("user_id", userId);
+      
+      query = withPeriod(query);
+      const { data: leadIds, count } = await query;
+      result.leads = count || 0;
 
-      const activePhoneKeys = new Set<string>();
-      activeLeads?.forEach(l => {
-        activePhoneKeys.add(phoneKey(l.telefone));
-      });
+      if (!dryRun && leadIds && leadIds.length > 0) {
+        const ids = leadIds.map((l: any) => l.id);
+        // Delete related records in order
+        await supabase.from("historico_leads").delete().in("lead_id", ids);
+        await supabase.from("meta_conversion_events").delete().in("lead_id", ids);
+        await supabase.from("avisos_enviados_log").delete().in("cliente_id", ids);
+        
+        // Delete agendamentos for these leads
+        const { data: agendamentos } = await supabase
+          .from("agendamentos")
+          .select("id")
+          .in("cliente_id", ids);
+        
+        if (agendamentos && agendamentos.length > 0) {
+          const agIds = agendamentos.map((a: any) => a.id);
+          await supabase.from("fatura_agendamentos").delete().in("agendamento_id", agIds);
+          await supabase.from("avisos_enviados_log").delete().in("agendamento_id", agIds);
+          await supabase.from("agendamentos").delete().in("id", agIds);
+        }
 
-      // WhatsApp chats
-      const { data: whatsappChats } = await supabase
+        // Delete faturas for these leads
+        const { data: faturas } = await supabase
+          .from("faturas")
+          .select("id")
+          .in("cliente_id", ids);
+        
+        if (faturas && faturas.length > 0) {
+          const fatIds = faturas.map((f: any) => f.id);
+          await supabase.from("fatura_upsells").delete().in("fatura_id", fatIds);
+          await supabase.from("fatura_agendamentos").delete().in("fatura_id", fatIds);
+          await supabase.from("faturas").delete().in("id", fatIds);
+        }
+
+        await supabase.from("leads").delete().in("id", ids);
+      }
+    }
+
+    // 5. Chats WhatsApp
+    if (resetOpts.chatsWhatsApp) {
+      let query = supabase
         .from("whatsapp_chats")
-        .select("id, contact_number")
-        .eq("user_id", userId)
-        .is("deleted_at", null);
+        .select("id", { count: "exact" })
+        .eq("user_id", userId);
+      
+      query = withPeriod(query);
+      const { data: chatIds, count } = await query;
+      result.chatsWhatsApp = count || 0;
 
-      const orphanWhatsappChats = whatsappChats?.filter(c => {
-        const key = phoneKey(c.contact_number);
-        return !activePhoneKeys.has(key);
-      }) || [];
-
-      result.chatsWhatsAppOrfaos = orphanWhatsappChats.length;
-
-      if (!dryRun && orphanWhatsappChats.length > 0) {
-        const ids = orphanWhatsappChats.map(c => c.id);
+      if (!dryRun && chatIds && chatIds.length > 0) {
+        const ids = chatIds.map((c: any) => c.id);
         await supabase.from("whatsapp_messages").delete().in("chat_id", ids);
         await supabase.from("whatsapp_chat_kanban").delete().in("chat_id", ids);
         await supabase.from("whatsapp_chats").delete().in("id", ids);
       }
+    }
 
-      // Disparos chats
-      const { data: disparosChats } = await supabase
+    // 6. Chats Disparos
+    if (resetOpts.chatsDisparos) {
+      let query = supabase
         .from("disparos_chats")
-        .select("id, contact_number")
-        .eq("user_id", userId)
-        .is("deleted_at", null);
+        .select("id", { count: "exact" })
+        .eq("user_id", userId);
+      
+      query = withPeriod(query);
+      const { data: chatIds, count } = await query;
+      result.chatsDisparos = count || 0;
 
-      const orphanDisparosChats = disparosChats?.filter(c => {
-        const key = phoneKey(c.contact_number);
-        return !activePhoneKeys.has(key);
-      }) || [];
-
-      result.chatsDisparosOrfaos = orphanDisparosChats.length;
-
-      if (!dryRun && orphanDisparosChats.length > 0) {
-        const ids = orphanDisparosChats.map(c => c.id);
+      if (!dryRun && chatIds && chatIds.length > 0) {
+        const ids = chatIds.map((c: any) => c.id);
         await supabase.from("disparos_messages").delete().in("chat_id", ids);
         await supabase.from("disparos_chat_kanban").delete().in("chat_id", ids);
         await supabase.from("disparos_chats").delete().in("id", ids);
       }
     }
 
-    // 5. Mensagens órfãs (de chats que não existem mais)
-    if (options.mensagensOrfas) {
-      // WhatsApp messages without valid chat
-      const { data: validWhatsappChatIds } = await supabase
-        .from("whatsapp_chats")
-        .select("id")
+    // 7. Campanhas Disparos
+    if (resetOpts.campanhasDisparos) {
+      let query = supabase
+        .from("disparos_campanhas")
+        .select("id", { count: "exact" })
         .eq("user_id", userId);
+      
+      query = withPeriod(query);
+      const { data: campanhaIds, count } = await query;
+      result.campanhasDisparos = count || 0;
 
-      const validWaChatSet = new Set(validWhatsappChatIds?.map(c => c.id) || []);
-
-      // Get distinct chat_ids from messages
-      const { data: waMessages } = await supabase
-        .from("whatsapp_messages")
-        .select("id, chat_id");
-
-      const orphanWaMessageIds = waMessages?.filter(m => !validWaChatSet.has(m.chat_id)).map(m => m.id) || [];
-      result.mensagensWhatsAppOrfas = orphanWaMessageIds.length;
-
-      if (!dryRun && orphanWaMessageIds.length > 0) {
-        // Delete in batches of 500
-        for (let i = 0; i < orphanWaMessageIds.length; i += 500) {
-          const batch = orphanWaMessageIds.slice(i, i + 500);
-          await supabase.from("whatsapp_messages").delete().in("id", batch);
-        }
-      }
-
-      // Disparos messages without valid chat
-      const { data: validDisparosChatIds } = await supabase
-        .from("disparos_chats")
-        .select("id")
-        .eq("user_id", userId);
-
-      const validDispChatSet = new Set(validDisparosChatIds?.map(c => c.id) || []);
-
-      const { data: dispMessages } = await supabase
-        .from("disparos_messages")
-        .select("id, chat_id");
-
-      const orphanDispMessageIds = dispMessages?.filter(m => !validDispChatSet.has(m.chat_id)).map(m => m.id) || [];
-      result.mensagensDisparosOrfas = orphanDispMessageIds.length;
-
-      if (!dryRun && orphanDispMessageIds.length > 0) {
-        for (let i = 0; i < orphanDispMessageIds.length; i += 500) {
-          const batch = orphanDispMessageIds.slice(i, i + 500);
-          await supabase.from("disparos_messages").delete().in("id", batch);
-        }
+      if (!dryRun && campanhaIds && campanhaIds.length > 0) {
+        const ids = campanhaIds.map((c: any) => c.id);
+        await supabase.from("disparos_campanha_contatos").delete().in("campanha_id", ids);
+        await supabase.from("disparos_campanha_variacoes").delete().in("campanha_id", ids);
+        await supabase.from("disparos_campanhas").delete().in("id", ids);
       }
     }
 
-    const totalCleaned = Object.values(result).reduce((a, b) => a + b, 0);
+    // 8. Listas Extrator
+    if (resetOpts.listasExtrator) {
+      let query = supabase
+        .from("listas_extrator")
+        .select("id", { count: "exact" })
+        .eq("user_id", userId);
+      
+      query = withPeriod(query);
+      const { count } = await query;
+      result.listasExtrator = count || 0;
+
+      if (!dryRun && result.listasExtrator > 0) {
+        let deleteQuery = supabase
+          .from("listas_extrator")
+          .delete()
+          .eq("user_id", userId);
+        
+        if (periodIso) {
+          deleteQuery = deleteQuery.gte("created_at", periodIso);
+        }
+        await deleteQuery;
+      }
+    }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        dryRun,
-        message: dryRun 
-          ? `Encontrados ${totalCleaned} registros órfãos para limpeza`
-          : `${totalCleaned} registros órfãos removidos com sucesso`,
-        result 
-      }),
+      JSON.stringify({ success: true, dryRun, result }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Cleanup error:", err);
-    const errorMessage = err instanceof Error ? err.message : "Erro ao limpar dados";
+    const errorMessage = err instanceof Error ? err.message : "Erro ao processar limpeza";
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
