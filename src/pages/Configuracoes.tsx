@@ -13,6 +13,7 @@ import Personalizacao from "./Personalizacao";
 import Conexoes from "./Conexoes";
 import TiposAgendamento from "./TiposAgendamento";
 import { MetaPixelConfig } from "@/components/configuracoes/MetaPixelConfig";
+import { ResetDataConfig } from "@/components/configuracoes/ResetDataConfig";
 
 const tabOptions = [
   { value: "procedimentos", label: "Procedimentos" },
@@ -25,6 +26,7 @@ const tabOptions = [
   { value: "personalizacao", label: "Personalização" },
   { value: "conexoes", label: "Conexões" },
   { value: "pixel", label: "Meta Pixel" },
+  { value: "reset", label: "Reset" },
 ];
 
 export default function Configuracoes() {
@@ -106,6 +108,10 @@ export default function Configuracoes() {
 
         <TabsContent value="pixel">
           <MetaPixelConfig />
+        </TabsContent>
+
+        <TabsContent value="reset">
+          <ResetDataConfig />
         </TabsContent>
       </Tabs>
     </div>
