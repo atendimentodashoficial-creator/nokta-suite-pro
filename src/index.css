@@ -130,3 +130,14 @@ All colors MUST be HSL.
     @apply block bg-muted p-2 rounded text-sm font-mono overflow-x-auto;
   }
 }
+
+@layer utilities {
+  /* Hide scrollbar for tabs and other scrollable elements */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
