@@ -742,7 +742,7 @@ export function FunilConversaoTab() {
       // Então, um telefone que já existia antes e teve novo registro hoje NÃO deve contar como "lead de hoje".
       const phonesWithLeadInPeriod = new Set<string>();
 
-      // Telefones cujo lead primário é de "Disparos" e foi criado no período
+      // Telefones cujo lead PRIMÁRIO (primeiro registro) é de "Disparos" e foi criado no período
       // (usado para exibir a etiqueta "via Disparos" no card de Leads)
       const phonesWithDisparosLeadInPeriod = new Set<string>();
 
@@ -771,27 +771,13 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Telefones cujo PRIMEIRO lead Disparos (na história) foi criado no período
-      // (usado para exibir a etiqueta "via Disparos" no card de Leads)
-      const firstDisparosLeadOverallByPhone: Record<string, (typeof allLeads)[number]> = {};
-      (allLeads || []).forEach((l) => {
-        const origem = (l.origem || "").toLowerCase();
-        if (origem !== "disparos") return;
-        const phone = phoneKey(l.telefone);
-        const existing = firstDisparosLeadOverallByPhone[phone];
-        if (!existing) {
-          firstDisparosLeadOverallByPhone[phone] = l;
-          return;
-        }
-        const existingTs = new Date(existing.created_at || 0).getTime();
-        const nextTs = new Date(l.created_at || 0).getTime();
-        if (Number.isFinite(nextTs) && nextTs < existingTs) {
-          firstDisparosLeadOverallByPhone[phone] = l;
-        }
-      });
-      Object.values(firstDisparosLeadOverallByPhone).forEach((firstDisparos) => {
-        if (isWithinPeriod(firstDisparos.created_at)) {
-          phonesWithDisparosLeadInPeriod.add(phoneKey(firstDisparos.telefone));
+      // Telefones cujo lead PRIMÁRIO é Disparos e o cadastro primário aconteceu no período
+      // (isso evita marcar como "via Disparos" telefones que só tiveram disparos depois)
+      Object.values(firstLeadByPhone).forEach((primaryLead) => {
+        const phone = phoneKey(primaryLead.telefone);
+        const origem = (primaryLead.origem || "").toLowerCase();
+        if (origem === "disparos" && isWithinPeriod(primaryLead.created_at)) {
+          phonesWithDisparosLeadInPeriod.add(phone);
         }
       });
 
@@ -1004,8 +990,8 @@ export function FunilConversaoTab() {
             const t = attributionTs(candidates[i]);
             if (Number.isFinite(t) && t <= eventTs) return candidates[i];
           }
-          // Se nenhum candidato for anterior ao evento, retornamos o mais antigo (mais seguro) ao invés do mais recente
-          return candidates[0];
+          // Nenhuma atribuição existia até o momento do evento → o evento é "Sem campanha"
+          return undefined;
         }
 
         // Sem eventTs: usar o mais recente (bom para visões agregadas)
