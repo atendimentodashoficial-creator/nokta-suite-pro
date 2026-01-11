@@ -162,6 +162,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       const { data, error } = await supabase
         .from("leads")
         .select("id, nome, telefone, origem, created_at, utm_campaign, fbclid, utm_source, fb_campaign_name, fb_adset_name, fb_ad_name")
+        .eq("user_id", user.id)
         .is("deleted_at", null)
         .order("created_at", { ascending: true });
       
