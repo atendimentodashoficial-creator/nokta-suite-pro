@@ -613,9 +613,19 @@ export function FunilConversaoTab() {
         return d >= startOfPeriod && d <= endOfPeriod ? d.getTime() : null;
       };
 
+      // Criar set de clientes que têm fatura (para validar agendamentos "realizado")
+      const clientesComFatura = new Set<string>();
+      faturas?.forEach((f) => {
+        if (f.cliente_id && (f.status === "negociacao" || f.status === "fechado")) {
+          clientesComFatura.add(f.cliente_id);
+        }
+      });
+
       // Identificar telefones que tiveram AGENDAMENTO no período
-      // Agendamentos "cancelado" aparecem na aba "Não Compareceu" e DEVEM ser contados
-      // no funil como agendamentos que não converteram para comparecimento.
+      // Regras de visibilidade no app:
+      // - Status "agendado"/"confirmado" = visível na Agenda
+      // - Status "cancelado" = visível em Não Compareceu
+      // - Status "realizado" = visível APENAS se tiver fatura associada
       const phonesWithAgendamentoInPeriod = new Set<string>();
       const phonesWithAgendamentoInPeriodForStage = new Set<string>();
       const phonesWithNaoCompareceuInPeriod = new Set<string>();
@@ -630,7 +640,12 @@ export function FunilConversaoTab() {
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
 
-        // Todos os agendamentos contam para a etapa (incluindo cancelados)
+        // Agendamentos "realizado" sem fatura não aparecem no app - ignorar
+        if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
+          return;
+        }
+
+        // Agendamento é visível no app - contar
         phonesWithAgendamentoInPeriod.add(phone);
         phonesWithAgendamentoInPeriodForStage.add(phone);
 
@@ -839,19 +854,22 @@ export function FunilConversaoTab() {
       });
 
       // Para cada telefone, capturar o lead_id do MAIS RECENTE AGENDAMENTO CRIADO no período
-      // NÃO filtramos por phonesInPeriod aqui - queremos todos os agendamentos do período
-      // A filtragem por phonesInPeriod acontece depois, na hora de contar
+      // Apenas agendamentos visíveis no app (mesma lógica acima)
       const latestAgendamentoLeadIdByPhone: Record<string, string> = {};
       const latestAgendamentoTsByPhone: Record<string, number> = {};
       agendamentos?.forEach((a) => {
         if (!a.cliente_id) return;
-        // Incluir agendamentos cancelados também (são "não compareceu")
         
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone) return;
         
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
+        
+        // Agendamentos "realizado" sem fatura não aparecem no app - ignorar
+        if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
+          return;
+        }
         
         // Pegar o MAIS RECENTE (ts > existente)
         if (latestAgendamentoTsByPhone[phone] === undefined || ts > latestAgendamentoTsByPhone[phone]) {
@@ -930,11 +948,16 @@ export function FunilConversaoTab() {
       const totalRecords = leads.length;
 
       // Criar set de clientes com agendamento e mapa de status (todos os tempos, para fallback)
+      // Apenas agendamentos visíveis no app
       const clientesComAgendamento = new Set<string>();
       const clientesNaoCompareceram = new Set<string>();
       
       agendamentos?.forEach(a => {
         if (a.cliente_id) {
+          // Agendamentos "realizado" sem fatura não aparecem no app - ignorar
+          if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
+            return;
+          }
           clientesComAgendamento.add(a.cliente_id);
           if (a.status === "cancelado") {
             clientesNaoCompareceram.add(a.cliente_id);
