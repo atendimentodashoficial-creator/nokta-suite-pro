@@ -361,6 +361,14 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     allAgendamentos?.forEach((a: any) => {
       if (!a.cliente_id) return;
 
+      // IMPORTANTE: Agendamentos "realizado" sem fatura vinculada não aparecem no app
+      // (foram limpos pelo processo de integridade ou estão em estado inconsistente)
+      // Devemos ignorá-los para que o relatório reflita apenas os cards visíveis
+      const hasFatura = agendamentoIdsComFatura.has(a.id) || clientesComFatura.has(a.cliente_id);
+      if (a.status === "realizado" && !hasFatura) {
+        return; // Ignorar agendamentos "realizado" sem fatura
+      }
+
       // Prefer telefone vindo do JOIN do próprio agendamento (mais robusto)
       const phone = a.leads?.telefone
         ? normalizePhone(String(a.leads.telefone))
@@ -382,9 +390,6 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       if (isDisparos) phonesAgendadosDisparos.add(phone);
       else if (isTracked) phonesAgendadosTracked.add(phone);
       else phonesAgendadosUntracked.add(phone);
-
-      // Check if this agendamento has fatura linked (= compareceu)
-      const hasFatura = agendamentoIdsComFatura.has(a.id);
 
       // Não Compareceu = cancelado (sem fatura = não fechou negócio após não comparecer)
       if (a.status === "cancelado") {
