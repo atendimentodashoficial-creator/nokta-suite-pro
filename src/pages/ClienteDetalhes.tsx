@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useLeads } from "@/hooks/useLeads";
 import { useAgendamentos, Agendamento, useDeleteAgendamento, useAgendamentosExcluidos } from "@/hooks/useAgendamentos";
-import { useFaturas, useDeleteFatura } from "@/hooks/useFaturas";
+import { useFaturas, useDeleteFatura, useFaturasExcluidas } from "@/hooks/useFaturas";
 import { EditarClienteDialog } from "@/components/clientes/EditarClienteDialog";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
 import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
@@ -94,6 +94,9 @@ export default function ClienteDetalhes() {
   const {
     data: agendamentosExcluidos
   } = useAgendamentosExcluidos();
+  const {
+    data: faturasExcluidas
+  } = useFaturasExcluidas();
   const { toast } = useToast();
   const deleteAgendamento = useDeleteAgendamento();
   const deleteFatura = useDeleteFatura();
@@ -102,6 +105,7 @@ export default function ClienteDetalhes() {
   const agendamentosPassados = clienteAgendamentos.filter(a => new Date(a.data_agendamento) < new Date());
   const proximosAgendamentos = clienteAgendamentos.filter(a => new Date(a.data_agendamento) >= new Date());
   const clienteAgendamentosExcluidos = agendamentosExcluidos?.filter(a => a.cliente_id === id) || [];
+  const clienteFaturasExcluidas = faturasExcluidas?.filter(f => f.cliente_id === id) || [];
   const clienteFaturas = faturas?.filter(f => f.cliente_id === id) || [];
   const receitaFechada = clienteFaturas.filter(f => f.status === "fechado").reduce((sum, f) => {
     const valorBruto = Number(f.valor);
@@ -782,15 +786,16 @@ export default function ClienteDetalhes() {
             {/* Aba Histórico de Exclusões */}
             <TabsContent value="historico" className="mt-0">
               <ScrollArea className="h-[400px] pr-4">
-                {clienteAgendamentosExcluidos.length > 0 ? (
+                {(clienteAgendamentosExcluidos.length > 0 || clienteFaturasExcluidas.length > 0) ? (
                   <div className="space-y-3">
+                    {/* Agendamentos excluídos */}
                     {clienteAgendamentosExcluidos.map(agendamento => (
-                      <Card key={agendamento.id} className="p-4 bg-red-500/5 border-red-500/20">
+                      <Card key={`ag-${agendamento.id}`} className="p-4 bg-red-500/5 border-red-500/20">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge className="bg-red-500/20 text-red-700 border-red-500/30">
                               <Trash2 className="h-3 w-3 mr-1" />
-                              Excluído Manualmente
+                              Agendamento Excluído
                             </Badge>
                             {agendamento.tipo && (
                               <Badge variant="outline">{agendamento.tipo}</Badge>
@@ -850,10 +855,69 @@ export default function ClienteDetalhes() {
                         </div>
                       </Card>
                     ))}
+
+                    {/* Faturas excluídas */}
+                    {clienteFaturasExcluidas.map(fatura => (
+                      <Card key={`fat-${fatura.id}`} className="p-4 bg-orange-500/5 border-orange-500/20">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className="bg-orange-500/20 text-orange-700 border-orange-500/30">
+                              <DollarSign className="h-3 w-3 mr-1" />
+                              Fatura Excluída
+                            </Badge>
+                            <Badge variant="outline" className="bg-muted">
+                              Status anterior: {fatura.status === 'fechado' ? 'Fechado' : 'Em Negociação'}
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <DollarSign className="h-4 w-4" />
+                              <span>Valor: {Number(fatura.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <CalendarX className="h-4 w-4" />
+                              <span>Excluído em: {new Date(fatura.excluido_em).toLocaleString('pt-BR', {
+                                timeZone: 'America/Sao_Paulo',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 text-sm text-muted-foreground">
+                            {fatura.procedimento_nome && (
+                              <p>📋 {fatura.procedimento_nome}</p>
+                            )}
+                            {fatura.profissional_nome && (
+                              <p>👤 {fatura.profissional_nome}</p>
+                            )}
+                            {fatura.forma_pagamento && (
+                              <p>💳 {fatura.forma_pagamento}</p>
+                            )}
+                          </div>
+
+                          {fatura.observacoes && (
+                            <p className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
+                              {fatura.observacoes}
+                            </p>
+                          )}
+
+                          {fatura.motivo_exclusao && (
+                            <p className="text-sm text-orange-600 bg-orange-500/10 rounded p-2">
+                              <strong>Motivo:</strong> {fatura.motivo_exclusao}
+                            </p>
+                          )}
+                        </div>
+                      </Card>
+                    ))}
                   </div>
                 ) : (
                   <p className="text-center text-muted-foreground py-8">
-                    Nenhum agendamento excluído
+                    Nenhum registro excluído
                   </p>
                 )}
               </ScrollArea>
