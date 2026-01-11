@@ -46,6 +46,7 @@ export function PixelStatusBadge({
   const [sendingEvent, setSendingEvent] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [leadData, setLeadData] = useState<LeadData | null>(null);
+  const [faturaValor, setFaturaValor] = useState<number | null>(null);
   const [loadingLeadData, setLoadingLeadData] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -115,13 +116,22 @@ export function PixelStatusBadge({
   const openReviewDialog = async () => {
     setLoadingLeadData(true);
     try {
-      const { data } = await supabase
+      // Fetch lead data
+      const { data: leadResult } = await supabase
         .from("leads")
         .select("nome, telefone, email, genero, data_nascimento, cep, cidade, estado, endereco")
         .eq("id", clienteId)
         .maybeSingle();
       
-      setLeadData(data);
+      // Fetch fatura value
+      const { data: faturaResult } = await supabase
+        .from("faturas")
+        .select("valor")
+        .eq("id", faturaId)
+        .maybeSingle();
+      
+      setLeadData(leadResult);
+      setFaturaValor(faturaResult?.valor || null);
       setReviewDialogOpen(true);
     } catch (error) {
       console.error("Error loading lead data:", error);
@@ -141,6 +151,18 @@ export function PixelStatusBadge({
           event_name: "Purchase",
           lead_id: clienteId,
           fatura_id: faturaId,
+          value: faturaValor,
+          currency: "BRL",
+          // Customer data from leadData
+          customer_phone: leadData?.telefone,
+          customer_email: leadData?.email,
+          customer_name: leadData?.nome,
+          customer_gender: leadData?.genero,
+          customer_date_of_birth: leadData?.data_nascimento,
+          customer_city: leadData?.cidade,
+          customer_state: leadData?.estado,
+          customer_zip: leadData?.cep,
+          external_id: clienteId,
         },
         headers: {
           Authorization: `Bearer ${session.session?.access_token}`,
