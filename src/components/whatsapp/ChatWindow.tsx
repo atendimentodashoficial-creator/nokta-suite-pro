@@ -109,6 +109,13 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   const [expandedTextSemBloco, setExpandedTextSemBloco] = useState(true);
   const [expandedAudioSemBloco, setExpandedAudioSemBloco] = useState(true);
 
+  // Set initial message when prop changes (for prefill from deep-links)
+  useEffect(() => {
+    if (initialMessage) {
+      setNewMessage(initialMessage);
+    }
+  }, [initialMessage]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
