@@ -614,8 +614,9 @@ export function FunilConversaoTab() {
       };
 
       // Identificar telefones que tiveram AGENDAMENTO no período
-      // IMPORTANTE: Agendamentos "cancelado" representam "não compareceu" e DEVEM ser contados
-      // na etapa de Agendados (com flag de não compareceu), não excluídos
+      // IMPORTANTE: Agendamentos "cancelado" NÃO são contados no funil, pois representam
+      // desistências que não aparecem nas abas do app (calendário, negociação, faturas).
+      // Apenas agendamentos ativos (agendado, confirmado) ou realizados (com fatura) contam.
       const phonesWithAgendamentoInPeriod = new Set<string>();
       const phonesWithAgendamentoInPeriodForStage = new Set<string>();
       const phonesWithNaoCompareceuInPeriod = new Set<string>();
@@ -630,14 +631,15 @@ export function FunilConversaoTab() {
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
 
-        // Todos os agendamentos (incluindo cancelados/não compareceu) contam para a etapa
+        // Ignorar agendamentos cancelados - eles não aparecem no app (exceto na aba "Não Compareceu"
+        // que é uma aba de limpeza/reagendamento, não faz parte do funil de conversão)
+        if (a.status === "cancelado") {
+          return;
+        }
+
+        // Apenas agendamentos ativos ou realizados contam para o funil
         phonesWithAgendamentoInPeriod.add(phone);
         phonesWithAgendamentoInPeriodForStage.add(phone);
-
-        // Marcar se é não compareceu (status cancelado)
-        if (a.status === "cancelado") {
-          phonesWithNaoCompareceuInPeriod.add(phone);
-        }
 
         // Guardar o primeiro agendamento (criado) dentro do período
         if (agendamentoTsByPhone[phone] === undefined || ts < agendamentoTsByPhone[phone]) {
@@ -1188,17 +1190,12 @@ export function FunilConversaoTab() {
         }
 
         // Etapa 2: Agendados
-        // Conta todos os agendamentos do período, incluindo cancelados (não compareceu)
+        // Conta apenas agendamentos ativos ou realizados (não cancelados)
+        // Agendamentos cancelados não fazem parte do funil de conversão
         if (hasAgendamentoInPeriod) {
           const attr = getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2, isDisparos: isFromDisparos });
           bumpMetric(attr, "agendados", 1);
           if (isFromDisparos) viaDisparos.agendados++;
-
-          // Usar o set de período para marcar não compareceu
-          if (phonesWithNaoCompareceuInPeriod.has(phone)) {
-            bumpMetric(attr, "nao_compareceu", 1);
-            if (isFromDisparos) viaDisparos.nao_compareceu++;
-          }
         }
 
         // Etapa 3: Compareceu / Em negociação
