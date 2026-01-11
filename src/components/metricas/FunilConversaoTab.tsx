@@ -1591,30 +1591,33 @@ export function FunilConversaoTab() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.leads)}</div>
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <Megaphone className="h-3 w-3 text-blue-500" />
-                    <span className="font-medium text-blue-600">{formatNumber(totals.leadsTracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Leads de anúncios (rastreados)</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <span>•</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
-                    <span>{formatNumber(totals.leadsUntracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Leads sem rastreamento</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+              {totals.leadsTracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-500/10 rounded-full px-2 py-0.5">
+                      <Megaphone className="h-2.5 w-2.5" />
+                      <span>{totals.leadsTracked} via Anúncio</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Leads de anúncios (rastreados)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {totals.leadsUntracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                      <HelpCircle className="h-2.5 w-2.5" />
+                      <span>{totals.leadsUntracked} não rastreados</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Leads sem rastreamento de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
             {duplicatesUnified > 0 && (
               <TooltipProvider>
@@ -1638,44 +1641,47 @@ export function FunilConversaoTab() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.agendados)}</div>
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <Megaphone className="h-3 w-3 text-blue-500" />
-                    <span className="font-medium text-blue-600">{formatNumber(totals.agendadosTracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Agendados de anúncios (rastreados)</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <span>•</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
-                    <span>{formatNumber(totals.agendadosUntracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Agendados sem rastreamento</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+              {totals.agendadosTracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-500/10 rounded-full px-2 py-0.5">
+                      <Megaphone className="h-2.5 w-2.5" />
+                      <span>{totals.agendadosTracked} via Anúncio</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Agendados de anúncios (rastreados)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {totals.agendadosUntracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                      <HelpCircle className="h-2.5 w-2.5" />
+                      <span>{totals.agendadosUntracked} não rastreados</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Agendados sem rastreamento de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {viaDisparos.agendados > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5">
+                      <Send className="h-2.5 w-2.5" />
+                      <span>{viaDisparos.agendados} via Disparos</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Agendamentos de leads originados de campanhas de disparos em massa</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
-            {viaDisparos.agendados > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center justify-center gap-1 mt-2 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5 mx-auto">
-                    <Send className="h-2.5 w-2.5" />
-                    <span>{viaDisparos.agendados} via Disparos</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Agendamentos de leads originados de campanhas de disparos em massa</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </CardContent>
         </Card>
 
@@ -1699,44 +1705,47 @@ export function FunilConversaoTab() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground border-t pt-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <Megaphone className="h-3 w-3 text-blue-500" />
-                    <span className="font-medium text-blue-600">{formatNumber(totals.compareceuTracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Comparecimentos de anúncios</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <span>•</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
-                    <span>{formatNumber(totals.compareceuUntracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Comparecimentos sem rastreamento</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 border-t pt-2">
+              {totals.compareceuTracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-500/10 rounded-full px-2 py-0.5">
+                      <Megaphone className="h-2.5 w-2.5" />
+                      <span>{totals.compareceuTracked} via Anúncio</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Comparecimentos de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {totals.compareceuUntracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                      <HelpCircle className="h-2.5 w-2.5" />
+                      <span>{totals.compareceuUntracked} não rastreados</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Comparecimentos sem rastreamento de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {viaDisparos.compareceu > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5">
+                      <Send className="h-2.5 w-2.5" />
+                      <span>{viaDisparos.compareceu} via Disparos</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Comparecimentos de leads originados de campanhas de disparos em massa</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
-            {viaDisparos.compareceu > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center justify-center gap-1 mt-2 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5 mx-auto">
-                    <Send className="h-2.5 w-2.5" />
-                    <span>{viaDisparos.compareceu} via Disparos</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Comparecimentos de leads originados de campanhas de disparos em massa</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </CardContent>
         </Card>
 
@@ -1746,44 +1755,47 @@ export function FunilConversaoTab() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.em_negociacao)}</div>
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <Megaphone className="h-3 w-3 text-blue-500" />
-                    <span className="font-medium text-blue-600">{formatNumber(totals.emNegociacaoTracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Em negociação de anúncios</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <span>•</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
-                    <span>{formatNumber(totals.emNegociacaoUntracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Em negociação sem rastreamento</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+              {totals.emNegociacaoTracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-500/10 rounded-full px-2 py-0.5">
+                      <Megaphone className="h-2.5 w-2.5" />
+                      <span>{totals.emNegociacaoTracked} via Anúncio</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Em negociação de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {totals.emNegociacaoUntracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                      <HelpCircle className="h-2.5 w-2.5" />
+                      <span>{totals.emNegociacaoUntracked} não rastreados</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Em negociação sem rastreamento de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {viaDisparos.em_negociacao > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5">
+                      <Send className="h-2.5 w-2.5" />
+                      <span>{viaDisparos.em_negociacao} via Disparos</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Negociações de leads originados de campanhas de disparos em massa</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
-            {viaDisparos.em_negociacao > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center justify-center gap-1 mt-2 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5 mx-auto">
-                    <Send className="h-2.5 w-2.5" />
-                    <span>{viaDisparos.em_negociacao} via Disparos</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Negociações de leads originados de campanhas de disparos em massa</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </CardContent>
         </Card>
 
@@ -1793,45 +1805,48 @@ export function FunilConversaoTab() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.clientes)}</div>
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <Megaphone className="h-3 w-3 text-blue-500" />
-                    <span className="font-medium text-blue-600">{formatNumber(totals.clientesTracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Conversões de anúncios (rastreados)</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <span>•</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
-                    <span>{formatNumber(totals.clientesUntracked)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Conversões sem rastreamento</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+              {totals.clientesTracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-500/10 rounded-full px-2 py-0.5">
+                      <Megaphone className="h-2.5 w-2.5" />
+                      <span>{totals.clientesTracked} via Anúncio</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Conversões de anúncios (rastreados)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {totals.clientesUntracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                      <HelpCircle className="h-2.5 w-2.5" />
+                      <span>{totals.clientesUntracked} não rastreados</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Conversões sem rastreamento de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {viaDisparos.clientes > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5">
+                      <Send className="h-2.5 w-2.5" />
+                      <span>{viaDisparos.clientes} via Disparos ({formatCurrency(viaDisparos.valor_fechado)})</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Conversões de leads originados de campanhas de disparos em massa</p>
+                      <p className="text-xs text-muted-foreground">Valor total: {formatCurrency(viaDisparos.valor_fechado)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
-            {viaDisparos.clientes > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center justify-center gap-1 mt-2 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5 mx-auto">
-                    <Send className="h-2.5 w-2.5" />
-                    <span>{viaDisparos.clientes} via Disparos ({formatCurrency(viaDisparos.valor_fechado)})</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Conversões de leads originados de campanhas de disparos em massa</p>
-                    <p className="text-xs text-muted-foreground">Valor total: {formatCurrency(viaDisparos.valor_fechado)}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </CardContent>
         </Card>
 
