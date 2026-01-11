@@ -548,15 +548,17 @@ export function FunilConversaoTab() {
       });
 
       // Buscar TODAS as faturas para identificar etapas do funil
+      // Incluímos updated_at para saber QUANDO a fatura foi fechada (não apenas criada)
       const faturas = await fetchAll<{
         id: string;
         valor: number;
         status: any;
         cliente_id: string;
         created_at: string;
+        updated_at: string;
       }>({
         table: "faturas",
-        select: "id, valor, status, cliente_id, created_at",
+        select: "id, valor, status, cliente_id, created_at, updated_at",
         orderBy: "created_at",
         filters: (q) => q.eq("user_id", user.id),
       });
@@ -595,13 +597,15 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Identificar telefones que tiveram fatura ATIVA criada no período
-      // Considera estado atual: só conta faturas que ainda existem com status válido
+      // Identificar telefones que tiveram fatura ATIVA no período
+      // - Negociação: usa created_at (quando a fatura foi criada/entrou em negociação)
+      // - Fechado: usa updated_at (quando a fatura foi fechada)
       const phonesWithFaturaInPeriod = new Set<string>();
       const phonesWithFaturaNegociacaoInPeriod = new Set<string>();
       const phonesWithFaturaFechadaInPeriod = new Set<string>();
       const faturaPorClienteInPeriod: Record<string, number> = {};
-      const faturaTsByPhone: Record<string, number> = {};
+      const faturaNegociacaoTsByPhone: Record<string, number> = {};
+      const faturaFechadaTsByPhone: Record<string, number> = {};
 
       faturas?.forEach((f) => {
         if (!f.cliente_id) return;
@@ -611,21 +615,35 @@ export function FunilConversaoTab() {
         const phone = clienteIdToPhone[f.cliente_id];
         if (!phone) return;
 
-        const ts = periodTs(f.created_at);
-        if (ts === null) return;
+        // Para negociação: quando a fatura foi CRIADA
+        const tsCreated = periodTs(f.created_at);
+        // Para fechado: quando a fatura foi ATUALIZADA (momento do fechamento)
+        const tsClosed = periodTs(f.updated_at);
 
-        phonesWithFaturaInPeriod.add(phone);
+        // Fatura entra no período se foi criada OU fechada no período
+        if (tsCreated !== null || tsClosed !== null) {
+          phonesWithFaturaInPeriod.add(phone);
+        }
+
         // Status atual da fatura determina a etapa
-        if (f.status === "negociacao") {
+        if (f.status === "negociacao" && tsCreated !== null) {
           phonesWithFaturaNegociacaoInPeriod.add(phone);
+          if (faturaNegociacaoTsByPhone[phone] === undefined || tsCreated < faturaNegociacaoTsByPhone[phone]) {
+            faturaNegociacaoTsByPhone[phone] = tsCreated;
+          }
         }
+        
         if (f.status === "fechado") {
-          phonesWithFaturaFechadaInPeriod.add(phone);
-          faturaPorClienteInPeriod[f.cliente_id] = (faturaPorClienteInPeriod[f.cliente_id] || 0) + f.valor;
-        }
-
-        if (faturaTsByPhone[phone] === undefined || ts < faturaTsByPhone[phone]) {
-          faturaTsByPhone[phone] = ts;
+          // Para fechado, usamos a data de FECHAMENTO (updated_at)
+          // Se updated_at não está no período mas created_at está, ainda contamos
+          const tsForFechado = tsClosed ?? tsCreated;
+          if (tsForFechado !== null) {
+            phonesWithFaturaFechadaInPeriod.add(phone);
+            faturaPorClienteInPeriod[f.cliente_id] = (faturaPorClienteInPeriod[f.cliente_id] || 0) + f.valor;
+            if (faturaFechadaTsByPhone[phone] === undefined || tsForFechado < faturaFechadaTsByPhone[phone]) {
+              faturaFechadaTsByPhone[phone] = tsForFechado;
+            }
+          }
         }
       });
 
@@ -763,21 +781,29 @@ export function FunilConversaoTab() {
 
       faturas?.forEach((f) => {
         if (!f.cliente_id) return;
+        if (f.status === "cancelado" || f.status === "deletado") return;
+        
         const phone = clienteIdToPhone[f.cliente_id];
         if (!phone || !phonesInPeriod.has(phone)) return;
-        const ts = periodTs(f.created_at);
-        if (ts === null) return;
+        
+        // Para negociação: created_at
+        // Para fechado: updated_at (momento do fechamento)
+        const tsCreated = periodTs(f.created_at);
+        const tsClosed = periodTs(f.updated_at);
 
-        if (f.status === "negociacao") {
-          if (firstFaturaNegTsByPhone[phone] === undefined || ts < firstFaturaNegTsByPhone[phone]) {
-            firstFaturaNegTsByPhone[phone] = ts;
+        if (f.status === "negociacao" && tsCreated !== null) {
+          if (firstFaturaNegTsByPhone[phone] === undefined || tsCreated < firstFaturaNegTsByPhone[phone]) {
+            firstFaturaNegTsByPhone[phone] = tsCreated;
             firstFaturaNegLeadIdByPhone[phone] = f.cliente_id;
           }
         }
         if (f.status === "fechado") {
-          if (firstFaturaFechTsByPhone[phone] === undefined || ts < firstFaturaFechTsByPhone[phone]) {
-            firstFaturaFechTsByPhone[phone] = ts;
-            firstFaturaFechLeadIdByPhone[phone] = f.cliente_id;
+          const tsForFechado = tsClosed ?? tsCreated;
+          if (tsForFechado !== null) {
+            if (firstFaturaFechTsByPhone[phone] === undefined || tsForFechado < firstFaturaFechTsByPhone[phone]) {
+              firstFaturaFechTsByPhone[phone] = tsForFechado;
+              firstFaturaFechLeadIdByPhone[phone] = f.cliente_id;
+            }
           }
         }
       });
