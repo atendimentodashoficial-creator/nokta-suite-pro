@@ -392,11 +392,13 @@ Deno.serve(async (req) => {
         instanciaId = instanciaRow.id;
         instanciaNomeFromDb = instanciaRow.nome || null;
       } else {
-        // Could not resolve to a known record; keep it as "hasInstanceParam" and classify as Disparos later.
-        instanciaId = null;
-        // Store the raw instance key as the name for display purposes
-        instanciaNomeFromDb = rawInstanciaKey;
-        console.log('Instance not found in DB, will classify as Disparos:', rawInstanciaKey);
+        // Instance not found in DB - REJECT the webhook to prevent phantom instances
+        console.error('REJECTING webhook: Instance not found in DB:', rawInstanciaKey);
+        await logEvent(userId, 'warn', `Webhook rejeitado: instância não registrada "${rawInstanciaKey}"`);
+        return new Response(
+          JSON.stringify({ error: 'Instance not registered. Please add this instance via WhatsApp or Disparos tab first.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 
@@ -482,12 +484,22 @@ Deno.serve(async (req) => {
             isMainWhatsAppInstance = true;
             console.log('Matched payload instanceName to main WhatsApp instance:', instanciaId);
           } else {
-            instanciaNomeFromDb = payloadInstanceName;
-            console.log('Could not resolve instance from payload, treating as Disparos:', payloadInstanceName);
+            // Instance from payload not found in DB - REJECT the webhook
+            console.error('REJECTING webhook: Instance from payload not found in DB:', payloadInstanceName);
+            await logEvent(userId, 'warn', `Webhook rejeitado: instância não registrada "${payloadInstanceName}"`);
+            return new Response(
+              JSON.stringify({ error: 'Instance not registered. Please add this instance via WhatsApp or Disparos tab first.' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
           }
         } else {
-          instanciaNomeFromDb = payloadInstanceName;
-          console.log('No main instance configured, treating as Disparos:', payloadInstanceName);
+          // No main instance configured and instance from payload not found - REJECT
+          console.error('REJECTING webhook: No main instance configured and instance not found:', payloadInstanceName);
+          await logEvent(userId, 'warn', `Webhook rejeitado: instância não registrada "${payloadInstanceName}" e nenhuma instância principal configurada`);
+          return new Response(
+            JSON.stringify({ error: 'Instance not registered. Please add this instance via WhatsApp or Disparos tab first.' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
       }
     }
