@@ -570,15 +570,28 @@ export function FunilConversaoTab() {
         const existingHasAttribution = existing.origem === 'Disparos' || existing.origem_tipo === 'Disparos' || existing.fbclid || existing.utm_source || existing.fb_campaign_name;
         const newHasAttribution = lead.origem === 'Disparos' || lead.origem_tipo === 'Disparos' || lead.fbclid || lead.utm_source || lead.fb_campaign_name;
         
-        // Se o novo tem atribuição e o existente não, usar o novo
-        if (newHasAttribution && !existingHasAttribution) {
+        // Prioridade: lead com atribuição E status diferente de "cliente"
+        // Para que a contagem de Leads no Funil não seja afetada
+        const existingIsCliente = existing.status === 'cliente';
+        const newIsCliente = lead.status === 'cliente';
+        
+        // Se o novo NÃO é cliente e o existente É cliente, preferir o novo (se ambos têm atribuição igual)
+        if (newHasAttribution && existingHasAttribution && existingIsCliente && !newIsCliente) {
+          firstLeadByPhone[phone] = lead;
+        } else if (newHasAttribution && !existingHasAttribution) {
+          // Se o novo tem atribuição e o existente não, usar o novo
           firstLeadByPhone[phone] = lead;
         } else if (!newHasAttribution && !existingHasAttribution) {
-          // Se nenhum tem atribuição, usar o mais antigo
-          const existingTime = new Date(existing.created_at || 0).getTime();
-          const nextTime = new Date(lead.created_at || 0).getTime();
-          if (Number.isFinite(nextTime) && nextTime < existingTime) {
+          // Se nenhum tem atribuição, preferir não-cliente, depois mais antigo
+          if (existingIsCliente && !newIsCliente) {
             firstLeadByPhone[phone] = lead;
+          } else if (existingIsCliente === newIsCliente) {
+            // Ambos têm mesmo status de cliente, usar o mais antigo
+            const existingTime = new Date(existing.created_at || 0).getTime();
+            const nextTime = new Date(lead.created_at || 0).getTime();
+            if (Number.isFinite(nextTime) && nextTime < existingTime) {
+              firstLeadByPhone[phone] = lead;
+            }
           }
         }
       });
