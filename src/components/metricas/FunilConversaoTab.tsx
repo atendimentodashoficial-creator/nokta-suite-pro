@@ -470,6 +470,9 @@ export function FunilConversaoTab() {
         fb_adset_name: string | null;
         fb_ad_name: string | null;
         fb_ad_id: string | null;
+        fbclid: string | null;
+        gclid: string | null;
+        utm_source: string | null;
         created_at: string | null;
         valor_tratamento: number | null;
         origem: string | null;
@@ -484,6 +487,9 @@ export function FunilConversaoTab() {
           fb_adset_name,
           fb_ad_name,
           fb_ad_id,
+          fbclid,
+          gclid,
+          utm_source,
           created_at,
           valor_tratamento,
           origem
@@ -627,13 +633,26 @@ export function FunilConversaoTab() {
       });
 
       // Leads no período (coorte) = telefones que tiveram LEAD WhatsApp CRIADO no período
-      // O funil é baseado na data de ENTRADA do lead, não de eventos posteriores (agendamentos/faturas)
-      // Isso garante que cada lead seja contado apenas uma vez, no período correto de aquisição.
+      // E com sinal de atribuição de anúncio (Meta/Google) para evitar inflar com leads orgânicos.
       const phonesInPeriod = new Set<string>();
+
+      const hasAdsAttribution = (lead: (typeof allLeads)[number]) => {
+        const src = (lead.utm_source || "").toLowerCase();
+        return Boolean(
+          lead.fb_campaign_name ||
+            lead.fbclid ||
+            lead.gclid ||
+            src === "facebook" ||
+            src === "instagram" ||
+            src === "meta" ||
+            src === "google" ||
+            src === "adwords"
+        );
+      };
 
       (allLeads || []).forEach((lead) => {
         const phone = normalizePhone(lead.telefone);
-        if (isWhatsAppLead(lead.origem) && isWithinPeriod(lead.created_at)) {
+        if (isWhatsAppLead(lead.origem) && isWithinPeriod(lead.created_at) && hasAdsAttribution(lead)) {
           phonesInPeriod.add(phone);
         }
       });
