@@ -567,7 +567,7 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Buscar faturas fechadas para calcular valor real
+      // Buscar TODAS as faturas para identificar etapas do funil
       const { data: faturas, error: faturasError } = await supabase
         .from("faturas")
         .select(`
@@ -577,16 +577,24 @@ export function FunilConversaoTab() {
           cliente_id,
           created_at
         `)
-        .eq("user_id", user.id)
-        .eq("status", "fechado");
+        .eq("user_id", user.id);
 
       if (faturasError) throw faturasError;
 
-      // Criar mapa de valores de faturas por cliente
+      // Criar sets de clientes por status de fatura
+      const clientesComFaturaNegociacao = new Set<string>();
+      const clientesComFaturaFechada = new Set<string>();
       const faturaPorCliente: Record<string, number> = {};
+      
       faturas?.forEach(f => {
         if (f.cliente_id) {
-          faturaPorCliente[f.cliente_id] = (faturaPorCliente[f.cliente_id] || 0) + f.valor;
+          if (f.status === "negociacao") {
+            clientesComFaturaNegociacao.add(f.cliente_id);
+          }
+          if (f.status === "fechado") {
+            clientesComFaturaFechada.add(f.cliente_id);
+            faturaPorCliente[f.cliente_id] = (faturaPorCliente[f.cliente_id] || 0) + f.valor;
+          }
         }
       });
 
@@ -622,7 +630,6 @@ export function FunilConversaoTab() {
         if (!grouped[key]) {
           grouped[key] = {
             campaign_name: campaignKey,
-            // Sempre armazenar adset_name e ad_name para permitir agrupamentos por etapa do funil
             adset_name: adsetKey,
             ad_name: adKey,
             ad_id: adId,
@@ -636,42 +643,42 @@ export function FunilConversaoTab() {
           };
         }
 
+        // Etapa 1: Leads
         grouped[key].leads++;
-        
-        // Pegar o melhor status entre todos os leads válidos com este telefone
-        const allLeadsWithPhone = validLeads.filter((l) => normalizePhone(l.telefone) === normalizedPhone);
-        const bestStatus = allLeadsWithPhone.find(l => l.status === "cliente")?.status ||
-                          allLeadsWithPhone.find(l => l.status === "follow_up")?.status ||
-                          lead.status;
         
         // Verificar se QUALQUER lead com este telefone tem agendamento
         const allLeadIds = leadIdsByPhone[normalizedPhone] || [lead.id];
         const hasAgendamento = allLeadIds.some(id => clientesComAgendamento.has(id));
         const naoCompareceu = allLeadIds.some(id => clientesNaoCompareceram.has(id));
         
-        // Se está em negociação ou é cliente, obrigatoriamente passou pelo agendamento
-        // Então conta como agendado mesmo se não tiver registro na tabela de agendamentos
-        if (hasAgendamento || bestStatus === "follow_up" || bestStatus === "cliente") {
+        // Verificar faturas por telefone
+        const temFaturaNegociacao = allLeadIds.some(id => clientesComFaturaNegociacao.has(id));
+        const temFaturaFechada = allLeadIds.some(id => clientesComFaturaFechada.has(id));
+        
+        // Etapa 2: Agendados (tem agendamento OU tem fatura de qualquer tipo)
+        if (hasAgendamento || temFaturaNegociacao || temFaturaFechada) {
           grouped[key].agendados++;
           
-          // Não compareceu = tinha agendamento mas cancelou/faltou
-          // Só conta se não evoluiu para negociação ou cliente
-          if (naoCompareceu && bestStatus !== "follow_up" && bestStatus !== "cliente") {
+          // Não compareceu = tinha agendamento mas cancelou/faltou E não evoluiu para fatura
+          if (naoCompareceu && !temFaturaNegociacao && !temFaturaFechada) {
             grouped[key].nao_compareceu++;
-          } else {
-            // Compareceu = agendou e compareceu (está em negociação ou fechou, ou simplesmente não cancelou)
-            grouped[key].compareceu++;
           }
         }
         
-        // Em negociação = já agendou mas ainda NÃO fechou (apenas follow_up)
-        if (bestStatus === "follow_up") {
-          grouped[key].em_negociacao++;
+        // Etapa 3: Compareceu/Em Negociação = tem fatura de negociação OU fatura fechada
+        if (temFaturaNegociacao || temFaturaFechada) {
+          grouped[key].compareceu++;
+          
+          // Em negociação = tem fatura de negociação mas NÃO tem fechada
+          if (temFaturaNegociacao && !temFaturaFechada) {
+            grouped[key].em_negociacao++;
+          }
         }
         
-        if (bestStatus === "cliente") {
+        // Etapa 4: Clientes = tem fatura fechada
+        if (temFaturaFechada) {
           grouped[key].clientes++;
-          // Adicionar valor da fatura se existir (de qualquer lead com este telefone)
+          // Adicionar valor da fatura
           let valorFechado = 0;
           allLeadIds.forEach(id => {
             if (faturaPorCliente[id]) {
@@ -682,6 +689,7 @@ export function FunilConversaoTab() {
             grouped[key].valor_fechado += valorFechado;
           } else {
             // Fallback para valor_tratamento
+            const allLeadsWithPhone = validLeads.filter((l) => normalizePhone(l.telefone) === normalizedPhone);
             const valorTratamento = allLeadsWithPhone.find(l => l.valor_tratamento)?.valor_tratamento;
             if (valorTratamento) {
               grouped[key].valor_fechado += valorTratamento;
