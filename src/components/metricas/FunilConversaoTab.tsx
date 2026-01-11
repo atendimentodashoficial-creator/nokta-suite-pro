@@ -611,38 +611,42 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Leads no período (coorte) = leads criados dentro do período e de origem WhatsApp.
-      // Atribuição (campanha/conjunto/anúncio) deve respeitar o período selecionado.
-      const leadsInPeriodRaw = (allLeads || []).filter((lead) => {
-        if (!isWhatsAppLead(lead.origem)) return false;
-        return isWithinPeriod(lead.created_at);
+      // Telefones WhatsApp (para excluir "Disparos-only")
+      const hasWhatsAppByPhone: Record<string, boolean> = {};
+      (allLeads || []).forEach((l) => {
+        const phone = normalizePhone(l.telefone);
+        if (isWhatsAppLead(l.origem)) hasWhatsAppByPhone[phone] = true;
       });
 
-      // Unificar por telefone dentro do período: manter o primeiro lead do período (mais antigo)
-      const leadInPeriodByPhone: Record<string, (typeof allLeads)[number]> = {};
-      leadsInPeriodRaw.forEach((lead) => {
-        const phone = normalizePhone(lead.telefone);
-        const existing = leadInPeriodByPhone[phone];
-        if (!existing) {
-          leadInPeriodByPhone[phone] = lead;
-          return;
-        }
-        const existingTs = new Date(existing.created_at || 0).getTime();
-        const nextTs = new Date(lead.created_at || 0).getTime();
-        if (Number.isFinite(nextTs) && nextTs < existingTs) {
-          leadInPeriodByPhone[phone] = lead;
-        }
-      });
-
-      const leadsInPeriod = Object.values(leadInPeriodByPhone);
-
-      // Telefones presentes na coorte do período
+      // Leads no período (coorte) = telefones que:
+      // - tiveram lead criado no período OU
+      // - tiveram agendamento (data_agendamento) no período OU
+      // - tiveram fatura no período
+      // E que possuem pelo menos um lead de origem WhatsApp (ou origem vazia).
       const phonesInPeriod = new Set<string>();
-      leadsInPeriod.forEach((lead) => phonesInPeriod.add(normalizePhone(lead.telefone)));
 
-      // Atribuição por telefone (campanha/conjunto/anúncio) baseada NOS LEADS DO PERÍODO.
-      // Se houver mais de um lead no período para o mesmo telefone, preferimos um que tenha campanha.
-      const campaignDataByPhone: Record<
+      (allLeads || []).forEach((lead) => {
+        const phone = normalizePhone(lead.telefone);
+        if (isWhatsAppLead(lead.origem) && isWithinPeriod(lead.created_at)) {
+          phonesInPeriod.add(phone);
+        }
+      });
+      phonesWithAgendamentoInPeriod.forEach((p) => phonesInPeriod.add(p));
+      phonesWithFaturaInPeriod.forEach((p) => phonesInPeriod.add(p));
+
+      // remover phones que são apenas Disparos
+      Array.from(phonesInPeriod).forEach((phone) => {
+        if (!hasWhatsAppByPhone[phone]) phonesInPeriod.delete(phone);
+      });
+
+      // Mapa rápido de lead por id
+      const leadById: Record<string, (typeof allLeads)[number]> = {};
+      (allLeads || []).forEach((l) => {
+        leadById[l.id] = l;
+      });
+
+      // Melhor atribuição disponível por telefone (fallback)
+      const bestCampaignByPhone: Record<
         string,
         {
           fb_campaign_name: string | null;
@@ -651,46 +655,82 @@ export function FunilConversaoTab() {
           fb_ad_id: string | null;
         }
       > = {};
-
-      // Primeiro: atribuição do lead "primeiro do período"
-      leadsInPeriod.forEach((lead) => {
-        const phone = normalizePhone(lead.telefone);
-        campaignDataByPhone[phone] = {
-          fb_campaign_name: lead.fb_campaign_name || null,
-          fb_adset_name: lead.fb_adset_name || null,
-          fb_ad_name: lead.fb_ad_name || null,
-          fb_ad_id: lead.fb_ad_id || null,
-        };
-      });
-
-      // Segundo: se o primeiro do período não tiver campanha, buscar outro lead (ainda dentro do período) que tenha
-      leadsInPeriodRaw.forEach((lead) => {
-        const phone = normalizePhone(lead.telefone);
+      (allLeads || []).forEach((l) => {
+        const phone = normalizePhone(l.telefone);
         if (!phonesInPeriod.has(phone)) return;
-        const current = campaignDataByPhone[phone];
-        if (current?.fb_campaign_name) return;
-        if (!lead.fb_campaign_name) return;
-
-        campaignDataByPhone[phone] = {
-          fb_campaign_name: lead.fb_campaign_name,
-          fb_adset_name: lead.fb_adset_name,
-          fb_ad_name: lead.fb_ad_name,
-          fb_ad_id: lead.fb_ad_id,
-        };
+        if (!l.fb_campaign_name) return;
+        if (!bestCampaignByPhone[phone]) {
+          bestCampaignByPhone[phone] = {
+            fb_campaign_name: l.fb_campaign_name,
+            fb_adset_name: l.fb_adset_name,
+            fb_ad_name: l.fb_ad_name,
+            fb_ad_id: l.fb_ad_id,
+          };
+        }
       });
 
-      // Criar mapa de todos os IDs de lead por telefone normalizado (todos os leads do mesmo telefone)
-      const leadIdsByPhone: Record<string, string[]> = {};
-      (allLeads || []).forEach((lead) => {
-        const normalizedPhone = normalizePhone(lead.telefone);
-        // Só processar se o telefone está no período
-        if (!phonesInPeriod.has(normalizedPhone)) return;
-        if (!leadIdsByPhone[normalizedPhone]) leadIdsByPhone[normalizedPhone] = [];
-        leadIdsByPhone[normalizedPhone].push(lead.id);
+      // Para cada telefone, capturar o lead_id do PRIMEIRO evento por etapa dentro do período
+      const firstAgendamentoLeadIdByPhone: Record<string, string> = {};
+      const firstAgendamentoTsByPhone: Record<string, number> = {};
+      agendamentos?.forEach((a) => {
+        if (!a.cliente_id) return;
+        const phone = clienteIdToPhone[a.cliente_id];
+        if (!phone || !phonesInPeriod.has(phone)) return;
+        const ts = periodTs((a as any).data_agendamento || a.created_at);
+        if (ts === null) return;
+        if (firstAgendamentoTsByPhone[phone] === undefined || ts < firstAgendamentoTsByPhone[phone]) {
+          firstAgendamentoTsByPhone[phone] = ts;
+          firstAgendamentoLeadIdByPhone[phone] = a.cliente_id;
+        }
       });
 
-      // Leads no período = apenas os que entraram no período E são WhatsApp
-      const leads = leadsInPeriod;
+      const firstFaturaNegLeadIdByPhone: Record<string, string> = {};
+      const firstFaturaNegTsByPhone: Record<string, number> = {};
+      const firstFaturaFechLeadIdByPhone: Record<string, string> = {};
+      const firstFaturaFechTsByPhone: Record<string, number> = {};
+
+      faturas?.forEach((f) => {
+        if (!f.cliente_id) return;
+        const phone = clienteIdToPhone[f.cliente_id];
+        if (!phone || !phonesInPeriod.has(phone)) return;
+        const ts = periodTs(f.created_at);
+        if (ts === null) return;
+
+        if (f.status === "negociacao") {
+          if (firstFaturaNegTsByPhone[phone] === undefined || ts < firstFaturaNegTsByPhone[phone]) {
+            firstFaturaNegTsByPhone[phone] = ts;
+            firstFaturaNegLeadIdByPhone[phone] = f.cliente_id;
+          }
+        }
+        if (f.status === "fechado") {
+          if (firstFaturaFechTsByPhone[phone] === undefined || ts < firstFaturaFechTsByPhone[phone]) {
+            firstFaturaFechTsByPhone[phone] = ts;
+            firstFaturaFechLeadIdByPhone[phone] = f.cliente_id;
+          }
+        }
+      });
+
+      // Lead "representante" para a linha do telefone (primeiro lead WhatsApp do telefone)
+      const firstWhatsAppLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
+      (allLeads || []).forEach((l) => {
+        const phone = normalizePhone(l.telefone);
+        if (!phonesInPeriod.has(phone)) return;
+        if (!isWhatsAppLead(l.origem)) return;
+        const existing = firstWhatsAppLeadByPhone[phone];
+        if (!existing) {
+          firstWhatsAppLeadByPhone[phone] = l;
+          return;
+        }
+        const existingTs = new Date(existing.created_at || 0).getTime();
+        const nextTs = new Date(l.created_at || 0).getTime();
+        if (Number.isFinite(nextTs) && nextTs < existingTs) {
+          firstWhatsAppLeadByPhone[phone] = l;
+        }
+      });
+
+      const leads = Array.from(phonesInPeriod)
+        .map((p) => firstWhatsAppLeadByPhone[p])
+        .filter(Boolean);
 
       // Total de registros no período (antes da unificação por telefone)
       const totalRecords = leads.length;
@@ -708,41 +748,39 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Agrupar por campanha/conjunto/anúncio
-      // Usar telefone normalizado para unificar leads duplicados
-      const processedPhones = new Set<string>();
-      const grouped: Record<string, FunnelData> = {};
+      // Criar mapa de todos os IDs de lead por telefone normalizado (para consolidar valores/status)
+      const leadIdsByPhone: Record<string, string[]> = {};
+      (allLeads || []).forEach((l) => {
+        const phone = normalizePhone(l.telefone);
+        if (!phonesInPeriod.has(phone)) return;
+        if (!leadIdsByPhone[phone]) leadIdsByPhone[phone] = [];
+        leadIdsByPhone[phone].push(l.id);
+      });
 
-      leads?.forEach(lead => {
-        const normalizedPhone = normalizePhone(lead.telefone);
-        
-        // Pular se já processamos este telefone
-        if (processedPhones.has(normalizedPhone)) return;
-        processedPhones.add(normalizedPhone);
+      const getAttribution = (phone: string, preferredLeadId?: string) => {
+        const fromLead = preferredLeadId ? leadById[preferredLeadId] : undefined;
+        const fallback = bestCampaignByPhone[phone];
 
-        // Obter dados de campanha do mapa (pode vir de outro registro do mesmo telefone)
-        const campaignData = campaignDataByPhone[normalizedPhone];
-        const campaignKey = campaignData?.fb_campaign_name || lead.fb_campaign_name || "Sem campanha";
-        const adsetKey = campaignData?.fb_adset_name || lead.fb_adset_name || "Sem conjunto";
-        const adKey = campaignData?.fb_ad_name || lead.fb_ad_name || "Sem anúncio";
-        const adId = campaignData?.fb_ad_id || lead.fb_ad_id;
-        
-        // Chave única baseada no nível de visualização
+        const campaign = fromLead?.fb_campaign_name || fallback?.fb_campaign_name || "Sem campanha";
+        const adset = fromLead?.fb_adset_name || fallback?.fb_adset_name || "Sem conjunto";
+        const ad = fromLead?.fb_ad_name || fallback?.fb_ad_name || "Sem anúncio";
+        const adId = fromLead?.fb_ad_id || fallback?.fb_ad_id || null;
+
         let key: string;
-        if (viewLevel === "campaign") {
-          key = campaignKey;
-        } else if (viewLevel === "adset") {
-          key = `${campaignKey}|||${adsetKey}`;
-        } else {
-          key = `${campaignKey}|||${adsetKey}|||${adKey}`;
-        }
+        if (viewLevel === "campaign") key = campaign;
+        else if (viewLevel === "adset") key = `${campaign}|||${adset}`;
+        else key = `${campaign}|||${adset}|||${ad}`;
 
-        if (!grouped[key]) {
-          grouped[key] = {
-            campaign_name: campaignKey,
-            adset_name: adsetKey,
-            ad_name: adKey,
-            ad_id: adId,
+        return { key, campaign, adset, ad, adId };
+      };
+
+      const ensureGroup = (attr: ReturnType<typeof getAttribution>) => {
+        if (!grouped[attr.key]) {
+          grouped[attr.key] = {
+            campaign_name: attr.campaign,
+            adset_name: attr.adset,
+            ad_name: attr.ad,
+            ad_id: attr.adId,
             leads: 0,
             agendados: 0,
             compareceu: 0,
@@ -752,58 +790,73 @@ export function FunilConversaoTab() {
             valor_fechado: 0,
           };
         }
+        return grouped[attr.key];
+      };
 
-        // Etapa 1: Leads
-        grouped[key].leads++;
-        
-        // Verificar se QUALQUER lead com este telefone tem agendamento NO PERÍODO
-        const allLeadIds = leadIdsByPhone[normalizedPhone] || [lead.id];
-        const hasAgendamentoInPeriod = phonesWithAgendamentoInPeriodForStage.has(normalizedPhone);
-        const naoCompareceu = allLeadIds.some(id => clientesNaoCompareceram.has(id));
-        
-        // Verificar faturas NO PERÍODO por telefone
-        const temFaturaNegociacaoInPeriod = phonesWithFaturaNegociacaoInPeriod.has(normalizedPhone);
-        const temFaturaFechadaInPeriod = phonesWithFaturaFechadaInPeriod.has(normalizedPhone);
-        
-        // Etapa 2: Agendados NO PERÍODO (tem agendamento OU tem fatura criada no período)
+      // Agrupar por campanha/conjunto/anúncio
+      // Usar telefone normalizado para unificar contatos
+      const processedPhones = new Set<string>();
+      const grouped: Record<string, FunnelData> = {};
+
+      leads?.forEach((lead) => {
+        const phone = normalizePhone(lead.telefone);
+        if (processedPhones.has(phone)) return;
+        processedPhones.add(phone);
+
+        const allIds = leadIdsByPhone[phone] || [lead.id];
+
+        // flags do período
+        const hasAgendamentoInPeriod = phonesWithAgendamentoInPeriodForStage.has(phone);
+        const temFaturaNegociacaoInPeriod = phonesWithFaturaNegociacaoInPeriod.has(phone);
+        const temFaturaFechadaInPeriod = phonesWithFaturaFechadaInPeriod.has(phone);
+
+        // stage-specific lead id (para atribuição correta por etapa)
+        const leadIdStage2 = firstAgendamentoLeadIdByPhone[phone] || lead.id;
+        const leadIdStage3 = firstFaturaNegLeadIdByPhone[phone] || firstFaturaFechLeadIdByPhone[phone] || leadIdStage2;
+        const leadIdStage4 = firstFaturaFechLeadIdByPhone[phone] || leadIdStage3;
+
+        // Etapa 1: Leads (atribuir ao lead do próprio telefone)
+        const gLead = ensureGroup(getAttribution(phone, lead.id));
+        gLead.leads++;
+
+        // Etapa 2: Agendados (atribuir ao lead que gerou o agendamento no período)
         if (hasAgendamentoInPeriod || temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
-          grouped[key].agendados++;
-          
-          // Não compareceu = tinha agendamento mas cancelou/faltou E não evoluiu para fatura
+          const gAg = ensureGroup(getAttribution(phone, leadIdStage2));
+          gAg.agendados++;
+
+          const naoCompareceu = allIds.some((id) => clientesNaoCompareceram.has(id));
           if (naoCompareceu && !temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
-            grouped[key].nao_compareceu++;
+            gAg.nao_compareceu++;
           }
         }
-        
-        // Etapa 3: Compareceu/Em Negociação = tem fatura de negociação OU fechada NO PERÍODO
+
+        // Etapa 3: Compareceu / Em negociação (atribuir ao lead da fatura no período)
         if (temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
-          grouped[key].compareceu++;
-          
-          // Em negociação = tem fatura de negociação mas NÃO tem fechada no período
+          const g3 = ensureGroup(getAttribution(phone, leadIdStage3));
+          g3.compareceu++;
           if (temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
-            grouped[key].em_negociacao++;
+            g3.em_negociacao++;
           }
         }
-        
-        // Etapa 4: Clientes = tem fatura fechada NO PERÍODO
+
+        // Etapa 4: Clientes (atribuir ao lead da fatura fechada no período)
         if (temFaturaFechadaInPeriod) {
-          grouped[key].clientes++;
-          // Adicionar valor da fatura do período
+          const g4 = ensureGroup(getAttribution(phone, leadIdStage4));
+          g4.clientes++;
+
           let valorFechado = 0;
-          allLeadIds.forEach(id => {
-            if (faturaPorClienteInPeriod[id]) {
-              valorFechado += faturaPorClienteInPeriod[id];
-            }
+          allIds.forEach((id) => {
+            if (faturaPorClienteInPeriod[id]) valorFechado += faturaPorClienteInPeriod[id];
           });
+
           if (valorFechado > 0) {
-            grouped[key].valor_fechado += valorFechado;
+            g4.valor_fechado += valorFechado;
           } else {
             // Fallback para valor_tratamento
-            const allLeadsWithPhone = (allLeads || []).filter((l) => normalizePhone(l.telefone) === normalizedPhone);
-            const valorTratamento = allLeadsWithPhone.find(l => l.valor_tratamento)?.valor_tratamento;
-            if (valorTratamento) {
-              grouped[key].valor_fechado += valorTratamento;
-            }
+            const valorTratamento = allIds
+              .map((id) => leadById[id])
+              .find((l) => l?.valor_tratamento)?.valor_tratamento;
+            if (valorTratamento) g4.valor_fechado += valorTratamento;
           }
         }
       });
