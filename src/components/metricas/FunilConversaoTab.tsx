@@ -502,11 +502,13 @@ export function FunilConversaoTab() {
         filters: (q) => q.eq("user_id", user.id).is("deleted_at", null),
       });
 
-      // Considerar apenas leads de origem WhatsApp (ou sem origem definida = WhatsApp implícito)
-      // Mesma lógica da aba Leads (WhatsApp)
+      // Considerar apenas leads de origem WhatsApp EXPLÍCITA
+      // Leads com origem = null foram criados manualmente e não são leads do funil de anúncios
+      // Importante: não usar a mesma lógica da aba Leads, pois lá origem null é tratado como WhatsApp
+      // para compatibilidade, mas no funil só devemos contar leads reais vindos do webhook
       const isWhatsAppLead = (origem: string | null) => {
         const o = (origem || "").toLowerCase();
-        return o === "whatsapp" || o === "";
+        return o === "whatsapp";
       };
 
       // Lead "oficial" por telefone = primeiro cadastro (mais antigo).
