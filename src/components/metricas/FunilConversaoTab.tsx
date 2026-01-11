@@ -623,10 +623,9 @@ export function FunilConversaoTab() {
       });
 
       // Identificar telefones que tiveram AGENDAMENTO no período
-      // Regras de visibilidade no app:
-      // - Status "agendado"/"confirmado" = visível na Agenda
-      // - Status "cancelado" = visível em Não Compareceu
-      // - Status "realizado" = visível APENAS se tiver fatura associada
+      // IMPORTANTE: Conta TODOS os agendamentos criados no período, independente do status atual.
+      // Isso garante que a métrica "Agendados" reflita todos que passaram pelo calendário.
+      // Os excluídos são rastreados separadamente via agendamentos_excluidos_log.
       const phonesWithAgendamentoInPeriod = new Set<string>();
       const phonesWithAgendamentoInPeriodForStage = new Set<string>();
       const phonesWithNaoCompareceuInPeriod = new Set<string>();
@@ -641,12 +640,7 @@ export function FunilConversaoTab() {
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
 
-        // Agendamentos "realizado" sem fatura não aparecem no app - ignorar
-        if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
-          return;
-        }
-
-        // Agendamento é visível no app - contar
+        // Contar TODOS os agendamentos criados no período
         phonesWithAgendamentoInPeriod.add(phone);
         phonesWithAgendamentoInPeriodForStage.add(phone);
 
@@ -867,10 +861,7 @@ export function FunilConversaoTab() {
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
         
-        // Agendamentos "realizado" sem fatura não aparecem no app - ignorar
-        if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
-          return;
-        }
+        // Contar TODOS os agendamentos no período para atribuição
         
         // Pegar o MAIS RECENTE (ts > existente)
         if (latestAgendamentoTsByPhone[phone] === undefined || ts > latestAgendamentoTsByPhone[phone]) {
