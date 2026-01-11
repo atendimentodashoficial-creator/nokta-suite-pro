@@ -752,6 +752,8 @@ export function FunilConversaoTab() {
       // Telefones cujo lead PRIMÁRIO (primeiro registro absoluto) foi criado no período
       // IMPORTANTE: deve bater com a aba Leads, que mostra 1 registro por telefone (o mais antigo).
       // Um telefone que já existia antes NÃO conta como "lead de hoje" (mesmo que tenha novo registro hoje).
+      // IMPORTANTE: A aba Leads exclui leads com status="cliente" por padrão. O Funil deve seguir a mesma regra
+      // para a métrica "Leads" (mas eventos como agendamentos/faturas ainda contam mesmo se o lead virou cliente).
       const phonesWithLeadInPeriod = new Set<string>();
 
       // Telefones cujo lead PRIMÁRIO é de "Disparos" e foi criado no período
@@ -764,6 +766,10 @@ export function FunilConversaoTab() {
         const origem = (primaryLead.origem || "").toLowerCase();
         
         if (!isWithinPeriod(primaryLead.created_at)) return;
+        
+        // IMPORTANTE: Excluir leads com status="cliente" da contagem de LEADS (para bater com a aba Leads)
+        // Esses contatos ainda podem contar em agendamentos/faturas se houver eventos no período
+        if (primaryLead.status === "cliente") return;
         
         if (origem === "disparos") {
           phonesWithDisparosLeadInPeriod.add(phone);
