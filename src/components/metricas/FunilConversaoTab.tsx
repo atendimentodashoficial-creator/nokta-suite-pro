@@ -514,6 +514,7 @@ export function FunilConversaoTab() {
         updated_at: string | null;
         valor_tratamento: number | null;
         origem: string | null;
+        origem_tipo: string | null;
       }>({
         table: "leads",
         select: `
@@ -534,7 +535,8 @@ export function FunilConversaoTab() {
           created_at,
           updated_at,
           valor_tratamento,
-          origem
+          origem,
+          origem_tipo
         `,
         orderBy: "created_at",
         filters: (q) => q.eq("user_id", user.id).is("deleted_at", null),
@@ -564,8 +566,9 @@ export function FunilConversaoTab() {
         }
         
         // Verificar se o novo lead tem atribuição melhor que o existente
-        const existingHasAttribution = existing.origem === 'Disparos' || existing.fbclid || existing.utm_source || existing.fb_campaign_name;
-        const newHasAttribution = lead.origem === 'Disparos' || lead.fbclid || lead.utm_source || lead.fb_campaign_name;
+        // Considerar tanto 'origem' quanto 'origem_tipo' para determinar se veio de Disparos
+        const existingHasAttribution = existing.origem === 'Disparos' || existing.origem_tipo === 'Disparos' || existing.fbclid || existing.utm_source || existing.fb_campaign_name;
+        const newHasAttribution = lead.origem === 'Disparos' || lead.origem_tipo === 'Disparos' || lead.fbclid || lead.utm_source || lead.fb_campaign_name;
         
         // Se o novo tem atribuição e o existente não, usar o novo
         if (newHasAttribution && !existingHasAttribution) {
@@ -740,15 +743,23 @@ export function FunilConversaoTab() {
 
       // Telefones WhatsApp (para excluir "Disparos-only")
       const hasWhatsAppByPhone: Record<string, boolean> = {};
-      // Rastrear origem primária por telefone (primeiro registro)
-      const primaryOriginByPhone: Record<string, string> = {};
       (allLeads || []).forEach((l) => {
         const phone = phoneKey(l.telefone);
         if (isWhatsAppLead(l.origem)) hasWhatsAppByPhone[phone] = true;
-        
-        // Guardar origem do primeiro registro (primário)
-        if (!primaryOriginByPhone[phone]) {
-          primaryOriginByPhone[phone] = (l.origem || "whatsapp").toLowerCase();
+      });
+      
+      // Rastrear origem primária por telefone - USAR O LEAD PRIMÁRIO SELECIONADO
+      // Isso garante consistência entre a seleção de lead e a categorização de origem
+      const primaryOriginByPhone: Record<string, string> = {};
+      Object.values(firstLeadByPhone).forEach((lead) => {
+        const phone = phoneKey(lead.telefone);
+        const origem = (lead.origem || "").toLowerCase();
+        const origemTipo = (lead.origem_tipo || "").toLowerCase();
+        // Se origem ou origem_tipo é "disparos", usar "disparos" como origem primária
+        if (origem === "disparos" || origemTipo === "disparos") {
+          primaryOriginByPhone[phone] = "disparos";
+        } else {
+          primaryOriginByPhone[phone] = origem || "whatsapp";
         }
       });
 
@@ -797,6 +808,7 @@ export function FunilConversaoTab() {
       Object.values(firstLeadByPhone).forEach((primaryLead) => {
         const phone = phoneKey(primaryLead.telefone);
         const origem = (primaryLead.origem || "").toLowerCase();
+        const origemTipo = (primaryLead.origem_tipo || "").toLowerCase();
         
         if (!isWithinPeriod(primaryLead.created_at)) return;
         
@@ -804,7 +816,8 @@ export function FunilConversaoTab() {
         // Esses contatos ainda podem contar em agendamentos/faturas se houver eventos no período
         if (primaryLead.status === "cliente") return;
         
-        if (origem === "disparos") {
+        // Verificar tanto 'origem' quanto 'origem_tipo' para determinar se veio de Disparos
+        if (origem === "disparos" || origemTipo === "disparos") {
           phonesWithDisparosLeadInPeriod.add(phone);
         } else {
           // WhatsApp ou origem vazia/null
