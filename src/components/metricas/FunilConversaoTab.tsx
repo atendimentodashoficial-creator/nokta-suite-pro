@@ -554,14 +554,9 @@ export function FunilConversaoTab() {
       const phonesInPeriod = new Set<string>();
       leadsInPeriod.forEach((lead) => phonesInPeriod.add(normalizePhone(lead.telefone)));
 
-      // Leads válidos = todos os leads (qualquer data) cujo telefone está no período
-      // Isso permite pegar dados de campanha de registros anteriores
-      const validLeads = (allLeads || []).filter((lead) => {
-        const normalizedPhone = normalizePhone(lead.telefone);
-        return phonesInPeriod.has(normalizedPhone);
-      });
 
-      // Criar mapa de dados de campanha por telefone normalizado (pode vir de qualquer data)
+      // Criar mapa de dados de campanha por telefone normalizado (busca em TODOS os leads, não apenas validLeads)
+      // Isso garante que pegamos dados de campanha mesmo de leads antigos
       const campaignDataByPhone: Record<
         string,
         {
@@ -572,22 +567,30 @@ export function FunilConversaoTab() {
         }
       > = {};
 
-      validLeads.forEach((lead) => {
+      // Primeiro, criar mapa de todos os leads por telefone
+      (allLeads || []).forEach((lead) => {
         const normalizedPhone = normalizePhone(lead.telefone);
+        // Só processar se o telefone está no período
+        if (!phonesInPeriod.has(normalizedPhone)) return;
+        // Só sobrescrever se o lead atual tem dados de campanha e o existente não tem
         if (lead.fb_campaign_name) {
-          campaignDataByPhone[normalizedPhone] = {
-            fb_campaign_name: lead.fb_campaign_name,
-            fb_adset_name: lead.fb_adset_name,
-            fb_ad_name: lead.fb_ad_name,
-            fb_ad_id: lead.fb_ad_id,
-          };
+          if (!campaignDataByPhone[normalizedPhone] || !campaignDataByPhone[normalizedPhone].fb_campaign_name) {
+            campaignDataByPhone[normalizedPhone] = {
+              fb_campaign_name: lead.fb_campaign_name,
+              fb_adset_name: lead.fb_adset_name,
+              fb_ad_name: lead.fb_ad_name,
+              fb_ad_id: lead.fb_ad_id,
+            };
+          }
         }
       });
 
-      // Criar mapa de todos os IDs de lead por telefone normalizado (apenas válidos)
+      // Criar mapa de todos os IDs de lead por telefone normalizado (todos os leads do mesmo telefone)
       const leadIdsByPhone: Record<string, string[]> = {};
-      validLeads.forEach((lead) => {
+      (allLeads || []).forEach((lead) => {
         const normalizedPhone = normalizePhone(lead.telefone);
+        // Só processar se o telefone está no período
+        if (!phonesInPeriod.has(normalizedPhone)) return;
         if (!leadIdsByPhone[normalizedPhone]) leadIdsByPhone[normalizedPhone] = [];
         leadIdsByPhone[normalizedPhone].push(lead.id);
       });
@@ -702,7 +705,7 @@ export function FunilConversaoTab() {
             grouped[key].valor_fechado += valorFechado;
           } else {
             // Fallback para valor_tratamento
-            const allLeadsWithPhone = validLeads.filter((l) => normalizePhone(l.telefone) === normalizedPhone);
+            const allLeadsWithPhone = (allLeads || []).filter((l) => normalizePhone(l.telefone) === normalizedPhone);
             const valorTratamento = allLeadsWithPhone.find(l => l.valor_tratamento)?.valor_tratamento;
             if (valorTratamento) {
               grouped[key].valor_fechado += valorTratamento;
