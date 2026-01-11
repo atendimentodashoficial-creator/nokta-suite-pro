@@ -1010,7 +1010,7 @@ export function FunilConversaoTab() {
 
       // Helper para verificar se a origem primária é "Disparos"
       const isDisparosOrigin = (phone: string) => {
-        const origin = primaryOriginByPhone[phone] || "";
+        const origin = (primaryOriginByPhone[phone] || "").toLowerCase();
         return origin === "disparos";
       };
 
