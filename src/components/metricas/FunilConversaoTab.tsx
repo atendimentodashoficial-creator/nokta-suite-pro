@@ -486,23 +486,68 @@ export function FunilConversaoTab() {
 
       if (agendamentosError) throw agendamentosError;
 
+      // Buscar TODAS as faturas para identificar etapas do funil
+      const { data: faturas, error: faturasError } = await supabase
+        .from("faturas")
+        .select(`
+          id,
+          valor,
+          status,
+          cliente_id,
+          created_at
+        `)
+        .eq("user_id", user.id);
+
+      if (faturasError) throw faturasError;
+
       // Identificar telefones que tiveram agendamento criado no período
       const phonesWithAgendamentoInPeriod = new Set<string>();
+      // Agendamentos criados no período (para contagem de etapa 2)
+      const phonesWithAgendamentoInPeriodForStage = new Set<string>();
       agendamentos?.forEach((a) => {
-        if (a.cliente_id && isWithinPeriod(a.created_at)) {
+        if (a.cliente_id) {
           const phone = clienteIdToPhone[a.cliente_id];
-          if (phone) phonesWithAgendamentoInPeriod.add(phone);
+          if (phone && isWithinPeriod(a.created_at)) {
+            phonesWithAgendamentoInPeriod.add(phone);
+            phonesWithAgendamentoInPeriodForStage.add(phone);
+          }
+        }
+      });
+
+      // Identificar telefones que tiveram fatura criada no período
+      const phonesWithFaturaInPeriod = new Set<string>();
+      // Faturas de negociação criadas no período (para contagem de etapa 3)
+      const phonesWithFaturaNegociacaoInPeriod = new Set<string>();
+      // Faturas fechadas criadas no período (para contagem de etapa 4)
+      const phonesWithFaturaFechadaInPeriod = new Set<string>();
+      const faturaPorClienteInPeriod: Record<string, number> = {};
+      
+      faturas?.forEach((f) => {
+        if (f.cliente_id) {
+          const phone = clienteIdToPhone[f.cliente_id];
+          if (phone && isWithinPeriod(f.created_at)) {
+            phonesWithFaturaInPeriod.add(phone);
+            if (f.status === "negociacao") {
+              phonesWithFaturaNegociacaoInPeriod.add(phone);
+            }
+            if (f.status === "fechado") {
+              phonesWithFaturaFechadaInPeriod.add(phone);
+              faturaPorClienteInPeriod[f.cliente_id] = (faturaPorClienteInPeriod[f.cliente_id] || 0) + f.valor;
+            }
+          }
         }
       });
 
       // Leads no período = telefones cujo PRIMEIRO cadastro foi WhatsApp e:
       // 1) Ocorreu dentro do período, OU
-      // 2) Teve um agendamento criado dentro do período
+      // 2) Teve um agendamento criado dentro do período, OU
+      // 3) Teve uma fatura criada dentro do período
       const leadsInPeriod = primaryLeads.filter((lead) => {
         if (!isWhatsAppLead(lead.origem)) return false;
         const normalizedPhone = normalizePhone(lead.telefone);
-        // Incluir se o lead entrou no período OU se teve agendamento no período
-        return isWithinPeriod(lead.created_at) || phonesWithAgendamentoInPeriod.has(normalizedPhone);
+        return isWithinPeriod(lead.created_at) || 
+               phonesWithAgendamentoInPeriod.has(normalizedPhone) || 
+               phonesWithFaturaInPeriod.has(normalizedPhone);
       });
 
       // Telefones que têm lead primário no período (para enriquecer com dados de campanha de qualquer data)
@@ -553,47 +598,15 @@ export function FunilConversaoTab() {
       // Total de registros no período (antes da unificação por telefone)
       const totalRecords = leads.length;
 
-      // Criar set de clientes com agendamento e mapa de status
+      // Criar set de clientes com agendamento e mapa de status (todos os tempos, para fallback)
       const clientesComAgendamento = new Set<string>();
       const clientesNaoCompareceram = new Set<string>();
       
       agendamentos?.forEach(a => {
         if (a.cliente_id) {
           clientesComAgendamento.add(a.cliente_id);
-          // Status "cancelado" = não compareceu/desmarcou
           if (a.status === "cancelado") {
             clientesNaoCompareceram.add(a.cliente_id);
-          }
-        }
-      });
-
-      // Buscar TODAS as faturas para identificar etapas do funil
-      const { data: faturas, error: faturasError } = await supabase
-        .from("faturas")
-        .select(`
-          id,
-          valor,
-          status,
-          cliente_id,
-          created_at
-        `)
-        .eq("user_id", user.id);
-
-      if (faturasError) throw faturasError;
-
-      // Criar sets de clientes por status de fatura
-      const clientesComFaturaNegociacao = new Set<string>();
-      const clientesComFaturaFechada = new Set<string>();
-      const faturaPorCliente: Record<string, number> = {};
-      
-      faturas?.forEach(f => {
-        if (f.cliente_id) {
-          if (f.status === "negociacao") {
-            clientesComFaturaNegociacao.add(f.cliente_id);
-          }
-          if (f.status === "fechado") {
-            clientesComFaturaFechada.add(f.cliente_id);
-            faturaPorCliente[f.cliente_id] = (faturaPorCliente[f.cliente_id] || 0) + f.valor;
           }
         }
       });
@@ -646,43 +659,43 @@ export function FunilConversaoTab() {
         // Etapa 1: Leads
         grouped[key].leads++;
         
-        // Verificar se QUALQUER lead com este telefone tem agendamento
+        // Verificar se QUALQUER lead com este telefone tem agendamento NO PERÍODO
         const allLeadIds = leadIdsByPhone[normalizedPhone] || [lead.id];
-        const hasAgendamento = allLeadIds.some(id => clientesComAgendamento.has(id));
+        const hasAgendamentoInPeriod = phonesWithAgendamentoInPeriodForStage.has(normalizedPhone);
         const naoCompareceu = allLeadIds.some(id => clientesNaoCompareceram.has(id));
         
-        // Verificar faturas por telefone
-        const temFaturaNegociacao = allLeadIds.some(id => clientesComFaturaNegociacao.has(id));
-        const temFaturaFechada = allLeadIds.some(id => clientesComFaturaFechada.has(id));
+        // Verificar faturas NO PERÍODO por telefone
+        const temFaturaNegociacaoInPeriod = phonesWithFaturaNegociacaoInPeriod.has(normalizedPhone);
+        const temFaturaFechadaInPeriod = phonesWithFaturaFechadaInPeriod.has(normalizedPhone);
         
-        // Etapa 2: Agendados (tem agendamento OU tem fatura de qualquer tipo)
-        if (hasAgendamento || temFaturaNegociacao || temFaturaFechada) {
+        // Etapa 2: Agendados NO PERÍODO (tem agendamento OU tem fatura criada no período)
+        if (hasAgendamentoInPeriod || temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
           grouped[key].agendados++;
           
           // Não compareceu = tinha agendamento mas cancelou/faltou E não evoluiu para fatura
-          if (naoCompareceu && !temFaturaNegociacao && !temFaturaFechada) {
+          if (naoCompareceu && !temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
             grouped[key].nao_compareceu++;
           }
         }
         
-        // Etapa 3: Compareceu/Em Negociação = tem fatura de negociação OU fatura fechada
-        if (temFaturaNegociacao || temFaturaFechada) {
+        // Etapa 3: Compareceu/Em Negociação = tem fatura de negociação OU fechada NO PERÍODO
+        if (temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
           grouped[key].compareceu++;
           
-          // Em negociação = tem fatura de negociação mas NÃO tem fechada
-          if (temFaturaNegociacao && !temFaturaFechada) {
+          // Em negociação = tem fatura de negociação mas NÃO tem fechada no período
+          if (temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
             grouped[key].em_negociacao++;
           }
         }
         
-        // Etapa 4: Clientes = tem fatura fechada
-        if (temFaturaFechada) {
+        // Etapa 4: Clientes = tem fatura fechada NO PERÍODO
+        if (temFaturaFechadaInPeriod) {
           grouped[key].clientes++;
-          // Adicionar valor da fatura
+          // Adicionar valor da fatura do período
           let valorFechado = 0;
           allLeadIds.forEach(id => {
-            if (faturaPorCliente[id]) {
-              valorFechado += faturaPorCliente[id];
+            if (faturaPorClienteInPeriod[id]) {
+              valorFechado += faturaPorClienteInPeriod[id];
             }
           });
           if (valorFechado > 0) {
