@@ -579,13 +579,14 @@ export function FunilConversaoTab() {
 
       // Buscar TODOS os agendamentos do usuário com status
       const agendamentos = await fetchAll<{
+        id: string;
         cliente_id: string;
         status: any;
         created_at: string;
         data_agendamento: string;
       }>({
         table: "agendamentos",
-        select: "cliente_id, status, created_at, data_agendamento",
+        select: "id, cliente_id, status, created_at, data_agendamento",
         orderBy: "created_at",
         filters: (q) => q.eq("user_id", user.id),
       });
@@ -622,6 +623,18 @@ export function FunilConversaoTab() {
         }
       });
 
+      // Criar set de agendamento IDs que têm fatura vinculada diretamente
+      const agendamentoIdsComFatura = new Set<string>();
+      faturas?.forEach((f: any) => {
+        if (f.fatura_agendamentos) {
+          f.fatura_agendamentos.forEach((fa: any) => {
+            if (fa.agendamento_id) {
+              agendamentoIdsComFatura.add(fa.agendamento_id);
+            }
+          });
+        }
+      });
+
       // Identificar telefones que tiveram AGENDAMENTO no período
       // IMPORTANTE: Conta TODOS os agendamentos criados no período, independente do status atual.
       // Isso garante que a métrica "Agendados" reflita todos que passaram pelo calendário.
@@ -637,10 +650,17 @@ export function FunilConversaoTab() {
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone) return;
 
+        // IMPORTANTE: Agendamentos "realizado" só devem ser contados se tiverem fatura
+        // vinculada diretamente a este agendamento específico (via fatura_agendamentos)
+        const agendamentoTemFatura = agendamentoIdsComFatura.has(a.id);
+        if (a.status === "realizado" && !agendamentoTemFatura) {
+          return; // Ignorar agendamentos "realizado" sem fatura vinculada
+        }
+
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
 
-        // Contar TODOS os agendamentos criados no período
+        // Contar agendamentos visíveis no app criados no período
         phonesWithAgendamentoInPeriod.add(phone);
         phonesWithAgendamentoInPeriodForStage.add(phone);
 
@@ -952,8 +972,9 @@ export function FunilConversaoTab() {
       
       agendamentos?.forEach(a => {
         if (a.cliente_id) {
-          // Agendamentos "realizado" sem fatura não aparecem no app - ignorar
-          if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
+          // Agendamentos "realizado" sem fatura vinculada diretamente não aparecem no app
+          const agendamentoTemFatura = agendamentoIdsComFatura.has(a.id);
+          if (a.status === "realizado" && !agendamentoTemFatura) {
             return;
           }
           clientesComAgendamento.add(a.cliente_id);

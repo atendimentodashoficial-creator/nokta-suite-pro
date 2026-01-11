@@ -144,9 +144,10 @@ export default function Dashboard() {
       // Ignorar agendamentos de leads excluídos
       if (!leadsNaoExcluidosIds.has(ag.cliente_id)) return false;
       
-      // Ignorar agendamentos "realizado" sem fatura vinculada
-      const hasFatura = agendamentoIdsComFatura.has(ag.id) || clientesComFatura.has(ag.cliente_id);
-      if (ag.status === "realizado" && !hasFatura) return false;
+      // Ignorar agendamentos "realizado" sem fatura vinculada diretamente ao agendamento
+      // (não basta o cliente ter fatura, precisa estar vinculada via fatura_agendamentos)
+      const agendamentoTemFatura = agendamentoIdsComFatura.has(ag.id);
+      if (ag.status === "realizado" && !agendamentoTemFatura) return false;
       
       return true;
     };
