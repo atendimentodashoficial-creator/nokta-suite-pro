@@ -85,6 +85,11 @@ interface FunnelData {
 interface FunnelQueryResult {
   data: FunnelData[];
   /**
+   * Sempre calculado por campanha, independente do "Agrupar por".
+   * Usado para calcular totais e badges de rastreamento.
+   */
+  dataByCampaign: FunnelData[];
+  /**
    * Sempre calculado, independente do "Agrupar por".
    * Usado nos quadros "Melhores Desempenhos" e "Melhor Custo".
    */
@@ -423,7 +428,7 @@ export function FunilConversaoTab() {
   const { data: funnelResult, isLoading: loadingFunnel } = useQuery({
     queryKey: ["funnel-data", user?.id, dateStart, dateEnd, viewLevel],
     queryFn: async (): Promise<FunnelQueryResult> => {
-      if (!user?.id) return { data: [], dataByAdset: [], dataByAd: [], totalRecords: 0, uniqueContacts: 0, viaDisparos: { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 } };
+      if (!user?.id) return { data: [], dataByCampaign: [], dataByAdset: [], dataByAd: [], totalRecords: 0, uniqueContacts: 0, viaDisparos: { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 } };
 
       // Construir limites do período em UTC (alinha com o backend e evita diferença de fuso)
       const startOfPeriodUTC = new Date(Date.UTC(
@@ -1215,6 +1220,7 @@ export function FunilConversaoTab() {
 
       return {
         data,
+        dataByCampaign: dataCampaign,
         dataByAdset: dataAdset,
         dataByAd: dataAd,
         totalRecords,
@@ -1227,6 +1233,7 @@ export function FunilConversaoTab() {
 
   // Extrair dados do resultado
   const funnelData = funnelResult?.data || [];
+  const funnelDataByCampaign = funnelResult?.dataByCampaign || [];
   const funnelDataByAdset = funnelResult?.dataByAdset || [];
   const funnelDataByAd = funnelResult?.dataByAd || [];
   const totalRecordsInPeriod = funnelResult?.totalRecords || 0;
@@ -1438,7 +1445,7 @@ export function FunilConversaoTab() {
     return spendByAd[key] || 0;
   };
 
-  // Calcular totais
+  // Calcular totais - SEMPRE usar funnelDataByCampaign para ter acesso a "Sem campanha"
   const totals = useMemo(() => {
     const defaultTotals = { 
       leads: 0, leadsTracked: 0, leadsUntracked: 0, 
@@ -1451,15 +1458,16 @@ export function FunilConversaoTab() {
       spend: 0 
     };
     
-    if (!funnelData) return defaultTotals;
+    // Usar funnelDataByCampaign para garantir acesso a "Sem campanha" independente do viewLevel
+    if (!funnelDataByCampaign || funnelDataByCampaign.length === 0) return defaultTotals;
     
     const totalSpend = Object.values(spendByCampaign).reduce((a, b) => a + b, 0);
     
     // Contar rastreados vs não rastreados (excluindo "Via Disparos" dos rastreados por anúncio)
-    const tracked = funnelData.filter(item => 
+    const tracked = funnelDataByCampaign.filter(item => 
       item.campaign_name !== "Sem campanha" && !item.campaign_name.includes("Via Disparos")
     );
-    const untracked = funnelData.find(item => item.campaign_name === "Sem campanha");
+    const untracked = funnelDataByCampaign.find(item => item.campaign_name === "Sem campanha");
     
     // Leads "não rastreados" = "Sem campanha" MENOS os que vieram de Disparos
     // (pois Disparos aparecem em badge separada)
@@ -1478,7 +1486,7 @@ export function FunilConversaoTab() {
     const valorTracked = tracked.reduce((sum, item) => sum + item.valor_fechado, 0);
     const valorUntracked = untracked?.valor_fechado || 0;
     
-    return funnelData.reduce((acc, item) => ({
+    return funnelDataByCampaign.reduce((acc, item) => ({
       leads: acc.leads + item.leads,
       leadsTracked, leadsUntracked,
       agendados: acc.agendados + item.agendados,
@@ -1495,7 +1503,7 @@ export function FunilConversaoTab() {
       valorTracked, valorUntracked,
       spend: totalSpend,
     }), { ...defaultTotals, spend: totalSpend });
-  }, [funnelData, spendByCampaign]);
+  }, [funnelDataByCampaign, spendByCampaign, viaDisparos]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
