@@ -205,24 +205,24 @@ export default function Dashboard() {
   }, [user, dataInicial, dataFinal]);
 
   // Calcular métricas
-  // LEADS: considerar conversão como "teve ao menos 1 agendamento"
-  const clientesComAgendamento = new Set(dadosFiltrados.agendamentos.map(a => a.cliente_id));
+  // LEADS (igual à aba Leads): contar leads gerados no período, deduplicados (useLeads já vem deduplicado)
 
-  // Leads atuais = ainda em status "lead" e ainda sem agendamento
-  const leadsAtuais = dadosFiltrados.leads.filter(l => l.status === "lead" && !clientesComAgendamento.has(l.id)).length;
+  const isWhatsAppOrigin = (origem: string | null | undefined) => {
+    const o = (origem || "").toLowerCase();
+    return o === "" || o === "whatsapp";
+  };
 
-  // Leads separados por origem
-  const leadsWhatsApp = dadosFiltrados.leads.filter(l => 
-    l.status === "lead" && 
-    !clientesComAgendamento.has(l.id) && 
-    (l.origem === "WhatsApp" || !l.origem)
-  ).length;
-  
-  const leadsDisparos = dadosFiltrados.leads.filter(l => 
-    l.status === "lead" && 
-    !clientesComAgendamento.has(l.id) && 
-    l.origem === "Disparos"
-  ).length;
+  const isDisparosOrigin = (origem: string | null | undefined) => {
+    return (origem || "").toLowerCase() === "disparos";
+  };
+
+  // Leads separados por origem (gerados no período)
+  const leadsWhatsApp = dadosFiltrados.leads.filter((l) => isWhatsAppOrigin(l.origem)).length;
+  const leadsDisparos = dadosFiltrados.leads.filter((l) => isDisparosOrigin(l.origem)).length;
+
+  // Mantém a métrica auxiliar (não exibida nos cards atuais) caso seja usada futuramente
+  const clientesComAgendamento = new Set(dadosFiltrados.agendamentos.map((a) => a.cliente_id));
+  const leadsAtuais = dadosFiltrados.leads.filter((l) => l.status === "lead" && !clientesComAgendamento.has(l.id)).length;
 
   const leadsFollowUp = dadosFiltrados.leads.filter(l => l.status === "follow_up").length;
 
