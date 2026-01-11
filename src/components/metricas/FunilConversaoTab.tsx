@@ -1050,8 +1050,12 @@ export function FunilConversaoTab() {
         const tsStage3 = latestFaturaNegTsByPhone[phone] || latestFaturaFechTsByPhone[phone];
         const tsStage4 = latestFaturaFechTsByPhone[phone];
 
-        // Etapa 1: Leads - só conta se o lead foi CRIADO no período (apenas WhatsApp, igual a aba Leads)
-        const leadCreatedInPeriod = phonesWithLeadInPeriod.has(phone);
+        // Etapa 1: Leads - conta se o lead foi CRIADO no período (WhatsApp OU Disparos)
+        // O total principal deve somar ambos; as badges "via Disparos" são separadas
+        const isWhatsAppLeadCreatedInPeriod = phonesWithLeadInPeriod.has(phone);
+        const isDisparosLeadCreatedInPeriod = phonesWithDisparosLeadInPeriod.has(phone);
+        const leadCreatedInPeriod = isWhatsAppLeadCreatedInPeriod || isDisparosLeadCreatedInPeriod;
+        
         if (leadCreatedInPeriod) {
           const gLead = ensureGroup(getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1 }));
           gLead.leads++;
