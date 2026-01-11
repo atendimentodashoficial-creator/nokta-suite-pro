@@ -784,16 +784,19 @@ export function FunilConversaoTab() {
         const preferred = preferredLeadId ? leadById[preferredLeadId] : undefined;
         if (preferred?.fb_campaign_name) return preferred;
 
+        // Buscar candidatos com atribuição para este telefone
         const candidates = attributedLeadsByPhone[phone] || [];
-        if (!eventTs || candidates.length === 0) return undefined;
+        if (candidates.length === 0) return undefined;
 
-        // Mais recente antes (ou no mesmo instante) do evento
-        for (let i = candidates.length - 1; i >= 0; i--) {
-          const t = new Date(candidates[i].created_at || 0).getTime();
-          if (Number.isFinite(t) && t <= eventTs) return candidates[i];
+        // Se temos eventTs, escolhe o lead com atribuição mais recente ANTES do evento
+        if (eventTs) {
+          for (let i = candidates.length - 1; i >= 0; i--) {
+            const t = new Date(candidates[i].created_at || 0).getTime();
+            if (Number.isFinite(t) && t <= eventTs) return candidates[i];
+          }
         }
 
-        // Se não houver antes, usa o primeiro com atribuição (melhor fallback)
+        // Fallback: primeiro lead com atribuição (o mais antigo)
         return candidates[0];
       };
 
