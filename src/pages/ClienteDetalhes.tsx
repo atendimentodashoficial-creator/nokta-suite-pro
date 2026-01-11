@@ -788,9 +788,9 @@ export default function ClienteDetalhes() {
                       <Card key={agendamento.id} className="p-4 bg-red-500/5 border-red-500/20">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Badge className="bg-red-500/20 text-red-700">
+                            <Badge className="bg-red-500/20 text-red-700 border-red-500/30">
                               <Trash2 className="h-3 w-3 mr-1" />
-                              Excluído
+                              Excluído Manualmente
                             </Badge>
                             {agendamento.tipo && (
                               <Badge variant="outline">{agendamento.tipo}</Badge>
