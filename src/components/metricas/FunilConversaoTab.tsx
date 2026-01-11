@@ -684,26 +684,28 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Telefones com lead WhatsApp com atribuição CRIADO NO PERÍODO (para contagem de leads)
+      // Telefones com lead WhatsApp CRIADO NO PERÍODO (para contagem de leads)
+      // Inclui TODOS os leads WhatsApp, não apenas os com atribuição
       const phonesWithLeadInPeriod = new Set<string>();
       (allLeads || []).forEach((lead) => {
         const phone = normalizePhone(lead.telefone);
-        if (isWhatsAppLead(lead.origem) && isWithinPeriod(lead.created_at) && hasAdsAttribution(lead)) {
+        if (isWhatsAppLead(lead.origem) && isWithinPeriod(lead.created_at)) {
           phonesWithLeadInPeriod.add(phone);
         }
       });
 
-      // O "phonesInPeriod" agora é a UNIÃO dos dois conjuntos:
-      // - leads criados no período OU eventos no período (para leads com atribuição)
+      // O "phonesInPeriod" inclui:
+      // - TODOS os leads WhatsApp criados no período
+      // - Phones com eventos no período (se têm atribuição para atribuir corretamente)
       const phonesInPeriod = new Set<string>(phonesWithLeadInPeriod);
       
-      // Adicionar phones que tiveram agendamento no período (se têm atribuição)
+      // Adicionar phones que tiveram agendamento no período (todos os WhatsApp, não só com atribuição)
       phonesWithAgendamentoInPeriod.forEach((p) => {
-        if (phonesWithAttribution.has(p)) phonesInPeriod.add(p);
+        if (hasWhatsAppByPhone[p]) phonesInPeriod.add(p);
       });
-      // Adicionar phones que tiveram fatura no período (se têm atribuição)
+      // Adicionar phones que tiveram fatura no período (todos os WhatsApp)
       phonesWithFaturaInPeriod.forEach((p) => {
-        if (phonesWithAttribution.has(p)) phonesInPeriod.add(p);
+        if (hasWhatsAppByPhone[p]) phonesInPeriod.add(p);
       });
 
       // Mapa rápido de lead por id
