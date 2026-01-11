@@ -1208,7 +1208,20 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                 <CheckCircle2 className="h-3 w-3 text-green-500" />
                 API Conectada
               </Badge>
-              
+
+              {funnelData && (
+                <>
+                  <Badge variant="secondary" className="gap-1">
+                    <Users className="h-3 w-3" />
+                    Leads WhatsApp: {funnelData.totals.leads}
+                  </Badge>
+                  <Badge variant="secondary" className="gap-1">
+                    <Layers className="h-3 w-3" />
+                    Leads Disparos: {funnelData.totals.leadsDisparos}
+                  </Badge>
+                </>
+              )}
+
               {/* Period Selector */}
               <Select value={periodFilter} onValueChange={(v) => setPeriodFilterHook(v as any)}>
                 <SelectTrigger className="w-[180px]">
