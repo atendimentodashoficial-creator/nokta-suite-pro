@@ -472,13 +472,40 @@ export function FunilConversaoTab() {
 
       const primaryLeads = Object.values(firstLeadByPhone);
 
-      // Leads no per  odo = somente telefones cujo PRIMEIRO cadastro foi WhatsApp e ocorreu dentro do per  odo
-      const leadsInPeriod = primaryLeads.filter((lead) => {
-        if (!isWithinPeriod(lead.created_at)) return false;
-        return isWhatsAppLead(lead.origem);
+      // Criar mapa de cliente_id para telefone normalizado
+      const clienteIdToPhone: Record<string, string> = {};
+      (allLeads || []).forEach((lead) => {
+        clienteIdToPhone[lead.id] = normalizePhone(lead.telefone);
       });
 
-      // Telefones que t  m lead prim  rio no per  odo (para enriquecer com dados de campanha de qualquer data)
+      // Buscar TODOS os agendamentos do usuário com status
+      const { data: agendamentos, error: agendamentosError } = await supabase
+        .from("agendamentos")
+        .select("cliente_id, status, created_at")
+        .eq("user_id", user.id);
+
+      if (agendamentosError) throw agendamentosError;
+
+      // Identificar telefones que tiveram agendamento criado no período
+      const phonesWithAgendamentoInPeriod = new Set<string>();
+      agendamentos?.forEach((a) => {
+        if (a.cliente_id && isWithinPeriod(a.created_at)) {
+          const phone = clienteIdToPhone[a.cliente_id];
+          if (phone) phonesWithAgendamentoInPeriod.add(phone);
+        }
+      });
+
+      // Leads no período = telefones cujo PRIMEIRO cadastro foi WhatsApp e:
+      // 1) Ocorreu dentro do período, OU
+      // 2) Teve um agendamento criado dentro do período
+      const leadsInPeriod = primaryLeads.filter((lead) => {
+        if (!isWhatsAppLead(lead.origem)) return false;
+        const normalizedPhone = normalizePhone(lead.telefone);
+        // Incluir se o lead entrou no período OU se teve agendamento no período
+        return isWithinPeriod(lead.created_at) || phonesWithAgendamentoInPeriod.has(normalizedPhone);
+      });
+
+      // Telefones que têm lead primário no período (para enriquecer com dados de campanha de qualquer data)
       const phonesInPeriod = new Set<string>();
       leadsInPeriod.forEach((lead) => phonesInPeriod.add(normalizePhone(lead.telefone)));
 
@@ -525,14 +552,6 @@ export function FunilConversaoTab() {
 
       // Total de registros no período (antes da unificação por telefone)
       const totalRecords = leads.length;
-
-      // Buscar TODOS os agendamentos do usuário com status
-      const { data: agendamentos, error: agendamentosError } = await supabase
-        .from("agendamentos")
-        .select("cliente_id, status, created_at")
-        .eq("user_id", user.id);
-
-      if (agendamentosError) throw agendamentosError;
 
       // Criar set de clientes com agendamento e mapa de status
       const clientesComAgendamento = new Set<string>();
