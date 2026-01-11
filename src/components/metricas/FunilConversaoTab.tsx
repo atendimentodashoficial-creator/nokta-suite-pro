@@ -1591,7 +1591,7 @@ export function FunilConversaoTab() {
       </div>
 
       {/* Cards de resumo do funil */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-7">
         <Card className="text-center">
           <CardHeader className="pb-1">
             <CardTitle className="text-xs font-medium text-muted-foreground">Leads</CardTitle>
@@ -1694,25 +1694,17 @@ export function FunilConversaoTab() {
 
         <Card className="text-center">
           <CardHeader className="pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Comparecimento</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-center gap-1">
+              <UserCheck className="h-3 w-3 text-green-500" />
+              Compareceu
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="flex items-center justify-center gap-4 mb-2">
-              <div className="text-center">
-                <div className="text-xl font-bold text-green-600">{formatNumber(totals.compareceu)}</div>
-                <p className="text-[10px] text-muted-foreground">
-                  {formatPercentage(totals.compareceu, totals.agendados)}
-                </p>
-              </div>
-              <div className="w-px h-8 bg-border" />
-              <div className="text-center">
-                <div className="text-xl font-bold text-red-600">{formatNumber(totals.nao_compareceu)}</div>
-                <p className="text-[10px] text-muted-foreground">
-                  {formatPercentage(totals.nao_compareceu, totals.agendados)}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-1.5 border-t pt-2">
+            <div className="text-2xl font-bold text-green-600">{formatNumber(totals.compareceu)}</div>
+            <p className="text-xs text-muted-foreground">
+              {formatPercentage(totals.compareceu, totals.agendados)} dos agendados
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
               {totals.compareceuTracked > 0 && (
                 <TooltipProvider>
                   <Tooltip>
@@ -1748,6 +1740,36 @@ export function FunilConversaoTab() {
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Comparecimentos de leads originados de campanhas de disparos em massa</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="text-center">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-center gap-1">
+              <UserX className="h-3 w-3 text-red-500" />
+              Não Compareceu
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold text-red-600">{formatNumber(totals.nao_compareceu)}</div>
+            <p className="text-xs text-muted-foreground">
+              {formatPercentage(totals.nao_compareceu, totals.agendados)} dos agendados
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+              {viaDisparos.nao_compareceu > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5">
+                      <Send className="h-2.5 w-2.5" />
+                      <span>{viaDisparos.nao_compareceu} via Disparos</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Não comparecimentos de leads originados de campanhas de disparos em massa</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
