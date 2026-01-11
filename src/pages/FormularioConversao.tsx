@@ -54,7 +54,7 @@ export default function FormularioConversao() {
 
         if (lead) {
           setFormData({
-            nome: lead.nome || "",
+            nome: "", // Deixar vazio para o cliente preencher
             genero: lead.genero || "",
             data_nascimento: lead.data_nascimento || "",
             cep: lead.cep || "",
