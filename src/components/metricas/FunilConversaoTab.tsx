@@ -604,6 +604,7 @@ export function FunilConversaoTab() {
 
       // Buscar TODAS as faturas para identificar etapas do funil
       // Incluímos updated_at para saber QUANDO a fatura foi fechada (não apenas criada)
+      // Incluímos fatura_agendamentos para saber quais agendamentos têm fatura vinculada
       const faturas = await fetchAll<{
         id: string;
         valor: number;
@@ -611,9 +612,10 @@ export function FunilConversaoTab() {
         cliente_id: string;
         created_at: string;
         updated_at: string;
+        fatura_agendamentos?: { agendamento_id: string }[];
       }>({
         table: "faturas",
-        select: "id, valor, status, cliente_id, created_at, updated_at",
+        select: "id, valor, status, cliente_id, created_at, updated_at, fatura_agendamentos(agendamento_id)",
         orderBy: "created_at",
         filters: (q) => q.eq("user_id", user.id),
       });
