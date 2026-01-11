@@ -864,13 +864,15 @@ export function FunilConversaoTab() {
         const gLead = ensureGroup(getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1 }));
         gLead.leads++;
 
-        // Etapa 2: Agendados
-        if (hasAgendamentoInPeriod || temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
+        // Etapa 2: Agendados (estado atual)
+        // Só conta se existir AGENDAMENTO ATIVO no período.
+        // Se o lead avançou para fatura mas o agendamento foi removido/cancelado, não deve continuar marcando aqui.
+        if (hasAgendamentoInPeriod) {
           const gAg = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2 }));
           gAg.agendados++;
 
           const naoCompareceu = allIds.some((id) => clientesNaoCompareceram.has(id));
-          if (naoCompareceu && !temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
+          if (naoCompareceu) {
             gAg.nao_compareceu++;
           }
         }
