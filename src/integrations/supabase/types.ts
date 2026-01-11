@@ -133,6 +133,63 @@ export type Database = {
           },
         ]
       }
+      agendamentos_excluidos_log: {
+        Row: {
+          cliente_id: string
+          cliente_nome: string
+          cliente_telefone: string
+          created_at: string
+          data_agendamento: string
+          excluido_em: string
+          id: string
+          motivo_exclusao: string | null
+          observacoes: string | null
+          procedimento_id: string | null
+          procedimento_nome: string | null
+          profissional_id: string | null
+          profissional_nome: string | null
+          status: string
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          cliente_id: string
+          cliente_nome: string
+          cliente_telefone: string
+          created_at?: string
+          data_agendamento: string
+          excluido_em?: string
+          id?: string
+          motivo_exclusao?: string | null
+          observacoes?: string | null
+          procedimento_id?: string | null
+          procedimento_nome?: string | null
+          profissional_id?: string | null
+          profissional_nome?: string | null
+          status: string
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          cliente_id?: string
+          cliente_nome?: string
+          cliente_telefone?: string
+          created_at?: string
+          data_agendamento?: string
+          excluido_em?: string
+          id?: string
+          motivo_exclusao?: string | null
+          observacoes?: string | null
+          procedimento_id?: string | null
+          procedimento_nome?: string | null
+          profissional_id?: string | null
+          profissional_nome?: string | null
+          status?: string
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_ads_reports: {
         Row: {
           account_id: string
