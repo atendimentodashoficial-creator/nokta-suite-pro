@@ -162,18 +162,24 @@ export function usePeriodFilter(defaultPeriod: PeriodValue = "max") {
   const filterByPeriod = <T extends { created_at: string }>(items: T[] | undefined): T[] => {
     if (!items) return [];
     
-    // Use UTC dates to match database filtering (Supabase stores in UTC)
-    const startYear = dateStart.getFullYear();
-    const startMonth = dateStart.getMonth();
-    const startDay = dateStart.getDate();
-    const startOfPeriod = new Date(Date.UTC(startYear, startMonth, startDay, 0, 0, 0, 0));
+    // Use LOCAL timezone to match how dates are displayed in the UI
+    // (toLocaleDateString uses local timezone, so filtering should too)
+    const startOfPeriod = new Date(
+      dateStart.getFullYear(),
+      dateStart.getMonth(),
+      dateStart.getDate(),
+      0, 0, 0, 0
+    );
     
-    const endYear = dateEnd.getFullYear();
-    const endMonth = dateEnd.getMonth();
-    const endDay = dateEnd.getDate();
-    const endOfPeriod = new Date(Date.UTC(endYear, endMonth, endDay, 23, 59, 59, 999));
+    const endOfPeriod = new Date(
+      dateEnd.getFullYear(),
+      dateEnd.getMonth(),
+      dateEnd.getDate(),
+      23, 59, 59, 999
+    );
 
     return items.filter(item => {
+      // Parse the UTC timestamp and let JavaScript convert to local timezone
       const itemDate = new Date(item.created_at);
       return itemDate >= startOfPeriod && itemDate <= endOfPeriod;
     });
