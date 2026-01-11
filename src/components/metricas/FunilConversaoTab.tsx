@@ -885,15 +885,18 @@ export function FunilConversaoTab() {
         const candidates = attributedLeadsByPhone[phone] || [];
         if (candidates.length === 0) return undefined;
 
-        // Se temos eventTs, escolhe o lead com atribuição mais recente ANTES do evento
-        if (eventTs) {
+        // Se temos eventTs, escolhe o lead com atribuição mais recente ANTES (ou no mesmo instante) do evento
+        // Importante: nunca usar uma atribuição criada DEPOIS do evento (isso distorce "Máximo")
+        if (eventTs !== undefined) {
           for (let i = candidates.length - 1; i >= 0; i--) {
             const t = attributionTs(candidates[i]);
             if (Number.isFinite(t) && t <= eventTs) return candidates[i];
           }
+          // Se nenhum candidato for anterior ao evento, retornamos o mais antigo (mais seguro) ao invés do mais recente
+          return candidates[0];
         }
 
-        // Fallback: usa o mais recente com atribuição (melhor para "Máximo")
+        // Sem eventTs: usar o mais recente (bom para visões agregadas)
         return candidates[candidates.length - 1];
       };
 
