@@ -762,15 +762,20 @@ export function FunilConversaoTab() {
       });
 
       // Para cada telefone, capturar o lead_id do MAIS RECENTE AGENDAMENTO CRIADO no período
-      // Usamos o mais recente para atribuição porque reflete a interação atual do funil
+      // NÃO filtramos por phonesInPeriod aqui - queremos todos os agendamentos do período
+      // A filtragem por phonesInPeriod acontece depois, na hora de contar
       const latestAgendamentoLeadIdByPhone: Record<string, string> = {};
       const latestAgendamentoTsByPhone: Record<string, number> = {};
       agendamentos?.forEach((a) => {
         if (!a.cliente_id) return;
+        if (a.status === "cancelado") return;
+        
         const phone = clienteIdToPhone[a.cliente_id];
-        if (!phone || !phonesInPeriod.has(phone)) return;
+        if (!phone) return;
+        
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
+        
         // Pegar o MAIS RECENTE (ts > existente)
         if (latestAgendamentoTsByPhone[phone] === undefined || ts > latestAgendamentoTsByPhone[phone]) {
           latestAgendamentoTsByPhone[phone] = ts;
@@ -789,7 +794,7 @@ export function FunilConversaoTab() {
         if (f.status === "cancelado" || f.status === "deletado") return;
         
         const phone = clienteIdToPhone[f.cliente_id];
-        if (!phone || !phonesInPeriod.has(phone)) return;
+        if (!phone) return;
         
         // Para negociação: created_at
         // Para fechado: updated_at (momento do fechamento)
