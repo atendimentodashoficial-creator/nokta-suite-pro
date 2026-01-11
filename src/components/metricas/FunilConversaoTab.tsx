@@ -481,7 +481,7 @@ export function FunilConversaoTab() {
       // Buscar TODOS os agendamentos do usuário com status
       const { data: agendamentos, error: agendamentosError } = await supabase
         .from("agendamentos")
-        .select("cliente_id, status, created_at")
+        .select("cliente_id, status, created_at, data_agendamento")
         .eq("user_id", user.id);
 
       if (agendamentosError) throw agendamentosError;
@@ -489,74 +489,116 @@ export function FunilConversaoTab() {
       // Buscar TODAS as faturas para identificar etapas do funil
       const { data: faturas, error: faturasError } = await supabase
         .from("faturas")
-        .select(`
+        .select(
+          `
           id,
           valor,
           status,
           cliente_id,
           created_at
-        `)
+        `
+        )
         .eq("user_id", user.id);
 
       if (faturasError) throw faturasError;
 
-      // Identificar telefones que tiveram agendamento criado no período
+      // Helper: timestamp (ms) dentro do período, ou null
+      const periodTs = (iso: string | null | undefined) => {
+        if (!iso) return null;
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return null;
+        return d >= startOfPeriodUTC && d <= endOfPeriodUTC ? d.getTime() : null;
+      };
+
+      // Identificar telefones que tiveram agendamento DENTRO do período
+      // IMPORTANTE: usar data_agendamento (data do evento) e não created_at (data de cadastro)
       const phonesWithAgendamentoInPeriod = new Set<string>();
-      // Agendamentos criados no período (para contagem de etapa 2)
       const phonesWithAgendamentoInPeriodForStage = new Set<string>();
+      const agendamentoTsByPhone: Record<string, number> = {};
+
       agendamentos?.forEach((a) => {
-        if (a.cliente_id) {
-          const phone = clienteIdToPhone[a.cliente_id];
-          if (phone && isWithinPeriod(a.created_at)) {
-            phonesWithAgendamentoInPeriod.add(phone);
-            phonesWithAgendamentoInPeriodForStage.add(phone);
-          }
+        if (!a.cliente_id) return;
+        const phone = clienteIdToPhone[a.cliente_id];
+        if (!phone) return;
+
+        const ts = periodTs((a as any).data_agendamento || a.created_at);
+        if (ts === null) return;
+
+        phonesWithAgendamentoInPeriod.add(phone);
+        phonesWithAgendamentoInPeriodForStage.add(phone);
+
+        // Guardar o primeiro agendamento dentro do período (para atribuição correta)
+        if (agendamentoTsByPhone[phone] === undefined || ts < agendamentoTsByPhone[phone]) {
+          agendamentoTsByPhone[phone] = ts;
         }
       });
 
       // Identificar telefones que tiveram fatura criada no período
       const phonesWithFaturaInPeriod = new Set<string>();
-      // Faturas de negociação criadas no período (para contagem de etapa 3)
       const phonesWithFaturaNegociacaoInPeriod = new Set<string>();
-      // Faturas fechadas criadas no período (para contagem de etapa 4)
       const phonesWithFaturaFechadaInPeriod = new Set<string>();
       const faturaPorClienteInPeriod: Record<string, number> = {};
-      
+      const faturaTsByPhone: Record<string, number> = {};
+
       faturas?.forEach((f) => {
-        if (f.cliente_id) {
-          const phone = clienteIdToPhone[f.cliente_id];
-          if (phone && isWithinPeriod(f.created_at)) {
-            phonesWithFaturaInPeriod.add(phone);
-            if (f.status === "negociacao") {
-              phonesWithFaturaNegociacaoInPeriod.add(phone);
-            }
-            if (f.status === "fechado") {
-              phonesWithFaturaFechadaInPeriod.add(phone);
-              faturaPorClienteInPeriod[f.cliente_id] = (faturaPorClienteInPeriod[f.cliente_id] || 0) + f.valor;
-            }
-          }
+        if (!f.cliente_id) return;
+        const phone = clienteIdToPhone[f.cliente_id];
+        if (!phone) return;
+
+        const ts = periodTs(f.created_at);
+        if (ts === null) return;
+
+        phonesWithFaturaInPeriod.add(phone);
+        if (f.status === "negociacao") {
+          phonesWithFaturaNegociacaoInPeriod.add(phone);
+        }
+        if (f.status === "fechado") {
+          phonesWithFaturaFechadaInPeriod.add(phone);
+          faturaPorClienteInPeriod[f.cliente_id] = (faturaPorClienteInPeriod[f.cliente_id] || 0) + f.valor;
+        }
+
+        if (faturaTsByPhone[phone] === undefined || ts < faturaTsByPhone[phone]) {
+          faturaTsByPhone[phone] = ts;
         }
       });
 
       // Leads no período = telefones cujo PRIMEIRO cadastro foi WhatsApp e:
       // 1) Ocorreu dentro do período, OU
-      // 2) Teve um agendamento criado dentro do período, OU
+      // 2) Teve um agendamento (data_agendamento) dentro do período, OU
       // 3) Teve uma fatura criada dentro do período
       const leadsInPeriod = primaryLeads.filter((lead) => {
         if (!isWhatsAppLead(lead.origem)) return false;
         const normalizedPhone = normalizePhone(lead.telefone);
-        return isWithinPeriod(lead.created_at) || 
-               phonesWithAgendamentoInPeriod.has(normalizedPhone) || 
-               phonesWithFaturaInPeriod.has(normalizedPhone);
+        return (
+          isWithinPeriod(lead.created_at) ||
+          phonesWithAgendamentoInPeriod.has(normalizedPhone) ||
+          phonesWithFaturaInPeriod.has(normalizedPhone)
+        );
       });
 
-      // Telefones que têm lead primário no período (para enriquecer com dados de campanha de qualquer data)
+      // Telefones que têm lead primário no período
       const phonesInPeriod = new Set<string>();
       leadsInPeriod.forEach((lead) => phonesInPeriod.add(normalizePhone(lead.telefone)));
 
+      // Para cada telefone, descobrir o PRIMEIRO evento dentro do período (lead/agendamento/fatura)
+      // e usar isso como referência para atribuição (evita puxar campanha antiga/irrelevante)
+      const activityTsByPhone: Record<string, number> = {};
+      const considerActivity = (phone: string, ts: number | null) => {
+        if (ts === null) return;
+        if (activityTsByPhone[phone] === undefined || ts < activityTsByPhone[phone]) {
+          activityTsByPhone[phone] = ts;
+        }
+      };
 
-      // Criar mapa de dados de campanha por telefone normalizado (busca em TODOS os leads, não apenas validLeads)
-      // Isso garante que pegamos dados de campanha mesmo de leads antigos
+      leadsInPeriod.forEach((lead) => {
+        const phone = normalizePhone(lead.telefone);
+        considerActivity(phone, periodTs(lead.created_at));
+      });
+      Object.entries(agendamentoTsByPhone).forEach(([phone, ts]) => considerActivity(phone, ts));
+      Object.entries(faturaTsByPhone).forEach(([phone, ts]) => considerActivity(phone, ts));
+
+      // Criar mapa de dados de campanha por telefone normalizado
+      // Regra: escolher o registro de lead com campanha cuja created_at é a MAIS PRÓXIMA (<=) do primeiro evento no período.
       const campaignDataByPhone: Record<
         string,
         {
@@ -567,22 +609,85 @@ export function FunilConversaoTab() {
         }
       > = {};
 
-      // Primeiro, criar mapa de todos os leads por telefone
       (allLeads || []).forEach((lead) => {
-        const normalizedPhone = normalizePhone(lead.telefone);
-        // Só processar se o telefone está no período
-        if (!phonesInPeriod.has(normalizedPhone)) return;
-        // Só sobrescrever se o lead atual tem dados de campanha e o existente não tem
-        if (lead.fb_campaign_name) {
-          if (!campaignDataByPhone[normalizedPhone] || !campaignDataByPhone[normalizedPhone].fb_campaign_name) {
-            campaignDataByPhone[normalizedPhone] = {
+        const phone = normalizePhone(lead.telefone);
+        if (!phonesInPeriod.has(phone)) return;
+        if (!lead.fb_campaign_name) return;
+
+        const activityTs = activityTsByPhone[phone];
+        const leadTs = lead.created_at ? new Date(lead.created_at).getTime() : NaN;
+        if (!Number.isFinite(leadTs)) return;
+
+        const current = campaignDataByPhone[phone] as any;
+        const currentTs = current?.__ts as number | undefined;
+
+        // Preferir leads que aconteceram ANTES (ou no mesmo instante) do evento no período
+        // Se não houver, cair no mais próximo mesmo assim.
+        const isCandidateBefore = Number.isFinite(activityTs) ? leadTs <= activityTs : true;
+
+        if (!current) {
+          (campaignDataByPhone as any)[phone] = {
+            fb_campaign_name: lead.fb_campaign_name,
+            fb_adset_name: lead.fb_adset_name,
+            fb_ad_name: lead.fb_ad_name,
+            fb_ad_id: lead.fb_ad_id,
+            __ts: leadTs,
+            __before: isCandidateBefore,
+          };
+          return;
+        }
+
+        const currentBefore = current.__before as boolean;
+
+        // Se já temos uma opção "before" e a nova também é "before", pegamos a mais recente (maior ts)
+        if (currentBefore && isCandidateBefore) {
+          if (leadTs > (currentTs ?? -Infinity)) {
+            (campaignDataByPhone as any)[phone] = {
               fb_campaign_name: lead.fb_campaign_name,
               fb_adset_name: lead.fb_adset_name,
               fb_ad_name: lead.fb_ad_name,
               fb_ad_id: lead.fb_ad_id,
+              __ts: leadTs,
+              __before: true,
+            };
+          }
+          return;
+        }
+
+        // Se não temos "before" ainda e a nova é "before", ela ganha
+        if (!currentBefore && isCandidateBefore) {
+          (campaignDataByPhone as any)[phone] = {
+            fb_campaign_name: lead.fb_campaign_name,
+            fb_adset_name: lead.fb_adset_name,
+            fb_ad_name: lead.fb_ad_name,
+            fb_ad_id: lead.fb_ad_id,
+            __ts: leadTs,
+            __before: true,
+          };
+          return;
+        }
+
+        // Se nenhuma é "before", escolher a mais próxima do activityTs (menor |ts-activityTs|)
+        if (!currentBefore && !isCandidateBefore && Number.isFinite(activityTs)) {
+          const currentDist = Math.abs((currentTs ?? Infinity) - activityTs);
+          const nextDist = Math.abs(leadTs - activityTs);
+          if (nextDist < currentDist) {
+            (campaignDataByPhone as any)[phone] = {
+              fb_campaign_name: lead.fb_campaign_name,
+              fb_adset_name: lead.fb_adset_name,
+              fb_ad_name: lead.fb_ad_name,
+              fb_ad_id: lead.fb_ad_id,
+              __ts: leadTs,
+              __before: false,
             };
           }
         }
+      });
+
+      // Remover metacampos internos
+      Object.keys(campaignDataByPhone).forEach((phone) => {
+        delete (campaignDataByPhone as any)[phone].__ts;
+        delete (campaignDataByPhone as any)[phone].__before;
       });
 
       // Criar mapa de todos os IDs de lead por telefone normalizado (todos os leads do mesmo telefone)
