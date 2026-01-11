@@ -302,15 +302,33 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       }
     });
 
-    // Count agendamentos (same logic as FunilConversaoTab)
+    // Count agendamentos (same logic as FunilConversaoTab and Dashboard)
+    // REGRA: Agendamentos "realizado" só contam se tiverem fatura vinculada
+    // "Não Compareceu" = status "cancelado" sem fatura
     const phonesWithAgendamento = new Set<string>();
     const phonesWithNaoCompareceu = new Set<string>();
+    const phonesWithCompareceu = new Set<string>(); // Agendamentos COM fatura vinculada
     const phonesAgendadosTracked = new Set<string>();
     const phonesAgendadosUntracked = new Set<string>();
     const phonesAgendadosDisparos = new Set<string>();
     const phonesNaoCompareceuTracked = new Set<string>();
     const phonesNaoCompareceuUntracked = new Set<string>();
     const phonesNaoCompareceuDisparos = new Set<string>();
+    const phonesCompareceuAgendTracked = new Set<string>();
+    const phonesCompareceuAgendUntracked = new Set<string>();
+    const phonesCompareceuAgendDisparos = new Set<string>();
+
+    // Build set of agendamento IDs with fatura
+    const agendamentoIdsComFatura = new Set<string>();
+    allFaturas?.forEach((f: any) => {
+      if (f.fatura_agendamentos) {
+        f.fatura_agendamentos.forEach((fa: any) => {
+          if (fa.agendamento_id) {
+            agendamentoIdsComFatura.add(fa.agendamento_id);
+          }
+        });
+      }
+    });
 
     allAgendamentos?.forEach((a: any) => {
       if (!a.cliente_id) return;
@@ -320,28 +338,42 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       const ts = periodTs(a.created_at || a.data_agendamento);
       if (ts === null) return;
 
-      // Agendamentos "realizado" without fatura are not visible in app
+      // Agendamentos "realizado" without fatura are not visible in app - skip
       if (a.status === "realizado" && !clientesComFatura.has(a.cliente_id)) {
         return;
       }
 
-      phonesWithAgendamento.add(phone);
-
-      // Attribution (using helper functions)
+      // Attribution check
       const lead = leadsByPhone[phone];
-      if (isDisparosLead(lead?.origem)) {
-        phonesAgendadosDisparos.add(phone);
-        if (a.status === "cancelado") phonesNaoCompareceuDisparos.add(phone);
-      } else if (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name) {
-        phonesAgendadosTracked.add(phone);
-        if (a.status === "cancelado") phonesNaoCompareceuTracked.add(phone);
-      } else {
-        phonesAgendadosUntracked.add(phone);
-        if (a.status === "cancelado") phonesNaoCompareceuUntracked.add(phone);
+      const isDisparos = isDisparosLead(lead?.origem);
+      const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
+
+      // Check if this agendamento has fatura linked (= compareceu)
+      const hasFatura = agendamentoIdsComFatura.has(a.id);
+      
+      // Count only if status is cancelado (não compareceu) OR has fatura (compareceu)
+      if (a.status === "cancelado" || hasFatura) {
+        phonesWithAgendamento.add(phone);
+        
+        if (isDisparos) phonesAgendadosDisparos.add(phone);
+        else if (isTracked) phonesAgendadosTracked.add(phone);
+        else phonesAgendadosUntracked.add(phone);
       }
 
-      if (a.status === "cancelado") {
+      // Não Compareceu = cancelado WITHOUT fatura
+      if (a.status === "cancelado" && !hasFatura) {
         phonesWithNaoCompareceu.add(phone);
+        if (isDisparos) phonesNaoCompareceuDisparos.add(phone);
+        else if (isTracked) phonesNaoCompareceuTracked.add(phone);
+        else phonesNaoCompareceuUntracked.add(phone);
+      }
+
+      // Compareceu (via agendamento) = has fatura linked
+      if (hasFatura) {
+        phonesWithCompareceu.add(phone);
+        if (isDisparos) phonesCompareceuAgendDisparos.add(phone);
+        else if (isTracked) phonesCompareceuAgendTracked.add(phone);
+        else phonesCompareceuAgendUntracked.add(phone);
       }
     });
 
@@ -405,13 +437,17 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     const untrackedCount = phonesUntracked.size;
     const disparosCount = leadsDisparos.length; // Idêntico à contagem da aba Leads Disparos
 
-    const agendadosTotal = phonesWithAgendamento.size;
+    // Agendados = apenas os que passaram pelo fluxo (compareceu via fatura OU não compareceu)
+    // Isso é igual à lógica do Dashboard e FunilConversaoTab
+    const compareceuViaAgendamento = phonesWithCompareceu.size;
+    const naoCompareceuTotal = phonesWithNaoCompareceu.size;
+    const agendadosTotal = compareceuViaAgendamento + naoCompareceuTotal;
+    
     const agendadosTracked = phonesAgendadosTracked.size;
     const agendadosUntracked = phonesAgendadosUntracked.size;
     const agendadosDisparos = phonesAgendadosDisparos.size;
 
-    const naoCompareceuTotal = phonesWithNaoCompareceu.size;
-
+    // Compareceu = faturas em negociação ou fechadas (para exibição no funil)
     const compareceuTotal = phonesCompareceu.size;
     const compareceuTracked = phonesCompareceuTracked.size;
     const compareceuUntracked = phonesCompareceuUntracked.size;
@@ -425,9 +461,11 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     // Em negociação = compareceu - fechado
     const emNegociacao = compareceuTotal - clientesTotal;
 
-    // Calculate conversion rates
+    // Calculate conversion rates (igual ao Dashboard e Funil)
     const taxaAgendamento = totalLeads > 0 ? (agendadosTotal / totalLeads) * 100 : 0;
-    const taxaComparecimento = agendadosTotal > 0 ? (compareceuTotal / agendadosTotal) * 100 : 0;
+    // Taxa de comparecimento = compareceu / (compareceu + não compareceu)
+    // Isso reflete a taxa real de comparecimento dos agendamentos concluídos
+    const taxaComparecimento = agendadosTotal > 0 ? (compareceuViaAgendamento / agendadosTotal) * 100 : 0;
     const taxaFechamento = compareceuTotal > 0 ? (clientesTotal / compareceuTotal) * 100 : 0;
     const taxaConversaoGeral = totalLeads > 0 ? (clientesTotal / totalLeads) * 100 : 0;
 
