@@ -113,11 +113,54 @@ Deno.serve(async (req) => {
 
     // Batch delete helper - processes in chunks of 100 to avoid query limits
     const BATCH_SIZE = 100;
+    const FETCH_BATCH_SIZE = 1000; // Supabase default limit
+    
     const batchDelete = async (table: string, column: string, ids: string[]) => {
       for (let i = 0; i < ids.length; i += BATCH_SIZE) {
         const batch = ids.slice(i, i + BATCH_SIZE);
         await supabase.from(table).delete().in(column, batch);
       }
+    };
+    
+    // Helper to fetch ALL IDs from a table with pagination (overcomes 1000 row limit)
+    const fetchAllIds = async (
+      table: string, 
+      userId: string, 
+      periodIso: string | null = null,
+      dateColumn: string = "created_at"
+    ): Promise<string[]> => {
+      const allIds: string[] = [];
+      let offset = 0;
+      let hasMore = true;
+      
+      while (hasMore) {
+        let query = supabase
+          .from(table)
+          .select("id")
+          .eq("user_id", userId)
+          .range(offset, offset + FETCH_BATCH_SIZE - 1);
+        
+        if (periodIso) {
+          query = query.gte(dateColumn, periodIso);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error(`Error fetching from ${table}:`, error);
+          break;
+        }
+        
+        if (data && data.length > 0) {
+          allIds.push(...data.map((row: any) => row.id));
+          offset += FETCH_BATCH_SIZE;
+          hasMore = data.length === FETCH_BATCH_SIZE;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      return allIds;
     };
 
     if (mode === "orphan") {
@@ -473,39 +516,51 @@ Deno.serve(async (req) => {
 
     // 5. Chats WhatsApp
     if (resetOpts.chatsWhatsApp) {
-      let query = supabase
+      // Get count first
+      let countQuery = supabase
         .from("whatsapp_chats")
-        .select("id", { count: "exact" })
+        .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       
-      query = withPeriod(query);
-      const { data: chatIds, count } = await query;
+      if (periodIso) {
+        countQuery = countQuery.gte("created_at", periodIso);
+      }
+      const { count } = await countQuery;
       result.chatsWhatsApp = count || 0;
 
-      if (!dryRun && chatIds && chatIds.length > 0) {
-        const ids = chatIds.map((c: any) => c.id);
-        await batchDelete("whatsapp_messages", "chat_id", ids);
-        await batchDelete("whatsapp_chat_kanban", "chat_id", ids);
-        await batchDelete("whatsapp_chats", "id", ids);
+      if (!dryRun && result.chatsWhatsApp > 0) {
+        // Fetch ALL IDs with pagination
+        const ids = await fetchAllIds("whatsapp_chats", userId, periodIso);
+        if (ids.length > 0) {
+          await batchDelete("whatsapp_messages", "chat_id", ids);
+          await batchDelete("whatsapp_chat_kanban", "chat_id", ids);
+          await batchDelete("whatsapp_chats", "id", ids);
+        }
       }
     }
 
     // 6. Chats Disparos
     if (resetOpts.chatsDisparos) {
-      let query = supabase
+      // Get count first
+      let countQuery = supabase
         .from("disparos_chats")
-        .select("id", { count: "exact" })
+        .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
       
-      query = withPeriod(query);
-      const { data: chatIds, count } = await query;
+      if (periodIso) {
+        countQuery = countQuery.gte("created_at", periodIso);
+      }
+      const { count } = await countQuery;
       result.chatsDisparos = count || 0;
 
-      if (!dryRun && chatIds && chatIds.length > 0) {
-        const ids = chatIds.map((c: any) => c.id);
-        await batchDelete("disparos_messages", "chat_id", ids);
-        await batchDelete("disparos_chat_kanban", "chat_id", ids);
-        await batchDelete("disparos_chats", "id", ids);
+      if (!dryRun && result.chatsDisparos > 0) {
+        // Fetch ALL IDs with pagination
+        const ids = await fetchAllIds("disparos_chats", userId, periodIso);
+        if (ids.length > 0) {
+          await batchDelete("disparos_messages", "chat_id", ids);
+          await batchDelete("disparos_chat_kanban", "chat_id", ids);
+          await batchDelete("disparos_chats", "id", ids);
+        }
       }
     }
 
