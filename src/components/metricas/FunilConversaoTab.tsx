@@ -2124,15 +2124,17 @@ export function FunilConversaoTab() {
                   {funnelData.map((row, idx) => {
                     // Calcular gasto baseado no nível de visualização
                     let spend = 0;
-                    if (viewLevel === "ad" && row.ad_name) {
-                      const adKey = makeAdKey(row.campaign_name, row.adset_name, row.ad_name);
-                      spend = spendByAd[adKey] || 0;
-                    } else if (viewLevel === "adset" && row.adset_name) {
+
+                    if (viewLevel === "campaign") {
+                      const campaignKey = makeCampaignKey(row.campaign_name);
+                      spend = spendByCampaign[campaignKey] || 0;
+                    } else if (viewLevel === "adset") {
+                      // NUNCA usar gasto de campanha aqui: se não bater a chave do conjunto, fica 0
                       const adsetKey = makeAdsetKey(row.campaign_name, row.adset_name);
                       spend = spendByAdset[adsetKey] || 0;
                     } else {
-                      const campaignKey = makeCampaignKey(row.campaign_name);
-                      spend = spendByCampaign[campaignKey] || 0;
+                      const adKey = makeAdKey(row.campaign_name, row.adset_name, row.ad_name);
+                      spend = spendByAd[adKey] || 0;
                     }
                     const cpl = row.leads > 0 ? spend / row.leads : 0;
                     const cpaAgendado = row.agendados > 0 ? spend / row.agendados : 0;
@@ -2162,16 +2164,21 @@ export function FunilConversaoTab() {
                           return (
                             <TableCell key={colKey} className="font-medium">
                               <div className="max-w-[250px]">
-                                <p className="truncate" title={row.campaign_name}>{row.campaign_name}</p>
-                                {row.adset_name && (
-                                  <p className="text-xs text-muted-foreground truncate" title={row.adset_name}>
-                                    {row.adset_name}
-                                  </p>
-                                )}
-                                {row.ad_name && (
-                                  <p className="text-xs text-muted-foreground/70 truncate" title={row.ad_name}>
-                                    {row.ad_name}
-                                  </p>
+                                {viewLevel === "campaign" ? (
+                                  <>
+                                    <p className="truncate" title={row.campaign_name}>{row.campaign_name}</p>
+                                  </>
+                                ) : viewLevel === "adset" ? (
+                                  <>
+                                    <p className="truncate" title={row.adset_name || "Sem conjunto"}>{row.adset_name || "Sem conjunto"}</p>
+                                    <p className="text-xs text-muted-foreground truncate" title={row.campaign_name}>{row.campaign_name}</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="truncate" title={row.ad_name || "Sem anúncio"}>{row.ad_name || "Sem anúncio"}</p>
+                                    <p className="text-xs text-muted-foreground truncate" title={row.adset_name || "Sem conjunto"}>{row.adset_name || "Sem conjunto"}</p>
+                                    <p className="text-xs text-muted-foreground/70 truncate" title={row.campaign_name}>{row.campaign_name}</p>
+                                  </>
                                 )}
                               </div>
                             </TableCell>
