@@ -1028,7 +1028,13 @@ export function FunilConversaoTab() {
         }
 
         const fromLead = pickAttributionLead(phone, opts?.eventTs, opts?.preferredLeadId);
-        const fallback = bestCampaignByPhone[phone];
+
+        // IMPORTANT:
+        // Quando estamos atribuindo um EVENTO com timestamp (ex.: lead criado, agendamento, fatura),
+        // NÃO devemos “herdar” campanha de um lead futuro do mesmo telefone.
+        // Isso é o que fazia o filtro "Máximo" esconder os "Sem rastreio".
+        const shouldUseFallback = opts?.eventTs === undefined;
+        const fallback = shouldUseFallback ? bestCampaignByPhone[phone] : undefined;
 
         const campaignId = fromLead?.fb_campaign_id || fallback?.fb_campaign_id || null;
         const campaign = fromLead?.fb_campaign_name || fallback?.fb_campaign_name || "Sem campanha";
