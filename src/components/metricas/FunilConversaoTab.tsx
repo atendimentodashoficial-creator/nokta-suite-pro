@@ -761,25 +761,28 @@ export function FunilConversaoTab() {
         };
       });
 
-      // Para cada telefone, capturar o lead_id do PRIMEIRO AGENDAMENTO CRIADO no período
-      const firstAgendamentoLeadIdByPhone: Record<string, string> = {};
-      const firstAgendamentoTsByPhone: Record<string, number> = {};
+      // Para cada telefone, capturar o lead_id do MAIS RECENTE AGENDAMENTO CRIADO no período
+      // Usamos o mais recente para atribuição porque reflete a interação atual do funil
+      const latestAgendamentoLeadIdByPhone: Record<string, string> = {};
+      const latestAgendamentoTsByPhone: Record<string, number> = {};
       agendamentos?.forEach((a) => {
         if (!a.cliente_id) return;
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone || !phonesInPeriod.has(phone)) return;
         const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
-        if (firstAgendamentoTsByPhone[phone] === undefined || ts < firstAgendamentoTsByPhone[phone]) {
-          firstAgendamentoTsByPhone[phone] = ts;
-          firstAgendamentoLeadIdByPhone[phone] = a.cliente_id;
+        // Pegar o MAIS RECENTE (ts > existente)
+        if (latestAgendamentoTsByPhone[phone] === undefined || ts > latestAgendamentoTsByPhone[phone]) {
+          latestAgendamentoTsByPhone[phone] = ts;
+          latestAgendamentoLeadIdByPhone[phone] = a.cliente_id;
         }
       });
 
-      const firstFaturaNegLeadIdByPhone: Record<string, string> = {};
-      const firstFaturaNegTsByPhone: Record<string, number> = {};
-      const firstFaturaFechLeadIdByPhone: Record<string, string> = {};
-      const firstFaturaFechTsByPhone: Record<string, number> = {};
+      // Para faturas: também usar o MAIS RECENTE no período
+      const latestFaturaNegLeadIdByPhone: Record<string, string> = {};
+      const latestFaturaNegTsByPhone: Record<string, number> = {};
+      const latestFaturaFechLeadIdByPhone: Record<string, string> = {};
+      const latestFaturaFechTsByPhone: Record<string, number> = {};
 
       faturas?.forEach((f) => {
         if (!f.cliente_id) return;
@@ -794,17 +797,19 @@ export function FunilConversaoTab() {
         const tsClosed = periodTs(f.updated_at);
 
         if (f.status === "negociacao" && tsCreated !== null) {
-          if (firstFaturaNegTsByPhone[phone] === undefined || tsCreated < firstFaturaNegTsByPhone[phone]) {
-            firstFaturaNegTsByPhone[phone] = tsCreated;
-            firstFaturaNegLeadIdByPhone[phone] = f.cliente_id;
+          // Pegar o MAIS RECENTE
+          if (latestFaturaNegTsByPhone[phone] === undefined || tsCreated > latestFaturaNegTsByPhone[phone]) {
+            latestFaturaNegTsByPhone[phone] = tsCreated;
+            latestFaturaNegLeadIdByPhone[phone] = f.cliente_id;
           }
         }
         if (f.status === "fechado") {
           const tsForFechado = tsClosed ?? tsCreated;
           if (tsForFechado !== null) {
-            if (firstFaturaFechTsByPhone[phone] === undefined || tsForFechado < firstFaturaFechTsByPhone[phone]) {
-              firstFaturaFechTsByPhone[phone] = tsForFechado;
-              firstFaturaFechLeadIdByPhone[phone] = f.cliente_id;
+            // Pegar o MAIS RECENTE
+            if (latestFaturaFechTsByPhone[phone] === undefined || tsForFechado > latestFaturaFechTsByPhone[phone]) {
+              latestFaturaFechTsByPhone[phone] = tsForFechado;
+              latestFaturaFechLeadIdByPhone[phone] = f.cliente_id;
             }
           }
         }
@@ -946,14 +951,15 @@ export function FunilConversaoTab() {
         const temFaturaFechadaInPeriod = phonesWithFaturaFechadaInPeriod.has(phone);
 
         // stage-specific lead id (para atribuição correta por etapa)
-        const leadIdStage2 = firstAgendamentoLeadIdByPhone[phone] || lead.id;
-        const leadIdStage3 = firstFaturaNegLeadIdByPhone[phone] || firstFaturaFechLeadIdByPhone[phone] || leadIdStage2;
-        const leadIdStage4 = firstFaturaFechLeadIdByPhone[phone] || leadIdStage3;
+        // Usamos o MAIS RECENTE evento para determinar a atribuição atual
+        const leadIdStage2 = latestAgendamentoLeadIdByPhone[phone] || lead.id;
+        const leadIdStage3 = latestFaturaNegLeadIdByPhone[phone] || latestFaturaFechLeadIdByPhone[phone] || leadIdStage2;
+        const leadIdStage4 = latestFaturaFechLeadIdByPhone[phone] || leadIdStage3;
 
         const tsStage1 = new Date(lead.created_at || 0).getTime();
-        const tsStage2 = firstAgendamentoTsByPhone[phone];
-        const tsStage3 = firstFaturaNegTsByPhone[phone] || firstFaturaFechTsByPhone[phone];
-        const tsStage4 = firstFaturaFechTsByPhone[phone];
+        const tsStage2 = latestAgendamentoTsByPhone[phone];
+        const tsStage3 = latestFaturaNegTsByPhone[phone] || latestFaturaFechTsByPhone[phone];
+        const tsStage4 = latestFaturaFechTsByPhone[phone];
 
         // Etapa 1: Leads - só conta se o lead foi CRIADO no período
         const leadCreatedInPeriod = phonesWithLeadInPeriod.has(phone);
