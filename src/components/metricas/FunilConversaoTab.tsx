@@ -393,6 +393,13 @@ export function FunilConversaoTab() {
     return clean;
   };
 
+  // Chave de deduplicação compatível com a aba Leads:
+  // usa os últimos 8 dígitos para unificar números com variações (DDD, 55, formatação)
+  const phoneKey = (phone: string): string => {
+    const n = normalizePhone(phone);
+    return n.length > 8 ? n.slice(-8) : n;
+  };
+
   // Buscar dados do funil
   const { data: funnelResult, isLoading: loadingFunnel } = useQuery({
     queryKey: ["funnel-data", user?.id, dateStart, dateEnd, viewLevel],
@@ -515,9 +522,10 @@ export function FunilConversaoTab() {
 
       // Lead "oficial" por telefone = primeiro cadastro (mais antigo).
       // Assim o lead pertence à aba de origem onde foi cadastrado.
+      // IMPORTANTE: usamos phoneKey (últimos 8 dígitos) para bater com a aba Leads.
       const firstLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
       (allLeads || []).forEach((lead) => {
-        const phone = normalizePhone(lead.telefone);
+        const phone = phoneKey(lead.telefone);
         const existing = firstLeadByPhone[phone];
         if (!existing) {
           firstLeadByPhone[phone] = lead;
@@ -532,10 +540,10 @@ export function FunilConversaoTab() {
 
       const primaryLeads = Object.values(firstLeadByPhone);
 
-      // Criar mapa de cliente_id para telefone normalizado
+      // Criar mapa de cliente_id para telefone (chave) normalizado
       const clienteIdToPhone: Record<string, string> = {};
       (allLeads || []).forEach((lead) => {
-        clienteIdToPhone[lead.id] = normalizePhone(lead.telefone);
+        clienteIdToPhone[lead.id] = phoneKey(lead.telefone);
       });
 
       // Buscar TODOS os agendamentos do usuário com status
@@ -654,7 +662,7 @@ export function FunilConversaoTab() {
       // Telefones WhatsApp (para excluir "Disparos-only")
       const hasWhatsAppByPhone: Record<string, boolean> = {};
       (allLeads || []).forEach((l) => {
-        const phone = normalizePhone(l.telefone);
+        const phone = phoneKey(l.telefone);
         if (isWhatsAppLead(l.origem)) hasWhatsAppByPhone[phone] = true;
       });
 
@@ -682,18 +690,18 @@ export function FunilConversaoTab() {
       // Telefones com QUALQUER lead WhatsApp com atribuição (para eventos)
       const phonesWithAttribution = new Set<string>();
       (allLeads || []).forEach((lead) => {
-        const phone = normalizePhone(lead.telefone);
+        const phone = phoneKey(lead.telefone);
         if (isWhatsAppLead(lead.origem) && hasAdsAttribution(lead)) {
           phonesWithAttribution.add(phone);
         }
       });
 
       // Telefones com lead WhatsApp "OFICIAL" CRIADO NO PERÍODO (para contagem de leads)
-      // IMPORTANTE: deve bater com a aba Leads, que mostra 1 registro por telefone (o primeiro/mais antigo).
+      // IMPORTANTE: deve bater com a aba Leads, que mostra 1 registro por telefone (os últimos 8 dígitos).
       // Então, um telefone que já existia antes e teve novo registro hoje NÃO deve contar como "lead de hoje".
       const phonesWithLeadInPeriod = new Set<string>();
       Object.values(firstLeadByPhone).forEach((primaryLead) => {
-        const phone = normalizePhone(primaryLead.telefone);
+        const phone = phoneKey(primaryLead.telefone);
         if (isWhatsAppLead(primaryLead.origem) && isWithinPeriod(primaryLead.created_at)) {
           phonesWithLeadInPeriod.add(phone);
         }
@@ -748,7 +756,7 @@ export function FunilConversaoTab() {
       const bestCampaignTsByPhone: Record<string, number> = {};
 
       (allLeads || []).forEach((l) => {
-        const phone = normalizePhone(l.telefone);
+        const phone = phoneKey(l.telefone);
         if (!phonesInPeriod.has(phone)) return;
         if (!l.fb_campaign_name) return;
 
@@ -828,7 +836,7 @@ export function FunilConversaoTab() {
       // Lead "representante" para a linha do telefone (primeiro lead WhatsApp do telefone)
       const firstWhatsAppLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
       (allLeads || []).forEach((l) => {
-        const phone = normalizePhone(l.telefone);
+        const phone = phoneKey(l.telefone);
         if (!phonesInPeriod.has(phone)) return;
         if (!isWhatsAppLead(l.origem)) return;
         const existing = firstWhatsAppLeadByPhone[phone];
@@ -863,10 +871,10 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Criar mapa de todos os IDs de lead por telefone normalizado (para consolidar valores/status)
+      // Criar mapa de todos os IDs de lead por telefone (chave) (para consolidar valores/status)
       const leadIdsByPhone: Record<string, string[]> = {};
       (allLeads || []).forEach((l) => {
-        const phone = normalizePhone(l.telefone);
+        const phone = phoneKey(l.telefone);
         if (!phonesInPeriod.has(phone)) return;
         if (!leadIdsByPhone[phone]) leadIdsByPhone[phone] = [];
         leadIdsByPhone[phone].push(l.id);
@@ -875,7 +883,7 @@ export function FunilConversaoTab() {
       // Leads com atribuição por telefone (para escolher o criativo correto por etapa)
       const attributedLeadsByPhone: Record<string, (typeof allLeads)[number][]> = {};
       (allLeads || []).forEach((l) => {
-        const phone = normalizePhone(l.telefone);
+        const phone = phoneKey(l.telefone);
         if (!phonesInPeriod.has(phone)) return;
         if (!isWhatsAppLead(l.origem)) return;
         if (!l.fb_campaign_name) return;
@@ -952,7 +960,7 @@ export function FunilConversaoTab() {
       const grouped: Record<string, FunnelData> = {};
 
       leads?.forEach((lead) => {
-        const phone = normalizePhone(lead.telefone);
+        const phone = phoneKey(lead.telefone);
         if (processedPhones.has(phone)) return;
         processedPhones.add(phone);
 
