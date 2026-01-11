@@ -35,7 +35,8 @@ import {
   Megaphone,
   HelpCircle,
   Layers,
-  Settings2
+  Settings2,
+  Send
 } from "lucide-react";
 import {
   Select,
@@ -83,6 +84,15 @@ interface FunnelQueryResult {
   data: FunnelData[];
   totalRecords: number;
   uniqueContacts: number;
+  // Contadores de eventos de leads que vieram originalmente de "Disparos"
+  viaDisparos: {
+    agendados: number;
+    compareceu: number;
+    nao_compareceu: number;
+    em_negociacao: number;
+    clientes: number;
+    valor_fechado: number;
+  };
 }
 
 interface SpendData {
@@ -404,7 +414,7 @@ export function FunilConversaoTab() {
   const { data: funnelResult, isLoading: loadingFunnel } = useQuery({
     queryKey: ["funnel-data", user?.id, dateStart, dateEnd, viewLevel],
     queryFn: async (): Promise<FunnelQueryResult> => {
-      if (!user?.id) return { data: [], totalRecords: 0, uniqueContacts: 0 };
+      if (!user?.id) return { data: [], totalRecords: 0, uniqueContacts: 0, viaDisparos: { agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 } };
 
       // Construir limites do período em UTC (alinha com o backend e evita diferença de fuso)
       const startOfPeriodUTC = new Date(Date.UTC(
@@ -661,9 +671,16 @@ export function FunilConversaoTab() {
 
       // Telefones WhatsApp (para excluir "Disparos-only")
       const hasWhatsAppByPhone: Record<string, boolean> = {};
+      // Rastrear origem primária por telefone (primeiro registro)
+      const primaryOriginByPhone: Record<string, string> = {};
       (allLeads || []).forEach((l) => {
         const phone = phoneKey(l.telefone);
         if (isWhatsAppLead(l.origem)) hasWhatsAppByPhone[phone] = true;
+        
+        // Guardar origem do primeiro registro (primário)
+        if (!primaryOriginByPhone[phone]) {
+          primaryOriginByPhone[phone] = (l.origem || "whatsapp").toLowerCase();
+        }
       });
 
       // =============================================================================
@@ -710,15 +727,17 @@ export function FunilConversaoTab() {
       // O "phonesInPeriod" inclui:
       // - TODOS os leads WhatsApp criados no período
       // - Phones com eventos no período (se têm atribuição para atribuir corretamente)
+      // - Phones de Disparos que tiveram eventos (para sinalização)
       const phonesInPeriod = new Set<string>(phonesWithLeadInPeriod);
       
-      // Adicionar phones que tiveram agendamento no período (todos os WhatsApp, não só com atribuição)
+      // Adicionar phones que tiveram agendamento no período (WhatsApp OU Disparos)
       phonesWithAgendamentoInPeriod.forEach((p) => {
-        if (hasWhatsAppByPhone[p]) phonesInPeriod.add(p);
+        // Incluímos todos para poder contar e sinalizar "via Disparos"
+        phonesInPeriod.add(p);
       });
-      // Adicionar phones que tiveram fatura no período (todos os WhatsApp)
+      // Adicionar phones que tiveram fatura no período (WhatsApp OU Disparos)
       phonesWithFaturaInPeriod.forEach((p) => {
-        if (hasWhatsAppByPhone[p]) phonesInPeriod.add(p);
+        phonesInPeriod.add(p);
       });
 
       // Mapa rápido de lead por id
@@ -959,12 +978,29 @@ export function FunilConversaoTab() {
       const processedPhones = new Set<string>();
       const grouped: Record<string, FunnelData> = {};
 
+      // Contadores para eventos de leads que vieram originalmente de "Disparos"
+      const viaDisparos = {
+        agendados: 0,
+        compareceu: 0,
+        nao_compareceu: 0,
+        em_negociacao: 0,
+        clientes: 0,
+        valor_fechado: 0,
+      };
+
+      // Helper para verificar se a origem primária é "Disparos"
+      const isDisparosOrigin = (phone: string) => {
+        const origin = primaryOriginByPhone[phone] || "";
+        return origin === "disparos";
+      };
+
       leads?.forEach((lead) => {
         const phone = phoneKey(lead.telefone);
         if (processedPhones.has(phone)) return;
         processedPhones.add(phone);
 
         const allIds = leadIdsByPhone[phone] || [lead.id];
+        const isFromDisparos = isDisparosOrigin(phone);
 
         // flags do período
         const hasAgendamentoInPeriod = phonesWithAgendamentoInPeriodForStage.has(phone);
@@ -995,10 +1031,12 @@ export function FunilConversaoTab() {
         if (hasAgendamentoInPeriod) {
           const gAg = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2 }));
           gAg.agendados++;
+          if (isFromDisparos) viaDisparos.agendados++;
 
           const naoCompareceu = allIds.some((id) => clientesNaoCompareceram.has(id));
           if (naoCompareceu) {
             gAg.nao_compareceu++;
+            if (isFromDisparos) viaDisparos.nao_compareceu++;
           }
         }
 
@@ -1006,8 +1044,11 @@ export function FunilConversaoTab() {
         if (temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
           const g3 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3 }));
           g3.compareceu++;
+          if (isFromDisparos) viaDisparos.compareceu++;
+          
           if (temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
             g3.em_negociacao++;
+            if (isFromDisparos) viaDisparos.em_negociacao++;
           }
         }
 
@@ -1015,6 +1056,7 @@ export function FunilConversaoTab() {
         if (temFaturaFechadaInPeriod) {
           const g4 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage4, eventTs: tsStage4 }));
           g4.clientes++;
+          if (isFromDisparos) viaDisparos.clientes++;
 
           let valorFechado = 0;
           allIds.forEach((id) => {
@@ -1023,12 +1065,16 @@ export function FunilConversaoTab() {
 
           if (valorFechado > 0) {
             g4.valor_fechado += valorFechado;
+            if (isFromDisparos) viaDisparos.valor_fechado += valorFechado;
           } else {
             // Fallback para valor_tratamento
             const valorTratamento = allIds
               .map((id) => leadById[id])
               .find((l) => l?.valor_tratamento)?.valor_tratamento;
-            if (valorTratamento) g4.valor_fechado += valorTratamento;
+            if (valorTratamento) {
+              g4.valor_fechado += valorTratamento;
+              if (isFromDisparos) viaDisparos.valor_fechado += valorTratamento;
+            }
           }
         }
       });
@@ -1039,6 +1085,7 @@ export function FunilConversaoTab() {
         data: Object.values(grouped).sort((a, b) => b.leads - a.leads),
         totalRecords,
         uniqueContacts,
+        viaDisparos,
       };
     },
     enabled: !!user?.id,
@@ -1049,6 +1096,7 @@ export function FunilConversaoTab() {
   const totalRecordsInPeriod = funnelResult?.totalRecords || 0;
   const uniqueContactsInPeriod = funnelResult?.uniqueContacts || 0;
   const duplicatesUnified = totalRecordsInPeriod - uniqueContactsInPeriod;
+  const viaDisparos = funnelResult?.viaDisparos || { agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 };
 
   // Buscar gastos do Meta Ads
   const { data: spendData, isLoading: loadingSpend } = useQuery({
@@ -1587,6 +1635,19 @@ export function FunilConversaoTab() {
                 </Tooltip>
               </TooltipProvider>
             </div>
+            {viaDisparos.agendados > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center justify-center gap-1 mt-2 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5 mx-auto">
+                    <Send className="h-2.5 w-2.5" />
+                    <span>{viaDisparos.agendados} via Disparos</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Agendamentos de leads originados de campanhas de disparos em massa</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </CardContent>
         </Card>
 
@@ -1635,6 +1696,19 @@ export function FunilConversaoTab() {
                 </Tooltip>
               </TooltipProvider>
             </div>
+            {viaDisparos.compareceu > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center justify-center gap-1 mt-2 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5 mx-auto">
+                    <Send className="h-2.5 w-2.5" />
+                    <span>{viaDisparos.compareceu} via Disparos</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Comparecimentos de leads originados de campanhas de disparos em massa</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </CardContent>
         </Card>
 
@@ -1669,6 +1743,19 @@ export function FunilConversaoTab() {
                 </Tooltip>
               </TooltipProvider>
             </div>
+            {viaDisparos.em_negociacao > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center justify-center gap-1 mt-2 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5 mx-auto">
+                    <Send className="h-2.5 w-2.5" />
+                    <span>{viaDisparos.em_negociacao} via Disparos</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Negociações de leads originados de campanhas de disparos em massa</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </CardContent>
         </Card>
 
@@ -1703,6 +1790,20 @@ export function FunilConversaoTab() {
                 </Tooltip>
               </TooltipProvider>
             </div>
+            {viaDisparos.clientes > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center justify-center gap-1 mt-2 text-[10px] text-amber-600 bg-amber-500/10 rounded-full px-2 py-0.5 mx-auto">
+                    <Send className="h-2.5 w-2.5" />
+                    <span>{viaDisparos.clientes} via Disparos ({formatCurrency(viaDisparos.valor_fechado)})</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Conversões de leads originados de campanhas de disparos em massa</p>
+                    <p className="text-xs text-muted-foreground">Valor total: {formatCurrency(viaDisparos.valor_fechado)}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </CardContent>
         </Card>
 
