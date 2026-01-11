@@ -1761,6 +1761,32 @@ export function FunilConversaoTab() {
               {formatPercentage(totals.nao_compareceu, totals.agendados)} dos agendados
             </p>
             <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+              {totals.naoCompareceuTracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-500/10 rounded-full px-2 py-0.5">
+                      <Megaphone className="h-2.5 w-2.5" />
+                      <span>{totals.naoCompareceuTracked} via Anúncio</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Não comparecimentos de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {totals.naoCompareceuUntracked > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                      <HelpCircle className="h-2.5 w-2.5" />
+                      <span>{totals.naoCompareceuUntracked} não rastreados</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Não comparecimentos sem rastreamento de anúncios</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               {viaDisparos.nao_compareceu > 0 && (
                 <TooltipProvider>
                   <Tooltip>
