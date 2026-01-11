@@ -430,8 +430,9 @@ export function FunilConversaoTab() {
     queryFn: async (): Promise<FunnelQueryResult> => {
       if (!user?.id) return { data: [], dataByCampaign: [], dataByAdset: [], dataByAd: [], totalRecords: 0, uniqueContacts: 0, viaDisparos: { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 } };
 
-      // Construir limites do período em UTC (alinha com o backend e evita diferença de fuso)
-      const startOfPeriodUTC = new Date(Date.UTC(
+      // Construir limites do período usando timezone LOCAL (igual à aba Leads)
+      // Isso garante que as datas filtradas na UI coincidam com os resultados
+      const startOfPeriod = new Date(
         dateStart.getFullYear(),
         dateStart.getMonth(),
         dateStart.getDate(),
@@ -439,8 +440,8 @@ export function FunilConversaoTab() {
         0,
         0,
         0
-      ));
-      const endOfPeriodUTC = new Date(Date.UTC(
+      );
+      const endOfPeriod = new Date(
         dateEnd.getFullYear(),
         dateEnd.getMonth(),
         dateEnd.getDate(),
@@ -448,12 +449,13 @@ export function FunilConversaoTab() {
         59,
         59,
         999
-      ));
+      );
 
       const isWithinPeriod = (createdAt: string | null) => {
         if (!createdAt) return false;
+        // Parse UTC timestamp e deixa o JavaScript converter para timezone local
         const d = new Date(createdAt);
-        return d >= startOfPeriodUTC && d <= endOfPeriodUTC;
+        return d >= startOfPeriod && d <= endOfPeriod;
       };
 
       // Helper para contornar o limite padrão de 1000 linhas (importante no filtro "Máximo")
@@ -608,7 +610,7 @@ export function FunilConversaoTab() {
         if (!iso) return null;
         const d = new Date(iso);
         if (Number.isNaN(d.getTime())) return null;
-        return d >= startOfPeriodUTC && d <= endOfPeriodUTC ? d.getTime() : null;
+        return d >= startOfPeriod && d <= endOfPeriod ? d.getTime() : null;
       };
 
       // Identificar telefones que tiveram AGENDAMENTO no período
