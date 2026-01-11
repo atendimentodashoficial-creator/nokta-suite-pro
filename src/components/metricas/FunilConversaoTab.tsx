@@ -425,26 +425,72 @@ export function FunilConversaoTab() {
         return d >= startOfPeriodUTC && d <= endOfPeriodUTC;
       };
 
+      // Helper para contornar o limite padrão de 1000 linhas (importante no filtro "Máximo")
+      const fetchAll = async <T,>(opts: {
+        table: "leads" | "agendamentos" | "faturas";
+        select: string;
+        orderBy: string;
+        filters: (q: any) => any;
+      }): Promise<T[]> => {
+        const pageSize = 1000;
+        let from = 0;
+        const out: T[] = [];
+
+        // Loop de paginação por range
+        // (Supabase impõe limite padrão de 1000 por request)
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const to = from + pageSize - 1;
+          const base = supabase
+            .from(opts.table)
+            .select(opts.select)
+            .order(opts.orderBy, { ascending: true })
+            .range(from, to);
+
+          const { data, error: pageError } = await opts.filters(base);
+          if (pageError) throw pageError;
+
+          const page = (data || []) as T[];
+          out.push(...page);
+
+          if (page.length < pageSize) break;
+          from += pageSize;
+        }
+
+        return out;
+      };
+
       // Buscar TODOS os leads do usuário para poder unificar por telefone
-      const { data: allLeads, error } = await supabase
-        .from("leads")
-        .select(`
-          id, 
-          nome, 
+      const allLeads = await fetchAll<{
+        id: string;
+        nome: string;
+        telefone: string;
+        status: any;
+        fb_campaign_name: string | null;
+        fb_adset_name: string | null;
+        fb_ad_name: string | null;
+        fb_ad_id: string | null;
+        created_at: string | null;
+        valor_tratamento: number | null;
+        origem: string | null;
+      }>({
+        table: "leads",
+        select: `
+          id,
+          nome,
           telefone,
-          status, 
-          fb_campaign_name, 
-          fb_adset_name, 
-          fb_ad_name, 
+          status,
+          fb_campaign_name,
+          fb_adset_name,
+          fb_ad_name,
           fb_ad_id,
           created_at,
           valor_tratamento,
           origem
-        `)
-        .eq("user_id", user.id)
-        .is("deleted_at", null);
-
-      if (error) throw error;
+        `,
+        orderBy: "created_at",
+        filters: (q) => q.eq("user_id", user.id).is("deleted_at", null),
+      });
 
       // Considerar apenas leads de origem WhatsApp (ou sem origem definida = WhatsApp implícito)
       // Mesma lógica da aba Leads (WhatsApp)
@@ -453,8 +499,8 @@ export function FunilConversaoTab() {
         return o === "whatsapp" || o === "";
       };
 
-      // Lead  oficial  por telefone = primeiro cadastro (mais antigo).
-      // Assim o lead pertence    aba  de origem onde foi cadastrado.
+      // Lead "oficial" por telefone = primeiro cadastro (mais antigo).
+      // Assim o lead pertence à aba de origem onde foi cadastrado.
       const firstLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
       (allLeads || []).forEach((lead) => {
         const phone = normalizePhone(lead.telefone);
@@ -463,8 +509,8 @@ export function FunilConversaoTab() {
           firstLeadByPhone[phone] = lead;
           return;
         }
-        const existingTime = new Date(existing.created_at).getTime();
-        const nextTime = new Date(lead.created_at).getTime();
+        const existingTime = new Date(existing.created_at || 0).getTime();
+        const nextTime = new Date(lead.created_at || 0).getTime();
         if (Number.isFinite(nextTime) && nextTime < existingTime) {
           firstLeadByPhone[phone] = lead;
         }
@@ -479,28 +525,31 @@ export function FunilConversaoTab() {
       });
 
       // Buscar TODOS os agendamentos do usuário com status
-      const { data: agendamentos, error: agendamentosError } = await supabase
-        .from("agendamentos")
-        .select("cliente_id, status, created_at, data_agendamento")
-        .eq("user_id", user.id);
-
-      if (agendamentosError) throw agendamentosError;
+      const agendamentos = await fetchAll<{
+        cliente_id: string;
+        status: any;
+        created_at: string;
+        data_agendamento: string;
+      }>({
+        table: "agendamentos",
+        select: "cliente_id, status, created_at, data_agendamento",
+        orderBy: "created_at",
+        filters: (q) => q.eq("user_id", user.id),
+      });
 
       // Buscar TODAS as faturas para identificar etapas do funil
-      const { data: faturas, error: faturasError } = await supabase
-        .from("faturas")
-        .select(
-          `
-          id,
-          valor,
-          status,
-          cliente_id,
-          created_at
-        `
-        )
-        .eq("user_id", user.id);
-
-      if (faturasError) throw faturasError;
+      const faturas = await fetchAll<{
+        id: string;
+        valor: number;
+        status: any;
+        cliente_id: string;
+        created_at: string;
+      }>({
+        table: "faturas",
+        select: "id, valor, status, cliente_id, created_at",
+        orderBy: "created_at",
+        filters: (q) => q.eq("user_id", user.id),
+      });
 
       // Helper: timestamp (ms) dentro do período, ou null
       const periodTs = (iso: string | null | undefined) => {
