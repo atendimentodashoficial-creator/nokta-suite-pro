@@ -212,10 +212,10 @@ async function fetchFacebookCampaignInfo(
   supabase: any,
   userId: string,
   adId: string
-): Promise<{ campaign_name: string | null; adset_name: string | null; ad_name: string | null }> {
+): Promise<{ campaign_name: string | null; adset_name: string | null; adset_id: string | null; ad_name: string | null }> {
   try {
     if (!adId) {
-      return { campaign_name: null, adset_name: null, ad_name: null };
+      return { campaign_name: null, adset_name: null, adset_id: null, ad_name: null };
     }
 
     // Get user's Facebook access token
@@ -227,13 +227,13 @@ async function fetchFacebookCampaignInfo(
 
     if (configError || !fbConfig?.access_token) {
       console.log('No Facebook config found for user, skipping campaign name fetch');
-      return { campaign_name: null, adset_name: null, ad_name: null };
+      return { campaign_name: null, adset_name: null, adset_id: null, ad_name: null };
     }
 
     const accessToken = fbConfig.access_token;
 
-    // Fetch ad info including campaign and adset names
-    const adUrl = `https://graph.facebook.com/v22.0/${adId}?fields=name,campaign{name},adset{name}&access_token=${accessToken}`;
+    // Fetch ad info including campaign and adset names AND adset id
+    const adUrl = `https://graph.facebook.com/v22.0/${adId}?fields=name,campaign{name},adset{id,name}&access_token=${accessToken}`;
     console.log('Fetching Facebook ad info for:', adId);
 
     const response = await fetch(adUrl);
@@ -241,12 +241,13 @@ async function fetchFacebookCampaignInfo(
 
     if (data.error) {
       console.error('Facebook API error fetching ad info:', data.error);
-      return { campaign_name: null, adset_name: null, ad_name: null };
+      return { campaign_name: null, adset_name: null, adset_id: null, ad_name: null };
     }
 
     const result = {
       campaign_name: data.campaign?.name || null,
       adset_name: data.adset?.name || null,
+      adset_id: data.adset?.id || null,
       ad_name: data.name || null,
     };
 
@@ -254,7 +255,7 @@ async function fetchFacebookCampaignInfo(
     return result;
   } catch (error) {
     console.error('Error fetching Facebook campaign info:', error);
-    return { campaign_name: null, adset_name: null, ad_name: null };
+    return { campaign_name: null, adset_name: null, adset_id: null, ad_name: null };
   }
 }
 
@@ -1074,6 +1075,7 @@ Deno.serve(async (req) => {
       fb_ad_id: null,
       fb_campaign_name: null,
       fb_adset_name: null,
+      fb_adset_id: null,
       fb_ad_name: null,
     };
 
@@ -1127,13 +1129,14 @@ Deno.serve(async (req) => {
     }
 
     // Fetch real Facebook campaign names if we have an ad ID (for lead enrichment)
-    let leadFbCampaignInfo = { campaign_name: null as string | null, adset_name: null as string | null, ad_name: null as string | null };
+    let leadFbCampaignInfo = { campaign_name: null as string | null, adset_name: null as string | null, adset_id: null as string | null, ad_name: null as string | null };
     if (utmData.fb_ad_id) {
       leadFbCampaignInfo = await fetchFacebookCampaignInfo(supabase, userId, utmData.fb_ad_id);
       console.log('Fetched Facebook campaign info for lead:', leadFbCampaignInfo);
-      // Update utmData with enriched names
+      // Update utmData with enriched names and IDs
       utmData.fb_campaign_name = leadFbCampaignInfo.campaign_name;
       utmData.fb_adset_name = leadFbCampaignInfo.adset_name;
+      utmData.fb_adset_id = leadFbCampaignInfo.adset_id;
       utmData.fb_ad_name = leadFbCampaignInfo.ad_name;
     }
 
@@ -1228,6 +1231,7 @@ Deno.serve(async (req) => {
         updateData.fb_ad_id = utmData.fb_ad_id;
         updateData.fb_campaign_name = utmData.fb_campaign_name;
         updateData.fb_adset_name = utmData.fb_adset_name;
+        updateData.fb_adset_id = utmData.fb_adset_id;
         updateData.fb_ad_name = utmData.fb_ad_name;
       }
 
@@ -1282,6 +1286,7 @@ Deno.serve(async (req) => {
         updateData.fb_ad_id = utmData.fb_ad_id;
         updateData.fb_campaign_name = utmData.fb_campaign_name;
         updateData.fb_adset_name = utmData.fb_adset_name;
+        updateData.fb_adset_id = utmData.fb_adset_id;
         updateData.fb_ad_name = utmData.fb_ad_name;
         console.log('Adding UTM data to existing lead:', utmData);
         await logEvent(userId, 'info', `Dados UTM adicionados ao lead existente: ${JSON.stringify(utmData)}`);
@@ -1342,6 +1347,7 @@ Deno.serve(async (req) => {
         fb_ad_id: utmData.fb_ad_id,
         fb_campaign_name: utmData.fb_campaign_name,
         fb_adset_name: utmData.fb_adset_name,
+        fb_adset_id: utmData.fb_adset_id,
         fb_ad_name: utmData.fb_ad_name,
       })
       .select()

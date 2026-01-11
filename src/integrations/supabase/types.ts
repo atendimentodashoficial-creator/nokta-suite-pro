@@ -2033,6 +2033,7 @@ export type Database = {
           estado: string | null
           fb_ad_id: string | null
           fb_ad_name: string | null
+          fb_adset_id: string | null
           fb_adset_name: string | null
           fb_campaign_name: string | null
           fbclid: string | null
@@ -2076,6 +2077,7 @@ export type Database = {
           estado?: string | null
           fb_ad_id?: string | null
           fb_ad_name?: string | null
+          fb_adset_id?: string | null
           fb_adset_name?: string | null
           fb_campaign_name?: string | null
           fbclid?: string | null
@@ -2119,6 +2121,7 @@ export type Database = {
           estado?: string | null
           fb_ad_id?: string | null
           fb_ad_name?: string | null
+          fb_adset_id?: string | null
           fb_adset_name?: string | null
           fb_campaign_name?: string | null
           fbclid?: string | null

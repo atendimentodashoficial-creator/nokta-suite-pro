@@ -69,6 +69,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 interface FunnelData {
   campaign_name: string;
   adset_name: string | null;
+  adset_id: string | null;
   ad_name: string | null;
   ad_id: string | null;
   leads: number;
@@ -492,6 +493,7 @@ export function FunilConversaoTab() {
         status: any;
         fb_campaign_name: string | null;
         fb_adset_name: string | null;
+        fb_adset_id: string | null;
         fb_ad_name: string | null;
         fb_ad_id: string | null;
         fbclid: string | null;
@@ -511,6 +513,7 @@ export function FunilConversaoTab() {
           status,
           fb_campaign_name,
           fb_adset_name,
+          fb_adset_id,
           fb_ad_name,
           fb_ad_id,
           fbclid,
@@ -792,6 +795,7 @@ export function FunilConversaoTab() {
         {
           fb_campaign_name: string | null;
           fb_adset_name: string | null;
+          fb_adset_id: string | null;
           fb_ad_name: string | null;
           fb_ad_id: string | null;
         }
@@ -812,6 +816,7 @@ export function FunilConversaoTab() {
         bestCampaignByPhone[phone] = {
           fb_campaign_name: l.fb_campaign_name,
           fb_adset_name: l.fb_adset_name,
+          fb_adset_id: l.fb_adset_id,
           fb_ad_name: l.fb_ad_name,
           fb_ad_id: l.fb_ad_id,
         };
@@ -968,7 +973,8 @@ export function FunilConversaoTab() {
           return { 
             key, 
             campaign: "📤 Via Disparos", 
-            adset: "Campanhas de disparo em massa", 
+            adset: "Campanhas de disparo em massa",
+            adsetId: null,
             ad: "—", 
             adId: null 
           };
@@ -979,15 +985,17 @@ export function FunilConversaoTab() {
 
         const campaign = fromLead?.fb_campaign_name || fallback?.fb_campaign_name || "Sem campanha";
         const adset = fromLead?.fb_adset_name || fallback?.fb_adset_name || "Sem conjunto";
+        const adsetId = fromLead?.fb_adset_id || fallback?.fb_adset_id || null;
         const ad = fromLead?.fb_ad_name || fallback?.fb_ad_name || "Sem anúncio";
         const adId = fromLead?.fb_ad_id || fallback?.fb_ad_id || null;
 
         let key: string;
         if (viewLevel === "campaign") key = campaign;
-        else if (viewLevel === "adset") key = `${campaign}|||${adset}`;
-        else key = `${campaign}|||${adset}|||${ad}`;
+        // Use adsetId when available for unique identification, fallback to name
+        else if (viewLevel === "adset") key = adsetId ? `${campaign}|||${adsetId}` : `${campaign}|||${adset}`;
+        else key = `${campaign}|||${adsetId || adset}|||${ad}`;
 
-        return { key, campaign, adset, ad, adId };
+        return { key, campaign, adset, adsetId, ad, adId };
       };
 
       // Agrupar por campanha/conjunto/anúncio
@@ -1020,24 +1028,27 @@ export function FunilConversaoTab() {
         ensureGroup(groupedCampaign, attr.campaign, {
           campaign_name: attr.campaign,
           adset_name: null,
+          adset_id: null,
           ad_name: null,
           ad_id: null,
         });
 
-        // Adset
-        const adsetKey = `${attr.campaign}|||${attr.adset}`;
+        // Adset - use adsetId for unique key when available
+        const adsetKey = attr.adsetId ? `${attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
         ensureGroup(groupedAdset, adsetKey, {
           campaign_name: attr.campaign,
           adset_name: attr.adset,
+          adset_id: attr.adsetId,
           ad_name: null,
           ad_id: null,
         });
 
         // Ad
-        const adKey = `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
+        const adKey = `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
         ensureGroup(groupedAd, adKey, {
           campaign_name: attr.campaign,
           adset_name: attr.adset,
+          adset_id: attr.adsetId,
           ad_name: attr.ad,
           ad_id: attr.adId,
         });
@@ -1048,10 +1059,10 @@ export function FunilConversaoTab() {
 
         groupedCampaign[attr.campaign][field] += amount;
 
-        const adsetKey = `${attr.campaign}|||${attr.adset}`;
+        const adsetKey = attr.adsetId ? `${attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
         groupedAdset[adsetKey][field] += amount;
 
-        const adKey = `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
+        const adKey = `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
         groupedAd[adKey][field] += amount;
       };
       // Contadores para eventos de leads que vieram originalmente de "Disparos"
