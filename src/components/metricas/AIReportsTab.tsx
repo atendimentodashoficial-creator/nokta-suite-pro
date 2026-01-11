@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -152,6 +153,24 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
   const { data: allAgendamentos } = useAgendamentos();
   const { data: allFaturas } = useFaturas();
   
+  // Buscar TODOS os leads (incluindo clientes) para mapeamento correto de agendamentos
+  const { data: allLeadsForMapping } = useQuery({
+    queryKey: ["leads-all-for-funnel", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, nome, telefone, origem, created_at, utm_campaign, fbclid, utm_source, fb_campaign_name, fb_adset_name, fb_ad_name")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+  
   const [apiKeyConfigured, setApiKeyConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
@@ -198,9 +217,9 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
   // Note: The usePeriodFilter hook already handles period changes internally
 
   // Calculate funnel data for the selected period
-  // Using the same logic as Leads page - allLeads is ALREADY deduplicated by useLeads hook
+  // Using the same logic as FunilConversaoTab for consistency
   const funnelData = useMemo(() => {
-    if (!allLeads) return null;
+    if (!allLeads || !allLeadsForMapping) return null;
 
     // Use LOCAL timezone to match how dates are displayed in the UI
     // (same logic as PeriodFilter.filterByPeriod)
@@ -282,15 +301,23 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       phonesDisparos.add(phoneKey);
     }
 
-    // Build cliente_id -> phone mapping
+    // Build cliente_id -> phone mapping using ALL leads (including clientes)
+    // Isso garante que agendamentos de clientes também sejam mapeados corretamente
     const clienteIdToPhone: Record<string, string> = {};
-    for (const lead of allLeads) {
+    for (const lead of allLeadsForMapping) {
       if (lead.id) {
         const phoneKey = normalizePhone(lead.telefone);
-        // Prefer the primary lead's phone
-        if (!clienteIdToPhone[lead.id] || leadsByPhone[phoneKey]?.id === lead.id) {
-          clienteIdToPhone[lead.id] = phoneKey;
-        }
+        clienteIdToPhone[lead.id] = phoneKey;
+      }
+    }
+    
+    // Also build leadsByPhone from allLeadsForMapping for attribution lookup
+    const leadsByPhoneAll: Record<string, typeof allLeadsForMapping[0]> = {};
+    for (const lead of allLeadsForMapping) {
+      const phoneKey = normalizePhone(lead.telefone);
+      // Keep the first (oldest) lead per phone
+      if (!leadsByPhoneAll[phoneKey]) {
+        leadsByPhoneAll[phoneKey] = lead;
       }
     }
 
@@ -342,8 +369,8 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       // Isso reflete todos que passaram pelo calendário
       phonesWithAgendamento.add(phone);
 
-      // Attribution check
-      const lead = leadsByPhone[phone];
+      // Attribution check - usar leadsByPhoneAll para incluir clientes
+      const lead = leadsByPhoneAll[phone];
       const isDisparos = isDisparosLead(lead?.origem);
       const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
 
@@ -395,7 +422,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       const tsCreated = periodTs(f.created_at);
       const tsClosed = periodTs(f.updated_at);
 
-      const lead = leadsByPhone[phone];
+      const lead = leadsByPhoneAll[phone];
       const isDisparos = isDisparosLead(lead?.origem);
       const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
 
@@ -597,7 +624,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       byAdset: Object.values(byAdset).sort((a, b) => b.leads - a.leads),
       byAd: Object.values(byAd).sort((a, b) => b.leads - a.leads),
     };
-  }, [allLeads, allAgendamentos, allFaturas, dateStart, dateEnd]);
+  }, [allLeads, allLeadsForMapping, allAgendamentos, allFaturas, dateStart, dateEnd]);
 
   const normName = (v?: string | null) => (v ?? "").toString().trim().toLowerCase();
 
