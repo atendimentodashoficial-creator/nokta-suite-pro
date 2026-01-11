@@ -82,6 +82,12 @@ interface FunnelData {
 
 interface FunnelQueryResult {
   data: FunnelData[];
+  /**
+   * Sempre calculado, independente do "Agrupar por".
+   * Usado nos quadros "Melhores Desempenhos" e "Melhor Custo".
+   */
+  dataByAdset: FunnelData[];
+  dataByAd: FunnelData[];
   totalRecords: number;
   uniqueContacts: number;
   // Contadores de eventos de leads que vieram originalmente de "Disparos"
@@ -415,7 +421,7 @@ export function FunilConversaoTab() {
   const { data: funnelResult, isLoading: loadingFunnel } = useQuery({
     queryKey: ["funnel-data", user?.id, dateStart, dateEnd, viewLevel],
     queryFn: async (): Promise<FunnelQueryResult> => {
-      if (!user?.id) return { data: [], totalRecords: 0, uniqueContacts: 0, viaDisparos: { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 } };
+      if (!user?.id) return { data: [], dataByAdset: [], dataByAd: [], totalRecords: 0, uniqueContacts: 0, viaDisparos: { leads: 0, agendados: 0, compareceu: 0, nao_compareceu: 0, em_negociacao: 0, clientes: 0, valor_fechado: 0 } };
 
       // Construir limites do período em UTC (alinha com o backend e evita diferença de fuso)
       const startOfPeriodUTC = new Date(Date.UTC(
@@ -984,13 +990,19 @@ export function FunilConversaoTab() {
         return { key, campaign, adset, ad, adId };
       };
 
-      const ensureGroup = (attr: ReturnType<typeof getAttribution>) => {
-        if (!grouped[attr.key]) {
-          grouped[attr.key] = {
-            campaign_name: attr.campaign,
-            adset_name: attr.adset,
-            ad_name: attr.ad,
-            ad_id: attr.adId,
+      // Agrupar por campanha/conjunto/anúncio
+      // Usar telefone normalizado para unificar contatos
+      const processedPhones = new Set<string>();
+
+      // Sempre calculamos os 3 níveis, para que os quadros laterais não dependam do filtro do usuário.
+      const groupedCampaign: Record<string, FunnelData> = {};
+      const groupedAdset: Record<string, FunnelData> = {};
+      const groupedAd: Record<string, FunnelData> = {};
+
+      const ensureGroup = (map: Record<string, FunnelData>, key: string, base: Omit<FunnelData, "leads" | "agendados" | "compareceu" | "nao_compareceu" | "em_negociacao" | "clientes" | "valor_fechado">) => {
+        if (!map[key]) {
+          map[key] = {
+            ...base,
             leads: 0,
             agendados: 0,
             compareceu: 0,
@@ -1000,14 +1012,48 @@ export function FunilConversaoTab() {
             valor_fechado: 0,
           };
         }
-        return grouped[attr.key];
+        return map[key];
       };
 
-      // Agrupar por campanha/conjunto/anúncio
-      // Usar telefone normalizado para unificar contatos
-      const processedPhones = new Set<string>();
-      const grouped: Record<string, FunnelData> = {};
+      const bumpAllLevels = (attr: ReturnType<typeof getAttribution>) => {
+        // Campaign
+        ensureGroup(groupedCampaign, attr.campaign, {
+          campaign_name: attr.campaign,
+          adset_name: null,
+          ad_name: null,
+          ad_id: null,
+        });
 
+        // Adset
+        const adsetKey = `${attr.campaign}|||${attr.adset}`;
+        ensureGroup(groupedAdset, adsetKey, {
+          campaign_name: attr.campaign,
+          adset_name: attr.adset,
+          ad_name: null,
+          ad_id: null,
+        });
+
+        // Ad
+        const adKey = `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
+        ensureGroup(groupedAd, adKey, {
+          campaign_name: attr.campaign,
+          adset_name: attr.adset,
+          ad_name: attr.ad,
+          ad_id: attr.adId,
+        });
+      };
+
+      const bumpMetric = (attr: ReturnType<typeof getAttribution>, field: keyof Pick<FunnelData, "leads" | "agendados" | "compareceu" | "nao_compareceu" | "em_negociacao" | "clientes" | "valor_fechado">, amount: number) => {
+        bumpAllLevels(attr);
+
+        groupedCampaign[attr.campaign][field] += amount;
+
+        const adsetKey = `${attr.campaign}|||${attr.adset}`;
+        groupedAdset[adsetKey][field] += amount;
+
+        const adKey = `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
+        groupedAd[adKey][field] += amount;
+      };
       // Contadores para eventos de leads que vieram originalmente de "Disparos"
       const viaDisparos = {
         // Leads criados no período cuja origem primária é Disparos (badge no card de Leads)
@@ -1057,40 +1103,40 @@ export function FunilConversaoTab() {
         const leadCreatedInPeriod = isWhatsAppLeadCreatedInPeriod || isDisparosLeadCreatedInPeriod;
         
         if (leadCreatedInPeriod) {
-          const gLead = ensureGroup(getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1 }));
-          gLead.leads++;
+          const attr = getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1 });
+          bumpMetric(attr, "leads", 1);
         }
 
         // Etapa 2: Agendados
         // Conta todos os agendamentos do período, incluindo cancelados (não compareceu)
         if (hasAgendamentoInPeriod) {
-          const gAg = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2, isDisparos: isFromDisparos }));
-          gAg.agendados++;
+          const attr = getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2, isDisparos: isFromDisparos });
+          bumpMetric(attr, "agendados", 1);
           if (isFromDisparos) viaDisparos.agendados++;
 
           // Usar o set de período para marcar não compareceu
           if (phonesWithNaoCompareceuInPeriod.has(phone)) {
-            gAg.nao_compareceu++;
+            bumpMetric(attr, "nao_compareceu", 1);
             if (isFromDisparos) viaDisparos.nao_compareceu++;
           }
         }
 
         // Etapa 3: Compareceu / Em negociação
         if (temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
-          const g3 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3, isDisparos: isFromDisparos }));
-          g3.compareceu++;
+          const attr = getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3, isDisparos: isFromDisparos });
+          bumpMetric(attr, "compareceu", 1);
           if (isFromDisparos) viaDisparos.compareceu++;
-          
+
           if (temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
-            g3.em_negociacao++;
+            bumpMetric(attr, "em_negociacao", 1);
             if (isFromDisparos) viaDisparos.em_negociacao++;
           }
         }
 
         // Etapa 4: Clientes
         if (temFaturaFechadaInPeriod) {
-          const g4 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage4, eventTs: tsStage4, isDisparos: isFromDisparos }));
-          g4.clientes++;
+          const attr = getAttribution(phone, { preferredLeadId: leadIdStage4, eventTs: tsStage4, isDisparos: isFromDisparos });
+          bumpMetric(attr, "clientes", 1);
           if (isFromDisparos) viaDisparos.clientes++;
 
           let valorFechado = 0;
@@ -1099,7 +1145,7 @@ export function FunilConversaoTab() {
           });
 
           if (valorFechado > 0) {
-            g4.valor_fechado += valorFechado;
+            bumpMetric(attr, "valor_fechado", valorFechado);
             if (isFromDisparos) viaDisparos.valor_fechado += valorFechado;
           } else {
             // Fallback para valor_tratamento
@@ -1107,7 +1153,7 @@ export function FunilConversaoTab() {
               .map((id) => leadById[id])
               .find((l) => l?.valor_tratamento)?.valor_tratamento;
             if (valorTratamento) {
-              g4.valor_fechado += valorTratamento;
+              bumpMetric(attr, "valor_fechado", valorTratamento);
               if (isFromDisparos) viaDisparos.valor_fechado += valorTratamento;
             }
           }
@@ -1115,13 +1161,13 @@ export function FunilConversaoTab() {
       });
 
       const uniqueContacts = processedPhones.size;
-      // Sort: "Sem campanha" e "Via Disparos" vão para o final
-      const sortedData = Object.values(grouped).sort((a, b) => {
+
+      const sortCore = (a: FunnelData, b: FunnelData) => {
         const isDisparosA = a.campaign_name.includes("Via Disparos");
         const isDisparosB = b.campaign_name.includes("Via Disparos");
         const isSemCampanhaA = a.campaign_name === "Sem campanha";
         const isSemCampanhaB = b.campaign_name === "Sem campanha";
-        
+
         // Via Disparos vai por último
         if (isDisparosA && !isDisparosB) return 1;
         if (!isDisparosA && isDisparosB) return -1;
@@ -1130,10 +1176,18 @@ export function FunilConversaoTab() {
         if (!isSemCampanhaA && isSemCampanhaB && !isDisparosA) return -1;
         // Ordenar por leads (decrescente)
         return b.leads - a.leads;
-      });
+      };
+
+      const dataCampaign = Object.values(groupedCampaign).sort(sortCore);
+      const dataAdset = Object.values(groupedAdset).sort(sortCore);
+      const dataAd = Object.values(groupedAd).sort(sortCore);
+
+      const data = viewLevel === "campaign" ? dataCampaign : viewLevel === "adset" ? dataAdset : dataAd;
 
       return {
-        data: sortedData,
+        data,
+        dataByAdset: dataAdset,
+        dataByAd: dataAd,
         totalRecords,
         uniqueContacts,
         viaDisparos,
@@ -1144,6 +1198,8 @@ export function FunilConversaoTab() {
 
   // Extrair dados do resultado
   const funnelData = funnelResult?.data || [];
+  const funnelDataByAdset = funnelResult?.dataByAdset || [];
+  const funnelDataByAd = funnelResult?.dataByAd || [];
   const totalRecordsInPeriod = funnelResult?.totalRecords || 0;
   const uniqueContactsInPeriod = funnelResult?.uniqueContacts || 0;
   const duplicatesUnified = totalRecordsInPeriod - uniqueContactsInPeriod;
@@ -1397,10 +1453,10 @@ export function FunilConversaoTab() {
   const maiorPerda = taxas.reduce((max, item) => item.taxa > max.taxa ? item : max, taxas[0]);
 
   // Calcular dados de funil agrupados por adset e por ad para os quadros de desempenho
+  // IMPORTANTÍSSIMO: esses quadros NÃO podem depender do "Agrupar por" da tabela.
   const funnelByAdset = useMemo(() => {
-    if (!funnelData) return [];
-    
-    // Agrupar por adset, filtrando itens sem adset real
+    if (!funnelDataByAdset) return [];
+
     const grouped: Record<string, {
       adset: string;
       campaign: string;
@@ -1410,17 +1466,15 @@ export function FunilConversaoTab() {
       clientes: number;
       valor: number;
     }> = {};
-    
-    funnelData.forEach(item => {
+
+    funnelDataByAdset.forEach((item) => {
       if (item.campaign_name === "Sem campanha") return;
-      // Excluir campanhas de Disparos
       if (item.campaign_name.includes("Via Disparos")) return;
-      // Só considerar se tiver um nome de conjunto real (não "Sem conjunto")
+
       const adsetName = item.adset_name;
       if (!adsetName || adsetName === "Sem conjunto") return;
-      
+
       const key = `${item.campaign_name}::${adsetName}`;
-      
       if (!grouped[key]) {
         grouped[key] = {
           adset: adsetName,
@@ -1432,19 +1486,20 @@ export function FunilConversaoTab() {
           valor: 0,
         };
       }
+
       grouped[key].leads += item.leads;
       grouped[key].agendados += item.agendados;
       grouped[key].compareceu += item.compareceu;
       grouped[key].clientes += item.clientes;
       grouped[key].valor += item.valor_fechado;
     });
-    
+
     return Object.values(grouped);
-  }, [funnelData]);
+  }, [funnelDataByAdset]);
 
   const funnelByAd = useMemo(() => {
-    if (!funnelData) return [];
-    
+    if (!funnelDataByAd) return [];
+
     const grouped: Record<string, {
       ad: string;
       adset: string;
@@ -1456,19 +1511,17 @@ export function FunilConversaoTab() {
       clientes: number;
       valor: number;
     }> = {};
-    
-    funnelData.forEach(item => {
+
+    funnelDataByAd.forEach((item) => {
       if (item.campaign_name === "Sem campanha") return;
-      // Excluir campanhas de Disparos
       if (item.campaign_name.includes("Via Disparos")) return;
-      // Só considerar se tiver um nome de anúncio real (não "Sem anúncio")
+
       const adName = item.ad_name;
       const adsetName = item.adset_name;
       if (!adName || adName === "Sem anúncio") return;
       if (!adsetName || adsetName === "Sem conjunto") return;
-      
+
       const key = `${item.campaign_name}::${adsetName}::${adName}`;
-      
       if (!grouped[key]) {
         grouped[key] = {
           ad: adName,
@@ -1482,15 +1535,16 @@ export function FunilConversaoTab() {
           valor: 0,
         };
       }
+
       grouped[key].leads += item.leads;
       grouped[key].agendados += item.agendados;
       grouped[key].compareceu += item.compareceu;
       grouped[key].clientes += item.clientes;
       grouped[key].valor += item.valor_fechado;
     });
-    
+
     return Object.values(grouped);
-  }, [funnelData]);
+  }, [funnelDataByAd]);
 
   // Buscar thumbnails dos anúncios
   const adIds = useMemo(() => {
