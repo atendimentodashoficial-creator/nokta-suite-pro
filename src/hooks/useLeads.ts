@@ -63,6 +63,7 @@ export const useLeads = (status?: LeadStatus) => {
     queryKey: ["leads", status, "phone-dedupe-v3-chats"],
     queryFn: async () => {
       // Fetch leads
+      // Default behavior: exclude "cliente" (those are shown in Clientes/Em Negociação, etc.)
       let query = supabase
         .from("leads")
         .select("*")
@@ -71,6 +72,8 @@ export const useLeads = (status?: LeadStatus) => {
 
       if (status) {
         query = query.eq("status", status);
+      } else {
+        query = query.neq("status", "cliente");
       }
 
       const { data, error } = await query;
