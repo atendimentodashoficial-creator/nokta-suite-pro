@@ -223,7 +223,7 @@ export function MetaPixelConfig() {
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div>
                 <p className="font-medium">Purchase</p>
-                <p className="text-sm text-muted-foreground">Quando uma fatura é paga</p>
+                <p className="text-sm text-muted-foreground">Enviado manualmente após conferência dos dados</p>
               </div>
               <Switch
                 checked={eventosAtivos.purchase}
