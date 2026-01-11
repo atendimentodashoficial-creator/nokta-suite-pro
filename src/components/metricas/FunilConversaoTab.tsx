@@ -36,7 +36,8 @@ import {
   HelpCircle,
   Layers,
   Settings2,
-  Send
+  Send,
+  Trash2
 } from "lucide-react";
 import {
   Select,
@@ -1425,6 +1426,44 @@ export function FunilConversaoTab() {
     enabled: !!user?.id, // Sempre buscar para os quadros de Melhor Custo que usam adset/ad
   });
 
+  // Buscar agendamentos excluídos no período (para exibir alerta nas métricas)
+  const { data: agendamentosExcluidos = [] } = useQuery({
+    queryKey: ["agendamentos-excluidos-funil", user?.id, dateStart, dateEnd],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      // Construir limites do período
+      const startOfPeriod = new Date(
+        dateStart.getFullYear(),
+        dateStart.getMonth(),
+        dateStart.getDate(),
+        0, 0, 0, 0
+      );
+      const endOfPeriod = new Date(
+        dateEnd.getFullYear(),
+        dateEnd.getMonth(),
+        dateEnd.getDate(),
+        23, 59, 59, 999
+      );
+
+      const { data, error } = await supabase
+        .from("agendamentos_excluidos_log")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("data_agendamento", startOfPeriod.toISOString())
+        .lte("data_agendamento", endOfPeriod.toISOString())
+        .order("excluido_em", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching deleted appointments:", error);
+        return [];
+      }
+
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
   // Normalização para garantir que chaves batam mesmo com variações de espaço/dash/unicode
   const normalizeKeyPart = (value: string | null | undefined) => {
     return (value || "")
@@ -2014,7 +2053,12 @@ export function FunilConversaoTab() {
             <CardTitle className="text-xs font-medium text-muted-foreground">Agendados</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{formatNumber(totals.agendados)}</div>
+            <div className="text-2xl font-bold">
+              {formatNumber(totals.agendados + agendamentosExcluidos.length)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {totals.agendados} ativos
+            </p>
             <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
               {totals.agendadosTracked > 0 && (
                 <TooltipProvider>
@@ -2051,6 +2095,33 @@ export function FunilConversaoTab() {
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Agendamentos de leads originados de campanhas de disparos em massa</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {agendamentosExcluidos.length > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center gap-1 text-[10px] text-red-600 bg-red-500/10 rounded-full px-2 py-0.5">
+                      <Trash2 className="h-2.5 w-2.5" />
+                      <span>{agendamentosExcluidos.length} excluídos</span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="font-semibold mb-1">Agendamentos excluídos manualmente</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {agendamentosExcluidos.length} agendamento{agendamentosExcluidos.length > 1 ? 's' : ''} foi/foram excluído{agendamentosExcluidos.length > 1 ? 's' : ''} do calendário neste período.
+                      </p>
+                      {agendamentosExcluidos.slice(0, 5).map((exc: any, idx: number) => (
+                        <div key={exc.id} className="text-xs border-t pt-1 mt-1">
+                          <span className="font-medium">{exc.cliente_nome}</span>
+                          <span className="text-muted-foreground"> - {format(new Date(exc.data_agendamento), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                        </div>
+                      ))}
+                      {agendamentosExcluidos.length > 5 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          e mais {agendamentosExcluidos.length - 5}...
+                        </p>
+                      )}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

@@ -119,6 +119,48 @@ export const useDeleteAgendamento = () => {
   
   return useMutation({
     mutationFn: async (agendamentoId: string) => {
+      // Primeiro buscar os dados do agendamento para logar
+      const { data: agendamento, error: fetchError } = await supabase
+        .from("agendamentos")
+        .select(`
+          *,
+          leads:cliente_id(nome, telefone),
+          procedimentos:procedimento_id(nome),
+          profissionais:profissional_id(nome)
+        `)
+        .eq("id", agendamentoId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!agendamento) throw new Error("Agendamento não encontrado");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // Logar a exclusão antes de deletar
+      const { error: logError } = await supabase
+        .from("agendamentos_excluidos_log")
+        .insert({
+          user_id: user.id,
+          cliente_id: agendamento.cliente_id,
+          cliente_nome: agendamento.leads?.nome || "Desconhecido",
+          cliente_telefone: agendamento.leads?.telefone || "",
+          procedimento_id: agendamento.procedimento_id,
+          procedimento_nome: agendamento.procedimentos?.nome || null,
+          profissional_id: agendamento.profissional_id,
+          profissional_nome: agendamento.profissionais?.nome || null,
+          tipo: agendamento.tipo,
+          status: agendamento.status,
+          data_agendamento: agendamento.data_agendamento,
+          observacoes: agendamento.observacoes,
+          motivo_exclusao: "Excluído manualmente"
+        });
+
+      if (logError) {
+        console.error("Erro ao logar exclusão:", logError);
+        // Não bloquear a exclusão se falhar o log
+      }
+
       // Delete related fatura_agendamentos first
       await supabase.from("fatura_agendamentos").delete().eq("agendamento_id", agendamentoId);
       
@@ -131,8 +173,43 @@ export const useDeleteAgendamento = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["agendamentos-excluidos"] });
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+// Hook para buscar agendamentos excluídos (para métricas)
+export const useAgendamentosExcluidos = (dateStart?: Date, dateEnd?: Date) => {
+  return useQuery({
+    queryKey: ["agendamentos-excluidos", dateStart?.toISOString(), dateEnd?.toISOString()],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      let query = supabase
+        .from("agendamentos_excluidos_log")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("excluido_em", { ascending: false });
+
+      // Filtrar por período do agendamento (não pela data de exclusão)
+      if (dateStart) {
+        const startOfDay = new Date(dateStart);
+        startOfDay.setHours(0, 0, 0, 0);
+        query = query.gte("data_agendamento", startOfDay.toISOString());
+      }
+
+      if (dateEnd) {
+        const endOfDay = new Date(dateEnd);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte("data_agendamento", endOfDay.toISOString());
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
     },
   });
 };
