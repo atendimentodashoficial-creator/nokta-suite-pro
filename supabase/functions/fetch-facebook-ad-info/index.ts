@@ -49,8 +49,8 @@ Deno.serve(async (req) => {
 
     const accessToken = fbConfig.access_token;
 
-    // Fetch ad info including campaign, adset, creative details
-    const adUrl = `https://graph.facebook.com/v22.0/${ad_id}?fields=name,status,campaign{name,status},adset{name,status},creative{id,name,title,body,thumbnail_url,image_url,object_story_spec}&access_token=${accessToken}`;
+    // Fetch ad info including campaign, adset, creative details (including adset id)
+    const adUrl = `https://graph.facebook.com/v22.0/${ad_id}?fields=name,status,campaign{name,status},adset{id,name,status},creative{id,name,title,body,thumbnail_url,image_url,object_story_spec}&access_token=${accessToken}`;
     
     console.log('Calling Facebook API...');
     const response = await fetch(adUrl);
@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
       ad_status: data.status || null,
       campaign_name: data.campaign?.name || null,
       campaign_status: data.campaign?.status || null,
+      adset_id: data.adset?.id || null,
       adset_name: data.adset?.name || null,
       adset_status: data.adset?.status || null,
       thumbnail_url: thumbnailUrl,
