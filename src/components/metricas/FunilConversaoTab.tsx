@@ -473,7 +473,9 @@ export function FunilConversaoTab() {
         fbclid: string | null;
         gclid: string | null;
         utm_source: string | null;
+        data_contato: string | null;
         created_at: string | null;
+        updated_at: string | null;
         valor_tratamento: number | null;
         origem: string | null;
       }>({
@@ -490,7 +492,9 @@ export function FunilConversaoTab() {
           fbclid,
           gclid,
           utm_source,
+          data_contato,
           created_at,
+          updated_at,
           valor_tratamento,
           origem
         `,
@@ -690,7 +694,23 @@ export function FunilConversaoTab() {
         leadById[l.id] = l;
       });
 
+      // Helper: timestamp seguro (ms)
+      const safeTs = (iso: string | null | undefined) => {
+        if (!iso) return null;
+        const d = new Date(iso);
+        const t = d.getTime();
+        return Number.isFinite(t) ? t : null;
+      };
+
+      // Timestamp de atribuição (mais confiável que created_at)
+      // - data_contato: quando o contato ocorreu (se preenchido)
+      // - updated_at: quando a atribuição pode ter sido enriquecida/persistida
+      // - created_at: fallback
+      const attributionTs = (l: (typeof allLeads)[number]) =>
+        safeTs(l.data_contato) ?? safeTs(l.updated_at) ?? safeTs(l.created_at) ?? 0;
+
       // Melhor atribuição disponível por telefone (fallback)
+      // Escolhe a atribuição mais recente para aquele telefone.
       const bestCampaignByPhone: Record<
         string,
         {
@@ -700,18 +720,25 @@ export function FunilConversaoTab() {
           fb_ad_id: string | null;
         }
       > = {};
+      const bestCampaignTsByPhone: Record<string, number> = {};
+
       (allLeads || []).forEach((l) => {
         const phone = normalizePhone(l.telefone);
         if (!phonesInPeriod.has(phone)) return;
         if (!l.fb_campaign_name) return;
-        if (!bestCampaignByPhone[phone]) {
-          bestCampaignByPhone[phone] = {
-            fb_campaign_name: l.fb_campaign_name,
-            fb_adset_name: l.fb_adset_name,
-            fb_ad_name: l.fb_ad_name,
-            fb_ad_id: l.fb_ad_id,
-          };
+
+        const t = attributionTs(l);
+        if (bestCampaignByPhone[phone] && bestCampaignTsByPhone[phone] !== undefined && t <= bestCampaignTsByPhone[phone]) {
+          return;
         }
+
+        bestCampaignTsByPhone[phone] = t;
+        bestCampaignByPhone[phone] = {
+          fb_campaign_name: l.fb_campaign_name,
+          fb_adset_name: l.fb_adset_name,
+          fb_ad_name: l.fb_ad_name,
+          fb_ad_id: l.fb_ad_id,
+        };
       });
 
       // Para cada telefone, capturar o lead_id do PRIMEIRO AGENDAMENTO CRIADO no período
@@ -814,7 +841,7 @@ export function FunilConversaoTab() {
         attributedLeadsByPhone[phone].push(l);
       });
       Object.values(attributedLeadsByPhone).forEach((arr) => {
-        arr.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+        arr.sort((a, b) => attributionTs(a) - attributionTs(b));
       });
 
       const pickAttributionLead = (phone: string, eventTs?: number, preferredLeadId?: string) => {
@@ -828,13 +855,13 @@ export function FunilConversaoTab() {
         // Se temos eventTs, escolhe o lead com atribuição mais recente ANTES do evento
         if (eventTs) {
           for (let i = candidates.length - 1; i >= 0; i--) {
-            const t = new Date(candidates[i].created_at || 0).getTime();
+            const t = attributionTs(candidates[i]);
             if (Number.isFinite(t) && t <= eventTs) return candidates[i];
           }
         }
 
-        // Fallback: primeiro lead com atribuição (o mais antigo)
-        return candidates[0];
+        // Fallback: usa o mais recente com atribuição (melhor para "Máximo")
+        return candidates[candidates.length - 1];
       };
 
       const getAttribution = (phone: string, opts?: { preferredLeadId?: string; eventTs?: number }) => {
