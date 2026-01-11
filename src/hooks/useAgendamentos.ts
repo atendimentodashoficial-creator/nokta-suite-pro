@@ -213,3 +213,22 @@ export const useAgendamentosExcluidos = (dateStart?: Date, dateEnd?: Date) => {
     },
   });
 };
+
+// Hook para deletar log de agendamento excluído
+export const useDeleteAgendamentoExcluidoLog = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (logId: string) => {
+      const { error } = await supabase
+        .from("agendamentos_excluidos_log")
+        .delete()
+        .eq("id", logId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agendamentos-excluidos"] });
+    },
+  });
+};

@@ -175,3 +175,22 @@ export const useFaturasExcluidas = () => {
     },
   });
 };
+
+// Hook para deletar log de fatura excluída
+export const useDeleteFaturaExcluidaLog = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (logId: string) => {
+      const { error } = await supabase
+        .from("faturas_excluidas_log")
+        .delete()
+        .eq("id", logId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["faturas-excluidas"] });
+    },
+  });
+};
