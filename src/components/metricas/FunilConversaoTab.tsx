@@ -724,13 +724,24 @@ export function FunilConversaoTab() {
       // IMPORTANTE: deve bater com a aba Leads, que mostra 1 registro por telefone (os últimos 8 dígitos).
       // Então, um telefone que já existia antes e teve novo registro hoje NÃO deve contar como "lead de hoje".
       const phonesWithLeadInPeriod = new Set<string>();
+
+      // Telefones cujo lead primário é de "Disparos" e foi criado no período
+      // (usado para exibir a etiqueta "via Disparos" no card de Leads)
+      const phonesWithDisparosLeadInPeriod = new Set<string>();
+
       Object.values(firstLeadByPhone).forEach((primaryLead) => {
         const phone = phoneKey(primaryLead.telefone);
-        if (isWhatsAppLead(primaryLead.origem) && isWithinPeriod(primaryLead.created_at)) {
+        const origem = (primaryLead.origem || "").toLowerCase();
+        const createdInPeriod = isWithinPeriod(primaryLead.created_at);
+
+        if (createdInPeriod && origem === "disparos") {
+          phonesWithDisparosLeadInPeriod.add(phone);
+        }
+
+        if (isWhatsAppLead(primaryLead.origem) && createdInPeriod) {
           phonesWithLeadInPeriod.add(phone);
         }
       });
-
       // O "phonesInPeriod" inclui:
       // - TODOS os leads WhatsApp criados no período
       // - Phones com eventos no período (se têm atribuição para atribuir corretamente)
@@ -999,7 +1010,8 @@ export function FunilConversaoTab() {
 
       // Contadores para eventos de leads que vieram originalmente de "Disparos"
       const viaDisparos = {
-        leads: 0,
+        // Leads criados no período cuja origem primária é Disparos (badge no card de Leads)
+        leads: phonesWithDisparosLeadInPeriod.size,
         agendados: 0,
         compareceu: 0,
         nao_compareceu: 0,
@@ -1038,12 +1050,11 @@ export function FunilConversaoTab() {
         const tsStage3 = latestFaturaNegTsByPhone[phone] || latestFaturaFechTsByPhone[phone];
         const tsStage4 = latestFaturaFechTsByPhone[phone];
 
-        // Etapa 1: Leads - só conta se o lead foi CRIADO no período
+        // Etapa 1: Leads - só conta se o lead foi CRIADO no período (apenas WhatsApp, igual a aba Leads)
         const leadCreatedInPeriod = phonesWithLeadInPeriod.has(phone);
         if (leadCreatedInPeriod) {
           const gLead = ensureGroup(getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1 }));
           gLead.leads++;
-          if (isFromDisparos) viaDisparos.leads++;
         }
 
         // Etapa 2: Agendados
