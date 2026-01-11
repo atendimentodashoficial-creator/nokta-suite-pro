@@ -559,8 +559,9 @@ export function FunilConversaoTab() {
         return d >= startOfPeriodUTC && d <= endOfPeriodUTC ? d.getTime() : null;
       };
 
-      // Identificar telefones que tiveram agendamento DENTRO do período
-      // IMPORTANTE: usar data_agendamento (data do evento) e não created_at (data de cadastro)
+      // Identificar telefones que tiveram AGENDAMENTO CRIADO dentro do período
+      // IMPORTANTE: usar created_at (momento em que o lead virou agendamento)
+      // e NÃO data_agendamento (data futura do procedimento), senão o filtro exclui agendamentos recém-criados.
       const phonesWithAgendamentoInPeriod = new Set<string>();
       const phonesWithAgendamentoInPeriodForStage = new Set<string>();
       const agendamentoTsByPhone: Record<string, number> = {};
@@ -570,13 +571,13 @@ export function FunilConversaoTab() {
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone) return;
 
-        const ts = periodTs((a as any).data_agendamento || a.created_at);
+        const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
 
         phonesWithAgendamentoInPeriod.add(phone);
         phonesWithAgendamentoInPeriodForStage.add(phone);
 
-        // Guardar o primeiro agendamento dentro do período (para atribuição correta)
+        // Guardar o primeiro agendamento (criado) dentro do período (para atribuição correta)
         if (agendamentoTsByPhone[phone] === undefined || ts < agendamentoTsByPhone[phone]) {
           agendamentoTsByPhone[phone] = ts;
         }
@@ -669,14 +670,14 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Para cada telefone, capturar o lead_id do PRIMEIRO evento por etapa dentro do período
+      // Para cada telefone, capturar o lead_id do PRIMEIRO AGENDAMENTO CRIADO no período
       const firstAgendamentoLeadIdByPhone: Record<string, string> = {};
       const firstAgendamentoTsByPhone: Record<string, number> = {};
       agendamentos?.forEach((a) => {
         if (!a.cliente_id) return;
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone || !phonesInPeriod.has(phone)) return;
-        const ts = periodTs((a as any).data_agendamento || a.created_at);
+        const ts = periodTs(a.created_at || (a as any).data_agendamento);
         if (ts === null) return;
         if (firstAgendamentoTsByPhone[phone] === undefined || ts < firstAgendamentoTsByPhone[phone]) {
           firstAgendamentoTsByPhone[phone] = ts;
@@ -757,8 +758,40 @@ export function FunilConversaoTab() {
         leadIdsByPhone[phone].push(l.id);
       });
 
-      const getAttribution = (phone: string, preferredLeadId?: string) => {
-        const fromLead = preferredLeadId ? leadById[preferredLeadId] : undefined;
+      // Leads com atribuição por telefone (para escolher o criativo correto por etapa)
+      const attributedLeadsByPhone: Record<string, (typeof allLeads)[number][]> = {};
+      (allLeads || []).forEach((l) => {
+        const phone = normalizePhone(l.telefone);
+        if (!phonesInPeriod.has(phone)) return;
+        if (!isWhatsAppLead(l.origem)) return;
+        if (!l.fb_campaign_name) return;
+
+        if (!attributedLeadsByPhone[phone]) attributedLeadsByPhone[phone] = [];
+        attributedLeadsByPhone[phone].push(l);
+      });
+      Object.values(attributedLeadsByPhone).forEach((arr) => {
+        arr.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+      });
+
+      const pickAttributionLead = (phone: string, eventTs?: number, preferredLeadId?: string) => {
+        const preferred = preferredLeadId ? leadById[preferredLeadId] : undefined;
+        if (preferred?.fb_campaign_name) return preferred;
+
+        const candidates = attributedLeadsByPhone[phone] || [];
+        if (!eventTs || candidates.length === 0) return undefined;
+
+        // Mais recente antes (ou no mesmo instante) do evento
+        for (let i = candidates.length - 1; i >= 0; i--) {
+          const t = new Date(candidates[i].created_at || 0).getTime();
+          if (Number.isFinite(t) && t <= eventTs) return candidates[i];
+        }
+
+        // Se não houver antes, usa o primeiro com atribuição (melhor fallback)
+        return candidates[0];
+      };
+
+      const getAttribution = (phone: string, opts?: { preferredLeadId?: string; eventTs?: number }) => {
+        const fromLead = pickAttributionLead(phone, opts?.eventTs, opts?.preferredLeadId);
         const fallback = bestCampaignByPhone[phone];
 
         const campaign = fromLead?.fb_campaign_name || fallback?.fb_campaign_name || "Sem campanha";
@@ -815,13 +848,18 @@ export function FunilConversaoTab() {
         const leadIdStage3 = firstFaturaNegLeadIdByPhone[phone] || firstFaturaFechLeadIdByPhone[phone] || leadIdStage2;
         const leadIdStage4 = firstFaturaFechLeadIdByPhone[phone] || leadIdStage3;
 
-        // Etapa 1: Leads (atribuir ao lead do próprio telefone)
-        const gLead = ensureGroup(getAttribution(phone, lead.id));
+        const tsStage1 = new Date(lead.created_at || 0).getTime();
+        const tsStage2 = firstAgendamentoTsByPhone[phone];
+        const tsStage3 = firstFaturaNegTsByPhone[phone] || firstFaturaFechTsByPhone[phone];
+        const tsStage4 = firstFaturaFechTsByPhone[phone];
+
+        // Etapa 1: Leads
+        const gLead = ensureGroup(getAttribution(phone, { preferredLeadId: lead.id, eventTs: tsStage1 }));
         gLead.leads++;
 
-        // Etapa 2: Agendados (atribuir ao lead que gerou o agendamento no período)
+        // Etapa 2: Agendados
         if (hasAgendamentoInPeriod || temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
-          const gAg = ensureGroup(getAttribution(phone, leadIdStage2));
+          const gAg = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2 }));
           gAg.agendados++;
 
           const naoCompareceu = allIds.some((id) => clientesNaoCompareceram.has(id));
@@ -830,18 +868,18 @@ export function FunilConversaoTab() {
           }
         }
 
-        // Etapa 3: Compareceu / Em negociação (atribuir ao lead da fatura no período)
+        // Etapa 3: Compareceu / Em negociação
         if (temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
-          const g3 = ensureGroup(getAttribution(phone, leadIdStage3));
+          const g3 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3 }));
           g3.compareceu++;
           if (temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
             g3.em_negociacao++;
           }
         }
 
-        // Etapa 4: Clientes (atribuir ao lead da fatura fechada no período)
+        // Etapa 4: Clientes
         if (temFaturaFechadaInPeriod) {
-          const g4 = ensureGroup(getAttribution(phone, leadIdStage4));
+          const g4 = ensureGroup(getAttribution(phone, { preferredLeadId: leadIdStage4, eventTs: tsStage4 }));
           g4.clientes++;
 
           let valorFechado = 0;
