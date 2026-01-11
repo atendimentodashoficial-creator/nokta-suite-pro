@@ -361,6 +361,12 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     allAgendamentos?.forEach((a: any) => {
       if (!a.cliente_id) return;
 
+      // IMPORTANTE: Só contar agendamentos de leads que ainda existem (não foram excluídos)
+      // Se o lead foi soft-deleted, o agendamento não está mais visível no app
+      if (!clienteIdToPhone[a.cliente_id]) {
+        return; // Ignorar agendamentos de leads excluídos
+      }
+
       // IMPORTANTE: Agendamentos "realizado" sem fatura vinculada não aparecem no app
       // (foram limpos pelo processo de integridade ou estão em estado inconsistente)
       // Devemos ignorá-los para que o relatório reflita apenas os cards visíveis
