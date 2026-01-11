@@ -295,15 +295,28 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       return o === "disparos";
     };
 
+    // Helper to check if a lead is within period (same logic as FunilConversaoTab)
+    const isWithinPeriod = (createdAt: string | null) => {
+      if (!createdAt) return false;
+      const d = new Date(createdAt);
+      return d >= startOfPeriod && d <= endOfPeriod;
+    };
+
     // Filter leads by period (deduplicados)
+    // IMPORTANTE: Usar a mesma lógica do Funil - verificar se o lead PRIMÁRIO 
+    // (primeiro registro absoluto por telefone) foi criado no período
     const phonesInPeriod = new Set<string>();
     const phonesTracked = new Set<string>();
     const phonesUntracked = new Set<string>();
     const phonesDisparos = new Set<string>();
 
-    for (const [phoneKey, lead] of Object.entries(leadsByPhone)) {
-      const ts = periodTs(lead.created_at);
-      if (ts === null) continue;
+    // Percorrer o lead primário (primeiro cadastro) de cada telefone
+    // e verificar se foi criado no período (mesma lógica do Funil)
+    for (const lead of Object.values(leadsByPhone)) {
+      const phoneKey = normalizePhone(lead.telefone);
+      
+      // Verificar se o lead PRIMÁRIO foi criado no período
+      if (!isWithinPeriod(lead.created_at)) continue;
 
       // Check if from Disparos (case-insensitive)
       if (isDisparosLead(lead.origem)) {
