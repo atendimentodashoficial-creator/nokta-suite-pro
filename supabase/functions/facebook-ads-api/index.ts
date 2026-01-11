@@ -1020,14 +1020,17 @@ serve(async (req) => {
       const adsetResponse = await fetch(adsetSpendUrl);
       const adsetData = await adsetResponse.json();
 
-      const spendByAdset: Record<string, { spend: number; campaign: string }> = {};
+      const spendByAdset: Record<string, { spend: number; campaign: string; adset: string }> = {};
       if (adsetData.data && Array.isArray(adsetData.data)) {
         for (const item of adsetData.data) {
-          const name = item.adset_name || "Sem conjunto";
-          if (!spendByAdset[name]) {
-            spendByAdset[name] = { spend: 0, campaign: item.campaign_name || "" };
+          const campaignName = item.campaign_name || "";
+          const adsetName = item.adset_name || "Sem conjunto";
+          const key = `${campaignName}::${adsetName}`;
+
+          if (!spendByAdset[key]) {
+            spendByAdset[key] = { spend: 0, campaign: campaignName, adset: adsetName };
           }
-          spendByAdset[name].spend += parseFloat(item.spend || 0);
+          spendByAdset[key].spend += parseFloat(item.spend || 0);
         }
       }
 
@@ -1055,8 +1058,8 @@ serve(async (req) => {
       }
 
       // Converter para arrays
-      const adsetSpendArray = Object.entries(spendByAdset).map(([name, data]) => ({
-        adset_name: name,
+      const adsetSpendArray = Object.entries(spendByAdset).map(([_, data]) => ({
+        adset_name: data.adset,
         campaign_name: data.campaign,
         spend: data.spend
       }));
