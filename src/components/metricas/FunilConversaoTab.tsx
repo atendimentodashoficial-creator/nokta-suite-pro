@@ -993,7 +993,8 @@ export function FunilConversaoTab() {
         if (viewLevel === "campaign") key = campaign;
         // Use adsetId when available for unique identification, fallback to name
         else if (viewLevel === "adset") key = adsetId ? `${campaign}|||${adsetId}` : `${campaign}|||${adset}`;
-        else key = `${campaign}|||${adsetId || adset}|||${ad}`;
+        // Use adId when available for unique identification, fallback to name
+        else key = adId ? `${campaign}|||${adsetId || adset}|||${adId}` : `${campaign}|||${adsetId || adset}|||${ad}`;
 
         return { key, campaign, adset, adsetId, ad, adId };
       };
@@ -1043,8 +1044,10 @@ export function FunilConversaoTab() {
           ad_id: null,
         });
 
-        // Ad
-        const adKey = `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
+        // Ad - use adId for unique key when available
+        const adKey = attr.adId 
+          ? `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.adId}` 
+          : `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
         ensureGroup(groupedAd, adKey, {
           campaign_name: attr.campaign,
           adset_name: attr.adset,
@@ -1062,7 +1065,9 @@ export function FunilConversaoTab() {
         const adsetKey = attr.adsetId ? `${attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
         groupedAdset[adsetKey][field] += amount;
 
-        const adKey = `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
+        const adKey = attr.adId 
+          ? `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.adId}` 
+          : `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
         groupedAd[adKey][field] += amount;
       };
       // Contadores para eventos de leads que vieram originalmente de "Disparos"
