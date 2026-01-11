@@ -111,6 +111,15 @@ Deno.serve(async (req) => {
       return clean.length > 8 ? clean.slice(-8) : clean;
     };
 
+    // Batch delete helper - processes in chunks of 100 to avoid query limits
+    const BATCH_SIZE = 100;
+    const batchDelete = async (table: string, column: string, ids: string[]) => {
+      for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+        const batch = ids.slice(i, i + BATCH_SIZE);
+        await supabase.from(table).delete().in(column, batch);
+      }
+    };
+
     if (mode === "orphan") {
       const cleanupOpts = options as CleanupOptions;
       const result: CleanupResult = {
@@ -135,8 +144,8 @@ Deno.serve(async (req) => {
 
         if (!dryRun && softDeleted && softDeleted.length > 0) {
           const ids = softDeleted.map(l => l.id);
-          await supabase.from("historico_leads").delete().in("lead_id", ids);
-          await supabase.from("leads").delete().in("id", ids);
+          await batchDelete("historico_leads", "lead_id", ids);
+          await batchDelete("leads", "id", ids);
         }
       }
 
@@ -203,9 +212,9 @@ Deno.serve(async (req) => {
 
         if (!dryRun && orphanAgendamentos.length > 0) {
           const ids = orphanAgendamentos.map(a => a.id);
-          await supabase.from("avisos_enviados_log").delete().in("agendamento_id", ids);
-          await supabase.from("fatura_agendamentos").delete().in("agendamento_id", ids);
-          await supabase.from("agendamentos").delete().in("id", ids);
+          await batchDelete("avisos_enviados_log", "agendamento_id", ids);
+          await batchDelete("fatura_agendamentos", "agendamento_id", ids);
+          await batchDelete("agendamentos", "id", ids);
         }
       }
 
@@ -238,9 +247,9 @@ Deno.serve(async (req) => {
 
         if (!dryRun && orphanWhatsappChats.length > 0) {
           const ids = orphanWhatsappChats.map(c => c.id);
-          await supabase.from("whatsapp_messages").delete().in("chat_id", ids);
-          await supabase.from("whatsapp_chat_kanban").delete().in("chat_id", ids);
-          await supabase.from("whatsapp_chats").delete().in("id", ids);
+          await batchDelete("whatsapp_messages", "chat_id", ids);
+          await batchDelete("whatsapp_chat_kanban", "chat_id", ids);
+          await batchDelete("whatsapp_chats", "id", ids);
         }
 
         // Disparos chats
@@ -259,9 +268,9 @@ Deno.serve(async (req) => {
 
         if (!dryRun && orphanDisparosChats.length > 0) {
           const ids = orphanDisparosChats.map(c => c.id);
-          await supabase.from("disparos_messages").delete().in("chat_id", ids);
-          await supabase.from("disparos_chat_kanban").delete().in("chat_id", ids);
-          await supabase.from("disparos_chats").delete().in("id", ids);
+          await batchDelete("disparos_messages", "chat_id", ids);
+          await batchDelete("disparos_chat_kanban", "chat_id", ids);
+          await batchDelete("disparos_chats", "id", ids);
         }
       }
 
@@ -375,10 +384,10 @@ Deno.serve(async (req) => {
       if (!dryRun && faturaIds && faturaIds.length > 0) {
         const ids = faturaIds.map((f: any) => f.id);
         // Delete related records
-        await supabase.from("fatura_upsells").delete().in("fatura_id", ids);
-        await supabase.from("fatura_agendamentos").delete().in("fatura_id", ids);
-        await supabase.from("meta_conversion_events").delete().in("fatura_id", ids);
-        await supabase.from("faturas").delete().in("id", ids);
+        await batchDelete("fatura_upsells", "fatura_id", ids);
+        await batchDelete("fatura_agendamentos", "fatura_id", ids);
+        await batchDelete("meta_conversion_events", "fatura_id", ids);
+        await batchDelete("faturas", "id", ids);
       }
     }
 
@@ -395,10 +404,10 @@ Deno.serve(async (req) => {
 
       if (!dryRun && agendamentoIds && agendamentoIds.length > 0) {
         const ids = agendamentoIds.map((a: any) => a.id);
-        await supabase.from("avisos_enviados_log").delete().in("agendamento_id", ids);
-        await supabase.from("fatura_agendamentos").delete().in("agendamento_id", ids);
-        await supabase.from("meta_conversion_events").delete().in("agendamento_id", ids);
-        await supabase.from("agendamentos").delete().in("id", ids);
+        await batchDelete("avisos_enviados_log", "agendamento_id", ids);
+        await batchDelete("fatura_agendamentos", "agendamento_id", ids);
+        await batchDelete("meta_conversion_events", "agendamento_id", ids);
+        await batchDelete("agendamentos", "id", ids);
       }
     }
 
@@ -416,37 +425,49 @@ Deno.serve(async (req) => {
       if (!dryRun && leadIds && leadIds.length > 0) {
         const ids = leadIds.map((l: any) => l.id);
         // Delete related records in order
-        await supabase.from("historico_leads").delete().in("lead_id", ids);
-        await supabase.from("meta_conversion_events").delete().in("lead_id", ids);
-        await supabase.from("avisos_enviados_log").delete().in("cliente_id", ids);
+        await batchDelete("historico_leads", "lead_id", ids);
+        await batchDelete("meta_conversion_events", "lead_id", ids);
+        await batchDelete("avisos_enviados_log", "cliente_id", ids);
         
-        // Delete agendamentos for these leads
-        const { data: agendamentos } = await supabase
-          .from("agendamentos")
-          .select("id")
-          .in("cliente_id", ids);
+        // Delete agendamentos for these leads - fetch in batches too
+        let allAgendamentoIds: string[] = [];
+        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+          const batch = ids.slice(i, i + BATCH_SIZE);
+          const { data: agendamentos } = await supabase
+            .from("agendamentos")
+            .select("id")
+            .in("cliente_id", batch);
+          if (agendamentos) {
+            allAgendamentoIds = allAgendamentoIds.concat(agendamentos.map((a: any) => a.id));
+          }
+        }
         
-        if (agendamentos && agendamentos.length > 0) {
-          const agIds = agendamentos.map((a: any) => a.id);
-          await supabase.from("fatura_agendamentos").delete().in("agendamento_id", agIds);
-          await supabase.from("avisos_enviados_log").delete().in("agendamento_id", agIds);
-          await supabase.from("agendamentos").delete().in("id", agIds);
+        if (allAgendamentoIds.length > 0) {
+          await batchDelete("fatura_agendamentos", "agendamento_id", allAgendamentoIds);
+          await batchDelete("avisos_enviados_log", "agendamento_id", allAgendamentoIds);
+          await batchDelete("agendamentos", "id", allAgendamentoIds);
         }
 
-        // Delete faturas for these leads
-        const { data: faturas } = await supabase
-          .from("faturas")
-          .select("id")
-          .in("cliente_id", ids);
+        // Delete faturas for these leads - fetch in batches too
+        let allFaturaIds: string[] = [];
+        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+          const batch = ids.slice(i, i + BATCH_SIZE);
+          const { data: faturas } = await supabase
+            .from("faturas")
+            .select("id")
+            .in("cliente_id", batch);
+          if (faturas) {
+            allFaturaIds = allFaturaIds.concat(faturas.map((f: any) => f.id));
+          }
+        }
         
-        if (faturas && faturas.length > 0) {
-          const fatIds = faturas.map((f: any) => f.id);
-          await supabase.from("fatura_upsells").delete().in("fatura_id", fatIds);
-          await supabase.from("fatura_agendamentos").delete().in("fatura_id", fatIds);
-          await supabase.from("faturas").delete().in("id", fatIds);
+        if (allFaturaIds.length > 0) {
+          await batchDelete("fatura_upsells", "fatura_id", allFaturaIds);
+          await batchDelete("fatura_agendamentos", "fatura_id", allFaturaIds);
+          await batchDelete("faturas", "id", allFaturaIds);
         }
 
-        await supabase.from("leads").delete().in("id", ids);
+        await batchDelete("leads", "id", ids);
       }
     }
 
@@ -463,9 +484,9 @@ Deno.serve(async (req) => {
 
       if (!dryRun && chatIds && chatIds.length > 0) {
         const ids = chatIds.map((c: any) => c.id);
-        await supabase.from("whatsapp_messages").delete().in("chat_id", ids);
-        await supabase.from("whatsapp_chat_kanban").delete().in("chat_id", ids);
-        await supabase.from("whatsapp_chats").delete().in("id", ids);
+        await batchDelete("whatsapp_messages", "chat_id", ids);
+        await batchDelete("whatsapp_chat_kanban", "chat_id", ids);
+        await batchDelete("whatsapp_chats", "id", ids);
       }
     }
 
@@ -482,9 +503,9 @@ Deno.serve(async (req) => {
 
       if (!dryRun && chatIds && chatIds.length > 0) {
         const ids = chatIds.map((c: any) => c.id);
-        await supabase.from("disparos_messages").delete().in("chat_id", ids);
-        await supabase.from("disparos_chat_kanban").delete().in("chat_id", ids);
-        await supabase.from("disparos_chats").delete().in("id", ids);
+        await batchDelete("disparos_messages", "chat_id", ids);
+        await batchDelete("disparos_chat_kanban", "chat_id", ids);
+        await batchDelete("disparos_chats", "id", ids);
       }
     }
 
@@ -501,9 +522,9 @@ Deno.serve(async (req) => {
 
       if (!dryRun && campanhaIds && campanhaIds.length > 0) {
         const ids = campanhaIds.map((c: any) => c.id);
-        await supabase.from("disparos_campanha_contatos").delete().in("campanha_id", ids);
-        await supabase.from("disparos_campanha_variacoes").delete().in("campanha_id", ids);
-        await supabase.from("disparos_campanhas").delete().in("id", ids);
+        await batchDelete("disparos_campanha_contatos", "campanha_id", ids);
+        await batchDelete("disparos_campanha_variacoes", "campanha_id", ids);
+        await batchDelete("disparos_campanhas", "id", ids);
       }
     }
 
