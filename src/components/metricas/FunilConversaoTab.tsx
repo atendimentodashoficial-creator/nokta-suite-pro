@@ -739,47 +739,27 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Telefones com lead WhatsApp "OFICIAL" CRIADO NO PERÍODO (para contagem de leads)
-      // IMPORTANTE: deve bater com a aba Leads, que mostra 1 registro por telefone (os últimos 8 dígitos).
-      // Então, um telefone que já existia antes e teve novo registro hoje NÃO deve contar como "lead de hoje".
+      // Telefones cujo lead PRIMÁRIO (primeiro registro absoluto) foi criado no período
+      // IMPORTANTE: deve bater com a aba Leads, que mostra 1 registro por telefone (o mais antigo).
+      // Um telefone que já existia antes NÃO conta como "lead de hoje" (mesmo que tenha novo registro hoje).
       const phonesWithLeadInPeriod = new Set<string>();
 
-      // Telefones cujo lead PRIMÁRIO (primeiro registro) é de "Disparos" e foi criado no período
-      // (usado para exibir a etiqueta "via Disparos" no card de Leads)
+      // Telefones cujo lead PRIMÁRIO é de "Disparos" e foi criado no período
       const phonesWithDisparosLeadInPeriod = new Set<string>();
 
-      // Telefones cujo PRIMEIRO lead WhatsApp (na história) foi criado no período
-      // (mesma regra da aba Leads: um telefone que já existia no WhatsApp antes do período não conta como lead novo)
-      // IMPORTANT: independe do lead primário (que pode ser "disparos").
-      const firstWhatsAppLeadOverallByPhone: Record<string, (typeof allLeads)[number]> = {};
-      (allLeads || []).forEach((l) => {
-        if (!isWhatsAppLead(l.origem)) return;
-        const phone = phoneKey(l.telefone);
-        const existing = firstWhatsAppLeadOverallByPhone[phone];
-        if (!existing) {
-          firstWhatsAppLeadOverallByPhone[phone] = l;
-          return;
-        }
-        const existingTs = new Date(existing.created_at || 0).getTime();
-        const nextTs = new Date(l.created_at || 0).getTime();
-        if (Number.isFinite(nextTs) && nextTs < existingTs) {
-          firstWhatsAppLeadOverallByPhone[phone] = l;
-        }
-      });
-
-      Object.values(firstWhatsAppLeadOverallByPhone).forEach((firstWa) => {
-        if (isWithinPeriod(firstWa.created_at)) {
-          phonesWithLeadInPeriod.add(phoneKey(firstWa.telefone));
-        }
-      });
-
-      // Telefones cujo lead PRIMÁRIO é Disparos e o cadastro primário aconteceu no período
-      // (isso evita marcar como "via Disparos" telefones que só tiveram disparos depois)
+      // Percorrer o lead primário (primeiro cadastro) de cada telefone
+      // e verificar se foi criado no período
       Object.values(firstLeadByPhone).forEach((primaryLead) => {
         const phone = phoneKey(primaryLead.telefone);
         const origem = (primaryLead.origem || "").toLowerCase();
-        if (origem === "disparos" && isWithinPeriod(primaryLead.created_at)) {
+        
+        if (!isWithinPeriod(primaryLead.created_at)) return;
+        
+        if (origem === "disparos") {
           phonesWithDisparosLeadInPeriod.add(phone);
+        } else {
+          // WhatsApp ou origem vazia/null
+          phonesWithLeadInPeriod.add(phone);
         }
       });
 
