@@ -702,12 +702,12 @@ export function FunilConversaoTab() {
         return Number.isFinite(t) ? t : null;
       };
 
-      // Timestamp de atribuição (mais confiável que created_at)
-      // - data_contato: quando o contato ocorreu (se preenchido)
-      // - updated_at: quando a atribuição pode ter sido enriquecida/persistida
-      // - created_at: fallback
+      // Timestamp de atribuição = quando o LEAD foi CRIADO (não updated_at!)
+      // O created_at representa quando o contato chegou, que é o momento correto para
+      // associar a atribuição com eventos futuros (agendamento, fatura).
+      // NÃO usar updated_at pois o enriquecimento pode acontecer depois do evento.
       const attributionTs = (l: (typeof allLeads)[number]) =>
-        safeTs(l.data_contato) ?? safeTs(l.updated_at) ?? safeTs(l.created_at) ?? 0;
+        safeTs(l.created_at) ?? 0;
 
       // Melhor atribuição disponível por telefone (fallback)
       // Escolhe a atribuição mais recente para aquele telefone.
