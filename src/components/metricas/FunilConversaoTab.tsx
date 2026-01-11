@@ -686,12 +686,13 @@ export function FunilConversaoTab() {
         }
       });
 
-      // Telefones com lead WhatsApp CRIADO NO PERÍODO (para contagem de leads)
-      // Inclui TODOS os leads WhatsApp, não apenas os com atribuição
+      // Telefones com lead WhatsApp "OFICIAL" CRIADO NO PERÍODO (para contagem de leads)
+      // IMPORTANTE: deve bater com a aba Leads, que mostra 1 registro por telefone (o primeiro/mais antigo).
+      // Então, um telefone que já existia antes e teve novo registro hoje NÃO deve contar como "lead de hoje".
       const phonesWithLeadInPeriod = new Set<string>();
-      (allLeads || []).forEach((lead) => {
-        const phone = normalizePhone(lead.telefone);
-        if (isWhatsAppLead(lead.origem) && isWithinPeriod(lead.created_at)) {
+      Object.values(firstLeadByPhone).forEach((primaryLead) => {
+        const phone = normalizePhone(primaryLead.telefone);
+        if (isWhatsAppLead(primaryLead.origem) && isWithinPeriod(primaryLead.created_at)) {
           phonesWithLeadInPeriod.add(phone);
         }
       });
