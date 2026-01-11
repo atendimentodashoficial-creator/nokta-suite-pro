@@ -1015,60 +1015,78 @@ serve(async (req) => {
       console.log("Fetching spend breakdown for account:", normalizedAccountId);
 
       // Buscar gastos por conjunto de anúncios
-      const adsetSpendUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=adset_name,adset_id,campaign_name,spend${timeRange}&level=adset&limit=500&access_token=${accessToken}`;
+      // IMPORTANTE: Usar IDs como chave para evitar problemas com nomes duplicados
+      const adsetSpendUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=adset_name,adset_id,campaign_name,campaign_id,spend${timeRange}&level=adset&limit=500&access_token=${accessToken}`;
       
       const adsetResponse = await fetch(adsetSpendUrl);
       const adsetData = await adsetResponse.json();
 
-      const spendByAdset: Record<string, { spend: number; campaign: string; adset: string }> = {};
+      const spendByAdset: Record<string, { spend: number; campaign: string; campaign_id: string; adset: string; adset_id: string }> = {};
       if (adsetData.data && Array.isArray(adsetData.data)) {
         for (const item of adsetData.data) {
           const campaignName = item.campaign_name || "";
+          const campaignId = item.campaign_id || "";
           const adsetName = item.adset_name || "Sem conjunto";
-          const key = `${campaignName}::${adsetName}`;
+          const adsetId = item.adset_id || "";
+          // Usar ID como chave quando disponível, fallback para nome
+          const key = adsetId || `${campaignName}::${adsetName}`;
 
           if (!spendByAdset[key]) {
-            spendByAdset[key] = { spend: 0, campaign: campaignName, adset: adsetName };
+            spendByAdset[key] = { spend: 0, campaign: campaignName, campaign_id: campaignId, adset: adsetName, adset_id: adsetId };
           }
           spendByAdset[key].spend += parseFloat(item.spend || 0);
         }
       }
 
       // Buscar gastos por anúncio
-      const adSpendUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=ad_name,ad_id,adset_name,campaign_name,spend${timeRange}&level=ad&limit=500&access_token=${accessToken}`;
+      // IMPORTANTE: Usar IDs como chave para evitar problemas com nomes duplicados
+      const adSpendUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=ad_name,ad_id,adset_name,adset_id,campaign_name,campaign_id,spend${timeRange}&level=ad&limit=500&access_token=${accessToken}`;
       
       const adResponse = await fetch(adSpendUrl);
       const adData = await adResponse.json();
 
-      const spendByAd: Record<string, { spend: number; adset: string; campaign: string; ad_id: string }> = {};
+      const spendByAd: Record<string, { spend: number; adset: string; adset_id: string; campaign: string; campaign_id: string; ad_id: string; ad_name: string }> = {};
       if (adData.data && Array.isArray(adData.data)) {
         for (const item of adData.data) {
-          const name = item.ad_name || "Sem anúncio";
-          const key = `${item.campaign_name}::${item.adset_name}::${name}`;
+          const adName = item.ad_name || "Sem anúncio";
+          const adId = item.ad_id || "";
+          const adsetName = item.adset_name || "";
+          const adsetId = item.adset_id || "";
+          const campaignName = item.campaign_name || "";
+          const campaignId = item.campaign_id || "";
+          // Usar ID como chave quando disponível, fallback para nomes compostos
+          const key = adId || `${campaignName}::${adsetName}::${adName}`;
           if (!spendByAd[key]) {
             spendByAd[key] = { 
               spend: 0, 
-              adset: item.adset_name || "", 
-              campaign: item.campaign_name || "",
-              ad_id: item.ad_id || ""
+              adset: adsetName, 
+              adset_id: adsetId,
+              campaign: campaignName,
+              campaign_id: campaignId,
+              ad_id: adId,
+              ad_name: adName
             };
           }
           spendByAd[key].spend += parseFloat(item.spend || 0);
         }
       }
 
-      // Converter para arrays
+      // Converter para arrays - incluindo IDs para lookup no frontend
       const adsetSpendArray = Object.entries(spendByAdset).map(([_, data]) => ({
         adset_name: data.adset,
+        adset_id: data.adset_id,
         campaign_name: data.campaign,
+        campaign_id: data.campaign_id,
         spend: data.spend
       }));
 
       const adSpendArray = Object.entries(spendByAd).map(([_, data]) => ({
-        ad_name: _.split("::")[2] || "Sem anúncio",
-        adset_name: data.adset,
-        campaign_name: data.campaign,
+        ad_name: data.ad_name,
         ad_id: data.ad_id,
+        adset_name: data.adset,
+        adset_id: data.adset_id,
+        campaign_name: data.campaign,
+        campaign_id: data.campaign_id,
         spend: data.spend
       }));
 

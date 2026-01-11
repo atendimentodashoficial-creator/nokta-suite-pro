@@ -1360,40 +1360,83 @@ export function FunilConversaoTab() {
     return map;
   }, [spendData]);
 
-  // Criar mapa de gastos por adset (chave: campaign::adset)
-  // Mesma lógica do anúncio: somar o spend dos anúncios pertencentes ao conjunto.
-  // (Evita qualquer inconsistência quando o breakdown de adset vier agregado de forma diferente.)
-  const spendByAdset = useMemo(() => {
+  // Criar mapa de gastos por adset usando IDs (chave primária) com fallback para nomes
+  // IMPORTANTE: Usar IDs evita problemas quando conjuntos têm nomes iguais
+  const spendByAdsetId = useMemo(() => {
     const map: Record<string, number> = {};
 
-    // Preferir derivar do nível "ad" (mais granular)
-    spendBreakdown?.ad_spend?.forEach(
-      (s: { ad_name: string; adset_name: string; campaign_name: string; spend: number }) => {
+    // Usar dados do breakdown com IDs
+    spendBreakdown?.adset_spend?.forEach(
+      (s: { adset_name: string; adset_id?: string; campaign_name: string; campaign_id?: string; spend: number }) => {
+        // Chave por ID (prioridade) ou por nome (fallback)
+        if (s.adset_id) {
+          map[s.adset_id] = (map[s.adset_id] || 0) + (s.spend || 0);
+        }
+        // Também adicionar pelo nome composto para fallback
         const key = makeAdsetKey(s.campaign_name, s.adset_name);
         map[key] = (map[key] || 0) + (s.spend || 0);
       }
     );
 
-    // Fallback: se não vier ad_spend, usar adset_spend
+    // Se não veio adset_spend, derivar do ad_spend
     if (Object.keys(map).length === 0) {
-      spendBreakdown?.adset_spend?.forEach((s: { adset_name: string; campaign_name: string; spend: number }) => {
-        const key = makeAdsetKey(s.campaign_name, s.adset_name);
-        map[key] = (map[key] || 0) + (s.spend || 0);
-      });
+      spendBreakdown?.ad_spend?.forEach(
+        (s: { ad_name: string; ad_id?: string; adset_name: string; adset_id?: string; campaign_name: string; campaign_id?: string; spend: number }) => {
+          if (s.adset_id) {
+            map[s.adset_id] = (map[s.adset_id] || 0) + (s.spend || 0);
+          }
+          const key = makeAdsetKey(s.campaign_name, s.adset_name);
+          map[key] = (map[key] || 0) + (s.spend || 0);
+        }
+      );
     }
 
     return map;
   }, [spendBreakdown]);
 
-  // Criar mapa de gastos por ad (chave: campaign::adset::ad)
-  const spendByAd = useMemo(() => {
+  // Manter compatibilidade com código existente (alias)
+  const spendByAdset = spendByAdsetId;
+
+  // Criar mapa de gastos por ad usando IDs (chave primária) com fallback para nomes
+  const spendByAdId = useMemo(() => {
     const map: Record<string, number> = {};
-    spendBreakdown?.ad_spend?.forEach((s: { ad_name: string; adset_name: string; campaign_name: string; spend: number }) => {
-      const key = makeAdKey(s.campaign_name, s.adset_name, s.ad_name);
-      map[key] = (map[key] || 0) + s.spend;
-    });
+    spendBreakdown?.ad_spend?.forEach(
+      (s: { ad_name: string; ad_id?: string; adset_name: string; adset_id?: string; campaign_name: string; campaign_id?: string; spend: number }) => {
+        // Chave por ID (prioridade)
+        if (s.ad_id) {
+          map[s.ad_id] = (map[s.ad_id] || 0) + s.spend;
+        }
+        // Também adicionar pelo nome composto para fallback
+        const key = makeAdKey(s.campaign_name, s.adset_name, s.ad_name);
+        map[key] = (map[key] || 0) + s.spend;
+      }
+    );
     return map;
   }, [spendBreakdown]);
+
+  // Manter compatibilidade com código existente (alias)
+  const spendByAd = spendByAdId;
+
+  // Helper functions para lookup de spend com prioridade para ID
+  const getAdsetSpend = (adsetId: string | null | undefined, campaign: string | null | undefined, adset: string | null | undefined): number => {
+    // Priorizar ID
+    if (adsetId && spendByAdset[adsetId]) {
+      return spendByAdset[adsetId];
+    }
+    // Fallback para chave por nome
+    const key = makeAdsetKey(campaign, adset);
+    return spendByAdset[key] || 0;
+  };
+
+  const getAdSpend = (adId: string | null | undefined, campaign: string | null | undefined, adset: string | null | undefined, ad: string | null | undefined): number => {
+    // Priorizar ID
+    if (adId && spendByAd[adId]) {
+      return spendByAd[adId];
+    }
+    // Fallback para chave por nome
+    const key = makeAdKey(campaign, adset, ad);
+    return spendByAd[key] || 0;
+  };
 
   // Calcular totais
   const totals = useMemo(() => {
@@ -1488,7 +1531,9 @@ export function FunilConversaoTab() {
 
     const grouped: Record<string, {
       adset: string;
+      adset_id: string | null;
       campaign: string;
+      campaign_id: string | null;
       leads: number;
       agendados: number;
       compareceu: number;
@@ -1503,11 +1548,14 @@ export function FunilConversaoTab() {
       const adsetName = item.adset_name;
       if (!adsetName || adsetName === "Sem conjunto") return;
 
-      const key = `${item.campaign_name}::${adsetName}`;
+      // Usar ID como chave quando disponível, senão usar nome
+      const key = item.adset_id || `${item.campaign_name}::${adsetName}`;
       if (!grouped[key]) {
         grouped[key] = {
           adset: adsetName,
+          adset_id: item.adset_id,
           campaign: item.campaign_name,
+          campaign_id: item.campaign_id,
           leads: 0,
           agendados: 0,
           compareceu: 0,
@@ -1532,7 +1580,9 @@ export function FunilConversaoTab() {
     const grouped: Record<string, {
       ad: string;
       adset: string;
+      adset_id: string | null;
       campaign: string;
+      campaign_id: string | null;
       ad_id: string | null;
       leads: number;
       agendados: number;
@@ -1550,12 +1600,15 @@ export function FunilConversaoTab() {
       if (!adName || adName === "Sem anúncio") return;
       if (!adsetName || adsetName === "Sem conjunto") return;
 
-      const key = `${item.campaign_name}::${adsetName}::${adName}`;
+      // Usar ID como chave quando disponível, senão usar nome
+      const key = item.ad_id || `${item.campaign_name}::${adsetName}::${adName}`;
       if (!grouped[key]) {
         grouped[key] = {
           ad: adName,
           adset: adsetName,
+          adset_id: item.adset_id,
           campaign: item.campaign_name,
+          campaign_id: item.campaign_id,
           ad_id: item.ad_id,
           leads: 0,
           agendados: 0,
@@ -2206,18 +2259,16 @@ export function FunilConversaoTab() {
                 <TableBody>
                   {funnelData.map((row, idx) => {
                     // Calcular gasto baseado no nível de visualização
+                    // IMPORTANTE: Usar IDs como chave primária para evitar problemas com nomes duplicados
                     let spend = 0;
 
                     if (viewLevel === "campaign") {
                       const campaignKey = makeCampaignKey(row.campaign_name);
                       spend = spendByCampaign[campaignKey] || 0;
                     } else if (viewLevel === "adset") {
-                      // NUNCA usar gasto de campanha aqui: se não bater a chave do conjunto, fica 0
-                      const adsetKey = makeAdsetKey(row.campaign_name, row.adset_name);
-                      spend = spendByAdset[adsetKey] || 0;
+                      spend = getAdsetSpend(row.adset_id, row.campaign_name, row.adset_name);
                     } else {
-                      const adKey = makeAdKey(row.campaign_name, row.adset_name, row.ad_name);
-                      spend = spendByAd[adKey] || 0;
+                      spend = getAdSpend(row.ad_id, row.campaign_name, row.adset_name, row.ad_name);
                     }
                     const cpl = row.leads > 0 ? spend / row.leads : 0;
                     const cpaAgendado = row.agendados > 0 ? spend / row.agendados : 0;
@@ -2749,8 +2800,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAdset
                       .filter(f => f.leads > 0)
                       .map(f => {
-                        const adsetKey = makeAdsetKey(f.campaign, f.adset);
-                        const spend = spendByAdset[adsetKey] || 0;
+                        const spend = getAdsetSpend(f.adset_id, f.campaign, f.adset);
                         const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
                         return { ...f, spend, cpl };
                       })
@@ -2789,8 +2839,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAd
                       .filter(f => f.leads > 0)
                       .map(f => {
-                        const adKey = makeAdKey(f.campaign, f.adset, f.ad);
-                        const spend = spendByAd[adKey] || 0;
+                        const spend = getAdSpend(f.ad_id, f.campaign, f.adset, f.ad);
                         const cpl = spend > 0 && f.leads > 0 ? spend / f.leads : null;
                         return { ...f, spend, cpl };
                       })
@@ -2841,8 +2890,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAdset
                       .filter(f => f.agendados > 0)
                       .map(f => {
-                        const adsetKey = makeAdsetKey(f.campaign, f.adset);
-                        const spend = spendByAdset[adsetKey] || 0;
+                        const spend = getAdsetSpend(f.adset_id, f.campaign, f.adset);
                         const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
                         return { ...f, spend, cpa };
                       })
@@ -2881,8 +2929,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAd
                       .filter(f => f.agendados > 0)
                       .map(f => {
-                        const adKey = makeAdKey(f.campaign, f.adset, f.ad);
-                        const spend = spendByAd[adKey] || 0;
+                        const spend = getAdSpend(f.ad_id, f.campaign, f.adset, f.ad);
                         const cpa = spend > 0 && f.agendados > 0 ? spend / f.agendados : null;
                         return { ...f, spend, cpa };
                       })
@@ -2933,8 +2980,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAdset
                       .filter(f => f.compareceu > 0)
                       .map(f => {
-                        const adsetKey = makeAdsetKey(f.campaign, f.adset);
-                        const spend = spendByAdset[adsetKey] || 0;
+                        const spend = getAdsetSpend(f.adset_id, f.campaign, f.adset);
                         const costPerComp = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
                         return { ...f, spend, costPerComp };
                       })
@@ -2973,8 +3019,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAd
                       .filter(f => f.compareceu > 0)
                       .map(f => {
-                        const adKey = makeAdKey(f.campaign, f.adset, f.ad);
-                        const spend = spendByAd[adKey] || 0;
+                        const spend = getAdSpend(f.ad_id, f.campaign, f.adset, f.ad);
                         const costPerComp = spend > 0 && f.compareceu > 0 ? spend / f.compareceu : null;
                         return { ...f, spend, costPerComp };
                       })
@@ -3025,8 +3070,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAdset
                       .filter(f => f.clientes > 0)
                       .map(f => {
-                        const adsetKey = makeAdsetKey(f.campaign, f.adset);
-                        const spend = spendByAdset[adsetKey] || 0;
+                        const spend = getAdsetSpend(f.adset_id, f.campaign, f.adset);
                         const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
                         return { ...f, spend, cac };
                       })
@@ -3065,8 +3109,7 @@ export function FunilConversaoTab() {
                     const sortedItems = funnelByAd
                       .filter(f => f.clientes > 0)
                       .map(f => {
-                        const adKey = makeAdKey(f.campaign, f.adset, f.ad);
-                        const spend = spendByAd[adKey] || 0;
+                        const spend = getAdSpend(f.ad_id, f.campaign, f.adset, f.ad);
                         const cac = spend > 0 && f.clientes > 0 ? spend / f.clientes : null;
                         return { ...f, spend, cac };
                       })
