@@ -33,7 +33,7 @@ import { Loader2, Trash2, Plus, X } from "lucide-react";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { useProdutos } from "@/hooks/useProdutos";
-import { sendPurchaseConversion } from "@/hooks/useMetaConversions";
+
 import type { Fatura } from "@/hooks/useFaturas";
 import {
   AlertDialog,
@@ -251,14 +251,8 @@ export function EditarFaturaDialog({
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
       queryClient.invalidateQueries({ queryKey: ["fatura-upsells"] });
       
-      // Send Purchase conversion if status changed to "fechado" (and was "negociacao" before)
-      if (result && fatura.status === "negociacao" && result.newStatus === "fechado") {
-        sendPurchaseConversion(fatura.id, fatura.cliente_id, result.valorFinal).then((convResult) => {
-          if (convResult.success) {
-            console.log("Meta Purchase conversion sent successfully");
-          }
-        });
-      }
+      // Purchase conversion is now sent manually via "Conferir e enviar" button in PixelStatusBadge
+      // No automatic sending when invoice status changes
       
       toast.success("Fatura atualizada com sucesso!");
       onOpenChange(false);

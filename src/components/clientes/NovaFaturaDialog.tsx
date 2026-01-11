@@ -32,7 +32,7 @@ import { useCreateFatura } from "@/hooks/useFaturas";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { useProdutos } from "@/hooks/useProdutos";
-import { sendPurchaseConversion } from "@/hooks/useMetaConversions";
+
 import { format } from "date-fns";
 import { Plus, Trash2, Package, Stethoscope } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -238,14 +238,8 @@ export function NovaFaturaDialog({
         await supabase.from("fatura_upsells").insert(upsellsToInsert);
       }
 
-      // Send Purchase conversion event to Meta if status is "fechado"
-      if (data.status === "fechado" && faturaResult) {
-        sendPurchaseConversion(faturaResult.id, clienteId, valorFinal).then((result) => {
-          if (result.success) {
-            console.log("Meta Purchase conversion sent successfully");
-          }
-        });
-      }
+      // Purchase conversion is now sent manually via "Conferir e enviar" button in PixelStatusBadge
+      // No automatic sending when invoice is created
 
       toast.success("Fatura criada com sucesso!");
       onOpenChange(false);
