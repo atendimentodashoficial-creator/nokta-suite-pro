@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useAgendamentos, useUpdateAgendamentoStatus } from "@/hooks/useAgendamentos";
+import { useAgendamentos, useUpdateAgendamentoStatus, useDeleteAgendamento } from "@/hooks/useAgendamentos";
 import { useLeads } from "@/hooks/useLeads";
 import { useFaturas } from "@/hooks/useFaturas";
 import { useProfissionais } from "@/hooks/useProfissionais";
@@ -15,7 +15,7 @@ import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -181,22 +181,7 @@ export default function Agenda() {
     });
     setNovaFaturaOpen(true);
   };
-  const deletarAgendamentoMutation = useMutation({
-    mutationFn: async (agendamentoId: string) => {
-      const {
-        error
-      } = await supabase.from("agendamentos").delete().eq("id", agendamentoId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["agendamentos"]
-      });
-      toast.success("Agendamento deletado");
-      setDeleteAgendamento(null);
-    },
-    onError: () => toast.error("Erro ao deletar")
-  });
+  const deleteAgendamentoMutation = useDeleteAgendamento();
   const handleMarcarNaoCompareceu = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -488,8 +473,20 @@ export default function Agenda() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deletarAgendamentoMutation.mutate(deleteAgendamento.id)} className="bg-destructive">
-                Deletar
+              <AlertDialogAction 
+                onClick={async () => {
+                  try {
+                    await deleteAgendamentoMutation.mutateAsync(deleteAgendamento.id);
+                    toast.success("Agendamento deletado");
+                    setDeleteAgendamento(null);
+                  } catch {
+                    toast.error("Erro ao deletar");
+                  }
+                }} 
+                className="bg-destructive"
+                disabled={deleteAgendamentoMutation.isPending}
+              >
+                {deleteAgendamentoMutation.isPending ? "Deletando..." : "Deletar"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
