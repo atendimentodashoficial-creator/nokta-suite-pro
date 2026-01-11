@@ -88,6 +88,6 @@ export async function navigateToChat(
     }
   }
 
-  navigate(buildRoute(phone, resolvedOrigem, { instanciaNome: resolvedInstanciaNome }));
+  navigate(buildRoute(phone, resolvedOrigem, { instanciaNome: resolvedInstanciaNome, prefillMessage: opts?.prefillMessage }));
 }
 
