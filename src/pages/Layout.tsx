@@ -29,8 +29,10 @@ export default function Layout() {
               <Menu className="h-6 w-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
-            <SidebarContent onNavigate={() => setOpen(false)} />
+          <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border flex flex-col h-full overflow-hidden">
+            <div className="flex flex-col h-full overflow-hidden">
+              <SidebarContent onNavigate={() => setOpen(false)} />
+            </div>
           </SheetContent>
         </Sheet>
         <img 
