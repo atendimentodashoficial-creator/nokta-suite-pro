@@ -152,15 +152,26 @@ serve(async (req) => {
       console.error("Error deleting kanban positions:", kanbanError);
     }
 
-    // Hard delete the chats (permanent deletion like WhatsApp)
+    // Soft-delete chats (keep a tombstone) so old history cannot be re-imported.
+    // Messages are fully deleted above, so when the contact messages again the chat restarts empty.
+    const nowIso = new Date().toISOString();
+
     const { error: deleteError } = await supabase
       .from("whatsapp_chats")
-      .delete()
+      .update({
+        deleted_at: nowIso,
+        updated_at: nowIso,
+        unread_count: 0,
+        last_message: null,
+        last_message_time: null,
+        provider_unread_count: 0,
+        provider_unread_baseline: 0,
+      })
       .in("normalized_number", normalizedNumbers)
       .eq("user_id", user.id);
 
     if (deleteError) {
-      console.error("Error deleting chats:", deleteError);
+      console.error("Error soft-deleting chats:", deleteError);
       throw new Error("Error deleting chats");
     }
 
