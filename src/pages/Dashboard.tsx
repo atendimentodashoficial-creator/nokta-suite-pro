@@ -503,7 +503,7 @@ export default function Dashboard() {
                   <CalendarComponent
                     mode="single"
                     selected={dataInicial}
-                    onSelect={setDataInicial}
+                    onSelect={(date) => date && setDataInicial(startOfDay(date))}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
@@ -529,7 +529,7 @@ export default function Dashboard() {
                   <CalendarComponent
                     mode="single"
                     selected={dataFinal}
-                    onSelect={setDataFinal}
+                    onSelect={(date) => date && setDataFinal(endOfDay(date))}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
