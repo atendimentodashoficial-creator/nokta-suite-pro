@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3 } from "lucide-react";
 import { EditarCampanhaDialog } from "./EditarCampanhaDialog";
 import { ContatosCampanhaDialog } from "./ContatosCampanhaDialog";
@@ -46,6 +46,9 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   const [campanhaContatos, setCampanhaContatos] = useState<{ id: string; nome: string } | null>(null);
   const [relatorioDialogOpen, setRelatorioDialogOpen] = useState(false);
   const [campanhaRelatorio, setCampanhaRelatorio] = useState<string | null>(null);
+  
+  // Track campaigns currently being processed by polling to prevent duplicate calls
+  const processingCampaignsRef = useRef<Set<string>>(new Set());
 
   const loadCampanhas = async () => {
     try {
@@ -102,15 +105,27 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
       );
 
       for (const campanha of runningCampaignsWithSchedule) {
+        // Skip if this campaign is already being processed
+        if (processingCampaignsRef.current.has(campanha.id)) {
+          console.log(`[Polling] Campaign ${campanha.nome}: Already being processed, skipping`);
+          continue;
+        }
+
         const nextSendTime = new Date(campanha.next_send_at!).getTime();
         const now = Date.now();
 
         if (now >= nextSendTime) {
           console.log(`[Polling] Campaign ${campanha.nome}: next_send_at expired, triggering continue...`);
           
+          // Mark as processing to prevent duplicate calls
+          processingCampaignsRef.current.add(campanha.id);
+          
           try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) continue;
+            if (!session) {
+              processingCampaignsRef.current.delete(campanha.id);
+              continue;
+            }
 
             await supabase.functions.invoke("disparos-campanha-control", {
               headers: { Authorization: `Bearer ${session.access_token}` },
@@ -118,6 +133,11 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
             });
           } catch (error) {
             console.error(`[Polling] Error continuing campaign ${campanha.id}:`, error);
+          } finally {
+            // Remove from processing after a delay to allow backend to update next_send_at
+            setTimeout(() => {
+              processingCampaignsRef.current.delete(campanha.id);
+            }, 5000);
           }
         }
       }
@@ -126,7 +146,7 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
     // Check every 30 seconds for campaigns that need to continue
     const interval = setInterval(checkAndContinueCampaigns, 30000);
     
-    // Also check immediately when campanhas change
+    // Also check immediately when campanhas change (but debounced by processingCampaignsRef)
     checkAndContinueCampaigns();
 
     return () => clearInterval(interval);
