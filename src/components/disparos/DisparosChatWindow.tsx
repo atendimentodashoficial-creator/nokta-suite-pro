@@ -102,9 +102,23 @@ interface ClienteData {
   email?: string;
 }
 
+// Cache de mensagens por chat (persiste entre seleções de chat)
+const disparosMessagesCache = new Map<string, { messages: any[]; timestamp: number }>();
+const DISPAROS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
 export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated, availableChats = [], initialMessage }: DisparosChatWindowProps) {
   const queryClient = useQueryClient();
-  const [messages, setMessages] = useState<any[]>([]);
+  
+  // Inicializar com mensagens do cache se disponível (evita flash de loading)
+  const getCachedMessages = () => {
+    const cached = disparosMessagesCache.get(chat.id);
+    if (cached && Date.now() - cached.timestamp < DISPAROS_CACHE_TTL) {
+      return cached.messages;
+    }
+    return [];
+  };
+  
+  const [messages, setMessages] = useState<any[]>(getCachedMessages);
   const [newMessage, setNewMessage] = useState(initialMessage || "");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -145,6 +159,24 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   const [expandedTextSemBloco, setExpandedTextSemBloco] = useState(true);
   const [expandedAudioSemBloco, setExpandedAudioSemBloco] = useState(true);
 
+  // Atualizar cache sempre que mensagens mudarem
+  useEffect(() => {
+    if (messages.length > 0) {
+      disparosMessagesCache.set(chat.id, { messages, timestamp: Date.now() });
+    }
+  }, [messages, chat.id]);
+  
+  // Quando o chat muda, carregar do cache ou iniciar vazio
+  useEffect(() => {
+    const cached = disparosMessagesCache.get(chat.id);
+    if (cached && Date.now() - cached.timestamp < DISPAROS_CACHE_TTL) {
+      setMessages(cached.messages);
+      setShouldScrollToBottom(true);
+    } else {
+      setMessages([]);
+    }
+  }, [chat.id]);
+
   const updateChatPreview = (preview: string) => {
     const nowIso = new Date().toISOString();
     onChatUpdated?.({
@@ -178,7 +210,10 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   // Load messages from local database only (webhook handles new messages)
   const loadMessages = async (forceScrollOnLoad = false) => {
     const previousLength = messages.length;
-    if (previousLength === 0) {
+    const hasCachedMessages = previousLength > 0;
+    
+    // Só mostra loading se não temos mensagens no cache
+    if (!hasCachedMessages) {
       setIsLoadingMessages(true);
     }
 

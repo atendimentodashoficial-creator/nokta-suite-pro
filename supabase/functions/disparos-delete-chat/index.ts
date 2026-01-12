@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper to get last 8 digits for matching
+function getLast8Digits(phone: string): string {
+  if (!phone) return "";
+  const clean = phone.replace(/[^\d]/g, "").replace(/@.*$/, "");
+  return clean.slice(-8);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -38,7 +45,7 @@ serve(async (req) => {
     // Fetch the chats to get their chat_id (WhatsApp ID) and instancia_id
     const { data: chats, error: chatsError } = await supabase
       .from("disparos_chats")
-      .select("id, chat_id, instancia_id, normalized_number")
+      .select("id, chat_id, instancia_id, contact_number, normalized_number")
       .eq("user_id", user.id)
       .in("id", chat_ids);
 
@@ -50,6 +57,20 @@ serve(async (req) => {
     if (!chats || chats.length === 0) {
       throw new Error("No chats found");
     }
+
+    // Compute last 8 digits for each selected chat to create deletion tombstones
+    const phoneLast8Set = new Set<string>();
+    const instanciaIds = new Set<string>();
+    for (const chat of chats) {
+      const last8 = getLast8Digits(chat.contact_number || chat.normalized_number || chat.chat_id);
+      if (last8 && last8.length === 8) {
+        phoneLast8Set.add(last8);
+      }
+      if (chat.instancia_id) {
+        instanciaIds.add(chat.instancia_id);
+      }
+    }
+    const phoneLast8List = Array.from(phoneLast8Set);
 
     // Get normalized numbers to delete all duplicates across instances
     const normalizedNumbers = [...new Set(chats.map(c => c.normalized_number).filter(Boolean))];
@@ -64,7 +85,17 @@ serve(async (req) => {
       chatsByInstancia.get(instanciaId)!.push(chat.chat_id);
     }
 
-    // Delete from UAZapi for each instance
+    // Delete from UAZapi for each instance (best-effort, with timeout)
+    const withTimeout = async (ms: number, fn: (signal: AbortSignal) => Promise<void>) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), ms);
+      try {
+        await fn(controller.signal);
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
     for (const [instanciaId, chatIdList] of chatsByInstancia) {
       let config: { base_url: string; api_key: string } | null = null;
 
@@ -76,36 +107,32 @@ serve(async (req) => {
           .eq("user_id", user.id)
           .single();
         config = instancia;
-      } 
-      // No legacy fallback - Disparos tab only uses disparos_instancias
+      }
 
       if (config) {
         const baseUrl = config.base_url.replace(/\/+$/, "");
         
-        // Delete each chat from UAZapi
         for (const chatId of chatIdList) {
           try {
-            console.log(`Deleting chat ${chatId} from UAZapi...`);
-            const response = await fetch(`${baseUrl}/chat/delete`, {
-              method: "POST",
-              headers: {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "token": config.api_key,
-              },
-              body: JSON.stringify({ chatId }),
-            });
+            await withTimeout(2500, async (signal) => {
+              const response = await fetch(`${baseUrl}/chat/delete`, {
+                method: "POST",
+                signal,
+                headers: {
+                  "Accept": "application/json",
+                  "Content-Type": "application/json",
+                  "token": config!.api_key,
+                },
+                body: JSON.stringify({ chatId }),
+              });
 
-            if (!response.ok) {
-              const text = await response.text();
-              console.error(`UAZapi delete error for ${chatId}:`, text);
-              // Continue with other chats even if one fails
-            } else {
-              console.log(`Chat ${chatId} deleted from UAZapi successfully`);
-            }
+              if (!response.ok) {
+                const text = await response.text();
+                console.error(`UAZapi delete error for ${chatId}:`, text);
+              }
+            });
           } catch (apiError) {
             console.error(`Error deleting chat ${chatId} from UAZapi:`, apiError);
-            // Continue with other chats
           }
         }
       }
@@ -120,7 +147,7 @@ serve(async (req) => {
 
     const allChatDbIds = allChatsToDelete?.map(c => c.id) || chat_ids;
 
-    // Delete messages from database
+    // Delete messages from database (HARD DELETE)
     console.log(`Deleting messages for ${allChatDbIds.length} chats...`);
     const { error: messagesError } = await supabase
       .from("disparos_messages")
@@ -129,7 +156,6 @@ serve(async (req) => {
 
     if (messagesError) {
       console.error("Error deleting messages:", messagesError);
-      // Continue with chat deletion even if message deletion fails
     } else {
       console.log("Messages deleted successfully");
     }
@@ -144,7 +170,7 @@ serve(async (req) => {
       console.error("Error deleting kanban positions:", kanbanError);
     }
 
-    // Hard delete the chats (permanent deletion like WhatsApp)
+    // Hard delete the chats
     const { error: deleteError } = await supabase
       .from("disparos_chats")
       .delete()
@@ -156,7 +182,51 @@ serve(async (req) => {
       throw new Error("Error deleting chats");
     }
 
-    console.log(`=== Successfully deleted ${chat_ids.length} chats ===`);
+    // Create deletion tombstones so sync/webhook never re-imports these phones
+    const nowIso = new Date().toISOString();
+    const instanciaIdList = Array.from(instanciaIds);
+
+    for (const last8 of phoneLast8List) {
+      // Create tombstone for each instancia (or null if no instancia)
+      if (instanciaIdList.length > 0) {
+        for (const instId of instanciaIdList) {
+          const { error: tombstoneError } = await supabase
+            .from("disparos_chat_deletions")
+            .upsert(
+              {
+                user_id: user.id,
+                phone_last8: last8,
+                instancia_id: instId,
+                deleted_at: nowIso,
+              },
+              { onConflict: "user_id,phone_last8,instancia_id" }
+            );
+
+          if (tombstoneError) {
+            console.error("Error creating tombstone for", last8, instId, tombstoneError);
+          }
+        }
+      } else {
+        // No instancia - create with null
+        const { error: tombstoneError } = await supabase
+          .from("disparos_chat_deletions")
+          .upsert(
+            {
+              user_id: user.id,
+              phone_last8: last8,
+              instancia_id: null,
+              deleted_at: nowIso,
+            },
+            { onConflict: "user_id,phone_last8,instancia_id" }
+          );
+
+        if (tombstoneError) {
+          console.error("Error creating tombstone for", last8, tombstoneError);
+        }
+      }
+    }
+
+    console.log(`=== Successfully deleted ${chat_ids.length} chats and created ${phoneLast8List.length} tombstone(s) ===`);
 
     return new Response(
       JSON.stringify({ success: true, deleted: chat_ids.length }),
