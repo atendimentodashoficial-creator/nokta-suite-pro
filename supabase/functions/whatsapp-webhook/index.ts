@@ -555,11 +555,22 @@ Deno.serve(async (req) => {
       );
     }
     
-    const phone = normalizedPayload.chat?.phone?.trim() ||
-      (normalizedPayload.message as any)?.sender_pn?.replace('@s.whatsapp.net', '') ||
-      String((normalizedPayload.message as any)?.sender || '').replace(/\D/g, '') ||
-      (chatId ? chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '') : '') ||
-      '';
+    // For fromMe messages, we need the RECIPIENT's number (from chat.wa_chatid or chat.phone)
+    // For incoming messages, we need the SENDER's number (from message.sender_pn or chat.phone)
+    let phone: string;
+    if (isFromMe) {
+      // For outgoing messages, extract the contact's number from the chat ID or chat.phone
+      phone = normalizedPayload.chat?.phone?.trim() ||
+        (chatId ? chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '') : '') ||
+        '';
+    } else {
+      // For incoming messages, use sender_pn or fallback to chat info
+      phone = normalizedPayload.chat?.phone?.trim() ||
+        (normalizedPayload.message as any)?.sender_pn?.replace('@s.whatsapp.net', '') ||
+        String((normalizedPayload.message as any)?.sender || '').replace(/\D/g, '') ||
+        (chatId ? chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '') : '') ||
+        '';
+    }
 
     const name = normalizedPayload.chat?.wa_name?.trim() ||
       normalizedPayload.chat?.name?.trim() ||
