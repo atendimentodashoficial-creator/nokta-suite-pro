@@ -111,7 +111,20 @@ export default function Dashboard() {
 
     const fats = faturas?.filter(fat => {
       if (!dataInicial && !dataFinal) return true;
-      const fatDate = new Date(fat.created_at);
+      // Usar data_fatura se preenchida, senão fallback para created_at
+      // Para data_fatura (campo date YYYY-MM-DD), criar data no timezone local
+      let fatDate: Date;
+      if (fat.data_fatura) {
+        // Se for data pura (YYYY-MM-DD), criar no timezone local
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fat.data_fatura)) {
+          const [year, month, day] = fat.data_fatura.split('-').map(Number);
+          fatDate = new Date(year, month - 1, day, 12, 0, 0, 0); // Meio-dia local
+        } else {
+          fatDate = new Date(fat.data_fatura);
+        }
+      } else {
+        fatDate = new Date(fat.created_at);
+      }
       if (dataInicial && fatDate < dataInicial) return false;
       if (dataFinal && fatDate > dataFinal) return false;
       return true;
