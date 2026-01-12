@@ -890,6 +890,29 @@ export default function Disparos() {
 
     // Create new chat
     try {
+      // Check if there's a tombstone for this chat (was previously deleted)
+      const phoneLast8 = last8Digits;
+      const { data: tombstone } = await supabase
+        .from('disparos_chat_deletions')
+        .select('deleted_at')
+        .eq('user_id', user?.id)
+        .eq('instancia_id', selectedInstanciaId)
+        .eq('phone_last8', phoneLast8)
+        .maybeSingle();
+
+      // If there was a tombstone, set history_cleared_at to that time
+      const historyClearedAt = tombstone?.deleted_at || null;
+
+      // Remove the tombstone if it exists
+      if (tombstone) {
+        await supabase
+          .from('disparos_chat_deletions')
+          .delete()
+          .eq('user_id', user?.id)
+          .eq('instancia_id', selectedInstanciaId)
+          .eq('phone_last8', phoneLast8);
+      }
+
       const { data: created, error } = await supabase
         .from('disparos_chats')
         .insert({
@@ -900,7 +923,8 @@ export default function Disparos() {
           normalized_number: normalizedBr,
           unread_count: 0,
           instancia_id: selectedInstanciaId,
-          instancia_nome: selectedInstancia?.nome || null
+          instancia_nome: selectedInstancia?.nome || null,
+          history_cleared_at: historyClearedAt
         })
         .select('*')
         .single();
