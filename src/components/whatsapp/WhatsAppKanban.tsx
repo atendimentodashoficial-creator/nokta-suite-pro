@@ -761,7 +761,7 @@ export function WhatsAppKanban({
                             <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                               {formatPhoneNumber(chat.contact_number)}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block mt-1">
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                                 {formatLastMessagePreview(chat.last_message)}
                               </p>
                             {chat.last_message_time && <span className="text-xs text-muted-foreground mt-2 block">
@@ -844,7 +844,7 @@ export function WhatsAppKanban({
                                 <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                                   {formatPhoneNumber(chat.contact_number)}
                                 </p>
-                                <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block mt-1">
+                                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                                     {formatLastMessagePreview(chat.last_message)}
                                   </p>
                                 {chat.last_message_time && <span className="text-xs text-muted-foreground mt-2 block">

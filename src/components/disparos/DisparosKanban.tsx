@@ -876,7 +876,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                                 <span className="truncate">{chat.instancia_nome || instanciasMap[chat.instancia_id]?.nome}</span>
                               </div>
                             )}
-                            <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block mt-1">
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                               {formatLastMessagePreview(chat.last_message)}
                             </p>
                             {chat.last_message_time && (
@@ -991,7 +991,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                                     <span className="truncate">{chat.instancia_nome || instanciasMap[chat.instancia_id]?.nome}</span>
                                   </div>
                                 )}
-                                <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block mt-1">
+                                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                                   {formatLastMessagePreview(chat.last_message)}
                                 </p>
                                 {chat.last_message_time && (
