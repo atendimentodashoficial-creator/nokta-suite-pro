@@ -481,7 +481,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
 
       // Best-effort: fetch from provider and persist messages into DB.
       // This helps recover messages when webhooks failed previously.
-      await supabase.functions.invoke('uazapi-get-messages', {
+      const resp = await invokeWithRetry('uazapi-get-messages', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -492,6 +492,13 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
           persist: true,
         },
       });
+
+      if (resp?.error) {
+        throw resp.error;
+      }
+
+      // Ensure we don't keep stale cache after backfill
+      messagesCache.delete(chat.id);
 
       await loadMessages(true);
       toast.success('Mensagens atualizadas');
