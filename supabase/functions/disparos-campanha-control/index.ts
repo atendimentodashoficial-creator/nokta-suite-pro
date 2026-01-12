@@ -160,33 +160,25 @@ serve(async (req) => {
           );
         }
 
-        // OPTIMISTIC LOCK: Use atomic update to prevent race conditions
+        // OPTIMISTIC LOCK: Check if we can proceed with this execution
         // Only proceed if next_send_at is null OR has passed
-        // Immediately set next_send_at to a future time to "claim" this execution slot
-        // NOTE: PostgREST filter values use dot separators, so we MUST avoid milliseconds in ISO strings.
-        const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-        const lockTime = new Date(Date.now() + 60000).toISOString(); // 60 seconds lock
-        
-        const { data: lockResult, error: lockError } = await supabase
+        // First, fetch current campaign state to check lock
+        const { data: currentCampaign, error: fetchError } = await supabase
           .from("disparos_campanhas")
-          .update({ 
-            status: "running",
-            next_send_at: lockTime // Temporarily set to prevent other calls
-          })
+          .select("id, status, next_send_at, updated_at")
           .eq("id", campanha_id)
-          .eq("status", "running") // Only if still running
-          .or(`next_send_at.is.null,next_send_at.lte.${nowIso}`) // Only if no pending schedule or schedule has passed
-          .select("id")
-          .maybeSingle();
-
-        if (lockError) {
-          console.error(`Campaign ${campanha_id}: Lock acquisition error:`, lockError);
-          throw lockError;
+          .single();
+        
+        if (fetchError || !currentCampaign) {
+          throw new Error("Campanha não encontrada para lock check");
         }
 
-        if (!lockResult) {
-          // Another process is already handling this campaign
-          console.log(`Campaign ${campanha_id}: Could not acquire lock - another process is handling it`);
+        const now = new Date();
+        const nextSendAt = currentCampaign.next_send_at ? new Date(currentCampaign.next_send_at) : null;
+        
+        // Check if another process is handling this campaign
+        if (nextSendAt && nextSendAt > now) {
+          console.log(`Campaign ${campanha_id}: Lock not available - next_send_at is ${nextSendAt.toISOString()}, now is ${now.toISOString()}`);
           return new Response(
             JSON.stringify({ 
               success: true, 
@@ -195,6 +187,23 @@ serve(async (req) => {
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
+        }
+
+        // Acquire lock by setting next_send_at to future time
+        const lockTime = new Date(Date.now() + 60000).toISOString(); // 60 seconds lock
+        
+        const { error: lockError } = await supabase
+          .from("disparos_campanhas")
+          .update({ 
+            status: "running",
+            next_send_at: lockTime // Temporarily set to prevent other calls
+          })
+          .eq("id", campanha_id)
+          .eq("status", "running");
+
+        if (lockError) {
+          console.error(`Campaign ${campanha_id}: Lock acquisition error:`, lockError);
+          throw lockError;
         }
 
         console.log(`Campaign ${campanha_id}: Lock acquired successfully`);
