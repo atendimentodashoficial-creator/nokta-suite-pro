@@ -573,15 +573,11 @@ Deno.serve(async (req) => {
 
     // Use normalized payload below
     const normalizedPayload = anyPayload as WhatsAppWebhookPayload;
+    const isFromMe = Boolean(normalizedPayload.message?.fromMe);
 
-    // Ignore messages sent by the user (fromMe = true)
-    if (normalizedPayload.message?.fromMe) {
-      console.log('Ignoring message sent by user');
-      await logEvent(userId, 'info', 'Mensagem ignorada (enviada pelo usuário)');
-      return new Response(
-        JSON.stringify({ message: 'Message from user ignored' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (isFromMe) {
+      console.log('Processing message sent by user (fromMe=true)');
+      await logEvent(userId, 'info', 'Mensagem enviada pelo usuário (fromMe=true)');
     }
 
     // Extract data from payload
@@ -701,23 +697,39 @@ Deno.serve(async (req) => {
           );
 
           if (matchingChat) {
-            // Use atomic RPC to avoid race conditions when multiple messages arrive quickly
-            const { data: newUnread, error: rpcError } = await supabase.rpc(
-              'increment_whatsapp_chat_unread',
-              {
-                p_chat_id: matchingChat.id,
-                p_last_message: messageText || 'Nova mensagem',
-                // Provider timestamp may be in ms or s – normalize
-                p_last_message_time: new Date(
-                  messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
-                ).toISOString(),
-              },
-            );
+            const lastMessageTimeIso = new Date(
+              messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
+            ).toISOString();
 
-            if (rpcError) {
-              console.error('Error incrementing WhatsApp unread count via RPC:', rpcError);
+            if (shouldIncrementUnread) {
+              // Use atomic RPC to avoid race conditions when multiple messages arrive quickly
+              const { data: newUnread, error: rpcError } = await supabase.rpc(
+                'increment_whatsapp_chat_unread',
+                {
+                  p_chat_id: matchingChat.id,
+                  p_last_message: messageText || 'Nova mensagem',
+                  p_last_message_time: lastMessageTimeIso,
+                },
+              );
+
+              if (rpcError) {
+                console.error('Error incrementing WhatsApp unread count via RPC:', rpcError);
+              } else {
+                console.log('Incremented WhatsApp unread_count to', newUnread, 'for chat', matchingChat.id);
+              }
             } else {
-              console.log('Incremented WhatsApp unread_count to', newUnread, 'for chat', matchingChat.id);
+              const { error: updateError } = await supabase
+                .from('whatsapp_chats')
+                .update({
+                  last_message: messageText || 'Nova mensagem',
+                  last_message_time: lastMessageTimeIso,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', matchingChat.id);
+
+              if (updateError) {
+                console.error('Error updating WhatsApp chat last message:', updateError);
+              }
             }
 
             // Save message to whatsapp_messages for realtime updates
@@ -988,29 +1000,45 @@ Deno.serve(async (req) => {
           );
 
           if (matchingDisparosChat) {
-            // Use atomic RPC to avoid race conditions when multiple messages arrive quickly
-            const { data: newUnread, error: rpcError } = await supabase.rpc(
-              'increment_disparos_chat_unread',
-              {
-                p_chat_id: matchingDisparosChat.id,
-                p_last_message: messageText || 'Nova mensagem',
-                // Provider timestamp may be in ms or s – normalize
-                p_last_message_time: new Date(
-                  messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
-                ).toISOString(),
-              },
-            );
+            const lastMessageTimeIso = new Date(
+              messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
+            ).toISOString();
 
-            if (rpcError) {
-              console.error('Error incrementing Disparos unread count via RPC:', rpcError);
-            } else {
-              console.log(
-                'Incremented Disparos unread_count to',
-                newUnread,
-                'for chat',
-                matchingDisparosChat.id,
-                instanciaId ? `(instancia: ${instanciaId})` : ''
+            if (shouldIncrementUnread) {
+              // Use atomic RPC to avoid race conditions when multiple messages arrive quickly
+              const { data: newUnread, error: rpcError } = await supabase.rpc(
+                'increment_disparos_chat_unread',
+                {
+                  p_chat_id: matchingDisparosChat.id,
+                  p_last_message: messageText || 'Nova mensagem',
+                  p_last_message_time: lastMessageTimeIso,
+                },
               );
+
+              if (rpcError) {
+                console.error('Error incrementing Disparos unread count via RPC:', rpcError);
+              } else {
+                console.log(
+                  'Incremented Disparos unread_count to',
+                  newUnread,
+                  'for chat',
+                  matchingDisparosChat.id,
+                  instanciaId ? `(instancia: ${instanciaId})` : ''
+                );
+              }
+            } else {
+              const { error: updateError } = await supabase
+                .from('disparos_chats')
+                .update({
+                  last_message: messageText || 'Nova mensagem',
+                  last_message_time: lastMessageTimeIso,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', matchingDisparosChat.id);
+
+              if (updateError) {
+                console.error('Error updating Disparos chat last message:', updateError);
+              }
             }
 
             // Save message to disparos_messages for realtime updates

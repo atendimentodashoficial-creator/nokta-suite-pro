@@ -469,13 +469,8 @@ serve(async (req) => {
         continue;
       }
 
-      // Chat doesn't exist in DB - DON'T create it during sync.
-      // New chats should only be created via webhook when a new message arrives.
-      // This ensures that hard-deleted chats don't come back during sync.
-      if (!row.isExisting) {
-        console.log(`[SYNC] Skipping insert for ${row.normalized_number} - new chats only created via webhook`);
-        continue;
-      }
+      // Chat doesn't exist in DB - create it during sync.
+      // This makes chats started from the phone appear even if the contact hasn't replied yet.
 
       // Fallback insert for existing chats that failed to update (shouldn't happen)
       const createdAt = row.last_message_time || new Date().toISOString();
