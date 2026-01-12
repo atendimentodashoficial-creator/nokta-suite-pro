@@ -449,7 +449,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
 
       // Compareceu (via agendamento) = has fatura linked diretamente
       // Usar data_agendamento pois reflete quando o serviço foi realizado
-      if (agendamentoTemFatura && tsAgendamento !== null) {
+      if (a.status === "realizado" && agendamentoTemFatura && tsAgendamento !== null) {
         phonesWithCompareceu.add(phone);
         if (isDisparos) phonesCompareceuAgendDisparos.add(phone);
         else if (isTracked) phonesCompareceuAgendTracked.add(phone);

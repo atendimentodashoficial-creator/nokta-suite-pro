@@ -56,6 +56,7 @@ const upsellSchema = z.object({
 const faturaSchema = z.object({
   valor_base: z.string().min(1, "Valor é obrigatório"),
   status: z.enum(["negociacao", "fechado"]),
+  data_fatura: z.string().optional(),
   procedimento_id: z.string().optional(),
   profissional_id: z.string().optional(),
   data_follow_up: z.string().optional(),
@@ -112,17 +113,21 @@ export function EditarFaturaDialog({
     defaultValues: {
       valor_base: valorBase.toString(),
       status: fatura.status,
+      data_fatura: fatura.data_fatura || undefined,
       procedimento_id: fatura.procedimento_id || undefined,
       profissional_id: fatura.profissional_id || undefined,
       data_follow_up: fatura.data_follow_up || undefined,
       observacoes: fatura.observacoes || undefined,
       upsells: [],
       meio_pagamento: (fatura as any).meio_pagamento || undefined,
-      forma_pagamento: (fatura.forma_pagamento as "a_vista" | "parcelado" | "entrada_parcelado") || "a_vista",
+      forma_pagamento:
+        (fatura.forma_pagamento as "a_vista" | "parcelado" | "entrada_parcelado") ||
+        "a_vista",
       valor_entrada: fatura.valor_entrada?.toString() || "",
       numero_parcelas: fatura.numero_parcelas?.toString() || "1",
       taxa_parcelamento: fatura.taxa_parcelamento?.toString() || "0",
-      juros_pago_por: ((fatura as any).juros_pago_por as "cliente" | "empresa") || "cliente",
+      juros_pago_por:
+        ((fatura as any).juros_pago_por as "cliente" | "empresa") || "cliente",
     },
   });
 
@@ -144,17 +149,21 @@ export function EditarFaturaDialog({
       form.reset({
         valor_base: valorBase.toString(),
         status: fatura.status,
+        data_fatura: fatura.data_fatura || undefined,
         procedimento_id: fatura.procedimento_id || undefined,
         profissional_id: fatura.profissional_id || undefined,
         data_follow_up: fatura.data_follow_up || undefined,
         observacoes: fatura.observacoes || undefined,
         upsells: upsellsForForm,
         meio_pagamento: (fatura as any).meio_pagamento || undefined,
-        forma_pagamento: (fatura.forma_pagamento as "a_vista" | "parcelado" | "entrada_parcelado") || "a_vista",
+        forma_pagamento:
+          (fatura.forma_pagamento as "a_vista" | "parcelado" | "entrada_parcelado") ||
+          "a_vista",
         valor_entrada: fatura.valor_entrada?.toString() || "",
         numero_parcelas: fatura.numero_parcelas?.toString() || "1",
         taxa_parcelamento: fatura.taxa_parcelamento?.toString() || "0",
-        juros_pago_por: ((fatura as any).juros_pago_por as "cliente" | "empresa") || "cliente",
+        juros_pago_por:
+          ((fatura as any).juros_pago_por as "cliente" | "empresa") || "cliente",
       });
     }
   }, [existingUpsells, open, fatura, valorBase, form]);
@@ -202,6 +211,7 @@ export function EditarFaturaDialog({
         .update({
           valor: valorFinal,
           status: data.status,
+          data_fatura: data.data_fatura || null,
           procedimento_id: data.procedimento_id || null,
           profissional_id: data.profissional_id || null,
           data_follow_up: data.data_follow_up || null,
@@ -393,6 +403,20 @@ export function EditarFaturaDialog({
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="data_fatura"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data da Fatura</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
