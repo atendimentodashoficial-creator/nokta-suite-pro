@@ -963,7 +963,22 @@ export default function AdminWhatsApp() {
           }
           prevById.set(u.id, { ...(existing || {}), ...u });
         }
-        return dedupeChatsByLast8(Array.from(prevById.values()));
+
+        // Keep a single chat per phone (last 8 digits) and order by latest message
+        const merged = dedupeChatsByLast8(Array.from(prevById.values()));
+
+        // IMPORTANT: also apply the same "no old history" filter used in loadChats.
+        // Otherwise, background sync (and realtime updates) can reintroduce old chats in-memory.
+        const connectedAtMs = instanceConnectedAt ? new Date(instanceConnectedAt).getTime() : null;
+        if (connectedAtMs && Number.isFinite(connectedAtMs)) {
+          return merged.filter((c) => {
+            const t1 = c.last_message_time ? new Date(c.last_message_time).getTime() : 0;
+            const t2 = c.created_at ? new Date(c.created_at).getTime() : 0;
+            return Math.max(t1, t2) >= connectedAtMs;
+          });
+        }
+
+        return merged;
       });
 
       setSelectedChat((prev) => {
@@ -1037,7 +1052,7 @@ export default function AdminWhatsApp() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, instanceConnectedAt]);
 
   // Clear unread count when opening/reading chat (viewing is enough)
   const clearUnreadCount = async (chatId: string) => {
