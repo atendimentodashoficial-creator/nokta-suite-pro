@@ -15,6 +15,7 @@ interface AvisoAgendamento {
   ativo: boolean;
   intervalo_min: number;
   intervalo_max: number;
+  last_check_at: string | null;
 }
 
 interface WhatsAppConfig {
@@ -372,6 +373,29 @@ Deno.serve(async (req) => {
       if (!filterAvisoId && currentTotal < envioTotal) {
         console.log(`Skipping aviso "${aviso.nome}" - too early (now=${currentTotal}, scheduled=${envioTotal})`);
         continue;
+      }
+
+      // Check if this aviso was already executed today (based on last_check_at)
+      if (!filterAvisoId && aviso.last_check_at) {
+        const lastCheckDate = new Date(aviso.last_check_at);
+        const lastCheckSP = new Date(lastCheckDate.getTime() - 3 * 60 * 60 * 1000); // Convert to SP time
+        const todaySP = new Date(saoPauloNow);
+        todaySP.setHours(0, 0, 0, 0);
+        lastCheckSP.setHours(0, 0, 0, 0);
+        
+        // If already checked today AND after the scheduled time, skip
+        if (lastCheckSP.getTime() >= todaySP.getTime()) {
+          const lastCheckTime = new Date(aviso.last_check_at);
+          const lastCheckHour = lastCheckTime.getUTCHours() - 3; // SP is UTC-3
+          const lastCheckMinute = lastCheckTime.getUTCMinutes();
+          const lastCheckTotal = lastCheckHour * 60 + lastCheckMinute;
+          
+          // Only skip if last check was at or after the scheduled time
+          if (lastCheckTotal >= envioTotal) {
+            console.log(`Skipping aviso "${aviso.nome}" - already executed today at ${aviso.last_check_at}`);
+            continue;
+          }
+        }
       }
 
       // Get appointments for next 7 days
