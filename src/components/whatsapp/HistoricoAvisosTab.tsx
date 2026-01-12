@@ -14,8 +14,9 @@ import { toast } from "sonner";
 import { formatInTimeZone } from "date-fns-tz";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { startOfDayBrasilia, TIMEZONE_BRASILIA } from "@/utils/timezone";
 
 interface AvisoEnviadoLog {
   id: string;
@@ -73,12 +74,12 @@ export function HistoricoAvisosTab() {
     setIsLoading(true);
     try {
       const daysAgo = parseInt(dateFilter);
-      const startDate = subDays(new Date(), daysAgo);
+      const startDate = subDays(startOfDayBrasilia(), daysAgo);
       
       let query = supabase
         .from('avisos_enviados_log')
         .select('*, leads:cliente_id(origem)')
-        .gte('enviado_em', startOfDay(startDate).toISOString())
+        .gte('enviado_em', startDate.toISOString())
         .order('enviado_em', { ascending: false })
         .limit(500);
 

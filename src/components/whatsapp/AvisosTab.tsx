@@ -18,13 +18,12 @@ import { formatInTimeZone } from "date-fns-tz";
 import { differenceInCalendarDays } from "date-fns";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
+import { startOfDayBrasilia, toZonedBrasilia, TIMEZONE_BRASILIA } from "@/utils/timezone";
 
 // Helper para calcular dias restantes e retornar cor
 const getDaysRemainingBadge = (dataAgendamento: string) => {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  const dataAg = new Date(dataAgendamento);
-  dataAg.setHours(0, 0, 0, 0);
+  const hoje = startOfDayBrasilia();
+  const dataAg = startOfDayBrasilia(toZonedBrasilia(dataAgendamento));
   const diasRestantes = differenceInCalendarDays(dataAg, hoje);
   
   let bgColor = "";
@@ -108,8 +107,7 @@ export function AvisosTab() {
 
   // Próximos agendamentos (próximos 7 dias, status agendado ou confirmado)
   const proximosAgendamentos = useMemo(() => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const hoje = startOfDayBrasilia();
     
     const em7Dias = new Date(hoje);
     em7Dias.setDate(em7Dias.getDate() + 7);
@@ -118,8 +116,7 @@ export function AvisosTab() {
     return agendamentos
       ?.filter(ag => {
         if (ag.status !== 'agendado' && ag.status !== 'confirmado') return false;
-        const dataAgendamento = new Date(ag.data_agendamento);
-        dataAgendamento.setHours(0, 0, 0, 0);
+        const dataAgendamento = startOfDayBrasilia(toZonedBrasilia(ag.data_agendamento));
         // Compare only dates, not times - appointments should remain visible all day
         return dataAgendamento >= hoje && dataAgendamento <= em7Dias;
       })
@@ -133,8 +130,7 @@ export function AvisosTab() {
       return { previstos: 0, enviados: 0, pendentes: 0, falhas: [] as { clienteNome: string; avisoNome: string }[] };
     }
 
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const hoje = startOfDayBrasilia();
 
     let previstos = 0;
     let enviados = 0;
@@ -156,8 +152,7 @@ export function AvisosTab() {
       
       const matchingAgendamentos = agendamentos.filter(ag => {
         if (ag.status !== 'agendado' && ag.status !== 'confirmado') return false;
-        const dataAg = new Date(ag.data_agendamento);
-        dataAg.setHours(0, 0, 0, 0);
+        const dataAg = startOfDayBrasilia(toZonedBrasilia(ag.data_agendamento));
         return dataAg.getTime() === targetDate.getTime();
       });
 
@@ -207,8 +202,7 @@ export function AvisosTab() {
   // Load today's avisos logs to detect failures
   const loadAvisosLogs = async () => {
     try {
-      const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
+      const hoje = startOfDayBrasilia();
       
       const { data, error } = await supabase
         .from('avisos_enviados_log')

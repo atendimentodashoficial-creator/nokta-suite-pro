@@ -25,11 +25,13 @@ import { toast } from "sonner";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
 import { PixelStatusBadge } from "@/components/faturas/PixelStatusBadge";
+import { startOfMonthBrasilia, endOfMonthBrasilia, toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
+
 export default function Faturas() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dataInicial, setDataInicial] = useState<Date | undefined>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [dataFinal, setDataFinal] = useState<Date | undefined>(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0));
+  const [dataInicial, setDataInicial] = useState<Date | undefined>(startOfMonthBrasilia());
+  const [dataFinal, setDataFinal] = useState<Date | undefined>(endOfMonthBrasilia());
   const [filtroProcedimento, setFiltroProcedimento] = useState<string>("all");
   const [filtroProfissional, setFiltroProfissional] = useState<string>("all");
   const [selecionarClienteOpen, setSelecionarClienteOpen] = useState(false);
@@ -57,9 +59,10 @@ export default function Faturas() {
   } = useProfissionais();
   const faturasFiltradas = todasFaturas?.filter(fatura => {
     if (dataInicial || dataFinal) {
-      const faturaDate = new Date(fatura.created_at);
-      if (dataInicial && faturaDate < dataInicial) return false;
-      if (dataFinal && faturaDate > dataFinal) return false;
+      // Converter UTC para Brasília para comparar com filtros locais
+      const faturaDate = toZonedBrasilia(fatura.created_at);
+      if (dataInicial && faturaDate < startOfDayBrasilia(dataInicial)) return false;
+      if (dataFinal && faturaDate > endOfDayBrasilia(dataFinal)) return false;
     }
     return true;
   });

@@ -10,8 +10,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from "date-fns";
+import { format, subDays, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { 
+  nowInBrasilia, 
+  startOfWeekBrasilia, 
+  endOfWeekBrasilia, 
+  startOfMonthBrasilia, 
+  endOfMonthBrasilia 
+} from "@/utils/timezone";
 import { 
   RefreshCw, 
   CalendarIcon,
@@ -197,7 +204,7 @@ export default function GoogleAdsMetrics() {
 
   // Atualizar datas quando o período mudar
   useEffect(() => {
-    const now = new Date();
+    const now = nowInBrasilia();
     switch (periodFilter) {
       case "today":
         setDateStart(now);
@@ -217,22 +224,22 @@ export default function GoogleAdsMetrics() {
         setDateEnd(now);
         break;
       case "this_week":
-        setDateStart(startOfWeek(now, { weekStartsOn: 0 }));
-        setDateEnd(endOfWeek(now, { weekStartsOn: 0 }));
+        setDateStart(startOfWeekBrasilia(now, { weekStartsOn: 0 }));
+        setDateEnd(endOfWeekBrasilia(now, { weekStartsOn: 0 }));
         break;
       case "last_week":
-        const lastWeekStart = startOfWeek(subDays(now, 7), { weekStartsOn: 0 });
+        const lastWeekStart = startOfWeekBrasilia(subDays(now, 7), { weekStartsOn: 0 });
         setDateStart(lastWeekStart);
-        setDateEnd(endOfWeek(lastWeekStart, { weekStartsOn: 0 }));
+        setDateEnd(endOfWeekBrasilia(lastWeekStart, { weekStartsOn: 0 }));
         break;
       case "this_month":
-        setDateStart(startOfMonth(now));
-        setDateEnd(endOfMonth(now));
+        setDateStart(startOfMonthBrasilia(now));
+        setDateEnd(endOfMonthBrasilia(now));
         break;
       case "last_month":
         const lastMonth = subMonths(now, 1);
-        setDateStart(startOfMonth(lastMonth));
-        setDateEnd(endOfMonth(lastMonth));
+        setDateStart(startOfMonthBrasilia(lastMonth));
+        setDateEnd(endOfMonthBrasilia(lastMonth));
         break;
       case "max":
         setDateStart(new Date(2020, 0, 1));

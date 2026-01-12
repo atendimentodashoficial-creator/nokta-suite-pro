@@ -104,8 +104,9 @@ export default function ClienteDetalhes() {
   const deleteFaturaLog = useDeleteFaturaExcluidaLog();
   const cliente = clientes?.find(c => c.id === id);
   const clienteAgendamentos = agendamentos?.filter(a => a.cliente_id === id) || [];
-  const agendamentosPassados = clienteAgendamentos.filter(a => new Date(a.data_agendamento) < new Date());
-  const proximosAgendamentos = clienteAgendamentos.filter(a => new Date(a.data_agendamento) >= new Date());
+  const now = new Date();
+  const agendamentosPassados = clienteAgendamentos.filter(a => new Date(a.data_agendamento) < now);
+  const proximosAgendamentos = clienteAgendamentos.filter(a => new Date(a.data_agendamento) >= now);
   const clienteAgendamentosExcluidos = agendamentosExcluidos?.filter(a => a.cliente_id === id) || [];
   const clienteFaturasExcluidas = faturasExcluidas?.filter(f => f.cliente_id === id) || [];
   const clienteFaturas = faturas?.filter(f => f.cliente_id === id) || [];
