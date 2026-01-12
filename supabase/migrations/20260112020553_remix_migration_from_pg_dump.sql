@@ -398,21 +398,38 @@ $$;
 -- Name: increment_whatsapp_chat_unread(uuid, text, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.increment_whatsapp_chat_unread(p_chat_id uuid, p_last_message text, p_last_message_time timestamp with time zone) RETURNS integer
+CREATE FUNCTION public.increment_whatsapp_chat_unread(p_chat_id uuid, p_last_message text DEFAULT NULL::text, p_last_message_time timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS integer
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
 DECLARE
   v_new_unread integer;
+  v_current_time timestamp with time zone;
 BEGIN
-  UPDATE public.whatsapp_chats
-  SET
-    unread_count = COALESCE(unread_count, 0) + 1,
-    last_message = COALESCE(p_last_message, last_message),
-    last_message_time = COALESCE(p_last_message_time, last_message_time),
-    updated_at = now()
-  WHERE id = p_chat_id
-  RETURNING unread_count INTO v_new_unread;
+  -- Get current last_message_time
+  SELECT last_message_time INTO v_current_time
+  FROM public.whatsapp_chats
+  WHERE id = p_chat_id;
+
+  -- Only update last_message/last_message_time if the incoming message is newer
+  IF p_last_message_time IS NOT NULL AND (v_current_time IS NULL OR p_last_message_time > v_current_time) THEN
+    UPDATE public.whatsapp_chats
+    SET
+      unread_count = COALESCE(unread_count, 0) + 1,
+      last_message = COALESCE(p_last_message, last_message),
+      last_message_time = p_last_message_time,
+      updated_at = now()
+    WHERE id = p_chat_id
+    RETURNING unread_count INTO v_new_unread;
+  ELSE
+    -- Just increment unread, don't touch last_message
+    UPDATE public.whatsapp_chats
+    SET
+      unread_count = COALESCE(unread_count, 0) + 1,
+      updated_at = now()
+    WHERE id = p_chat_id
+    RETURNING unread_count INTO v_new_unread;
+  END IF;
 
   IF v_new_unread IS NULL THEN
     RAISE EXCEPTION 'Chat não encontrado';
@@ -593,6 +610,27 @@ CREATE TABLE public.leads (
     origem_tipo text DEFAULT 'Lead'::text,
     deleted_at timestamp with time zone,
     instancia_nome text,
+    utm_source text,
+    utm_medium text,
+    utm_campaign text,
+    utm_content text,
+    utm_term text,
+    fbclid text,
+    gclid text,
+    genero text,
+    data_nascimento date,
+    cidade text,
+    estado text,
+    cep text,
+    endereco text,
+    fb_ad_id text,
+    fb_campaign_name text,
+    fb_adset_name text,
+    fb_ad_name text,
+    ad_thumbnail_url text,
+    respondeu boolean DEFAULT false,
+    fb_adset_id text,
+    fb_campaign_id text,
     CONSTRAINT leads_avaliacao_check CHECK (((avaliacao >= 1) AND (avaliacao <= 5)))
 );
 
@@ -689,6 +727,30 @@ CREATE VIEW public.agendamentos_completos AS
      LEFT JOIN public.profissionais prof ON ((a.profissional_id = prof.id)))
      LEFT JOIN public.procedimentos proc ON ((a.procedimento_id = proc.id)))
      LEFT JOIN public.uazapi_config uaz ON ((a.user_id = uaz.user_id)));
+
+
+--
+-- Name: agendamentos_excluidos_log; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agendamentos_excluidos_log (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    cliente_id uuid NOT NULL,
+    cliente_nome text NOT NULL,
+    cliente_telefone text NOT NULL,
+    procedimento_id uuid,
+    procedimento_nome text,
+    profissional_id uuid,
+    profissional_nome text,
+    tipo text NOT NULL,
+    status text NOT NULL,
+    data_agendamento timestamp with time zone NOT NULL,
+    observacoes text,
+    motivo_exclusao text,
+    excluido_em timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 
 --
@@ -1046,7 +1108,18 @@ CREATE TABLE public.disparos_messages (
     deleted boolean DEFAULT false,
     admin_id uuid,
     "timestamp" timestamp with time zone NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    utm_source text,
+    utm_campaign text,
+    utm_medium text,
+    utm_content text,
+    utm_term text,
+    fbclid text,
+    ad_thumbnail_url text,
+    fb_ad_id text,
+    fb_campaign_name text,
+    fb_adset_name text,
+    fb_ad_name text
 );
 
 
@@ -1262,7 +1335,37 @@ CREATE TABLE public.faturas (
     valor_parcela numeric DEFAULT 0,
     taxa_parcelamento numeric DEFAULT 0,
     juros_pago_por text DEFAULT 'cliente'::text,
-    meio_pagamento text
+    meio_pagamento text,
+    pixel_status text DEFAULT 'pendente'::text,
+    pixel_form_sent_at timestamp with time zone,
+    pixel_data_completed_at timestamp with time zone,
+    pixel_event_sent_at timestamp with time zone,
+    data_fatura date DEFAULT CURRENT_DATE
+);
+
+
+--
+-- Name: faturas_excluidas_log; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.faturas_excluidas_log (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    cliente_id uuid NOT NULL,
+    cliente_nome text NOT NULL,
+    cliente_telefone text NOT NULL,
+    procedimento_id uuid,
+    procedimento_nome text,
+    profissional_id uuid,
+    profissional_nome text,
+    valor numeric NOT NULL,
+    status text NOT NULL,
+    observacoes text,
+    meio_pagamento text,
+    forma_pagamento text,
+    motivo_exclusao text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    excluido_em timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -1320,6 +1423,158 @@ CREATE TABLE public.historico_leads (
 
 
 --
+-- Name: instagram_config; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.instagram_config (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    app_id text NOT NULL,
+    app_secret text NOT NULL,
+    page_access_token text NOT NULL,
+    instagram_account_id text,
+    webhook_verify_token text DEFAULT encode(extensions.gen_random_bytes(16), 'hex'::text) NOT NULL,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    ice_breakers jsonb DEFAULT '[]'::jsonb,
+    verificar_seguidor boolean DEFAULT false,
+    mensagem_pedir_seguir text,
+    form_base_url text
+);
+
+
+--
+-- Name: instagram_fluxos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.instagram_fluxos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    nome text NOT NULL,
+    descricao text,
+    etapas jsonb DEFAULT '[]'::jsonb NOT NULL,
+    ativo boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    nodes jsonb DEFAULT '[]'::jsonb,
+    edges jsonb DEFAULT '[]'::jsonb
+);
+
+
+--
+-- Name: instagram_formularios; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.instagram_formularios (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    nome text NOT NULL,
+    descricao text,
+    titulo_pagina text DEFAULT 'Preencha seus dados'::text NOT NULL,
+    subtitulo_pagina text,
+    texto_botao text DEFAULT 'Enviar'::text NOT NULL,
+    mensagem_sucesso text DEFAULT 'Obrigado! Seus dados foram enviados com sucesso.'::text NOT NULL,
+    campos jsonb DEFAULT '["nome", "telefone", "email"]'::jsonb NOT NULL,
+    cor_primaria text DEFAULT '#8B5CF6'::text,
+    imagem_url text,
+    ativo boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    botao_sucesso_texto text,
+    botao_sucesso_url text
+);
+
+
+--
+-- Name: instagram_formularios_respostas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.instagram_formularios_respostas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    formulario_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    instagram_user_id text,
+    tracking_id text,
+    nome text,
+    telefone text,
+    email text,
+    dados_extras jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: instagram_gatilhos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.instagram_gatilhos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    nome text NOT NULL,
+    palavras_chave text[] DEFAULT '{}'::text[] NOT NULL,
+    tipo text DEFAULT 'dm'::text NOT NULL,
+    resposta_texto text,
+    fluxo_id uuid,
+    ativo boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    resposta_midia_url text,
+    resposta_midia_tipo text,
+    resposta_botoes jsonb DEFAULT '[]'::jsonb,
+    resposta_link_url text,
+    resposta_link_texto text,
+    verificar_seguidor boolean DEFAULT false,
+    mensagem_pedir_seguir text,
+    formulario_id uuid,
+    responder_comentario boolean DEFAULT false,
+    resposta_comentario_texto text,
+    ativo_em_dm boolean DEFAULT false,
+    ativo_em_comentario boolean DEFAULT false,
+    mensagem_formulario text,
+    botao_formulario_texto text DEFAULT 'Preencher Formulário'::text,
+    titulo_botoes text,
+    botao_liberar_texto text DEFAULT 'Já sigo! Liberar material'::text,
+    instagram_seguir text,
+    CONSTRAINT instagram_gatilhos_resposta_midia_tipo_check CHECK ((resposta_midia_tipo = ANY (ARRAY['image'::text, 'video'::text, 'audio'::text, 'file'::text])))
+);
+
+
+--
+-- Name: instagram_interacoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.instagram_interacoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    instagram_user_id text NOT NULL,
+    primeira_interacao_em timestamp with time zone DEFAULT now() NOT NULL,
+    ultima_interacao_em timestamp with time zone DEFAULT now() NOT NULL,
+    total_mensagens integer DEFAULT 1
+);
+
+
+--
+-- Name: instagram_mensagens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.instagram_mensagens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    instagram_user_id text NOT NULL,
+    instagram_username text,
+    tipo text NOT NULL,
+    conteudo text,
+    media_url text,
+    post_id text,
+    gatilho_id uuid,
+    fluxo_id uuid,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: lead_status_custom; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1370,6 +1625,48 @@ CREATE TABLE public.mensagens_predefinidas (
 
 
 --
+-- Name: meta_conversion_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_conversion_events (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    lead_id uuid,
+    fatura_id uuid,
+    agendamento_id uuid,
+    event_name text NOT NULL,
+    event_id text NOT NULL,
+    event_time timestamp with time zone DEFAULT now() NOT NULL,
+    value numeric,
+    currency text DEFAULT 'BRL'::text,
+    utm_source text,
+    utm_campaign text,
+    fbclid text,
+    status text DEFAULT 'pending'::text,
+    response jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    customer_data_sent jsonb
+);
+
+
+--
+-- Name: meta_pixel_config; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_pixel_config (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    pixel_id text NOT NULL,
+    access_token text NOT NULL,
+    test_event_code text,
+    eventos_ativos jsonb DEFAULT '{"lead": true, "purchase": true, "initiate_checkout": true, "complete_registration": true}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    mensagem_formulario text DEFAULT 'Olá! Para finalizar seu cadastro, precisamos de algumas informações adicionais. Por favor, preencha o formulário abaixo:'::text
+);
+
+
+--
 -- Name: metricas_preferencias; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1379,6 +1676,20 @@ CREATE TABLE public.metricas_preferencias (
     presets jsonb DEFAULT '[]'::jsonb,
     visible_cards jsonb,
     selected_preset_id text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    funnel_column_order jsonb
+);
+
+
+--
+-- Name: openai_config; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.openai_config (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    api_key text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1687,7 +1998,18 @@ CREATE TABLE public.whatsapp_messages (
     "timestamp" timestamp with time zone NOT NULL,
     status public.message_status,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    deleted boolean DEFAULT false
+    deleted boolean DEFAULT false,
+    utm_source text,
+    utm_campaign text,
+    utm_medium text,
+    utm_content text,
+    utm_term text,
+    fbclid text,
+    ad_thumbnail_url text,
+    fb_ad_id text,
+    fb_campaign_name text,
+    fb_adset_name text,
+    fb_ad_name text
 );
 
 ALTER TABLE ONLY public.whatsapp_messages REPLICA IDENTITY FULL;
@@ -1722,6 +2044,14 @@ ALTER TABLE ONLY public.admin_users
 
 ALTER TABLE ONLY public.admin_users
     ADD CONSTRAINT admin_users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agendamentos_excluidos_log agendamentos_excluidos_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agendamentos_excluidos_log
+    ADD CONSTRAINT agendamentos_excluidos_log_pkey PRIMARY KEY (id);
 
 
 --
@@ -1909,6 +2239,14 @@ ALTER TABLE ONLY public.disparos_kanban_columns
 
 
 --
+-- Name: disparos_messages disparos_messages_chat_id_message_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disparos_messages
+    ADD CONSTRAINT disparos_messages_chat_id_message_id_key UNIQUE (chat_id, message_id);
+
+
+--
 -- Name: disparos_messages disparos_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1989,6 +2327,14 @@ ALTER TABLE ONLY public.fatura_upsells
 
 
 --
+-- Name: faturas_excluidas_log faturas_excluidas_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.faturas_excluidas_log
+    ADD CONSTRAINT faturas_excluidas_log_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: faturas faturas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2018,6 +2364,78 @@ ALTER TABLE ONLY public.google_ads_config
 
 ALTER TABLE ONLY public.historico_leads
     ADD CONSTRAINT historico_leads_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: instagram_config instagram_config_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_config
+    ADD CONSTRAINT instagram_config_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: instagram_config instagram_config_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_config
+    ADD CONSTRAINT instagram_config_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: instagram_fluxos instagram_fluxos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_fluxos
+    ADD CONSTRAINT instagram_fluxos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: instagram_formularios instagram_formularios_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_formularios
+    ADD CONSTRAINT instagram_formularios_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: instagram_formularios_respostas instagram_formularios_respostas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_formularios_respostas
+    ADD CONSTRAINT instagram_formularios_respostas_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: instagram_gatilhos instagram_gatilhos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_gatilhos
+    ADD CONSTRAINT instagram_gatilhos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: instagram_interacoes instagram_interacoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_interacoes
+    ADD CONSTRAINT instagram_interacoes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: instagram_interacoes instagram_interacoes_user_id_instagram_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_interacoes
+    ADD CONSTRAINT instagram_interacoes_user_id_instagram_user_id_key UNIQUE (user_id, instagram_user_id);
+
+
+--
+-- Name: instagram_mensagens instagram_mensagens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_mensagens
+    ADD CONSTRAINT instagram_mensagens_pkey PRIMARY KEY (id);
 
 
 --
@@ -2053,6 +2471,30 @@ ALTER TABLE ONLY public.mensagens_predefinidas
 
 
 --
+-- Name: meta_conversion_events meta_conversion_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_conversion_events
+    ADD CONSTRAINT meta_conversion_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: meta_pixel_config meta_pixel_config_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_pixel_config
+    ADD CONSTRAINT meta_pixel_config_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: meta_pixel_config meta_pixel_config_user_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_pixel_config
+    ADD CONSTRAINT meta_pixel_config_user_id_unique UNIQUE (user_id);
+
+
+--
 -- Name: metricas_preferencias metricas_preferencias_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2066,6 +2508,22 @@ ALTER TABLE ONLY public.metricas_preferencias
 
 ALTER TABLE ONLY public.metricas_preferencias
     ADD CONSTRAINT metricas_preferencias_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: openai_config openai_config_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.openai_config
+    ADD CONSTRAINT openai_config_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: openai_config openai_config_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.openai_config
+    ADD CONSTRAINT openai_config_user_id_key UNIQUE (user_id);
 
 
 --
@@ -2323,6 +2781,20 @@ CREATE UNIQUE INDEX disparos_messages_chat_message_unique ON public.disparos_mes
 
 
 --
+-- Name: idx_agendamentos_excluidos_log_data_agendamento; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_agendamentos_excluidos_log_data_agendamento ON public.agendamentos_excluidos_log USING btree (user_id, data_agendamento);
+
+
+--
+-- Name: idx_agendamentos_excluidos_log_excluido_em; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_agendamentos_excluidos_log_excluido_em ON public.agendamentos_excluidos_log USING btree (user_id, excluido_em);
+
+
+--
 -- Name: idx_ai_ads_reports_user_account; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2519,6 +2991,34 @@ CREATE INDEX idx_leads_deleted_at ON public.leads USING btree (deleted_at) WHERE
 
 
 --
+-- Name: idx_leads_fb_adset_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_leads_fb_adset_id ON public.leads USING btree (fb_adset_id);
+
+
+--
+-- Name: idx_leads_fb_campaign_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_leads_fb_campaign_id ON public.leads USING btree (fb_campaign_id);
+
+
+--
+-- Name: idx_leads_fbclid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_leads_fbclid ON public.leads USING btree (fbclid) WHERE (fbclid IS NOT NULL);
+
+
+--
+-- Name: idx_leads_respondeu; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_leads_respondeu ON public.leads USING btree (respondeu) WHERE (respondeu = true);
+
+
+--
 -- Name: idx_leads_status; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2544,6 +3044,34 @@ CREATE UNIQUE INDEX idx_leads_user_phone_unique ON public.leads USING btree (use
 --
 
 CREATE INDEX idx_leads_user_telefone ON public.leads USING btree (user_id, telefone);
+
+
+--
+-- Name: idx_leads_utm_campaign; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_leads_utm_campaign ON public.leads USING btree (utm_campaign) WHERE (utm_campaign IS NOT NULL);
+
+
+--
+-- Name: idx_meta_conversion_events_lead_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_conversion_events_lead_id ON public.meta_conversion_events USING btree (lead_id);
+
+
+--
+-- Name: idx_meta_conversion_events_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_conversion_events_user_id ON public.meta_conversion_events USING btree (user_id);
+
+
+--
+-- Name: idx_openai_config_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_openai_config_user_id ON public.openai_config USING btree (user_id);
 
 
 --
@@ -2635,6 +3163,20 @@ CREATE UNIQUE INDEX webhook_message_dedup_unique ON public.webhook_message_dedup
 --
 
 CREATE UNIQUE INDEX whatsapp_chats_user_id_normalized_number_active_key ON public.whatsapp_chats USING btree (user_id, normalized_number) WHERE (deleted_at IS NULL);
+
+
+--
+-- Name: whatsapp_messages_chat_message_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX whatsapp_messages_chat_message_unique ON public.whatsapp_messages USING btree (chat_id, message_id);
+
+
+--
+-- Name: whatsapp_messages_message_id_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX whatsapp_messages_message_id_unique ON public.whatsapp_messages USING btree (message_id);
 
 
 --
@@ -2743,6 +3285,34 @@ CREATE TRIGGER update_google_ads_config_updated_at BEFORE UPDATE ON public.googl
 
 
 --
+-- Name: instagram_config update_instagram_config_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_instagram_config_updated_at BEFORE UPDATE ON public.instagram_config FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: instagram_fluxos update_instagram_fluxos_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_instagram_fluxos_updated_at BEFORE UPDATE ON public.instagram_fluxos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: instagram_formularios update_instagram_formularios_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_instagram_formularios_updated_at BEFORE UPDATE ON public.instagram_formularios FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: instagram_gatilhos update_instagram_gatilhos_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_instagram_gatilhos_updated_at BEFORE UPDATE ON public.instagram_gatilhos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
 -- Name: lead_status_custom update_lead_status_custom_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2768,6 +3338,13 @@ CREATE TRIGGER update_listas_extrator_updated_at BEFORE UPDATE ON public.listas_
 --
 
 CREATE TRIGGER update_mensagens_predefinidas_updated_at BEFORE UPDATE ON public.mensagens_predefinidas FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: meta_pixel_config update_meta_pixel_config_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_meta_pixel_config_updated_at BEFORE UPDATE ON public.meta_pixel_config FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -3140,6 +3717,38 @@ ALTER TABLE ONLY public.historico_leads
 
 
 --
+-- Name: instagram_formularios_respostas instagram_formularios_respostas_formulario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_formularios_respostas
+    ADD CONSTRAINT instagram_formularios_respostas_formulario_id_fkey FOREIGN KEY (formulario_id) REFERENCES public.instagram_formularios(id) ON DELETE CASCADE;
+
+
+--
+-- Name: instagram_gatilhos instagram_gatilhos_formulario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_gatilhos
+    ADD CONSTRAINT instagram_gatilhos_formulario_id_fkey FOREIGN KEY (formulario_id) REFERENCES public.instagram_formularios(id) ON DELETE SET NULL;
+
+
+--
+-- Name: instagram_mensagens instagram_mensagens_fluxo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_mensagens
+    ADD CONSTRAINT instagram_mensagens_fluxo_id_fkey FOREIGN KEY (fluxo_id) REFERENCES public.instagram_fluxos(id) ON DELETE SET NULL;
+
+
+--
+-- Name: instagram_mensagens instagram_mensagens_gatilho_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.instagram_mensagens
+    ADD CONSTRAINT instagram_mensagens_gatilho_id_fkey FOREIGN KEY (gatilho_id) REFERENCES public.instagram_gatilhos(id) ON DELETE SET NULL;
+
+
+--
 -- Name: leads leads_procedimento_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3169,6 +3778,30 @@ ALTER TABLE ONLY public.leads
 
 ALTER TABLE ONLY public.mensagens_predefinidas
     ADD CONSTRAINT mensagens_predefinidas_bloco_id_fkey FOREIGN KEY (bloco_id) REFERENCES public.blocos_mensagens_predefinidas(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_conversion_events meta_conversion_events_agendamento_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_conversion_events
+    ADD CONSTRAINT meta_conversion_events_agendamento_id_fkey FOREIGN KEY (agendamento_id) REFERENCES public.agendamentos(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_conversion_events meta_conversion_events_fatura_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_conversion_events
+    ADD CONSTRAINT meta_conversion_events_fatura_id_fkey FOREIGN KEY (fatura_id) REFERENCES public.faturas(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_conversion_events meta_conversion_events_lead_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_conversion_events
+    ADD CONSTRAINT meta_conversion_events_lead_id_fkey FOREIGN KEY (lead_id) REFERENCES public.leads(id) ON DELETE SET NULL;
 
 
 --
@@ -3340,6 +3973,22 @@ ALTER TABLE ONLY public.whatsapp_sync_status
 
 
 --
+-- Name: instagram_formularios_respostas Anyone can submit form responses; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Anyone can submit form responses" ON public.instagram_formularios_respostas FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.instagram_formularios f
+  WHERE ((f.id = instagram_formularios_respostas.formulario_id) AND (COALESCE(f.ativo, true) = true) AND (f.user_id = instagram_formularios_respostas.user_id)))));
+
+
+--
+-- Name: instagram_formularios Anyone can view active forms; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Anyone can view active forms" ON public.instagram_formularios FOR SELECT USING ((COALESCE(ativo, true) = true));
+
+
+--
 -- Name: whatsapp_sync_status Service can manage sync status; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -3351,6 +4000,13 @@ CREATE POLICY "Service can manage sync status" ON public.whatsapp_sync_status US
 --
 
 CREATE POLICY "Service role full access" ON public.avisos_enviados_log USING (true) WITH CHECK (true);
+
+
+--
+-- Name: instagram_interacoes Service role full access; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role full access" ON public.instagram_interacoes USING (true) WITH CHECK (true);
 
 
 --
@@ -3431,12 +4087,33 @@ CREATE POLICY "Users can create their own chat kanban assignments" ON public.dis
 
 
 --
+-- Name: agendamentos_excluidos_log Users can create their own deleted appointments logs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can create their own deleted appointments logs" ON public.agendamentos_excluidos_log FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: faturas_excluidas_log Users can create their own deleted invoices logs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can create their own deleted invoices logs" ON public.faturas_excluidas_log FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
 -- Name: fatura_upsells Users can create their own fatura_upsells; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can create their own fatura_upsells" ON public.fatura_upsells FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM public.faturas
   WHERE ((faturas.id = fatura_upsells.fatura_id) AND (faturas.user_id = auth.uid())))));
+
+
+--
+-- Name: instagram_formularios Users can create their own forms; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can create their own forms" ON public.instagram_formularios FOR INSERT WITH CHECK ((auth.uid() = user_id));
 
 
 --
@@ -3672,6 +4349,34 @@ CREATE POLICY "Users can delete own uazapi config" ON public.uazapi_config FOR D
 
 
 --
+-- Name: instagram_config Users can delete their own Instagram config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete their own Instagram config" ON public.instagram_config FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_fluxos Users can delete their own Instagram flows; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete their own Instagram flows" ON public.instagram_fluxos FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_gatilhos Users can delete their own Instagram triggers; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete their own Instagram triggers" ON public.instagram_gatilhos FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: openai_config Users can delete their own OpenAI config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete their own OpenAI config" ON public.openai_config FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
 -- Name: apify_config Users can delete their own apify config; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -3730,6 +4435,20 @@ CREATE POLICY "Users can delete their own chat kanban assignments" ON public.dis
 
 
 --
+-- Name: agendamentos_excluidos_log Users can delete their own deleted appointments logs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete their own deleted appointments logs" ON public.agendamentos_excluidos_log FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: faturas_excluidas_log Users can delete their own deleted invoices logs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete their own deleted invoices logs" ON public.faturas_excluidas_log FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
 -- Name: disparos_chats Users can delete their own disparos chats; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -3753,6 +4472,13 @@ CREATE POLICY "Users can delete their own fatura_upsells" ON public.fatura_upsel
 
 
 --
+-- Name: instagram_formularios Users can delete their own forms; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete their own forms" ON public.instagram_formularios FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
 -- Name: disparos_kanban_columns Users can delete their own kanban columns; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -3764,6 +4490,13 @@ CREATE POLICY "Users can delete their own kanban columns" ON public.disparos_kan
 --
 
 CREATE POLICY "Users can delete their own lists" ON public.listas_extrator FOR DELETE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: meta_pixel_config Users can delete their own pixel config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete their own pixel config" ON public.meta_pixel_config FOR DELETE USING ((auth.uid() = user_id));
 
 
 --
@@ -3966,10 +4699,59 @@ CREATE POLICY "Users can insert own uazapi config" ON public.uazapi_config FOR I
 
 
 --
+-- Name: instagram_config Users can insert their own Instagram config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own Instagram config" ON public.instagram_config FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_fluxos Users can insert their own Instagram flows; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own Instagram flows" ON public.instagram_fluxos FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_mensagens Users can insert their own Instagram messages; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own Instagram messages" ON public.instagram_mensagens FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_gatilhos Users can insert their own Instagram triggers; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own Instagram triggers" ON public.instagram_gatilhos FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: openai_config Users can insert their own OpenAI config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own OpenAI config" ON public.openai_config FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
 -- Name: disparos_campanhas Users can insert their own campaigns; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can insert their own campaigns" ON public.disparos_campanhas FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: meta_conversion_events Users can insert their own conversion events; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own conversion events" ON public.meta_conversion_events FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: agendamentos_excluidos_log Users can insert their own deleted appointments logs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own deleted appointments logs" ON public.agendamentos_excluidos_log FOR INSERT WITH CHECK ((auth.uid() = user_id));
 
 
 --
@@ -3987,10 +4769,24 @@ CREATE POLICY "Users can insert their own disparos config" ON public.disparos_co
 
 
 --
+-- Name: instagram_interacoes Users can insert their own interactions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own interactions" ON public.instagram_interacoes FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
 -- Name: avisos_enviados_log Users can insert their own logs; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can insert their own logs" ON public.avisos_enviados_log FOR INSERT WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: meta_pixel_config Users can insert their own pixel config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert their own pixel config" ON public.meta_pixel_config FOR INSERT WITH CHECK ((auth.uid() = user_id));
 
 
 --
@@ -4189,6 +4985,34 @@ CREATE POLICY "Users can update own uazapi config" ON public.uazapi_config FOR U
 
 
 --
+-- Name: instagram_config Users can update their own Instagram config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update their own Instagram config" ON public.instagram_config FOR UPDATE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_fluxos Users can update their own Instagram flows; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update their own Instagram flows" ON public.instagram_fluxos FOR UPDATE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_gatilhos Users can update their own Instagram triggers; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update their own Instagram triggers" ON public.instagram_gatilhos FOR UPDATE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: openai_config Users can update their own OpenAI config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update their own OpenAI config" ON public.openai_config FOR UPDATE USING ((auth.uid() = user_id));
+
+
+--
 -- Name: apify_config Users can update their own apify config; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -4261,6 +5085,20 @@ CREATE POLICY "Users can update their own fatura_upsells" ON public.fatura_upsel
 
 
 --
+-- Name: instagram_formularios Users can update their own forms; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update their own forms" ON public.instagram_formularios FOR UPDATE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_interacoes Users can update their own interactions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update their own interactions" ON public.instagram_interacoes FOR UPDATE USING ((auth.uid() = user_id));
+
+
+--
 -- Name: disparos_kanban_columns Users can update their own kanban columns; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -4279,6 +5117,13 @@ CREATE POLICY "Users can update their own lists" ON public.listas_extrator FOR U
 --
 
 CREATE POLICY "Users can update their own personalization config" ON public.personalizacao_config FOR UPDATE USING ((auth.uid() = user_id));
+
+
+--
+-- Name: meta_pixel_config Users can update their own pixel config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update their own pixel config" ON public.meta_pixel_config FOR UPDATE USING ((auth.uid() = user_id));
 
 
 --
@@ -4558,6 +5403,48 @@ CREATE POLICY "Users can view own webhook dedup" ON public.webhook_message_dedup
 
 
 --
+-- Name: instagram_formularios_respostas Users can view their form submissions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their form submissions" ON public.instagram_formularios_respostas FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_config Users can view their own Instagram config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own Instagram config" ON public.instagram_config FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_fluxos Users can view their own Instagram flows; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own Instagram flows" ON public.instagram_fluxos FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_mensagens Users can view their own Instagram messages; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own Instagram messages" ON public.instagram_mensagens FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_gatilhos Users can view their own Instagram triggers; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own Instagram triggers" ON public.instagram_gatilhos FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: openai_config Users can view their own OpenAI config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own OpenAI config" ON public.openai_config FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
 -- Name: apify_config Users can view their own apify config; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -4616,6 +5503,34 @@ CREATE POLICY "Users can view their own chat kanban assignments" ON public.dispa
 
 
 --
+-- Name: meta_conversion_events Users can view their own conversion events; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own conversion events" ON public.meta_conversion_events FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: agendamentos_excluidos_log Users can view their own deleted appointments; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own deleted appointments" ON public.agendamentos_excluidos_log FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: agendamentos_excluidos_log Users can view their own deleted appointments logs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own deleted appointments logs" ON public.agendamentos_excluidos_log FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: faturas_excluidas_log Users can view their own deleted invoices; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own deleted invoices" ON public.faturas_excluidas_log FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
 -- Name: disparos_chats Users can view their own disparos chats; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -4636,6 +5551,20 @@ CREATE POLICY "Users can view their own disparos config" ON public.disparos_conf
 CREATE POLICY "Users can view their own fatura_upsells" ON public.fatura_upsells FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.faturas
   WHERE ((faturas.id = fatura_upsells.fatura_id) AND (faturas.user_id = auth.uid())))));
+
+
+--
+-- Name: instagram_formularios Users can view their own forms; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own forms" ON public.instagram_formularios FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: instagram_interacoes Users can view their own interactions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own interactions" ON public.instagram_interacoes FOR SELECT USING ((auth.uid() = user_id));
 
 
 --
@@ -4664,6 +5593,13 @@ CREATE POLICY "Users can view their own logs" ON public.avisos_enviados_log FOR 
 --
 
 CREATE POLICY "Users can view their own personalization config" ON public.personalizacao_config FOR SELECT USING ((auth.uid() = user_id));
+
+
+--
+-- Name: meta_pixel_config Users can view their own pixel config; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view their own pixel config" ON public.meta_pixel_config FOR SELECT USING ((auth.uid() = user_id));
 
 
 --
@@ -4721,6 +5657,12 @@ ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.agendamentos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: agendamentos_excluidos_log; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.agendamentos_excluidos_log ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: ai_ads_reports; Type: ROW SECURITY; Schema: public; Owner: -
@@ -4891,6 +5833,12 @@ ALTER TABLE public.fatura_upsells ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.faturas ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: faturas_excluidas_log; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.faturas_excluidas_log ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: google_ads_accounts; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -4907,6 +5855,48 @@ ALTER TABLE public.google_ads_config ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.historico_leads ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: instagram_config; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.instagram_config ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: instagram_fluxos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.instagram_fluxos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: instagram_formularios; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.instagram_formularios ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: instagram_formularios_respostas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.instagram_formularios_respostas ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: instagram_gatilhos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.instagram_gatilhos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: instagram_interacoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.instagram_interacoes ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: instagram_mensagens; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.instagram_mensagens ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: lead_status_custom; Type: ROW SECURITY; Schema: public; Owner: -
@@ -4933,10 +5923,28 @@ ALTER TABLE public.listas_extrator ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mensagens_predefinidas ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: meta_conversion_events; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.meta_conversion_events ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: meta_pixel_config; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.meta_pixel_config ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: metricas_preferencias; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.metricas_preferencias ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: openai_config; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.openai_config ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: personalizacao_config; Type: ROW SECURITY; Schema: public; Owner: -
