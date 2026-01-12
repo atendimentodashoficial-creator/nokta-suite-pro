@@ -468,15 +468,37 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   // IMPORTANT: we do NOT fetch message history from the provider automatically.
   // Messages should come from the database (populated by webhooks) to avoid resurrecting deleted history.
 
-  // Manual refresh (DB only)
+  // Manual refresh (will backfill from provider into DB, then reload DB)
   const syncMessagesFromApi = async () => {
     setIsLoadingMessages(true);
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        return;
+      }
+
+      // Best-effort: fetch from provider and persist messages into DB.
+      // This helps recover messages when webhooks failed previously.
+      await supabase.functions.invoke('uazapi-get-messages', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          chatid: chat.chat_id,
+          limit: 200,
+          offset: 0,
+          persist: true,
+        },
+      });
+
       await loadMessages(true);
       toast.success('Mensagens atualizadas');
     } catch (error: any) {
       console.error('Error refreshing messages:', error);
-      toast.error('Erro ao atualizar mensagens');
+      const msg = await getInvokeErrorMessage(error, 'Erro ao atualizar mensagens');
+      toast.error(msg);
     } finally {
       setIsLoadingMessages(false);
     }
