@@ -52,8 +52,18 @@ serve(async (req) => {
     if (historyClearedAt) {
       console.log('History was cleared - returning only database messages (skipping UAZapi)');
       
-      // Just return success - the frontend will load from DB directly
-      return new Response(JSON.stringify({ success: true, count: 0, skipped: true }), {
+      // Get message count from DB so frontend knows if there are messages
+      const { count } = await supabase
+        .from('disparos_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('chat_id', db_chat_id);
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        count: count || 0, 
+        skipped: true,
+        db_only: true 
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
