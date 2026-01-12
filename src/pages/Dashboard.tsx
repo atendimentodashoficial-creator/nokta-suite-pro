@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo, useEffect } from "react";
 import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toZonedTime } from "date-fns-tz";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -93,9 +94,12 @@ export default function Dashboard() {
 
   // Filtrar dados por período
   const dadosFiltrados = useMemo(() => {
+    const TIMEZONE = "America/Sao_Paulo";
+    
     const leads = allLeads?.filter(lead => {
       if (!dataInicial && !dataFinal) return true;
-      const leadDate = new Date(lead.created_at);
+      // Converter UTC para Brasília para comparar com filtros locais
+      const leadDate = toZonedTime(new Date(lead.created_at), TIMEZONE);
       if (dataInicial && leadDate < dataInicial) return false;
       if (dataFinal && leadDate > dataFinal) return false;
       return true;
@@ -103,7 +107,7 @@ export default function Dashboard() {
 
     const clientesFiltrados = clientes?.filter(cliente => {
       if (!dataInicial && !dataFinal) return true;
-      const clienteDate = new Date(cliente.created_at);
+      const clienteDate = toZonedTime(new Date(cliente.created_at), TIMEZONE);
       if (dataInicial && clienteDate < dataInicial) return false;
       if (dataFinal && clienteDate > dataFinal) return false;
       return true;
@@ -169,7 +173,8 @@ export default function Dashboard() {
     const agendsRegistrados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
       if (!dataInicial && !dataFinal) return true;
-      const agDate = new Date(ag.created_at);
+      // Converter UTC para Brasília para comparar com filtros locais
+      const agDate = toZonedTime(new Date(ag.created_at), TIMEZONE);
       if (dataInicial && agDate < dataInicial) return false;
       if (dataFinal && agDate > dataFinal) return false;
       return true;
@@ -179,7 +184,8 @@ export default function Dashboard() {
     const agendsRealizados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
       if (!dataInicial && !dataFinal) return true;
-      const agDate = new Date(ag.data_agendamento);
+      // data_agendamento também é timestamp UTC
+      const agDate = toZonedTime(new Date(ag.data_agendamento), TIMEZONE);
       if (dataInicial && agDate < dataInicial) return false;
       if (dataFinal && agDate > dataFinal) return false;
       return true;
