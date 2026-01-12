@@ -174,6 +174,8 @@ serve(async (req) => {
     // to only CREATE new chats if they have messages after instance connection
     const validChats = chats.filter((chat: any) => {
       if (chat.wa_isGroup || !chat.phone) return false;
+      // Skip WhatsApp Business @lid identifiers - these are internal IDs, not real phone numbers
+      if (chat.phone.includes("@lid")) return false;
       return true;
     });
 
