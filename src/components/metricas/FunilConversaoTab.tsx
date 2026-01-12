@@ -644,6 +644,22 @@ export function FunilConversaoTab() {
         return d >= startOfPeriod && d <= endOfPeriod ? d.getTime() : null;
       };
 
+      // Helper especial para campos de data pura (sem hora) como data_fatura
+      // Datas puras vêm no formato "YYYY-MM-DD" e devem ser comparadas 
+      // como se fossem do timezone local (Brasília), não UTC
+      const periodTsForDate = (dateStr: string | null | undefined) => {
+        if (!dateStr) return null;
+        // Se for uma data pura (YYYY-MM-DD), criar a data no timezone local
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const d = new Date(year, month - 1, day, 12, 0, 0, 0); // Meio-dia local para evitar problemas
+          if (Number.isNaN(d.getTime())) return null;
+          return d >= startOfPeriod && d <= endOfPeriod ? d.getTime() : null;
+        }
+        // Fallback para timestamps completos
+        return periodTs(dateStr);
+      };
+
       // Criar set de clientes que têm fatura (para validar agendamentos "realizado")
       const clientesComFatura = new Set<string>();
       faturas?.forEach((f) => {
@@ -722,8 +738,10 @@ export function FunilConversaoTab() {
         if (!phone) return;
 
         // Usar data_fatura se preenchida, senão fallback para created_at
-        const dataReferencia = f.data_fatura || f.created_at;
-        const tsFatura = periodTs(dataReferencia);
+        // Para data_fatura (campo date), usar periodTsForDate para tratar timezone corretamente
+        const tsFatura = f.data_fatura 
+          ? periodTsForDate(f.data_fatura) 
+          : periodTs(f.created_at);
 
         // Fatura entra no período se sua data de referência está no período
         if (tsFatura !== null) {
@@ -942,8 +960,10 @@ export function FunilConversaoTab() {
         if (!phone) return;
         
         // Usar data_fatura se preenchida, senão fallback para created_at
-        const dataReferencia = f.data_fatura || f.created_at;
-        const tsFatura = periodTs(dataReferencia);
+        // Para data_fatura (campo date), usar periodTsForDate para tratar timezone corretamente
+        const tsFatura = f.data_fatura 
+          ? periodTsForDate(f.data_fatura) 
+          : periodTs(f.created_at);
 
         if (f.status === "negociacao" && tsFatura !== null) {
           // Pegar o MAIS RECENTE
