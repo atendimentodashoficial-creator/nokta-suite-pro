@@ -315,10 +315,74 @@ serve(async (req) => {
           nextProviderBaseline = providerUnread;
         }
 
-        // With hard delete, if chat doesn't exist, it's been deleted and we shouldn't recreate it during sync
-        // New chats only come via webhook when contact sends a new message
+        // Check if this chat was previously deleted (tombstone exists)
+        const { data: tombstone } = await supabase
+          .from("disparos_chat_deletions")
+          .select("deleted_at")
+          .eq("user_id", user.id)
+          .eq("instancia_id", instanciaId)
+          .eq("phone_last8", last8)
+          .maybeSingle();
+
+        // If chat doesn't exist, create it (unless there's a tombstone with no new messages after deletion)
         if (!existingChat) {
-          console.log(`[SYNC] Skipping ${contactNumber} for instance ${config.nome} - new chats only created via webhook`);
+          // If there's a tombstone, only create if last message is AFTER deletion
+          if (tombstone) {
+            const deletedAt = new Date(tombstone.deleted_at);
+            if (!lastMsgTime || lastMsgTime <= deletedAt) {
+              console.log(`[SYNC] Skipping ${contactNumber} - deleted at ${deletedAt.toISOString()}, last msg at ${lastMsgTime?.toISOString() || 'none'}`);
+              continue;
+            }
+            console.log(`[SYNC] Creating chat ${contactNumber} - new message after deletion`);
+          } else {
+            // No tombstone and no existing chat - this is a new conversation from the phone
+            // Only create if it has a message timestamp (to avoid empty chats)
+            if (!lastMsgTime) {
+              console.log(`[SYNC] Skipping ${contactNumber} - no last message timestamp`);
+              continue;
+            }
+            // Also check if the message is recent (within last 30 days) to avoid old history
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            if (lastMsgTime < thirtyDaysAgo) {
+              console.log(`[SYNC] Skipping ${contactNumber} - last message too old (${lastMsgTime.toISOString()})`);
+              continue;
+            }
+            console.log(`[SYNC] Creating new chat ${contactNumber} from phone sync`);
+          }
+          
+          // Create the new chat with history_cleared_at if it was deleted
+          const { error: insertError } = await supabase
+            .from("disparos_chats")
+            .insert({
+              user_id: user.id,
+              chat_id: chatId,
+              contact_name: contactName,
+              contact_number: contactNumber,
+              normalized_number: normalizedNumber,
+              profile_pic_url: chat.imagePreview || null,
+              last_message: lastMessage || null,
+              last_message_time: lastMsgTime ? lastMsgTime.toISOString() : null,
+              unread_count: providerUnread,
+              provider_unread_count: providerUnread,
+              provider_unread_baseline: 0,
+              instancia_id: instanciaId,
+              instancia_nome: config.nome,
+              history_cleared_at: tombstone ? tombstone.deleted_at : null,
+            });
+          
+          if (insertError) {
+            console.error(`[SYNC] Error creating chat ${contactNumber}:`, insertError);
+          } else {
+            // Remove tombstone after successful creation
+            if (tombstone) {
+              await supabase
+                .from("disparos_chat_deletions")
+                .delete()
+                .eq("user_id", user.id)
+                .eq("instancia_id", instanciaId)
+                .eq("phone_last8", last8);
+            }
+          }
           continue;
         }
 
