@@ -37,6 +37,7 @@ export default function Agenda() {
     procedimentoId?: string;
     profissionalId?: string;
     agendamentoId?: string;
+    dataAgendamento?: string;
   } | null>(null);
   const [novaFaturaOpen, setNovaFaturaOpen] = useState(false);
   const [filtroProfissional, setFiltroProfissional] = useState<string>("all");
@@ -177,7 +178,8 @@ export default function Agenda() {
       nome: agendamento.leads?.nome || "Cliente",
       procedimentoId: agendamento.procedimento_id,
       profissionalId: agendamento.profissional_id,
-      agendamentoId: agendamento.id
+      agendamentoId: agendamento.id,
+      dataAgendamento: agendamento.data_agendamento
     });
     setNovaFaturaOpen(true);
   };
@@ -455,7 +457,7 @@ export default function Agenda() {
         onOpenChange={(open) => !open && setAgendamentoSelecionado(null)}
       />
 
-      {clienteParaFatura && <NovaFaturaDialog clienteId={clienteParaFatura.id} clienteNome={clienteParaFatura.nome} procedimentoId={clienteParaFatura.procedimentoId} profissionalId={clienteParaFatura.profissionalId} agendamentoId={clienteParaFatura.agendamentoId} open={novaFaturaOpen} onOpenChange={open => {
+      {clienteParaFatura && <NovaFaturaDialog clienteId={clienteParaFatura.id} clienteNome={clienteParaFatura.nome} procedimentoId={clienteParaFatura.procedimentoId} profissionalId={clienteParaFatura.profissionalId} agendamentoId={clienteParaFatura.agendamentoId} dataAgendamento={clienteParaFatura.dataAgendamento} open={novaFaturaOpen} onOpenChange={open => {
       setNovaFaturaOpen(open);
       if (!open) setClienteParaFatura(null);
     }} />}
