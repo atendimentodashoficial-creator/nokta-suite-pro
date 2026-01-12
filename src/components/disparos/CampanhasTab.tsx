@@ -26,6 +26,7 @@ interface Campanha {
   iniciado_em: string | null;
   finalizado_em: string | null;
   created_at: string;
+  next_send_at: string | null;
 }
 
 interface CampanhasTabProps {
@@ -91,6 +92,45 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
       supabase.removeChannel(channel);
     };
   }, [user?.id]);
+
+  // Polling for long-delay campaigns (delay >= 60s)
+  // This triggers 'continue' action when next_send_at expires
+  useEffect(() => {
+    const checkAndContinueCampaigns = async () => {
+      const runningCampaignsWithSchedule = campanhas.filter(
+        c => c.status === "running" && c.next_send_at && c.delay_min >= 60
+      );
+
+      for (const campanha of runningCampaignsWithSchedule) {
+        const nextSendTime = new Date(campanha.next_send_at!).getTime();
+        const now = Date.now();
+
+        if (now >= nextSendTime) {
+          console.log(`[Polling] Campaign ${campanha.nome}: next_send_at expired, triggering continue...`);
+          
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) continue;
+
+            await supabase.functions.invoke("disparos-campanha-control", {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+              body: { campanha_id: campanha.id, action: "continue" }
+            });
+          } catch (error) {
+            console.error(`[Polling] Error continuing campaign ${campanha.id}:`, error);
+          }
+        }
+      }
+    };
+
+    // Check every 30 seconds for campaigns that need to continue
+    const interval = setInterval(checkAndContinueCampaigns, 30000);
+    
+    // Also check immediately when campanhas change
+    checkAndContinueCampaigns();
+
+    return () => clearInterval(interval);
+  }, [campanhas]);
 
   const handleStartCampanha = async (campanhaId: string) => {
     setActionLoading(campanhaId);
@@ -449,9 +489,17 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
               {(campanha.status === "running" || campanha.status === "completed") && (
                 <div className="space-y-1">
                   <Progress value={progress} className="h-2" />
-                  <p className="text-xs text-muted-foreground">
-                    {Math.round(progress)}% concluído
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {Math.round(progress)}% concluído
+                    </p>
+                    {campanha.status === "running" && campanha.next_send_at && campanha.delay_min >= 60 && (
+                      <p className="text-xs text-blue-500 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Próximo envio: {format(new Date(campanha.next_send_at), "HH:mm:ss", { locale: ptBR })}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 

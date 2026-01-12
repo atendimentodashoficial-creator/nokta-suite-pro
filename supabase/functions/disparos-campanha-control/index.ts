@@ -9,9 +9,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Batch processing constants
-const BATCH_SIZE = 10; // Process 10 contacts per execution
-const MAX_EXECUTION_TIME_MS = 120000; // 120 seconds (2 min safety margin before 150s limit)
+// For short delays (<60s), process multiple contacts per execution
+// For long delays (>=60s), process only 1 contact and schedule next via timestamp
+const MAX_SHORT_DELAY_SECONDS = 60;
+const MAX_EXECUTION_TIME_MS = 120000; // 120 seconds safety margin
 
 interface DisparosInstancia {
   id: string;
@@ -158,6 +159,24 @@ serve(async (req) => {
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+
+        // Check if we need to wait before sending next message
+        if (campanha.next_send_at) {
+          const nextSendTime = new Date(campanha.next_send_at).getTime();
+          const now = Date.now();
+          if (now < nextSendTime) {
+            const waitSeconds = Math.ceil((nextSendTime - now) / 1000);
+            console.log(`Campaign ${campanha_id}: Next send scheduled in ${waitSeconds}s, skipping this call`);
+            return new Response(
+              JSON.stringify({ 
+                success: true, 
+                message: `Aguardando delay - próximo envio em ${waitSeconds}s`,
+                next_send_at: campanha.next_send_at
+              }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
       }
 
       // Update campaign status (only set iniciado_em on first start)
@@ -166,7 +185,8 @@ serve(async (req) => {
           .from("disparos_campanhas")
           .update({
             status: "running",
-            iniciado_em: campanha.iniciado_em || new Date().toISOString()
+            iniciado_em: campanha.iniciado_em || new Date().toISOString(),
+            next_send_at: null // Clear any previous scheduling
           })
           .eq("id", campanha_id);
       } else {
@@ -196,7 +216,8 @@ serve(async (req) => {
           .from("disparos_campanhas")
           .update({
             status: "completed",
-            finalizado_em: new Date().toISOString()
+            finalizado_em: new Date().toISOString(),
+            next_send_at: null
           })
           .eq("id", campanha_id);
 
@@ -211,7 +232,7 @@ serve(async (req) => {
         );
       }
 
-      // Process contacts in background with multiple instances
+      // Process contacts in background
       EdgeRuntime.waitUntil(processCampaign(
         supabase,
         instancias,
@@ -234,7 +255,10 @@ serve(async (req) => {
     if (action === "pause") {
       await supabase
         .from("disparos_campanhas")
-        .update({ status: "paused" })
+        .update({ 
+          status: "paused",
+          next_send_at: null // Clear scheduling when paused
+        })
         .eq("id", campanha_id);
 
       return new Response(
@@ -348,84 +372,74 @@ async function createLeadFromCampaign(
       .single();
 
     if (insertError) {
-      // Ignore duplicate key errors (race condition)
-      if (insertError.code !== '23505') {
-        console.error("Error creating lead from campaign:", insertError);
-      }
-      return;
+      console.error("Error creating lead:", insertError);
+    } else {
+      console.log(`Created new lead for ${numero}:`, newLead?.id);
     }
-
-    console.log(`Created lead from campaign: ${newLead.id} for ${normalizedNumber} (instancia: ${instanciaNome})`);
   } catch (error: any) {
-    console.error("Error in createLeadFromCampaign:", error);
+    console.error("Error in createLeadFromCampaign:", error.message);
   }
 }
 
+// Create or update chat record for tracking conversation
 async function createOrUpdateChat(
   supabase: any,
   userId: string,
   numero: string,
   nome: string | null,
   instancia: DisparosInstancia
-): Promise<string | null> {
-  try {
-    const digits = await normalizePhoneNumber(numero);
-    const normalizedNumber = ensureBrazilCountryCode(digits);
-    const last8Digits = normalizedNumber.slice(-8);
-    const chatId = `${normalizedNumber}@s.whatsapp.net`;
+): Promise<string> {
+  const digits = numero.replace(/\D/g, "");
+  const normalizedNumber = ensureBrazilCountryCode(digits);
+  const chatId = `${normalizedNumber}@s.whatsapp.net`;
 
-    // Check if chat already exists for this instance
-    const { data: existingChats, error: existingError } = await supabase
+  // Check if chat already exists for this instance
+  const { data: existingChat } = await supabase
+    .from("disparos_chats")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("chat_id", chatId)
+    .eq("instancia_id", instancia.id)
+    .maybeSingle();
+
+  if (existingChat) {
+    // Update existing chat
+    await supabase
       .from("disparos_chats")
-      .select("id, normalized_number, deleted_at")
-      .eq("user_id", userId)
-      .eq("instancia_id", instancia.id)
-      .is("deleted_at", null);
-
-    if (existingError) {
-      console.error("Error checking existing chats:", existingError);
-    }
-
-    // Find by last 8 digits
-    const existingChat = existingChats?.find((c: any) =>
-      String(c.normalized_number || "").replace(/\D/g, "").slice(-8) === last8Digits
-    );
-
-    if (existingChat) {
-      return existingChat.id;
-    }
-
-    // Create new chat
-    const { data: newChat, error } = await supabase
-      .from("disparos_chats")
-      .insert({
-        user_id: userId,
-        chat_id: chatId,
-        contact_number: normalizedNumber,
-        contact_name: nome || normalizedNumber,
-        normalized_number: normalizedNumber,
-        instancia_id: instancia.id,
-        instancia_nome: instancia.nome,
-        last_message: null,
-        last_message_time: new Date().toISOString(),
-        unread_count: 0,
+      .update({
+        contact_name: nome || `Contato ${normalizedNumber}`,
+        updated_at: new Date().toISOString(),
+        deleted_at: null, // Restore if was deleted
       })
-      .select("id")
-      .single();
-
-    if (error) {
-      console.error("Error creating chat:", error);
-      return null;
-    }
-
-    console.log(`Created new chat ${newChat.id} for ${normalizedNumber} on instance ${instancia.nome}`);
-    return newChat.id;
-  } catch (error: any) {
-    console.error("Error in createOrUpdateChat:", error);
-    return null;
+      .eq("id", existingChat.id);
+    return existingChat.id;
   }
+
+  // Create new chat
+  const { data: newChat, error } = await supabase
+    .from("disparos_chats")
+    .insert({
+      user_id: userId,
+      chat_id: chatId,
+      contact_name: nome || `Contato ${normalizedNumber}`,
+      contact_number: numero,
+      normalized_number: normalizedNumber,
+      instancia_id: instancia.id,
+      instancia_nome: instancia.nome,
+      last_message_time: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error creating chat:", error);
+    throw error;
+  }
+
+  return newChat.id;
 }
 
+// Save message to chat history
 async function saveMessageToChat(
   supabase: any,
   chatDbId: string,
@@ -433,46 +447,27 @@ async function saveMessageToChat(
   mediaType: string | null,
   mediaUrl: string | null
 ): Promise<void> {
-  try {
-    const messageId = `camp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    const now = new Date().toISOString();
-    const mediaTypeToSave = (mediaType || "text") as any;
-    const contentToSave = content || (mediaTypeToSave !== "text" ? `[${mediaTypeToSave}]` : "");
+  const messageId = `sent_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  
+  await supabase.from("disparos_messages").insert({
+    chat_id: chatDbId,
+    message_id: messageId,
+    content: content,
+    sender_type: "sent",
+    timestamp: new Date().toISOString(),
+    media_type: mediaType === "text" ? null : mediaType,
+    media_url: mediaUrl,
+  });
 
-    const { error: insertError } = await supabase
-      .from("disparos_messages")
-      .insert({
-        chat_id: chatDbId,
-        message_id: messageId,
-        content: contentToSave,
-        sender_type: "agent",
-        media_type: mediaTypeToSave,
-        media_url: mediaUrl,
-        timestamp: now,
-        status: "sent",
-        deleted: false,
-      });
-
-    if (insertError) {
-      console.error("Error inserting disparos_messages:", insertError);
-      // Don't return; still try to update the chat card so UI reflects activity.
-    }
-
-    const { error: chatUpdateError } = await supabase
-      .from("disparos_chats")
-      .update({
-        last_message: contentToSave,
-        last_message_time: now,
-        updated_at: now,
-      })
-      .eq("id", chatDbId);
-
-    if (chatUpdateError) {
-      console.error("Error updating disparos_chats last message:", chatUpdateError);
-    }
-  } catch (error: any) {
-    console.error("Error saving message to chat:", error);
-  }
+  // Update chat's last message
+  await supabase
+    .from("disparos_chats")
+    .update({
+      last_message: content,
+      last_message_time: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", chatDbId);
 }
 
 /**
@@ -522,12 +517,17 @@ async function processCampaign(
   let falhas = campanha.falhas || 0;
   let processedCount = 0;
 
+  // Determine if we're in "long delay" mode (>=60s between contacts)
+  const isLongDelayMode = campanha.delay_min >= MAX_SHORT_DELAY_SECONDS;
+  const batchSize = isLongDelayMode ? 1 : 10; // Only 1 contact per execution for long delays
+  
+  console.log(`Delay mode: ${isLongDelayMode ? 'LONG' : 'SHORT'} (delay_min=${campanha.delay_min}s), batch size: ${batchSize}`);
+
   // Get block delay config (default to 3-8 seconds if not set)
   const delayBlocoMin = campanha.delay_bloco_min ?? 3;
   const delayBlocoMax = campanha.delay_bloco_max ?? 8;
 
   // Smart instance rotation tracking - PERSISTED across batches
-  // Load previous state from database to continue where we left off
   const persistedState: Record<string, { sends: number; lastSendAt: number }> = 
     (campanha.instance_rotation_state && typeof campanha.instance_rotation_state === 'object') 
       ? campanha.instance_rotation_state 
@@ -542,7 +542,7 @@ async function processCampaign(
     });
   }
   
-  // Track the last used instance - loaded from DB to avoid consecutive repeats across batches
+  // Track the last used instance
   let lastUsedInstanceId: string | null = campanha.last_instance_id || null;
   
   console.log(`[Rotation State] Loaded: lastUsedInstanceId=${lastUsedInstanceId}, stats=${JSON.stringify(persistedState)}`);
@@ -566,11 +566,7 @@ async function processCampaign(
   }
 
   /**
-   * Smart instance selection algorithm:
-   * 1. Never pick the same instance twice in a row (if multiple available)
-   * 2. Prioritize instances with fewer sends in campaign total
-   * 3. Among ties, prioritize the one that sent longest ago
-   * 4. Add slight randomness to avoid predictable patterns
+   * Smart instance selection algorithm
    */
   function selectNextInstance(): DisparosInstancia {
     if (instancias.length === 1) {
@@ -586,7 +582,6 @@ async function processCampaign(
     const availableInstances = instancias.filter(inst => inst.id !== lastUsedInstanceId);
     
     if (availableInstances.length === 0) {
-      // Fallback (shouldn't happen with multiple instances)
       const inst = instancias[0];
       const stats = instanceStats.get(inst.id)!;
       stats.sends++;
@@ -598,11 +593,11 @@ async function processCampaign(
     // Score each instance: lower score = better candidate
     const scored = availableInstances.map(inst => {
       const stats = instanceStats.get(inst.id)!;
-      const sendScore = stats.sends * 1000; // Heavy weight on total send count
+      const sendScore = stats.sends * 1000;
       const timeScore = stats.lastSendTime > 0 
-        ? Math.max(0, 500 - (Date.now() - stats.lastSendTime) / 100) // Favor older last sends
-        : 0; // Never sent = best time score
-      const randomFactor = Math.random() * 50; // Small randomness to break ties unpredictably
+        ? Math.max(0, 500 - (Date.now() - stats.lastSendTime) / 100)
+        : 0;
+      const randomFactor = Math.random() * 50;
       
       return {
         instance: inst,
@@ -610,12 +605,10 @@ async function processCampaign(
       };
     });
 
-    // Sort by score (ascending) and pick the best
     scored.sort((a, b) => a.score - b.score);
     
     const selected = scored[0].instance;
     
-    // Update tracking
     const stats = instanceStats.get(selected.id)!;
     stats.sends++;
     stats.lastSendTime = Date.now();
@@ -635,10 +628,28 @@ async function processCampaign(
     }
 
     // Check if we've processed enough contacts for this batch
-    if (processedCount >= BATCH_SIZE) {
-      console.log(`Batch size limit reached (${processedCount} contacts), saving state and scheduling next batch...`);
+    if (processedCount >= batchSize) {
+      console.log(`Batch size limit reached (${processedCount} contacts), saving state...`);
       await saveRotationState();
-      await scheduleNextBatch(campanha.id);
+      
+      // For long delays, set next_send_at and DON'T schedule immediately
+      if (isLongDelayMode) {
+        const delaySeconds = Math.random() * (campanha.delay_max - campanha.delay_min) + campanha.delay_min;
+        const nextSendAt = new Date(Date.now() + delaySeconds * 1000).toISOString();
+        
+        await supabase
+          .from("disparos_campanhas")
+          .update({ next_send_at: nextSendAt })
+          .eq("id", campanha.id);
+        
+        const delayMinutes = Math.floor(delaySeconds / 60);
+        const delayRemainingSecs = Math.round(delaySeconds % 60);
+        console.log(`Long delay mode: Next send scheduled at ${nextSendAt} (in ${delayMinutes}min ${delayRemainingSecs}s)`);
+        console.log(`Frontend polling will call 'continue' action after delay expires`);
+      } else {
+        // For short delays, schedule next batch immediately
+        await scheduleNextBatch(campanha.id);
+      }
       return;
     }
 
@@ -651,7 +662,7 @@ async function processCampaign(
 
     if (currentCampanha?.status !== "running") {
       console.log(`Campaign ${campanha.id} was paused/stopped`);
-      return; // Don't schedule next batch if paused
+      return;
     }
 
     // Select instance using smart rotation algorithm
@@ -659,8 +670,6 @@ async function processCampaign(
     
     console.log(`[Smart Rotation] Selected instance: ${currentInstance.nome} (sends in batch: ${instanceStats.get(currentInstance.id)!.sends})`);
 
-
-    // Chat will only be created after first successful message
     let chatDbId: string | null = null;
     let allBlocksSuccess = true;
     let lastError = "";
@@ -679,14 +688,14 @@ async function processCampaign(
         // Prepare message with variable substitution
         let mensagem = randomVariacao.mensagem || "";
         
-        // First, replace {nome} variable (case insensitive, before spintax processing)
+        // First, replace {nome} variable
         if (contato.nome) {
           mensagem = mensagem.replace(/\{nome\}/gi, contato.nome);
         } else {
           mensagem = mensagem.replace(/\{nome\}/gi, "");
         }
         
-        // Then, process spintax variations like {option1|option2|option3}
+        // Then, process spintax variations
         mensagem = processSpintax(mensagem);
 
         // Send message based on type
@@ -780,13 +789,12 @@ async function processCampaign(
             chatDbId,
             mensagem || (mediaType !== "text" ? `[${mediaType}]` : ""),
             mediaType,
-            null // We don't have media URL from base64, just store as null
+            null
           );
         }
 
         // Add variable delay between blocks (if not the last block)
         if (blocoIndex < blocos.length - 1) {
-          // Use continuous random to get any value in the range (e.g., 3.5s, 5.2s, etc.)
           const blocoDelaySeconds = Math.random() * (delayBlocoMax - delayBlocoMin) + delayBlocoMin;
           const blocoDelay = Math.round(blocoDelaySeconds * 1000);
           console.log(`[${currentInstance.nome}] Waiting ${blocoDelaySeconds.toFixed(1)}s before next block...`);
@@ -797,7 +805,6 @@ async function processCampaign(
         console.error(`[${currentInstance.nome}] Error sending block ${blocoIndex + 1} to ${contato.numero}:`, error.message);
         allBlocksSuccess = false;
         lastError = `[${currentInstance.nome}] Block ${blocoIndex + 1}: ${error.message}`;
-        // Don't break - try to continue with remaining blocks
       }
     }
 
@@ -836,27 +843,25 @@ async function processCampaign(
 
     processedCount++;
 
-    // Random delay between contacts (after all blocks are sent)
-    // If delay is in minutes (>=60s), use continuous variation for more randomness
-    // If delay is in seconds (<60s), use whole seconds
-    let delaySeconds: number;
-    let delayDisplay: string;
-    
-    if (campanha.delay_min >= 60) {
-      // Minutes range: use continuous random for extra variation (e.g., 2min 30s, 3min 14s)
-      delaySeconds = Math.random() * (campanha.delay_max - campanha.delay_min) + campanha.delay_min;
-      const delayMinutes = Math.floor(delaySeconds / 60);
-      const delayRemainingSecs = Math.round(delaySeconds % 60);
-      delayDisplay = `${delayMinutes}min ${delayRemainingSecs}s`;
-    } else {
-      // Seconds range: use whole seconds (e.g., 35s, 42s, 58s)
-      delaySeconds = Math.floor(Math.random() * (campanha.delay_max - campanha.delay_min + 1) + campanha.delay_min);
-      delayDisplay = `${delaySeconds}s`;
+    // For SHORT delays only: wait between contacts within the same batch
+    if (!isLongDelayMode && processedCount < batchSize && contatos.indexOf(contato) < contatos.length - 1) {
+      let delaySeconds: number;
+      let delayDisplay: string;
+      
+      if (campanha.delay_min >= 60) {
+        delaySeconds = Math.random() * (campanha.delay_max - campanha.delay_min) + campanha.delay_min;
+        const delayMinutes = Math.floor(delaySeconds / 60);
+        const delayRemainingSecs = Math.round(delaySeconds % 60);
+        delayDisplay = `${delayMinutes}min ${delayRemainingSecs}s`;
+      } else {
+        delaySeconds = Math.floor(Math.random() * (campanha.delay_max - campanha.delay_min + 1) + campanha.delay_min);
+        delayDisplay = `${delaySeconds}s`;
+      }
+      
+      const delay = Math.round(delaySeconds * 1000);
+      console.log(`[${currentInstance.nome}] Waiting ${delayDisplay} before next contact...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-    
-    const delay = Math.round(delaySeconds * 1000);
-    console.log(`[${currentInstance.nome}] Waiting ${delayDisplay} before next contact...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
   }
 
   // All contacts in this batch processed, save state and check if there are more pending
@@ -870,9 +875,25 @@ async function processCampaign(
     .limit(1);
 
   if (remainingContacts && remainingContacts.length > 0) {
-    // More contacts to process, schedule next batch
-    console.log(`Batch complete, more contacts pending. Scheduling next batch...`);
-    await scheduleNextBatch(campanha.id);
+    // More contacts to process
+    if (isLongDelayMode) {
+      // Set next_send_at for frontend polling
+      const delaySeconds = Math.random() * (campanha.delay_max - campanha.delay_min) + campanha.delay_min;
+      const nextSendAt = new Date(Date.now() + delaySeconds * 1000).toISOString();
+      
+      await supabase
+        .from("disparos_campanhas")
+        .update({ next_send_at: nextSendAt })
+        .eq("id", campanha.id);
+      
+      const delayMinutes = Math.floor(delaySeconds / 60);
+      const delayRemainingSecs = Math.round(delaySeconds % 60);
+      console.log(`Batch complete. Next send at ${nextSendAt} (in ${delayMinutes}min ${delayRemainingSecs}s)`);
+    } else {
+      // Short delay mode: schedule next batch immediately
+      console.log(`Batch complete, more contacts pending. Scheduling next batch...`);
+      await scheduleNextBatch(campanha.id);
+    }
   } else {
     // No more contacts, campaign is complete
     const { data: finalCampanha } = await supabase
@@ -886,7 +907,8 @@ async function processCampaign(
         .from("disparos_campanhas")
         .update({
           status: "completed",
-          finalizado_em: new Date().toISOString()
+          finalizado_em: new Date().toISOString(),
+          next_send_at: null
         })
         .eq("id", campanha.id);
 
