@@ -84,6 +84,8 @@ interface Chat {
   last_message_time?: string | null;
   updated_at?: string | null;
   unread_count?: number | null;
+  // Timestamp to filter out messages from before chat was "cleared" (e.g., after deletion + recreation)
+  history_cleared_at?: string | null;
 }
 
 interface DisparosChatWindowProps {
@@ -218,11 +220,17 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     }
 
     try {
-      const { data: dbMessages, error } = await supabase
+      // Build query - filter by history_cleared_at if set (hides old messages after chat deletion + recreation)
+      let query = supabase
         .from('disparos_messages')
         .select('*')
-        .eq('chat_id', chat.id)
-        .order('timestamp', { ascending: true });
+        .eq('chat_id', chat.id);
+
+      if (chat.history_cleared_at) {
+        query = query.gte('timestamp', chat.history_cleared_at);
+      }
+
+      const { data: dbMessages, error } = await query.order('timestamp', { ascending: true });
 
       if (error) throw error;
 
