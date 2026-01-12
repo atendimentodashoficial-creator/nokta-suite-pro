@@ -448,23 +448,24 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       const phone = clienteIdToPhone[f.cliente_id];
       if (!phone) return;
 
-      const tsCreated = periodTs(f.created_at);
-      const tsClosed = periodTs(f.updated_at);
+      // Usar data_fatura se preenchida, senão fallback para created_at
+      const dataReferencia = f.data_fatura || f.created_at;
+      const tsFatura = periodTs(dataReferencia);
 
       const lead = leadsByPhoneAll[phone];
       const isDisparos = isDisparosLead(lead?.origem, (lead as any)?.origem_tipo);
       const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
 
-      // Negociação uses created_at
-      if ((f.status === "negociacao" || f.status === "fechado") && tsCreated !== null) {
+      // Negociação e Fechado usam data_fatura
+      if ((f.status === "negociacao" || f.status === "fechado") && tsFatura !== null) {
         phonesCompareceu.add(phone);
         if (isDisparos) phonesCompareceuDisparos.add(phone);
         else if (isTracked) phonesCompareceuTracked.add(phone);
         else phonesCompareceuUntracked.add(phone);
       }
 
-      // Fechado uses updated_at
-      if (f.status === "fechado" && tsClosed !== null) {
+      // Fechado usa data_fatura
+      if (f.status === "fechado" && tsFatura !== null) {
         phonesFechado.add(phone);
         valorTotal += f.valor || 0;
         

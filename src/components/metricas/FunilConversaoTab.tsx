@@ -619,7 +619,7 @@ export function FunilConversaoTab() {
       });
 
       // Buscar TODAS as faturas para identificar etapas do funil
-      // Incluímos updated_at para saber QUANDO a fatura foi fechada (não apenas criada)
+      // Incluímos data_fatura para saber a data da consulta (se preenchida, senão fallback para created_at)
       // Incluímos fatura_agendamentos para saber quais agendamentos têm fatura vinculada
       const faturas = await fetchAll<{
         id: string;
@@ -627,11 +627,11 @@ export function FunilConversaoTab() {
         status: any;
         cliente_id: string;
         created_at: string;
-        updated_at: string;
+        data_fatura: string | null;
         fatura_agendamentos?: { agendamento_id: string }[];
       }>({
         table: "faturas",
-        select: "id, valor, status, cliente_id, created_at, updated_at, fatura_agendamentos(agendamento_id)",
+        select: "id, valor, status, cliente_id, created_at, data_fatura, fatura_agendamentos(agendamento_id)",
         orderBy: "created_at",
         filters: (q) => q.eq("user_id", user.id),
       });
@@ -705,8 +705,7 @@ export function FunilConversaoTab() {
       });
 
       // Identificar telefones que tiveram fatura ATIVA no período
-      // - Negociação: usa created_at (quando a fatura foi criada/entrou em negociação)
-      // - Fechado: usa updated_at (quando a fatura foi fechada)
+      // Usa data_fatura se preenchida, senão fallback para created_at
       const phonesWithFaturaInPeriod = new Set<string>();
       const phonesWithFaturaNegociacaoInPeriod = new Set<string>();
       const phonesWithFaturaFechadaInPeriod = new Set<string>();
@@ -722,34 +721,28 @@ export function FunilConversaoTab() {
         const phone = clienteIdToPhone[f.cliente_id];
         if (!phone) return;
 
-        // Para negociação: quando a fatura foi CRIADA
-        const tsCreated = periodTs(f.created_at);
-        // Para fechado: quando a fatura foi ATUALIZADA (momento do fechamento)
-        const tsClosed = periodTs(f.updated_at);
+        // Usar data_fatura se preenchida, senão fallback para created_at
+        const dataReferencia = f.data_fatura || f.created_at;
+        const tsFatura = periodTs(dataReferencia);
 
-        // Fatura entra no período se foi criada OU fechada no período
-        if (tsCreated !== null || tsClosed !== null) {
+        // Fatura entra no período se sua data de referência está no período
+        if (tsFatura !== null) {
           phonesWithFaturaInPeriod.add(phone);
         }
 
         // Status atual da fatura determina a etapa
-        if (f.status === "negociacao" && tsCreated !== null) {
+        if (f.status === "negociacao" && tsFatura !== null) {
           phonesWithFaturaNegociacaoInPeriod.add(phone);
-          if (faturaNegociacaoTsByPhone[phone] === undefined || tsCreated < faturaNegociacaoTsByPhone[phone]) {
-            faturaNegociacaoTsByPhone[phone] = tsCreated;
+          if (faturaNegociacaoTsByPhone[phone] === undefined || tsFatura < faturaNegociacaoTsByPhone[phone]) {
+            faturaNegociacaoTsByPhone[phone] = tsFatura;
           }
         }
         
-        if (f.status === "fechado") {
-          // Para fechado, usamos a data de FECHAMENTO (updated_at)
-          // Se updated_at não está no período mas created_at está, ainda contamos
-          const tsForFechado = tsClosed ?? tsCreated;
-          if (tsForFechado !== null) {
-            phonesWithFaturaFechadaInPeriod.add(phone);
-            faturaPorClienteInPeriod[f.cliente_id] = (faturaPorClienteInPeriod[f.cliente_id] || 0) + f.valor;
-            if (faturaFechadaTsByPhone[phone] === undefined || tsForFechado < faturaFechadaTsByPhone[phone]) {
-              faturaFechadaTsByPhone[phone] = tsForFechado;
-            }
+        if (f.status === "fechado" && tsFatura !== null) {
+          phonesWithFaturaFechadaInPeriod.add(phone);
+          faturaPorClienteInPeriod[f.cliente_id] = (faturaPorClienteInPeriod[f.cliente_id] || 0) + f.valor;
+          if (faturaFechadaTsByPhone[phone] === undefined || tsFatura < faturaFechadaTsByPhone[phone]) {
+            faturaFechadaTsByPhone[phone] = tsFatura;
           }
         }
       });
@@ -948,26 +941,22 @@ export function FunilConversaoTab() {
         const phone = clienteIdToPhone[f.cliente_id];
         if (!phone) return;
         
-        // Para negociação: created_at
-        // Para fechado: updated_at (momento do fechamento)
-        const tsCreated = periodTs(f.created_at);
-        const tsClosed = periodTs(f.updated_at);
+        // Usar data_fatura se preenchida, senão fallback para created_at
+        const dataReferencia = f.data_fatura || f.created_at;
+        const tsFatura = periodTs(dataReferencia);
 
-        if (f.status === "negociacao" && tsCreated !== null) {
+        if (f.status === "negociacao" && tsFatura !== null) {
           // Pegar o MAIS RECENTE
-          if (latestFaturaNegTsByPhone[phone] === undefined || tsCreated > latestFaturaNegTsByPhone[phone]) {
-            latestFaturaNegTsByPhone[phone] = tsCreated;
+          if (latestFaturaNegTsByPhone[phone] === undefined || tsFatura > latestFaturaNegTsByPhone[phone]) {
+            latestFaturaNegTsByPhone[phone] = tsFatura;
             latestFaturaNegLeadIdByPhone[phone] = f.cliente_id;
           }
         }
-        if (f.status === "fechado") {
-          const tsForFechado = tsClosed ?? tsCreated;
-          if (tsForFechado !== null) {
-            // Pegar o MAIS RECENTE
-            if (latestFaturaFechTsByPhone[phone] === undefined || tsForFechado > latestFaturaFechTsByPhone[phone]) {
-              latestFaturaFechTsByPhone[phone] = tsForFechado;
-              latestFaturaFechLeadIdByPhone[phone] = f.cliente_id;
-            }
+        if (f.status === "fechado" && tsFatura !== null) {
+          // Pegar o MAIS RECENTE
+          if (latestFaturaFechTsByPhone[phone] === undefined || tsFatura > latestFaturaFechTsByPhone[phone]) {
+            latestFaturaFechTsByPhone[phone] = tsFatura;
+            latestFaturaFechLeadIdByPhone[phone] = f.cliente_id;
           }
         }
       });
