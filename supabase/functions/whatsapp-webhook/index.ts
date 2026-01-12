@@ -443,17 +443,76 @@ Deno.serve(async (req) => {
     const payload: WhatsAppWebhookPayload = await req.json();
     console.log('Payload received:', JSON.stringify(payload, null, 2));
 
-    // === UAZAPI sends instanceName inside payload; re-resolve instance if needed ===
+    // === UAZAPI sends instanceName and token (api_key) inside payload; use them to resolve instance ===
     const anyPayload: any = payload as any;
     const payloadInstanceName = anyPayload?.instanceName || null;
+    const payloadToken = anyPayload?.token || null;
+    
+    // Effective userId - may be overridden if we resolve the instance from payload token
+    let effectiveUserId = userId;
+    let effectiveUazapiConfig = uazapiConfig;
 
-    // If we haven't resolved the instance from URL param, try using the payload's instanceName
+    // FIRST: Try to resolve instance by token (api_key) in payload - this is more reliable
+    // because it identifies the exact instance regardless of the userId in URL
+    if (!instanciaId && payloadToken) {
+      console.log('Attempting to resolve instance from payload token (api_key):', payloadToken);
+      const { data: instanciaFromToken } = await supabase
+        .from('disparos_instancias')
+        .select('id, nome, instance_name, user_id')
+        .eq('api_key', payloadToken)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (instanciaFromToken?.id) {
+        instanciaId = instanciaFromToken.id;
+        instanciaNomeFromDb = instanciaFromToken.nome || payloadInstanceName;
+        console.log('Resolved instance from payload token:', instanciaId, instanciaNomeFromDb, 'user_id:', instanciaFromToken.user_id);
+        
+        // IMPORTANT: Override the userId from URL with the one from the instance
+        // This handles cases where uazapi sends webhooks to a shared URL
+        const resolvedUserId = instanciaFromToken.user_id;
+        if (resolvedUserId && resolvedUserId !== userId) {
+          console.log('Overriding userId from URL with instance owner:', resolvedUserId);
+          effectiveUserId = resolvedUserId;
+          
+          // We need to re-fetch uazapiConfig for the correct user
+          const { data: correctUazapiConfig } = await supabase
+            .from('uazapi_config')
+            .select('whatsapp_instancia_id')
+            .eq('user_id', resolvedUserId)
+            .eq('is_active', true)
+            .maybeSingle();
+          
+          effectiveUazapiConfig = correctUazapiConfig;
+          
+          // Check if this is the main WhatsApp instance for the resolved user
+          isMainWhatsAppInstance = Boolean(
+            correctUazapiConfig?.whatsapp_instancia_id && correctUazapiConfig.whatsapp_instancia_id === instanciaId
+          );
+          console.log('Updated isMainWhatsAppInstance for resolved user:', isMainWhatsAppInstance, 'effectiveUserId:', effectiveUserId);
+          
+          // Update last_webhook_at for this instance
+          await supabase
+            .from('disparos_instancias')
+            .update({ last_webhook_at: new Date().toISOString() })
+            .eq('id', instanciaId);
+        } else {
+          // Same user, just check if it's the main instance
+          isMainWhatsAppInstance = Boolean(
+            uazapiConfig?.whatsapp_instancia_id && uazapiConfig.whatsapp_instancia_id === instanciaId
+          );
+        }
+      }
+    }
+
+    // FALLBACK: If we haven't resolved the instance from token, try using the payload's instanceName
     if (!instanciaId && payloadInstanceName) {
       console.log('Attempting to resolve instance from payload instanceName:', payloadInstanceName);
       const { data: instanciaFromPayload } = await supabase
         .from('disparos_instancias')
         .select('id, nome, instance_name')
-        .eq('user_id', userId)
+        .eq('user_id', effectiveUserId)
         .or(`instance_name.eq.${payloadInstanceName},nome.eq.${payloadInstanceName}`)
         .limit(1)
         .maybeSingle();
@@ -464,29 +523,29 @@ Deno.serve(async (req) => {
         console.log('Resolved instance from payload:', instanciaId, instanciaNomeFromDb);
 
         // Re-check if this is the main WhatsApp instance
-        const isMain = uazapiConfig?.whatsapp_instancia_id === instanciaId;
+        const isMain = effectiveUazapiConfig?.whatsapp_instancia_id === instanciaId;
         // Update the main flag directly (not using globalThis)
         isMainWhatsAppInstance = isMain;
         console.log('Updated isMainWhatsAppInstance from payload resolution:', isMain);
       } else {
         // Even if not resolved, we know there IS an instance (from payload)
         // Check if the payload instanceName matches the main instance's instance_name
-        if (uazapiConfig?.whatsapp_instancia_id) {
+        if (effectiveUazapiConfig?.whatsapp_instancia_id) {
           const { data: mainInstancia } = await supabase
             .from('disparos_instancias')
             .select('instance_name, nome')
-            .eq('id', uazapiConfig.whatsapp_instancia_id)
+            .eq('id', effectiveUazapiConfig.whatsapp_instancia_id)
             .maybeSingle();
           
           if (mainInstancia && (mainInstancia.instance_name === payloadInstanceName || mainInstancia.nome === payloadInstanceName)) {
-            instanciaId = uazapiConfig.whatsapp_instancia_id;
+            instanciaId = effectiveUazapiConfig.whatsapp_instancia_id;
             instanciaNomeFromDb = mainInstancia.nome || payloadInstanceName;
             isMainWhatsAppInstance = true;
             console.log('Matched payload instanceName to main WhatsApp instance:', instanciaId);
           } else {
             // Instance from payload not found in DB - REJECT the webhook
             console.error('REJECTING webhook: Instance from payload not found in DB:', payloadInstanceName);
-            await logEvent(userId, 'warn', `Webhook rejeitado: instância não registrada "${payloadInstanceName}"`);
+            await logEvent(effectiveUserId, 'warn', `Webhook rejeitado: instância não registrada "${payloadInstanceName}"`);
             return new Response(
               JSON.stringify({ error: 'Instance not registered. Please add this instance via WhatsApp or Disparos tab first.' }),
               { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -495,7 +554,7 @@ Deno.serve(async (req) => {
         } else {
           // No main instance configured and instance from payload not found - REJECT
           console.error('REJECTING webhook: No main instance configured and instance not found:', payloadInstanceName);
-          await logEvent(userId, 'warn', `Webhook rejeitado: instância não registrada "${payloadInstanceName}" e nenhuma instância principal configurada`);
+          await logEvent(effectiveUserId, 'warn', `Webhook rejeitado: instância não registrada "${payloadInstanceName}" e nenhuma instância principal configurada`);
           return new Response(
             JSON.stringify({ error: 'Instance not registered. Please add this instance via WhatsApp or Disparos tab first.' }),
             { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -514,6 +573,7 @@ Deno.serve(async (req) => {
       isMainWhatsAppInstance,
       instanciaId,
       instanciaNomeFromDb,
+      effectiveUserId,
     });
 
     // Check if this is a deleted message event
