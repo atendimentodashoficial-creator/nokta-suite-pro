@@ -315,63 +315,30 @@ serve(async (req) => {
           nextProviderBaseline = providerUnread;
         }
 
-        // Check if this chat (instance+phone) was deleted
-        const deletedAt = deletedByInstanciaLast8.get(dedupeKey);
-        const hasNewMessage = lastMsgTime && deletedAt && lastMsgTime > deletedAt;
-        
-        // If deleted and NO new message after deletion, skip entirely
-        if (deletedAt && !hasNewMessage) {
+        // With hard delete, if chat doesn't exist, it's been deleted and we shouldn't recreate it during sync
+        // New chats only come via webhook when contact sends a new message
+        if (!existingChat) {
+          console.log(`[SYNC] Skipping ${contactNumber} for instance ${config.nome} - new chats only created via webhook`);
           continue;
         }
 
-        // NOTE: We no longer filter by instance connection date
-        // Old conversations are now imported, leads are only created by webhook for new messages
-
-        // If there's a new message after deletion, create a NEW chat (don't restore old one)
-        // The old chat stays deleted with its old messages
-        const isNewChatAfterDeletion = hasNewMessage && existingChat?.deleted_at;
-
-        if (isNewChatAfterDeletion) {
-          // Insert a brand new chat record (not updating the old deleted one)
-          chatsToUpsert.push({
-            user_id: user.id,
-            chat_id: chatId,
-            contact_name: contactName,
-            contact_number: contactNumber,
-            normalized_number: normalizedNumber,
-            profile_pic_url: chat.imagePreview || null,
-            last_message: lastMessage || null,
-            last_message_time: lastMsgTime ? lastMsgTime.toISOString() : null,
-            unread_count: 1,
-            provider_unread_count: providerUnread,
-            provider_unread_baseline: 0,
-            instancia_id: instanciaId,
-            instancia_nome: config.nome,
-            created_at: lastMsgTime ? lastMsgTime.toISOString() : new Date().toISOString(),
-            updated_at: lastMsgTime ? lastMsgTime.toISOString() : new Date().toISOString(),
-            deleted_at: null,
-            // Use a unique identifier to avoid conflict with deleted chat
-            id: crypto.randomUUID(),
-          });
-        } else {
-          // Normal upsert for non-deleted or existing active chats
-          chatsToUpsert.push({
-            user_id: user.id,
-            chat_id: chatId,
-            contact_name: contactName,
-            contact_number: contactNumber,
-            normalized_number: normalizedNumber,
-            profile_pic_url: chat.imagePreview || existingChat?.profile_pic_url || null,
-            last_message: lastMessage || existingChat?.last_message || null,
-            last_message_time: lastMsgTime ? lastMsgTime.toISOString() : existingChat?.last_message_time || null,
-            unread_count: finalUnread,
-            provider_unread_count: providerUnread,
-            provider_unread_baseline: nextProviderBaseline,
-            instancia_id: instanciaId,
-            instancia_nome: config.nome,
-            updated_at: new Date().toISOString(),
-          });
-        }
+        // Normal update for existing active chats
+        chatsToUpsert.push({
+          user_id: user.id,
+          chat_id: chatId,
+          contact_name: contactName,
+          contact_number: contactNumber,
+          normalized_number: normalizedNumber,
+          profile_pic_url: chat.imagePreview || existingChat?.profile_pic_url || null,
+          last_message: lastMessage || existingChat?.last_message || null,
+          last_message_time: lastMsgTime ? lastMsgTime.toISOString() : existingChat?.last_message_time || null,
+          unread_count: finalUnread,
+          provider_unread_count: providerUnread,
+          provider_unread_baseline: nextProviderBaseline,
+          instancia_id: instanciaId,
+          instancia_nome: config.nome,
+          updated_at: new Date().toISOString(),
+        });
       }
     }
 
@@ -379,52 +346,31 @@ serve(async (req) => {
 
     // Single batch upsert for all chats from all instances
     if (chatsToUpsert.length > 0) {
-      const { error: upsertError } = await supabase
-        .from("disparos_chats")
-        .upsert(chatsToUpsert, {
-          onConflict: "user_id,normalized_number,instancia_id",
-          ignoreDuplicates: false,
-        });
-
-      if (upsertError) {
-        console.error("Error upserting chats:", upsertError);
-        // Try individual upserts if batch fails (fallback for constraint issues)
-        console.log("Falling back to individual upserts...");
-        for (const chat of chatsToUpsert) {
-          const last8 = getLast8(chat.normalized_number || chat.contact_number);
-          const instId = chat.instancia_id || "legacy_config";
-          const key = `${instId}:${last8}`;
-          const existing = existingByInstanciaLast8.get(key);
-          
-          if (existing) {
-          // If existing chat was deleted and this is a new one, insert instead of update
-          if (existing.deleted_at && chat.id) {
-            // This is a new chat after deletion, insert it
-            await supabase.from("disparos_chats").insert(chat);
-          } else if (!existing.deleted_at) {
-            // Normal update for active chat
-            await supabase
-              .from("disparos_chats")
-              .update({
-                chat_id: chat.chat_id,
-                contact_name: chat.contact_name,
-                normalized_number: chat.normalized_number,
-                profile_pic_url: chat.profile_pic_url,
-                last_message: chat.last_message,
-                last_message_time: chat.last_message_time,
-                unread_count: chat.unread_count,
-                provider_unread_count: chat.provider_unread_count,
-                provider_unread_baseline: chat.provider_unread_baseline,
-                instancia_id: chat.instancia_id,
-                instancia_nome: chat.instancia_nome,
-                updated_at: chat.updated_at,
-              })
-              .eq("id", existing.id);
-          }
-          // If existing is deleted and chat has no id, skip (don't restore)
-        } else {
-          await supabase.from("disparos_chats").insert(chat);
-        }
+      // With hard delete, only update existing chats (never insert)
+      for (const chat of chatsToUpsert) {
+        const last8 = getLast8(chat.normalized_number || chat.contact_number);
+        const instId = chat.instancia_id || null;
+        const key = `${instId}:${last8}`;
+        const existing = existingByInstanciaLast8.get(key);
+        
+        if (existing) {
+          await supabase
+            .from("disparos_chats")
+            .update({
+              chat_id: chat.chat_id,
+              contact_name: chat.contact_name,
+              normalized_number: chat.normalized_number,
+              profile_pic_url: chat.profile_pic_url,
+              last_message: chat.last_message,
+              last_message_time: chat.last_message_time,
+              unread_count: chat.unread_count,
+              provider_unread_count: chat.provider_unread_count,
+              provider_unread_baseline: chat.provider_unread_baseline,
+              instancia_id: chat.instancia_id,
+              instancia_nome: chat.instancia_nome,
+              updated_at: chat.updated_at,
+            })
+            .eq("id", existing.id);
         }
       }
     }
