@@ -748,7 +748,7 @@ Deno.serve(async (req) => {
                 chat_id: matchingChat.id,
                 message_id: messageId,
                 content: messageText || '',
-                sender_type: isFromMe ? 'admin' : 'customer',
+                sender_type: isFromMe ? 'agent' : 'customer',
                 media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                 timestamp: msgTime,
                 // Include UTM attribution directly
@@ -869,7 +869,7 @@ Deno.serve(async (req) => {
                     chat_id: chatIdForMessage,
                     message_id: messageId,
                     content: messageText || '',
-                    sender_type: isFromMe ? 'admin' : 'customer',
+                    sender_type: isFromMe ? 'agent' : 'customer',
                     media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                     timestamp: msgTime,
                     utm_source: earlyUtmData.utm_source,
@@ -952,7 +952,7 @@ Deno.serve(async (req) => {
                   chat_id: chatIdForMessage,
                   message_id: messageId,
                   content: messageText || '',
-                  sender_type: isFromMe ? 'admin' : 'customer',
+                  sender_type: isFromMe ? 'agent' : 'customer',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
                   // Include UTM attribution directly
@@ -1056,7 +1056,7 @@ Deno.serve(async (req) => {
                 chat_id: matchingDisparosChat.id,
                 message_id: messageId,
                 content: messageText || '',
-                sender_type: isFromMe ? 'admin' : 'contact',
+                sender_type: isFromMe ? 'agent' : 'customer',
                 media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                 timestamp: msgTime,
                 // Include UTM attribution directly
@@ -1181,7 +1181,7 @@ Deno.serve(async (req) => {
                     chat_id: disparosChatIdForMessage,
                     message_id: messageId,
                     content: messageText || '',
-                    sender_type: isFromMe ? 'admin' : 'contact',
+                    sender_type: isFromMe ? 'agent' : 'customer',
                     media_type: mediaPlaceholder ? (anyMsgLocal?.mediaType || anyMsgLocal?.messageType || null) : null,
                     timestamp: msgTime,
                     utm_source: earlyUtmData.utm_source,
@@ -1265,7 +1265,7 @@ Deno.serve(async (req) => {
                   chat_id: disparosChatIdForMessage,
                   message_id: messageId,
                   content: messageText || '',
-                  sender_type: isFromMe ? 'admin' : 'contact',
+                  sender_type: isFromMe ? 'agent' : 'customer',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
                   // Include UTM attribution directly
