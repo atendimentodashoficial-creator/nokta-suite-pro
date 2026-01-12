@@ -16,6 +16,7 @@ export function useAvisosAgendamentoScheduler() {
   const { user } = useAuth();
   const processingRef = useRef(false);
   const lastCheckMinuteRef = useRef<number | null>(null);
+  const lastInvokeAtRef = useRef<number>(0);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -49,24 +50,37 @@ export function useAvisosAgendamentoScheduler() {
           return;
         }
 
-        // Check if any aviso should be sent now (within 5 minute window)
-        const shouldTrigger = activeAvisos.some((aviso) => {
-          const [hora, minuto] = aviso.horario_envio.split(":").map(Number);
-          const avisoMinute = hora * 60 + minuto;
-          return currentMinute >= avisoMinute && currentMinute <= avisoMinute + 5;
-        });
+        // If the scheduled time has already passed and something wasn't sent,
+        // we still need to trigger the backend to catch up.
+        const avisoMinutes = activeAvisos
+          .map((aviso) => {
+            const [hora, minuto] = aviso.horario_envio.split(":").map(Number);
+            return hora * 60 + minuto;
+          })
+          .filter((m) => Number.isFinite(m));
 
-        if (!shouldTrigger) {
+        const earliestAvisoMinute = avisoMinutes.length ? Math.min(...avisoMinutes) : null;
+        if (earliestAvisoMinute == null) return;
+
+        // Too early for all avisos today
+        if (currentMinute < earliestAvisoMinute) {
           return;
         }
 
-        console.log("[AvisosScheduler] Triggering enviar-avisos-agendamento...");
+        // Throttle invocations (avoid calling every minute for the rest of the day)
+        const THROTTLE_MS = 5 * 60 * 1000;
+        if (Date.now() - lastInvokeAtRef.current < THROTTLE_MS) {
+          return;
+        }
+        lastInvokeAtRef.current = Date.now();
+
+        console.log("[AvisosScheduler] Triggering enviar-avisos-agendamento (catch-up enabled)...");
         processingRef.current = true;
 
         try {
           const { error } = await supabase.functions.invoke("enviar-avisos-agendamento", {
             headers: { Authorization: `Bearer ${session.access_token}` },
-            body: {},
+            body: { user_id: user.id },
           });
 
           if (error) {

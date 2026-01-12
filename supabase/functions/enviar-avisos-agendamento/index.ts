@@ -308,10 +308,21 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+  const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+    console.error("Missing backend env vars");
+    return new Response(
+      JSON.stringify({ success: false, error: "Missing backend env vars" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   const startTime = Date.now();
 
@@ -325,19 +336,23 @@ Deno.serve(async (req) => {
     let isContinuation = false;
     let filterAvisoId: string | null = null;
     let skipHorarioCheck = false;
+    let requestedUserIdFromBody: string | null = null;
 
     if (req.method === "POST") {
       try {
         const body = await req.json();
-        
+
         if (body.action === "continue" && body.pendingAvisos) {
           // This is a continuation request
           isContinuation = true;
           pendingAvisos = body.pendingAvisos;
           previousProcessedCount = body.processedCount || 0;
-          console.log(`Continuation request: ${pendingAvisos.length} pending avisos, ${previousProcessedCount} already processed`);
+          console.log(
+            `Continuation request: ${pendingAvisos.length} pending avisos, ${previousProcessedCount} already processed`
+          );
         } else {
           filterAvisoId = body.aviso_id || null;
+          requestedUserIdFromBody = body.user_id || null;
           skipHorarioCheck = !!filterAvisoId;
           if (filterAvisoId) {
             console.log(`Manual test mode: aviso_id=${filterAvisoId}`);
@@ -348,6 +363,33 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Resolve user scope (default: authenticated user)
+    let effectiveUserId: string | null = null;
+    if (!isContinuation && SUPABASE_ANON_KEY && authHeader) {
+      try {
+        const authed = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: userData } = await authed.auth.getUser();
+        if (userData?.user?.id) {
+          effectiveUserId = userData.user.id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // If caller provided a user_id, only accept it when it matches the authenticated user.
+    if (requestedUserIdFromBody) {
+      if (effectiveUserId && requestedUserIdFromBody !== effectiveUserId) {
+        console.warn(
+          `Ignoring mismatched user_id from body (body=${requestedUserIdFromBody}, auth=${effectiveUserId})`
+        );
+      } else if (!effectiveUserId) {
+        effectiveUserId = requestedUserIdFromBody;
+      }
+    }
+
     // If not a continuation, build the pending avisos list
     if (!isContinuation) {
       // Get active avisos
@@ -355,6 +397,11 @@ Deno.serve(async (req) => {
         .from("avisos_agendamento")
         .select("*")
         .eq("ativo", true);
+
+      // If we know the user, only process their avisos (avoids cross-tenant sends)
+      if (effectiveUserId) {
+        avisosQuery = avisosQuery.eq("user_id", effectiveUserId);
+      }
 
       if (filterAvisoId) {
         avisosQuery = avisosQuery.eq("id", filterAvisoId);
@@ -429,23 +476,22 @@ Deno.serve(async (req) => {
           console.log(`Checking aviso "${aviso.nome}" (${aviso.dias_antes} dias antes, horario: ${aviso.horario_envio})`);
 
           // Check current time vs horario_envio
+          // If the scheduled time has already passed and it wasn't sent yet, we still send (catch-up).
           if (!skipHorarioCheck) {
             const [envioHora, envioMinuto] = aviso.horario_envio.split(":").map(Number);
             const currentHour = saoPauloNow.getHours();
             const currentMinute = saoPauloNow.getMinutes();
 
-            const windowMinutes = 5;
             const currentTotal = currentHour * 60 + currentMinute;
             const envioTotal = envioHora * 60 + envioMinuto;
 
-            const isWithinWindow = currentTotal >= envioTotal && currentTotal <= envioTotal + windowMinutes;
-
-            if (!isWithinWindow) {
-              console.log(`Skipping aviso "${aviso.nome}" - not in sending window`);
+            // Too early -> skip. Past the scheduled time -> allow sending.
+            if (currentTotal < envioTotal) {
+              console.log(`Skipping aviso "${aviso.nome}" - too early (now=${currentTotal}, scheduled=${envioTotal})`);
               continue;
             }
 
-            console.log(`Aviso "${aviso.nome}" is in sending window`);
+            console.log(`Aviso "${aviso.nome}" is past scheduled time (catch-up enabled)`);
           }
 
           // Find matching agendamentos
