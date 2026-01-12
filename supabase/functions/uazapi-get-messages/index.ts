@@ -91,6 +91,68 @@ Deno.serve(async (req) => {
 
     // Lead creation is now handled ONLY by webhook for new incoming messages
     // Old conversations should NOT create leads when opened
+    
+    // If history was cleared, skip UAZapi entirely and only use database messages
+    // This is much more efficient and avoids fetching old messages from the provider
+    if (historyClearedAt) {
+      console.log('History was cleared - fetching only from database (skipping UAZapi)');
+      
+      // Get total count
+      const { count: totalCount } = await supabase
+        .from('whatsapp_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('chat_id', existingChat.id);
+      
+      const { data: dbMessages, error: dbError } = await supabase
+        .from('whatsapp_messages')
+        .select('*')
+        .eq('chat_id', existingChat.id)
+        .order('timestamp', { ascending: false })
+        .range(pageOffset, pageOffset + pageLimit - 1);
+      
+      if (dbError) {
+        console.error('Error loading database messages:', dbError);
+        return new Response(
+          JSON.stringify({ messages: [], hasMore: false, total: 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const dbOnlyMessages = (dbMessages || []).map((m: any) => ({
+        message_id: m.message_id,
+        sender_type: m.sender_type,
+        content: m.deleted ? 'Mensagem apagada' : m.content,
+        media_type: m.media_type || 'text',
+        media_url: m.media_url,
+        timestamp: m.timestamp,
+        status: m.status,
+        deleted: m.deleted || false,
+        utm_source: m.utm_source,
+        utm_campaign: m.utm_campaign,
+        utm_medium: m.utm_medium,
+        utm_content: m.utm_content,
+        utm_term: m.utm_term,
+        fbclid: m.fbclid,
+        ad_thumbnail_url: m.ad_thumbnail_url,
+        fb_ad_id: m.fb_ad_id,
+        fb_campaign_name: m.fb_campaign_name,
+        fb_adset_name: m.fb_adset_name,
+        fb_ad_name: m.fb_ad_name,
+      }));
+      
+      // Reverse to get oldest first for display
+      dbOnlyMessages.reverse();
+      
+      const hasMore = (totalCount || 0) > pageOffset + (dbMessages?.length || 0);
+      
+      console.log(`Returning ${dbOnlyMessages.length} messages from DB only (history cleared)`);
+      
+      return new Response(
+        JSON.stringify({ messages: dbOnlyMessages, hasMore, total: totalCount || 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Helper function to generate alternative chat IDs (with/without 9th digit)
     const generateAlternateChatIds = (originalChatId: string): string[] => {
       const chatIds = [originalChatId];
