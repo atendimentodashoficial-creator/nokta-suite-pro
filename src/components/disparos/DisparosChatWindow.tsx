@@ -124,6 +124,10 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   const [newMessage, setNewMessage] = useState(initialMessage || "");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [messagesOffset, setMessagesOffset] = useState(0);
+  const MESSAGES_PAGE_SIZE = 50;
   const [agendamentoDialogOpen, setAgendamentoDialogOpen] = useState(false);
   const [clienteData, setClienteData] = useState<ClienteData | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -209,18 +213,37 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     }
   }, [initialMessage]);
 
-  // Load messages from local database only (webhook handles new messages)
-  const loadMessages = async (forceScrollOnLoad = false) => {
+  // Load messages from local database with pagination (newest first, then reverse for display)
+  const loadMessages = async (forceScrollOnLoad = false, loadMore = false) => {
     const previousLength = messages.length;
     const hasCachedMessages = previousLength > 0;
     
-    // Só mostra loading se não temos mensagens no cache
-    if (!hasCachedMessages) {
-      setIsLoadingMessages(true);
+    if (!loadMore) {
+      // Só mostra loading se não temos mensagens no cache
+      if (!hasCachedMessages) {
+        setIsLoadingMessages(true);
+      }
+      setMessagesOffset(0);
+    } else {
+      setIsLoadingMore(true);
     }
 
     try {
-      // Build query - filter by history_cleared_at if set (hides old messages after chat deletion + recreation)
+      const currentOffset = loadMore ? messagesOffset : 0;
+      
+      // Build count query with history_cleared_at filter
+      let countQuery = supabase
+        .from('disparos_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('chat_id', chat.id);
+      
+      if (chat.history_cleared_at) {
+        countQuery = countQuery.gte('timestamp', chat.history_cleared_at);
+      }
+      
+      const { count: totalCount } = await countQuery;
+      
+      // Build data query - filter by history_cleared_at if set
       let query = supabase
         .from('disparos_messages')
         .select('*')
@@ -230,11 +253,17 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         query = query.gte('timestamp', chat.history_cleared_at);
       }
 
-      const { data: dbMessages, error } = await query.order('timestamp', { ascending: true });
+      // Fetch page of messages (newest first for pagination)
+      const { data: dbMessages, error } = await query
+        .order('timestamp', { ascending: false })
+        .range(currentOffset, currentOffset + MESSAGES_PAGE_SIZE - 1);
 
       if (error) throw error;
 
-      const formattedMessages = (dbMessages || []).map(msg => ({
+      // Reverse to show oldest first in chat
+      const reversedMessages = [...(dbMessages || [])].reverse();
+
+      const formattedMessages = reversedMessages.map(msg => ({
         id: msg.id,
         message_id: msg.message_id,
         content: msg.content,
@@ -254,18 +283,41 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         ad_thumbnail_url: msg.ad_thumbnail_url,
       }));
 
-      const dedupedFormatted = dedupeChatMessages(formattedMessages);
-      setMessages(dedupedFormatted);
+      // Calculate if there are more messages
+      const newOffset = currentOffset + (dbMessages?.length || 0);
+      const hasMore = (totalCount || 0) > newOffset;
+      setHasMoreMessages(hasMore);
+      setMessagesOffset(newOffset);
 
-      const shouldScroll = forceScrollOnLoad || previousLength === 0 || dedupedFormatted.length > previousLength;
-      if (shouldScroll) {
-        setShouldScrollToBottom(true);
+      if (loadMore) {
+        // Prepend older messages
+        const combined = [...formattedMessages, ...messages];
+        const dedupedFormatted = dedupeChatMessages(combined);
+        setMessages(dedupedFormatted);
+        setIsLoadingMore(false);
+      } else {
+        // Initial load or refresh
+        const dedupedFormatted = dedupeChatMessages(formattedMessages);
+        setMessages(dedupedFormatted);
+
+        const shouldScroll = forceScrollOnLoad || previousLength === 0 || dedupedFormatted.length > previousLength;
+        if (shouldScroll) {
+          setShouldScrollToBottom(true);
+        }
       }
     } catch (error: any) {
       console.error('Error loading messages:', error);
       toast.error(error.message || 'Erro ao carregar mensagens');
     } finally {
       setIsLoadingMessages(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Load more messages (older ones)
+  const loadMoreMessages = () => {
+    if (!isLoadingMore && hasMoreMessages) {
+      loadMessages(false, true);
     }
   };
 
@@ -1004,6 +1056,28 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
 
       {/* Histórico de mensagens com scroll */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2">
+        {/* Botão para carregar mensagens mais antigas */}
+        {hasMoreMessages && (
+          <div className="flex justify-center mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadMoreMessages}
+              disabled={isLoadingMore}
+              className="text-xs"
+            >
+              {isLoadingMore ? (
+                <>
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                  Carregando...
+                </>
+              ) : (
+                "Carregar mensagens anteriores"
+              )}
+            </Button>
+          </div>
+        )}
+        
         {isLoadingMessages && messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-muted-foreground">Carregando mensagens...</p>
