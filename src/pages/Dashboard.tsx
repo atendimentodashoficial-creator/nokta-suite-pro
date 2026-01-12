@@ -32,8 +32,7 @@ import {
   endOfWeekBrasilia,
   startOfMonthBrasilia,
   endOfMonthBrasilia,
-  toZonedBrasilia,
-  TIMEZONE_BRASILIA
+  toZonedBrasilia
 } from "@/utils/timezone";
 
 export default function Dashboard() {
@@ -147,17 +146,12 @@ export default function Dashboard() {
     allLeads?.forEach(l => leadsNaoExcluidosIds.add(l.id));
     clientes?.forEach(l => leadsNaoExcluidosIds.add(l.id));
 
-    // Criar set de clientes que têm fatura (para validar agendamentos "realizado")
-    const clientesComFatura = new Set<string>();
-    fats?.forEach((f: any) => {
-      if (f.cliente_id && (f.status === "negociacao" || f.status === "fechado")) {
-        clientesComFatura.add(f.cliente_id);
-      }
-    });
-
     // IDs de agendamentos que têm fatura vinculada
+    // IMPORTANTE: este vínculo NÃO pode depender do filtro de período, senão um agendamento registrado hoje
+    // pode sumir do relatório se a fatura estiver com data_fatura em outro dia.
     const agendamentoIdsComFatura = new Set<string>();
-    fats?.forEach((f: any) => {
+    (faturas || []).forEach((f: any) => {
+      if (f.status !== "negociacao" && f.status !== "fechado") return;
       (f.fatura_agendamentos || []).forEach((fa: any) => {
         if (fa.agendamento_id) agendamentoIdsComFatura.add(fa.agendamento_id);
       });
