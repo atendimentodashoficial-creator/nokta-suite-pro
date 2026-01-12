@@ -37,6 +37,7 @@ export default function AdminWhatsApp() {
   const [newChatNumber, setNewChatNumber] = useState("");
   const [newChatCountryCode, setNewChatCountryCode] = useState("55");
   const [hasConfig, setHasConfig] = useState(false);
+  const [instanceConnectedAt, setInstanceConnectedAt] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
   // Selection state for bulk delete
@@ -112,17 +113,31 @@ export default function AdminWhatsApp() {
   // Load chats from database (excluding deleted ones)
   const loadChats = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('whatsapp_chats').select('*').is('deleted_at', null).order('last_message_time', {
-        ascending: false,
-        nullsFirst: false
-      });
+      const { data, error } = await supabase
+        .from('whatsapp_chats')
+        .select('*')
+        .is('deleted_at', null)
+        .order('last_message_time', {
+          ascending: false,
+          nullsFirst: false,
+        });
+
       if (error) throw error;
+
       const deduped = dedupeChatsByLast8(data || []);
-      setChats(deduped);
-      setFilteredChats(deduped);
+
+      // Não mostrar conversas antigas: só mostrar chats com mensagem (ou criação) após a conexão/configuração.
+      const connectedAtMs = instanceConnectedAt ? new Date(instanceConnectedAt).getTime() : null;
+      const visible = connectedAtMs && Number.isFinite(connectedAtMs)
+        ? deduped.filter((c) => {
+            const t1 = c.last_message_time ? new Date(c.last_message_time).getTime() : 0;
+            const t2 = c.created_at ? new Date(c.created_at).getTime() : 0;
+            return Math.max(t1, t2) >= connectedAtMs;
+          })
+        : deduped;
+
+      setChats(visible);
+      setFilteredChats(visible);
       setChatsLoaded(true);
     } catch (error: any) {
       console.error('Error loading chats:', error);
@@ -879,8 +894,10 @@ export default function AdminWhatsApp() {
 
   // Load chats and config on mount
   useEffect(() => {
-    checkConfig();
-    loadChats();
+    (async () => {
+      await checkConfig();
+      await loadChats();
+    })();
   }, []);
 
   // Auto-sync every 60 seconds

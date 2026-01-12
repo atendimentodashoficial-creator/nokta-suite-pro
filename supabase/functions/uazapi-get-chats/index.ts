@@ -411,9 +411,8 @@ serve(async (req) => {
         nextProviderBaseline = providerUnread;
       }
 
-      // NOTE: We now import ALL old chats (even before instance connection)
-      // The user wants to see old conversations in the app
-      // Leads will ONLY be created via webhook for NEW messages after connection
+      // Importar SOMENTE chats que já existem na base (e atualizá-los).
+      // Novos chats serão criados via webhook quando houver uma nova mensagem.
 
       // Neste ponto, o chat não está deletado (ou não existe ainda mas tem mensagem recente)
       chatsToUpsert.push({
@@ -469,8 +468,15 @@ serve(async (req) => {
         continue;
       }
 
-      // Chat doesn't exist in DB - create it during sync.
-      // This makes chats started from the phone appear even if the contact hasn't replied yet.
+      // Chat doesn't exist in DB - DON'T create it during sync.
+      // New chats should only be created via webhook when a new message arrives.
+      // This prevents importing old conversations and avoids resurrecting deleted chats.
+      if (!row.isExisting) {
+        console.log(`[SYNC] Skipping insert for ${row.normalized_number} - new chats only created via webhook`);
+        continue;
+      }
+
+      // Fallback insert for existing chats that failed to update (shouldn't happen)
 
       // Fallback insert for existing chats that failed to update (shouldn't happen)
       const createdAt = row.last_message_time || new Date().toISOString();
