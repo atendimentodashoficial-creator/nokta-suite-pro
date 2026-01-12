@@ -30,15 +30,19 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { chatid, limit = 50, offset = 0 } = body;
+    const { chatid, limit = 50, offset = 0, persist = false } = body;
     if (!chatid) {
       throw new Error('chatid is required');
     }
 
+    const shouldPersist = Boolean(persist);
+
     const pageLimit = Math.min(Math.max(1, limit), 200); // max 200 per page
     const pageOffset = Math.max(0, offset);
 
-    console.log(`Fetching messages for chat: ${chatid} (limit=${pageLimit}, offset=${pageOffset})`);
+    console.log(
+      `Fetching messages for chat: ${chatid} (limit=${pageLimit}, offset=${pageOffset}, persist=${shouldPersist})`,
+    );
 
     // Get user's UAZapi configuration
     const { data: config, error: configError } = await supabase
@@ -422,6 +426,38 @@ Deno.serve(async (req) => {
     finalMessages.sort((a: any, b: any) =>
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
     );
+
+    // Optional: persist provider messages into DB (useful for backfilling when webhooks missed messages)
+    if (shouldPersist && finalMessages.length > 0) {
+      const rows = finalMessages
+        .filter((m: any) => typeof m?.message_id === 'string' && !String(m.message_id).startsWith('virtual-'))
+        .map((m: any) => {
+          const baseId = extractBaseMessageId(String(m.message_id));
+          return {
+            chat_id: existingChat.id,
+            message_id: baseId,
+            sender_type: m.sender_type,
+            content: m.content ?? '',
+            media_type: m.media_type === 'text' ? null : (m.media_type ?? null),
+            media_url: m.media_url ?? null,
+            timestamp: m.timestamp,
+            status: m.status ?? null,
+            deleted: Boolean(m.deleted),
+          };
+        });
+
+      if (rows.length > 0) {
+        const { error: persistError } = await supabase
+          .from('whatsapp_messages')
+          .upsert(rows, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
+
+        if (persistError) {
+          console.error('Error persisting messages to DB:', persistError);
+        } else {
+          console.log(`Persisted ${rows.length} messages to DB for chat ${existingChat.id}`);
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({ messages: finalMessages, hasMore: false, total: finalMessages.length }),
