@@ -57,9 +57,23 @@ interface ClienteData {
   email?: string;
 }
 
+// Cache de mensagens por chat (persiste entre seleções de chat)
+const messagesCache = new Map<string, { messages: any[]; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
 export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated, availableChats = [], onBack, initialMessage }: ChatWindowProps) => {
   const queryClient = useQueryClient();
-  const [messages, setMessages] = useState<any[]>([]);
+  
+  // Inicializar com mensagens do cache se disponível (evita flash de loading)
+  const getCachedMessages = () => {
+    const cached = messagesCache.get(chat.id);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.messages;
+    }
+    return [];
+  };
+  
+  const [messages, setMessages] = useState<any[]>(getCachedMessages);
   const [newMessage, setNewMessage] = useState(initialMessage || "");
   const [isSending, setIsSending] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -108,6 +122,27 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   const [expandedAudioBlocos, setExpandedAudioBlocos] = useState<Record<string, boolean>>({});
   const [expandedTextSemBloco, setExpandedTextSemBloco] = useState(true);
   const [expandedAudioSemBloco, setExpandedAudioSemBloco] = useState(true);
+  
+  // Atualizar cache sempre que mensagens mudarem
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesCache.set(chat.id, { messages, timestamp: Date.now() });
+    }
+  }, [messages, chat.id]);
+  
+  // Quando o chat muda, carregar do cache ou iniciar vazio
+  useEffect(() => {
+    const cached = messagesCache.get(chat.id);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      setMessages(cached.messages);
+      setShouldScrollToBottom(true);
+    } else {
+      setMessages([]);
+    }
+    // Reset outros estados
+    setMessagesOffset(0);
+    setHasMoreMessages(false);
+  }, [chat.id]);
 
   // Set initial message when prop changes (for prefill from deep-links)
   useEffect(() => {
@@ -195,9 +230,11 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   // Load messages from local database with pagination (newest first, then reverse for display)
   const loadMessages = async (forceScrollOnLoad = false, loadMore = false) => {
     const previousLength = messages.length;
+    const hasCachedMessages = previousLength > 0;
     
     if (!loadMore) {
-      if (previousLength === 0) {
+      // Só mostra loading se não temos mensagens no cache
+      if (!hasCachedMessages) {
         setIsLoadingMessages(true);
       }
       setMessagesOffset(0);
