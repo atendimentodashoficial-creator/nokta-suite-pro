@@ -262,6 +262,7 @@ Deno.serve(async (req) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
   const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     console.error("Missing backend env vars");
@@ -272,11 +273,15 @@ Deno.serve(async (req) => {
   }
 
   const authHeader = req.headers.get("Authorization") ?? "";
+  const cronHeader = req.headers.get("X-Cron-Secret") ?? "";
+  const isCronRequest = CRON_SECRET && cronHeader === CRON_SECRET;
+  
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
     const saoPauloNow = getSaoPauloTime();
     console.log(`Starting enviar-avisos-agendamento at ${saoPauloNow.toISOString()} (São Paulo time)`);
+    console.log(`Request type: ${isCronRequest ? 'CRON' : 'User'}`);
 
     // Parse request body
     let filterAvisoId: string | null = null;
@@ -294,9 +299,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Resolve user from auth header
+    // For cron requests, process ALL users
     let effectiveUserId: string | null = null;
-    if (SUPABASE_ANON_KEY && authHeader) {
+    
+    if (isCronRequest) {
+      console.log("Cron request - processing all active avisos for all users");
+      effectiveUserId = null; // Will process all users
+    } else if (SUPABASE_ANON_KEY && authHeader) {
+      // Resolve user from auth header
       try {
         const authed = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: authHeader } },
@@ -310,8 +320,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Validate user_id from body matches auth
-    if (requestedUserId) {
+    // Validate user_id from body matches auth (only for non-cron requests)
+    if (!isCronRequest && requestedUserId) {
       if (effectiveUserId && requestedUserId !== effectiveUserId) {
         console.warn(`Ignoring mismatched user_id from body`);
       } else if (!effectiveUserId) {
