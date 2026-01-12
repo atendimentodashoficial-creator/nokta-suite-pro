@@ -7,22 +7,191 @@ const corsHeaders = {
 };
 
 // Hash function for user data (Meta requires SHA256 hashed data)
+// Meta: Trim, lowercase, then hash
 async function sha256Hash(data: string): Promise<string> {
   const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data.toLowerCase().trim());
+  // Meta: lowercase and trim before hashing
+  const normalized = data.toLowerCase().trim();
+  const dataBuffer = encoder.encode(normalized);
   const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// Normalize phone for Meta (E.164 format without +)
+/**
+ * Normalize phone number according to Meta guidelines:
+ * - Remove all symbols and letters
+ * - Remove leading zeros
+ * - Must include country code
+ * - Format: digits only with country code (e.g., 16505551212 for US)
+ */
 function normalizePhone(phone: string): string {
-  const cleaned = phone.replace(/\D/g, "");
-  // If it doesn't start with country code, assume Brazil (55)
+  // Remove all non-digit characters
+  let cleaned = phone.replace(/\D/g, "");
+  
+  // Remove leading zeros
+  cleaned = cleaned.replace(/^0+/, "");
+  
+  // If it's a Brazilian number without country code, add 55
+  // Brazilian numbers: 10-11 digits (DDD + number)
   if (cleaned.length === 10 || cleaned.length === 11) {
-    return "55" + cleaned;
+    cleaned = "55" + cleaned;
   }
+  
   return cleaned;
+}
+
+/**
+ * Normalize email according to Meta guidelines:
+ * - Trim leading and trailing spaces
+ * - Convert to lowercase
+ */
+function normalizeEmail(email: string): string {
+  return email.toLowerCase().trim();
+}
+
+/**
+ * Normalize name (first or last) according to Meta guidelines:
+ * - Lowercase only
+ * - No punctuation
+ * - Roman alphabet a-z recommended
+ * - Special characters must be UTF-8 encoded
+ */
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    // Remove punctuation but keep letters (including accented)
+    .replace(/[^\p{L}\s]/gu, "")
+    .trim();
+}
+
+/**
+ * Normalize city according to Meta guidelines:
+ * - Lowercase only
+ * - No punctuation
+ * - No special characters
+ * - No spaces
+ */
+function normalizeCity(city: string): string {
+  return city
+    .toLowerCase()
+    .trim()
+    // Remove all non-letter characters and spaces
+    .replace(/[^a-z\u00C0-\u024F]/gi, "")
+    .toLowerCase();
+}
+
+/**
+ * Normalize state according to Meta guidelines:
+ * - Use 2-character ANSI abbreviation code in lowercase
+ * - For states outside US, lowercase with no punctuation/spaces
+ */
+function normalizeState(state: string): string {
+  return state
+    .toLowerCase()
+    .trim()
+    // Remove special characters and spaces
+    .replace(/[^a-z]/gi, "")
+    .toLowerCase();
+}
+
+/**
+ * Normalize zip code according to Meta guidelines:
+ * - Lowercase
+ * - No spaces
+ * - No dashes
+ * - US: first 5 digits only
+ * - Brazil (CEP): 8 digits
+ */
+function normalizeZip(zip: string): string {
+  // Remove all non-alphanumeric characters
+  const cleaned = zip.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  return cleaned;
+}
+
+/**
+ * Normalize date of birth according to Meta guidelines:
+ * - Format: YYYYMMDD
+ * - Year: 1900 to current year
+ * - Month: 01 to 12
+ * - Day: 01 to 31
+ */
+function normalizeDateOfBirth(dob: string): string | null {
+  // Try to parse various date formats
+  // Expected input: YYYY-MM-DD or DD/MM/YYYY or similar
+  
+  // Remove all non-digits first
+  const digitsOnly = dob.replace(/\D/g, "");
+  
+  // If already in YYYYMMDD format (8 digits)
+  if (digitsOnly.length === 8) {
+    const year = parseInt(digitsOnly.substring(0, 4));
+    if (year >= 1900 && year <= new Date().getFullYear()) {
+      return digitsOnly;
+    }
+  }
+  
+  // Try YYYY-MM-DD format
+  const isoMatch = dob.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}${isoMatch[2]}${isoMatch[3]}`;
+  }
+  
+  // Try DD/MM/YYYY format
+  const brMatch = dob.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (brMatch) {
+    return `${brMatch[3]}${brMatch[2]}${brMatch[1]}`;
+  }
+  
+  return null;
+}
+
+/**
+ * Normalize gender according to Meta guidelines:
+ * - Single character: 'm' for male, 'f' for female
+ */
+function normalizeGender(gender: string): string | null {
+  const g = gender.toLowerCase().trim();
+  
+  if (g === "m" || g === "male" || g === "masculino" || g === "homem") {
+    return "m";
+  }
+  if (g === "f" || g === "female" || g === "feminino" || g === "mulher") {
+    return "f";
+  }
+  
+  // If it's already just 'm' or 'f'
+  if (g.length === 1 && (g === "m" || g === "f")) {
+    return g;
+  }
+  
+  return null;
+}
+
+/**
+ * Normalize country according to Meta guidelines:
+ * - Lowercase 2-letter ISO 3166-1 alpha-2 code
+ */
+function normalizeCountry(country: string): string {
+  const c = country.toLowerCase().trim();
+  
+  // Common mappings
+  const countryMap: Record<string, string> = {
+    "brasil": "br",
+    "brazil": "br",
+    "united states": "us",
+    "usa": "us",
+    "portugal": "pt",
+    "argentina": "ar",
+  };
+  
+  // If it's already a 2-letter code
+  if (c.length === 2) {
+    return c;
+  }
+  
+  return countryMap[c] || "br"; // Default to Brazil
 }
 
 serve(async (req) => {
@@ -67,17 +236,22 @@ serve(async (req) => {
       customer_phone,
       customer_email,
       customer_name,
-      // Additional customer data
+      // Additional customer data for better matching
       customer_gender,
       customer_date_of_birth,
       customer_city,
       customer_state,
       customer_zip,
-      // Attribution
+      customer_country,
+      // Attribution parameters
       utm_source,
       utm_campaign,
       fbclid,
+      fbp, // Browser ID from _fbp cookie
       external_id,
+      // Client info (from browser if available)
+      client_ip_address,
+      client_user_agent,
     } = body;
 
     // Get user's pixel config
@@ -98,68 +272,103 @@ serve(async (req) => {
     const eventId = crypto.randomUUID();
     const eventTime = Math.floor(Date.now() / 1000);
 
-    // Build user data with hashed values (all available fields from Meta's list)
+    // =====================================================
+    // Build user_data following Meta's guidelines exactly
+    // https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/customer-information-parameters
+    // =====================================================
     const userData: Record<string, unknown> = {};
 
-    // Phone number (ph) - required format: digits only with country code
+    // Phone number (ph) - REQUIRED: digits only with country code, hashed
+    // Meta: Remove symbols, letters, leading zeros. Include country code.
     if (customer_phone) {
       const normalizedPhone = normalizePhone(customer_phone);
-      userData.ph = [await sha256Hash(normalizedPhone)];
+      if (normalizedPhone) {
+        userData.ph = [await sha256Hash(normalizedPhone)];
+        console.log(`Phone normalized: ${customer_phone} -> ${normalizedPhone}`);
+      }
     }
 
-    // Email (em)
+    // Email (em) - hashed, lowercase, trimmed
     if (customer_email) {
-      userData.em = [await sha256Hash(customer_email.toLowerCase().trim())];
+      const normalizedEmail = normalizeEmail(customer_email);
+      userData.em = [await sha256Hash(normalizedEmail)];
+      console.log(`Email normalized: ${customer_email} -> ${normalizedEmail}`);
     }
 
-    // First name (fn) and Last name (ln)
+    // First name (fn) and Last name (ln) - hashed, lowercase, no punctuation
     if (customer_name) {
-      const nameParts = customer_name.trim().split(" ").filter((p: string) => p.length > 0);
+      const nameParts = customer_name.trim().split(/\s+/).filter((p: string) => p.length > 0);
+      
       if (nameParts.length > 0) {
         // First name - first word
-        userData.fn = await sha256Hash(nameParts[0].toLowerCase());
+        const firstName = normalizeName(nameParts[0]);
+        if (firstName) {
+          userData.fn = await sha256Hash(firstName);
+          console.log(`First name normalized: ${nameParts[0]} -> ${firstName}`);
+        }
       }
+      
       if (nameParts.length > 1) {
         // Last name - last word
-        userData.ln = await sha256Hash(nameParts[nameParts.length - 1].toLowerCase());
+        const lastName = normalizeName(nameParts[nameParts.length - 1]);
+        if (lastName) {
+          userData.ln = await sha256Hash(lastName);
+          console.log(`Last name normalized: ${nameParts[nameParts.length - 1]} -> ${lastName}`);
+        }
       }
     }
 
-    // Gender (ge) - m or f
+    // Gender (ge) - hashed, single char: 'm' or 'f'
     if (customer_gender) {
-      userData.ge = await sha256Hash(customer_gender.toLowerCase());
-    }
-
-    // Date of birth (db) - format YYYYMMDD
-    if (customer_date_of_birth) {
-      // Convert from YYYY-MM-DD to YYYYMMDD
-      const dbFormatted = customer_date_of_birth.replace(/-/g, "");
-      userData.db = await sha256Hash(dbFormatted);
-    }
-
-    // City (ct)
-    if (customer_city) {
-      // Remove spaces and lowercase
-      userData.ct = await sha256Hash(customer_city.toLowerCase().replace(/\s/g, ""));
-    }
-
-    // State (st) - 2 letter code
-    if (customer_state) {
-      userData.st = await sha256Hash(customer_state.toLowerCase());
-    }
-
-    // Zip/Postal Code (zp) - digits only
-    if (customer_zip) {
-      const zipDigits = customer_zip.replace(/\D/g, "");
-      if (zipDigits) {
-        userData.zp = await sha256Hash(zipDigits);
+      const normalizedGender = normalizeGender(customer_gender);
+      if (normalizedGender) {
+        userData.ge = await sha256Hash(normalizedGender);
+        console.log(`Gender normalized: ${customer_gender} -> ${normalizedGender}`);
       }
     }
 
-    // Country (country) - always Brazil for this system
-    userData.country = await sha256Hash("br");
+    // Date of birth (db) - hashed, format YYYYMMDD
+    if (customer_date_of_birth) {
+      const normalizedDob = normalizeDateOfBirth(customer_date_of_birth);
+      if (normalizedDob) {
+        userData.db = await sha256Hash(normalizedDob);
+        console.log(`DOB normalized: ${customer_date_of_birth} -> ${normalizedDob}`);
+      }
+    }
 
-    // External ID (external_id) - use lead_id or customer_id for matching
+    // City (ct) - hashed, lowercase, no spaces/punctuation
+    if (customer_city) {
+      const normalizedCity = normalizeCity(customer_city);
+      if (normalizedCity) {
+        userData.ct = await sha256Hash(normalizedCity);
+        console.log(`City normalized: ${customer_city} -> ${normalizedCity}`);
+      }
+    }
+
+    // State (st) - hashed, 2-char ANSI code in lowercase
+    if (customer_state) {
+      const normalizedState = normalizeState(customer_state);
+      if (normalizedState) {
+        userData.st = await sha256Hash(normalizedState);
+        console.log(`State normalized: ${customer_state} -> ${normalizedState}`);
+      }
+    }
+
+    // Zip/Postal Code (zp) - hashed, lowercase, no spaces/dashes
+    if (customer_zip) {
+      const normalizedZip = normalizeZip(customer_zip);
+      if (normalizedZip) {
+        userData.zp = await sha256Hash(normalizedZip);
+        console.log(`Zip normalized: ${customer_zip} -> ${normalizedZip}`);
+      }
+    }
+
+    // Country (country) - ALWAYS include, hashed, 2-letter ISO code
+    // Meta: "Always include your customers' countries even if all from the same country"
+    const normalizedCountry = normalizeCountry(customer_country || "br");
+    userData.country = await sha256Hash(normalizedCountry);
+
+    // External ID (external_id) - hashed, unique advertiser ID
     if (external_id) {
       userData.external_id = [await sha256Hash(external_id)];
     } else if (lead_id) {
@@ -167,15 +376,32 @@ serve(async (req) => {
       userData.external_id = [await sha256Hash(lead_id)];
     }
 
-    // Facebook Click ID (fbc) - for attribution
+    // Facebook Click ID (fbc) - NOT hashed
+    // Format: fb.${subdomain_index}.${creation_time}.${fbclid}
     if (fbclid) {
-      userData.fbc = `fb.1.${eventTime}.${fbclid}`;
+      // Generate proper fbc format if we only have fbclid
+      userData.fbc = `fb.1.${eventTime * 1000}.${fbclid}`;
     }
 
-    // Client IP address and User Agent would be added if we had them
-    // These improve match quality but we don't have access to them in server-side calls
+    // Facebook Browser ID (fbp) - NOT hashed
+    // Format: fb.${subdomain_index}.${creation_time}.${random_number}
+    if (fbp) {
+      userData.fbp = fbp;
+    }
 
+    // Client IP Address - NOT hashed, improves matching
+    if (client_ip_address) {
+      userData.client_ip_address = client_ip_address;
+    }
+
+    // Client User Agent - NOT hashed, improves matching
+    if (client_user_agent) {
+      userData.client_user_agent = client_user_agent;
+    }
+
+    // =====================================================
     // Build the event payload
+    // =====================================================
     const eventData: Record<string, unknown> = {
       event_name,
       event_time: eventTime,
@@ -184,7 +410,7 @@ serve(async (req) => {
       user_data: userData,
     };
 
-    // Add custom data - always include for Purchase events
+    // Build custom_data
     let customData: Record<string, unknown> = {};
     
     // For Purchase events, currency and value are REQUIRED by Meta
@@ -194,7 +420,11 @@ serve(async (req) => {
         value: purchaseValue,
         currency: currency || "BRL",
         content_type: "product",
-        contents: [{ id: fatura_id || lead_id || "product", quantity: 1, item_price: purchaseValue }],
+        contents: [{ 
+          id: fatura_id || lead_id || "product", 
+          quantity: 1, 
+          item_price: purchaseValue 
+        }],
       };
     } else if (value !== undefined && value !== null) {
       // For other events, only add value if provided
@@ -204,9 +434,12 @@ serve(async (req) => {
       };
     }
 
-    // Add campaign attribution
+    // Add campaign attribution to custom_data
     if (utm_campaign) {
       customData.campaign_name = utm_campaign;
+    }
+    if (utm_source) {
+      customData.content_category = utm_source;
     }
 
     // Only add custom_data if there's data
@@ -214,7 +447,9 @@ serve(async (req) => {
       eventData.custom_data = customData;
     }
 
-    // Build request to Meta Conversions API
+    // =====================================================
+    // Send to Meta Conversions API
+    // =====================================================
     const apiVersion = "v18.0";
     const url = `https://graph.facebook.com/${apiVersion}/${pixelConfig.pixel_id}/events`;
 
@@ -223,12 +458,14 @@ serve(async (req) => {
       access_token: pixelConfig.access_token,
     };
 
-    // Add test event code if configured (for testing)
+    // Add test event code if configured (for testing in Events Manager)
     if (pixelConfig.test_event_code) {
       requestBody.test_event_code = pixelConfig.test_event_code;
     }
 
-    console.log("Sending event to Meta:", JSON.stringify(requestBody, null, 2));
+    console.log("=== META CONVERSIONS API REQUEST ===");
+    console.log("URL:", url);
+    console.log("Event data:", JSON.stringify(eventData, null, 2));
 
     // Send to Meta
     const metaResponse = await fetch(url, {
@@ -238,31 +475,40 @@ serve(async (req) => {
     });
 
     const metaResult = await metaResponse.json();
-    console.log("Meta response:", JSON.stringify(metaResult, null, 2));
+    console.log("=== META CONVERSIONS API RESPONSE ===");
+    console.log("Status:", metaResponse.status);
+    console.log("Response:", JSON.stringify(metaResult, null, 2));
 
     // Build customer data summary for logging (what was actually sent)
     const customerDataSent = {
-      phone: customer_phone ? true : false,
-      email: customer_email ? true : false,
-      name: customer_name ? true : false,
-      gender: customer_gender ? true : false,
-      date_of_birth: customer_date_of_birth ? true : false,
-      city: customer_city ? true : false,
-      state: customer_state ? true : false,
-      zip: customer_zip ? true : false,
-      country: true, // Always sent as 'br'
-      external_id: external_id || lead_id ? true : false,
-      fbclid: fbclid ? true : false,
-      // Store actual values (not hashed) for display
-      values: {
-        phone: customer_phone || null,
-        email: customer_email || null,
-        name: customer_name || null,
-        gender: customer_gender || null,
-        date_of_birth: customer_date_of_birth || null,
-        city: customer_city || null,
-        state: customer_state || null,
-        zip: customer_zip || null,
+      phone: !!customer_phone,
+      email: !!customer_email,
+      name: !!customer_name,
+      gender: !!customer_gender,
+      date_of_birth: !!customer_date_of_birth,
+      city: !!customer_city,
+      state: !!customer_state,
+      zip: !!customer_zip,
+      country: true, // Always sent
+      external_id: !!(external_id || lead_id),
+      fbclid: !!fbclid,
+      fbp: !!fbp,
+      client_ip_address: !!client_ip_address,
+      client_user_agent: !!client_user_agent,
+      // Store normalized values (not hashed) for debugging
+      normalized_values: {
+        phone: customer_phone ? normalizePhone(customer_phone) : null,
+        email: customer_email ? normalizeEmail(customer_email) : null,
+        first_name: customer_name ? normalizeName(customer_name.split(" ")[0]) : null,
+        last_name: customer_name && customer_name.includes(" ") 
+          ? normalizeName(customer_name.split(" ").pop()!) 
+          : null,
+        gender: customer_gender ? normalizeGender(customer_gender) : null,
+        date_of_birth: customer_date_of_birth ? normalizeDateOfBirth(customer_date_of_birth) : null,
+        city: customer_city ? normalizeCity(customer_city) : null,
+        state: customer_state ? normalizeState(customer_state) : null,
+        zip: customer_zip ? normalizeZip(customer_zip) : null,
+        country: normalizedCountry,
       }
     };
 
@@ -306,6 +552,8 @@ serve(async (req) => {
       event_id: eventId,
       events_received: metaResult.events_received,
       messages: metaResult.messages,
+      // Include matching quality info if available
+      fbtrace_id: metaResult.fbtrace_id,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
