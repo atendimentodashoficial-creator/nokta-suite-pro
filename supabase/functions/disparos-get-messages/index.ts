@@ -33,10 +33,10 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    // Get the chat to find its instancia_id and created_at (to filter old messages)
+    // Get the chat to find its instancia_id and history_cleared_at
     const { data: chatData, error: chatError } = await supabase
       .from("disparos_chats")
-      .select("instancia_id, created_at, last_message_time")
+      .select("instancia_id, created_at, last_message_time, history_cleared_at")
       .eq("id", db_chat_id)
       .single();
 
@@ -44,8 +44,20 @@ serve(async (req) => {
       console.error("Error fetching chat:", chatError);
     }
 
-    // NOTE: We no longer filter messages by chat created_at since we want to show old conversations
-    // The created_at filter was meant for chats recreated after deletion, but now we import all history
+    // If history was cleared, we only use database messages (skip UAZapi entirely)
+    const historyClearedAt = chatData?.history_cleared_at 
+      ? new Date(chatData.history_cleared_at).getTime() 
+      : null;
+
+    if (historyClearedAt) {
+      console.log('History was cleared - returning only database messages (skipping UAZapi)');
+      
+      // Just return success - the frontend will load from DB directly
+      return new Response(JSON.stringify({ success: true, count: 0, skipped: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     console.log("Chat created_at:", chatData?.created_at);
 
     let config: any = null;
@@ -78,7 +90,6 @@ serve(async (req) => {
       }
     }
 
-    // No legacy fallback - Disparos tab only uses disparos_instancias
     if (!config) {
       throw new Error("Nenhuma instância de Disparos configurada. Configure em Conexões → Disparos.");
     }
@@ -90,31 +101,25 @@ serve(async (req) => {
     const baseNumber = chat_id.replace("@s.whatsapp.net", "");
     
     if (baseNumber.length === 13 && baseNumber.startsWith("55")) {
-      // Try without 9th digit
       const without9 = baseNumber.slice(0, 4) + baseNumber.slice(5);
       chatIdVariations.push(`${without9}@s.whatsapp.net`);
     } else if (baseNumber.length === 12 && baseNumber.startsWith("55")) {
-      // Try with 9th digit
       const with9 = baseNumber.slice(0, 4) + "9" + baseNumber.slice(4);
       chatIdVariations.push(`${with9}@s.whatsapp.net`);
     }
 
     let messages: any[] = [];
-
     const baseUrl = String(config.base_url || "").replace(/\/+$/, "");
 
     for (const tryId of chatIdVariations) {
       try {
-        // UAZapi padrão (mesmo endpoint usado no WhatsApp): POST /message/find
         const apiUrl = `${baseUrl}/message/find`;
         const response = await fetch(apiUrl, {
           method: "POST",
           headers: {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            // UAZapi usa header token
             "token": config.api_key,
-            // compat: algumas configs antigas usam apikey
             "apikey": config.api_key,
           },
           body: JSON.stringify({ chatid: tryId, limit: 100 }),
@@ -145,16 +150,9 @@ serve(async (req) => {
     const existingIds = new Set(existingMessages?.map((m) => m.message_id) || []);
     
     // Build a map of existing messages by content+sender for duplicate detection
-    // Key: sender_type + normalized content (first 50 chars)
-    // Value: array of timestamps
     const existingContentMap = new Map<string, number[]>();
     existingMessages?.forEach((m) => {
-      const contentStr =
-        typeof m.content === "string"
-          ? m.content
-          : m.content == null
-            ? ""
-            : JSON.stringify(m.content);
+      const contentStr = typeof m.content === "string" ? m.content : m.content == null ? "" : JSON.stringify(m.content);
       const key = `${m.sender_type}|${contentStr.substring(0, 50).trim()}`;
       const ts = new Date(m.timestamp).getTime();
       if (!existingContentMap.has(key)) {
@@ -163,34 +161,25 @@ serve(async (req) => {
       existingContentMap.get(key)!.push(ts);
     });
     
-    // Helper function to check if a message is a duplicate
-    // Returns true if there's an existing message with same content+sender within 2 minutes
     const isDuplicateContent = (senderType: string, content: any, timestamp: number): boolean => {
-      // Ensure content is a string before calling substring
       const contentStr = typeof content === "string" ? content : "";
       const key = `${senderType}|${contentStr.substring(0, 50).trim()}`;
       const existingTimestamps = existingContentMap.get(key);
       if (!existingTimestamps || existingTimestamps.length === 0) return false;
       
-      // Check if any existing timestamp is within 2 minutes (120 seconds)
       const TWO_MINUTES_MS = 120 * 1000;
-      return existingTimestamps.some(existingTs => 
-        Math.abs(timestamp - existingTs) <= TWO_MINUTES_MS
-      );
+      return existingTimestamps.some(existingTs => Math.abs(timestamp - existingTs) <= TWO_MINUTES_MS);
     };
 
-    // Insert new messages
     const newMessages: any[] = [];
 
     const toIsoTimestamp = (raw: any): string => {
       if (!raw) return new Date().toISOString();
-      // UAZapi geralmente vem em ISO ou timestamp ms
       if (typeof raw === "string") {
         const d = new Date(raw);
         if (!Number.isNaN(d.getTime())) return d.toISOString();
       }
       if (typeof raw === "number") {
-        // seconds or ms
         const ms = raw < 2_000_000_000 ? raw * 1000 : raw;
         return new Date(ms).toISOString();
       }
@@ -202,38 +191,19 @@ serve(async (req) => {
       if (!messageId || existingIds.has(messageId)) continue;
 
       const isFromMe = msg.fromMe ?? msg.key?.fromMe ?? false;
-      
-      // Get message timestamp early for duplicate check
       const msgTimestamp = toIsoTimestamp(msg.messageTimestamp || msg.timestamp);
       const msgDate = new Date(msgTimestamp);
       
-      // NOTE: We no longer filter messages by chat created_at - show all message history
-      
-      // Early content extraction for duplicate check
-      // msg.content can be an object (media) or string, so handle both
-      let rawContent =
-        msg.text ||
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
-        msg.body ||
-        "";
-      
-      // If still empty and msg.content is a string, use it
+      let rawContent = msg.text || msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.body || "";
       if (!rawContent && typeof msg.content === "string") {
         rawContent = msg.content;
       }
       
-      // Check for duplicate content within 2-minute window
       const senderType = isFromMe ? "agent" : "customer";
       if (isDuplicateContent(senderType, rawContent, msgDate.getTime())) {
-        const rawPreview = typeof rawContent === "string" ? rawContent : "";
-        console.log(
-          `Skipping duplicate message (content match within 2min): ${senderType} - "${rawPreview.substring(0, 30)}..."`,
-        );
         continue;
       }
 
-      // Media mapping (UAZapi) + fallback (baileys-like)
       let mediaType = "text";
       let mediaUrl: string | null = null;
 
@@ -273,30 +243,17 @@ serve(async (req) => {
         return "[media]";
       };
 
-      const textContent =
-        msg.text ||
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
-        msg.body ||
-        (typeof msg.content === "string" ? msg.content : "");
+      const textContent = msg.text || msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.body || (typeof msg.content === "string" ? msg.content : "");
 
-      const content =
-        isDeleted
-          ? "Mensagem apagada"
-          : mediaType !== "text"
-            ? (String(textContent || "").trim() || getMediaPlaceholder(mediaType))
-            : String(textContent || "").trim();
+      const content = isDeleted
+        ? "Mensagem apagada"
+        : mediaType !== "text"
+          ? (String(textContent || "").trim() || getMediaPlaceholder(mediaType))
+          : String(textContent || "").trim();
 
-      const status =
-        isFromMe
-          ? msg.status === "Read"
-            ? "read"
-            : msg.status === "Delivered"
-              ? "delivered"
-              : "sent"
-          : null;
-
-      // msgTimestamp already calculated above
+      const status = isFromMe
+        ? msg.status === "Read" ? "read" : msg.status === "Delivered" ? "delivered" : "sent"
+        : null;
 
       newMessages.push({
         chat_id: db_chat_id,
@@ -312,15 +269,11 @@ serve(async (req) => {
     }
 
     if (newMessages.length > 0) {
-      // Use upsert with ignoreDuplicates to prevent race condition duplicates
       await supabase.from("disparos_messages").upsert(newMessages, {
         onConflict: "chat_id,message_id",
         ignoreDuplicates: true,
       });
 
-      // Update chat preview (last_message/last_message_time) based on the newest message we just inserted
-      // NOTE: We do NOT increment unread_count here because the webhook already handles that.
-      // This sync function is a fallback and should only update the preview metadata.
       const latest = [...newMessages].sort(
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )[0];
@@ -331,7 +284,6 @@ serve(async (req) => {
 
       if (incomingLastTime >= currentLastTime) {
         const nowIso = new Date().toISOString();
-        // Only update preview metadata, never increment unread (webhook handles that)
         await supabase
           .from('disparos_chats')
           .update({
@@ -340,34 +292,6 @@ serve(async (req) => {
             updated_at: nowIso,
           })
           .eq('id', db_chat_id);
-      }
-    } else {
-      // No new inserts, but the chat preview may be stale (legacy rows where media content used to be stored as object).
-      // Recompute latest message from DB and update preview WITHOUT incrementing unread.
-      const { data: latestDb } = await supabase
-        .from('disparos_messages')
-        .select('content, timestamp')
-        .eq('chat_id', db_chat_id)
-        .order('timestamp', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (latestDb?.timestamp) {
-        const latestTime = new Date(latestDb.timestamp).toISOString();
-        const currentLastTime = chatData?.last_message_time ? new Date(chatData.last_message_time).getTime() : 0;
-        const incomingLastTime = new Date(latestTime).getTime();
-
-        if (incomingLastTime > currentLastTime) {
-          const nowIso = new Date().toISOString();
-          await supabase
-            .from('disparos_chats')
-            .update({
-              last_message: (typeof latestDb.content === 'string' ? latestDb.content : JSON.stringify(latestDb.content)) || null,
-              last_message_time: latestTime,
-              updated_at: nowIso,
-            })
-            .eq('id', db_chat_id);
-        }
       }
     }
 

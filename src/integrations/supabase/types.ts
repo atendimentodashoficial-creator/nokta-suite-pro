@@ -823,6 +823,33 @@ export type Database = {
         }
         Relationships: []
       }
+      disparos_chat_deletions: {
+        Row: {
+          created_at: string
+          deleted_at: string
+          id: string
+          instancia_id: string | null
+          phone_last8: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string
+          id?: string
+          instancia_id?: string | null
+          phone_last8: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string
+          id?: string
+          instancia_id?: string | null
+          phone_last8?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       disparos_chat_kanban: {
         Row: {
           chat_id: string

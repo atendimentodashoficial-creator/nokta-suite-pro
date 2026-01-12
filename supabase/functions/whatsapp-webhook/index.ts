@@ -1050,18 +1050,136 @@ Deno.serve(async (req) => {
               console.log('Saved Disparos message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
             }
           } else if (instanciaId) {
-            // Chat doesn't exist for this instance - create it automatically
-            // Get instance info for the chat
+            // Chat doesn't exist for this instance - check tombstone first
+            const { data: tombstone } = await supabase
+              .from('disparos_chat_deletions')
+              .select('deleted_at')
+              .eq('user_id', userId)
+              .eq('phone_last8', last8Incoming)
+              .eq('instancia_id', instanciaId)
+              .maybeSingle();
+
+            const disparosChatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
+            const msgTimeMs = messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000;
+            const msgTime = new Date(msgTimeMs).toISOString();
+
+            if (tombstone?.deleted_at) {
+              const tombstoneMs = new Date(tombstone.deleted_at).getTime();
+
+              if (Number.isFinite(tombstoneMs) && msgTimeMs <= tombstoneMs) {
+                console.log(
+                  '[Disparos] Ignoring old webhook message for a deleted chat (tombstone check)',
+                  { last8Incoming, msgTimeMs, tombstoneMs, instanciaId }
+                );
+
+                return new Response(JSON.stringify({ ok: true, ignored: true }), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+
+              // Message is NEWER than deletion - user wants to re-open the chat
+              // Save the tombstone deleted_at to use as history_cleared_at
+              const historyClearedAt = tombstone.deleted_at;
+              
+              console.log('[Disparos] New message after deletion - removing tombstone for', last8Incoming);
+              await supabase
+                .from('disparos_chat_deletions')
+                .delete()
+                .eq('user_id', userId)
+                .eq('phone_last8', last8Incoming)
+                .eq('instancia_id', instanciaId);
+
+              // Get instance info for the chat
+              const { data: instanciaInfo } = await supabase
+                .from('disparos_instancias')
+                .select('nome')
+                .eq('id', instanciaId)
+                .maybeSingle();
+
+              // Create a brand new chat with history_cleared_at set
+              const { data: newChat, error: createError } = await supabase
+                .from('disparos_chats')
+                .insert({
+                  user_id: userId,
+                  chat_id: disparosChatId,
+                  contact_number: phone,
+                  contact_name: name,
+                  normalized_number: normalizedIncoming,
+                  last_message: messageText || 'Nova mensagem',
+                  last_message_time: msgTime,
+                  unread_count: 1,
+                  instancia_id: instanciaId,
+                  instancia_nome: instanciaInfo?.nome || 'Instância',
+                  history_cleared_at: historyClearedAt, // Don't show messages before this time
+                })
+                .select('id')
+                .single();
+
+              let disparosChatIdForMessage: string | null = null;
+
+              if (createError) {
+                if (createError.code === '23505') {
+                  console.log('Disparos chat already exists (race condition), fetching existing chat...');
+                  const { data: existingChat } = await supabase
+                    .from('disparos_chats')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('normalized_number', normalizedIncoming)
+                    .eq('instancia_id', instanciaId)
+                    .is('deleted_at', null)
+                    .maybeSingle();
+                  
+                  if (existingChat) {
+                    disparosChatIdForMessage = existingChat.id;
+                  }
+                } else {
+                  console.error('Error creating Disparos chat:', createError);
+                }
+              } else {
+                console.log('Created new Disparos chat with history_cleared_at:', newChat.id, 'for', name);
+                disparosChatIdForMessage = newChat.id;
+              }
+
+              // Save the first message
+              if (disparosChatIdForMessage) {
+                const anyMsgLocal = normalizedPayload.message as any;
+                const messageId = anyMsgLocal?.messageid || anyMsgLocal?.id || `msg_${Date.now()}`;
+
+                await supabase
+                  .from('disparos_messages')
+                  .upsert({
+                    chat_id: disparosChatIdForMessage,
+                    message_id: messageId,
+                    content: messageText || '',
+                    sender_type: 'contact',
+                    media_type: mediaPlaceholder ? (anyMsgLocal?.mediaType || anyMsgLocal?.messageType || null) : null,
+                    timestamp: msgTime,
+                    utm_source: earlyUtmData.utm_source,
+                    utm_campaign: earlyUtmData.utm_campaign,
+                    utm_medium: earlyUtmData.utm_medium,
+                    utm_content: earlyUtmData.utm_content,
+                    utm_term: earlyUtmData.utm_term,
+                    fbclid: earlyUtmData.fbclid,
+                    ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
+                    fb_ad_id: earlyUtmData.fb_ad_id,
+                    fb_campaign_name: fbCampaignInfo.campaign_name,
+                    fb_adset_name: fbCampaignInfo.adset_name,
+                    fb_ad_name: fbCampaignInfo.ad_name,
+                  }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
+              }
+
+              // Return early - we handled everything
+              return new Response(JSON.stringify({ ok: true }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+
+            // No tombstone - create chat normally
             const { data: instanciaInfo } = await supabase
               .from('disparos_instancias')
               .select('nome')
               .eq('id', instanciaId)
               .maybeSingle();
-
-            const disparosChatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
-            const msgTime = new Date(
-              messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
-            ).toISOString();
 
             const { data: newChat, error: createError } = await supabase
               .from('disparos_chats')
@@ -1084,7 +1202,6 @@ Deno.serve(async (req) => {
 
             if (createError) {
               if (createError.code === '23505') {
-                // Chat already exists (race condition) - fetch the existing chat ID
                 console.log('Disparos chat already exists (race condition), fetching existing chat...');
                 const { data: existingChat } = await supabase
                   .from('disparos_chats')
