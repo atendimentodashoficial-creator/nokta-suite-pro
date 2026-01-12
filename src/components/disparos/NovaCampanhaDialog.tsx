@@ -923,7 +923,8 @@ export function NovaCampanhaDialog({
           toast.error(`Bloco ${bi + 1}, Variação ${vi + 1}: Digite a mensagem de texto`);
           return;
         }
-        if (v.tipo !== "text" && !v.mediaFile) {
+        // For media types, accept either a new file OR existing mediaPreview (from template)
+        if (v.tipo !== "text" && !v.mediaFile && !v.mediaPreview) {
           toast.error(`Bloco ${bi + 1}, Variação ${vi + 1}: Selecione um arquivo de mídia`);
           return;
         }
@@ -946,6 +947,9 @@ export function NovaCampanhaDialog({
           binary += String.fromCharCode(bytes[i]);
         }
         primeiraMediaBase64 = `data:${primeiraVariacao.mediaFile.type};base64,${btoa(binary)}`;
+      } else if (primeiraVariacao.mediaPreview) {
+        // Use existing mediaPreview (from template import)
+        primeiraMediaBase64 = primeiraVariacao.mediaPreview;
       }
 
       // Create campaign
@@ -983,6 +987,9 @@ export function NovaCampanhaDialog({
               binary += String.fromCharCode(bytes[i]);
             }
             mediaBase64 = `data:${v.mediaFile.type};base64,${btoa(binary)}`;
+          } else if (v.mediaPreview) {
+            // Use existing mediaPreview (from template import)
+            mediaBase64 = v.mediaPreview;
           }
           variacoesToInsert.push({
             campanha_id: campanha.id,
