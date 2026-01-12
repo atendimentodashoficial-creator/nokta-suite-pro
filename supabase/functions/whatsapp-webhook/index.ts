@@ -341,121 +341,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Identify user/instance from URL.
-    // UAZAPI may append extra path segments when addUrlEvents/addUrlTypesMessages are enabled.
-    const url = new URL(req.url);
+    // Parse webhook payload FIRST to extract token (api_key) for instance resolution
+    const payload: WhatsAppWebhookPayload = await req.json();
+    console.log('Payload received:', JSON.stringify(payload, null, 2));
 
+    const anyPayload: any = payload as any;
+    const payloadToken = anyPayload?.token || null;
+    const payloadInstanceName = anyPayload?.instanceName || null;
+
+    // Identify user/instance from URL (legacy support)
+    const url = new URL(req.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
     const fnIdx = pathParts.findIndex((p) => p === 'whatsapp-webhook');
     const userIdFromPath = fnIdx >= 0 ? pathParts[fnIdx + 1] : null;
     const instanciaIdFromPath = fnIdx >= 0 ? pathParts[fnIdx + 2] : null;
-
-    const userId = url.searchParams.get('user_id') || userIdFromPath;
-    // Sometimes providers incorrectly append "/..." onto query param values; sanitize.
+    const userIdFromUrl = url.searchParams.get('user_id') || userIdFromPath;
     const rawInstanciaId = url.searchParams.get('instancia_id') || instanciaIdFromPath;
     const rawInstanciaKey = rawInstanciaId ? rawInstanciaId.split('/')[0] : null;
 
-    if (!userId) {
-      console.error('Missing user_id parameter');
-      await logEvent('00000000-0000-0000-0000-000000000000', 'error', 'Missing user_id parameter');
-      return new Response(
-        JSON.stringify({ error: 'Missing user_id parameter' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Resolve instance info (some providers send UUID, others send instance_name).
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const hasInstanceParam = Boolean(rawInstanciaKey);
 
-    const { data: uazapiConfig } = await supabase
-      .from('uazapi_config')
-      .select('whatsapp_instancia_id')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .maybeSingle();
-
+    // PRIORITY 1: Resolve instance by token (api_key) in payload - most reliable method
+    // This allows multiple clients to share the same UAZapi server without interference
     let instanciaId: string | null = null;
     let instanciaNomeFromDb: string | null = null;
+    let effectiveUserId: string | null = null;
+    let effectiveUazapiConfig: { whatsapp_instancia_id: string | null } | null = null;
+    let isMainWhatsAppInstance = false;
+    let resolvedFromToken = false;
 
-    if (rawInstanciaKey) {
-      // Try matching by id, instance_name or friendly nome (best-effort).
-      const { data: instanciaRow } = await supabase
-        .from('disparos_instancias')
-        .select('id, nome, instance_name')
-        .eq('user_id', userId)
-        .or(`id.eq.${rawInstanciaKey},instance_name.eq.${rawInstanciaKey},nome.eq.${rawInstanciaKey}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (instanciaRow?.id) {
-        instanciaId = instanciaRow.id;
-        instanciaNomeFromDb = instanciaRow.nome || null;
-      } else {
-        // Instance not found in DB - REJECT the webhook to prevent phantom instances
-        console.error('REJECTING webhook: Instance not found in DB:', rawInstanciaKey);
-        await logEvent(userId, 'warn', `Webhook rejeitado: instância não registrada "${rawInstanciaKey}"`);
-        return new Response(
-          JSON.stringify({ error: 'Instance not registered. Please add this instance via WhatsApp or Disparos tab first.' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    let isMainWhatsAppInstance = Boolean(
-      uazapiConfig?.whatsapp_instancia_id && instanciaId && uazapiConfig.whatsapp_instancia_id === instanciaId
-    );
-    
-    console.log('Main instance check:', {
-      configuredMainId: uazapiConfig?.whatsapp_instancia_id,
-      resolvedInstanciaId: instanciaId,
-      isMainWhatsAppInstance,
-      rawInstanciaKey,
-    });
-
-    await logEvent(
-      userId,
-      'info',
-      `Webhook recebido via POST${hasInstanceParam ? ` (instancia: ${rawInstanciaKey})` : ''}`,
-    );
-    console.log(
-      'Processing webhook for user:',
-      userId,
-      hasInstanceParam ? `instancia: ${rawInstanciaKey}` : ''
-    );
-
-    // Update last_webhook_at for the resolved instance (if we have a UUID id).
-    if (instanciaId && uuidRegex.test(instanciaId)) {
-      const { error: updateError } = await supabase
-        .from('disparos_instancias')
-        .update({ last_webhook_at: new Date().toISOString() })
-        .eq('id', instanciaId)
-        .eq('user_id', userId);
-
-      if (updateError) {
-        console.error('Error updating last_webhook_at:', updateError);
-      } else {
-        console.log('Updated last_webhook_at for instance:', instanciaId);
-      }
-    }
-
-    // Parse webhook payload
-    const payload: WhatsAppWebhookPayload = await req.json();
-    console.log('Payload received:', JSON.stringify(payload, null, 2));
-
-    // === UAZAPI sends instanceName and token (api_key) inside payload; use them to resolve instance ===
-    const anyPayload: any = payload as any;
-    const payloadInstanceName = anyPayload?.instanceName || null;
-    const payloadToken = anyPayload?.token || null;
-    
-    // Effective userId - may be overridden if we resolve the instance from payload token
-    let effectiveUserId = userId;
-    let effectiveUazapiConfig = uazapiConfig;
-
-    // FIRST: Try to resolve instance by token (api_key) in payload - this is more reliable
-    // because it identifies the exact instance regardless of the userId in URL
-    if (!instanciaId && payloadToken) {
-      console.log('Attempting to resolve instance from payload token (api_key):', payloadToken);
+    if (payloadToken) {
+      console.log('PRIORITY 1: Resolving instance from payload token (api_key):', payloadToken);
       const { data: instanciaFromToken } = await supabase
         .from('disparos_instancias')
         .select('id, nome, instance_name, user_id')
@@ -467,38 +384,62 @@ Deno.serve(async (req) => {
       if (instanciaFromToken?.id) {
         instanciaId = instanciaFromToken.id;
         instanciaNomeFromDb = instanciaFromToken.nome || payloadInstanceName;
-        console.log('Resolved instance from payload token:', instanciaId, instanciaNomeFromDb, 'user_id:', instanciaFromToken.user_id);
+        effectiveUserId = instanciaFromToken.user_id;
+        resolvedFromToken = true;
+        console.log('SUCCESS: Resolved instance from token:', {
+          instanciaId,
+          instanciaNome: instanciaNomeFromDb,
+          effectiveUserId,
+        });
+
+        // Fetch uazapiConfig for the resolved user
+        const { data: userUazapiConfig } = await supabase
+          .from('uazapi_config')
+          .select('whatsapp_instancia_id')
+          .eq('user_id', effectiveUserId)
+          .eq('is_active', true)
+          .maybeSingle();
         
-        // IMPORTANT: Override the userId from URL with the one from the instance
-        // This handles cases where uazapi sends webhooks to a shared URL
-        const resolvedUserId = instanciaFromToken.user_id;
-        if (resolvedUserId && resolvedUserId !== userId) {
-          console.log('Overriding userId from URL with instance owner:', resolvedUserId);
-          effectiveUserId = resolvedUserId;
-          
-          // We need to re-fetch uazapiConfig for the correct user
-          const { data: correctUazapiConfig } = await supabase
-            .from('uazapi_config')
-            .select('whatsapp_instancia_id')
-            .eq('user_id', resolvedUserId)
-            .eq('is_active', true)
-            .maybeSingle();
-          
-          effectiveUazapiConfig = correctUazapiConfig;
-          
-          // Check if this is the main WhatsApp instance for the resolved user
-          isMainWhatsAppInstance = Boolean(
-            correctUazapiConfig?.whatsapp_instancia_id && correctUazapiConfig.whatsapp_instancia_id === instanciaId
-          );
-          console.log('Updated isMainWhatsAppInstance for resolved user:', isMainWhatsAppInstance, 'effectiveUserId:', effectiveUserId);
-          
-          // Update last_webhook_at for this instance
-          await supabase
-            .from('disparos_instancias')
-            .update({ last_webhook_at: new Date().toISOString() })
-            .eq('id', instanciaId);
-        } else {
-          // Same user, just check if it's the main instance
+        effectiveUazapiConfig = userUazapiConfig;
+        isMainWhatsAppInstance = Boolean(
+          userUazapiConfig?.whatsapp_instancia_id && userUazapiConfig.whatsapp_instancia_id === instanciaId
+        );
+
+        // Update last_webhook_at for this instance
+        await supabase
+          .from('disparos_instancias')
+          .update({ last_webhook_at: new Date().toISOString() })
+          .eq('id', instanciaId);
+      }
+    }
+
+    // PRIORITY 2: If token resolution failed, try URL parameters (legacy support)
+    if (!resolvedFromToken && userIdFromUrl) {
+      console.log('PRIORITY 2: Falling back to URL parameters, userId:', userIdFromUrl);
+      effectiveUserId = userIdFromUrl;
+
+      const { data: uazapiConfig } = await supabase
+        .from('uazapi_config')
+        .select('whatsapp_instancia_id')
+        .eq('user_id', userIdFromUrl)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      effectiveUazapiConfig = uazapiConfig;
+
+      if (rawInstanciaKey) {
+        // Try matching by id, instance_name or friendly nome
+        const { data: instanciaRow } = await supabase
+          .from('disparos_instancias')
+          .select('id, nome, instance_name')
+          .eq('user_id', userIdFromUrl)
+          .or(`id.eq.${rawInstanciaKey},instance_name.eq.${rawInstanciaKey},nome.eq.${rawInstanciaKey}`)
+          .limit(1)
+          .maybeSingle();
+
+        if (instanciaRow?.id) {
+          instanciaId = instanciaRow.id;
+          instanciaNomeFromDb = instanciaRow.nome || null;
           isMainWhatsAppInstance = Boolean(
             uazapiConfig?.whatsapp_instancia_id && uazapiConfig.whatsapp_instancia_id === instanciaId
           );
@@ -506,75 +447,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    // FALLBACK: If we haven't resolved the instance from token, try using the payload's instanceName
-    if (!instanciaId && payloadInstanceName) {
-      console.log('Attempting to resolve instance from payload instanceName:', payloadInstanceName);
-      const { data: instanciaFromPayload } = await supabase
-        .from('disparos_instancias')
-        .select('id, nome, instance_name')
-        .eq('user_id', effectiveUserId)
-        .or(`instance_name.eq.${payloadInstanceName},nome.eq.${payloadInstanceName}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (instanciaFromPayload?.id) {
-        instanciaId = instanciaFromPayload.id;
-        instanciaNomeFromDb = instanciaFromPayload.nome || payloadInstanceName;
-        console.log('Resolved instance from payload:', instanciaId, instanciaNomeFromDb);
-
-        // Re-check if this is the main WhatsApp instance
-        const isMain = effectiveUazapiConfig?.whatsapp_instancia_id === instanciaId;
-        // Update the main flag directly (not using globalThis)
-        isMainWhatsAppInstance = isMain;
-        console.log('Updated isMainWhatsAppInstance from payload resolution:', isMain);
-      } else {
-        // Even if not resolved, we know there IS an instance (from payload)
-        // Check if the payload instanceName matches the main instance's instance_name
-        if (effectiveUazapiConfig?.whatsapp_instancia_id) {
-          const { data: mainInstancia } = await supabase
-            .from('disparos_instancias')
-            .select('instance_name, nome')
-            .eq('id', effectiveUazapiConfig.whatsapp_instancia_id)
-            .maybeSingle();
-          
-          if (mainInstancia && (mainInstancia.instance_name === payloadInstanceName || mainInstancia.nome === payloadInstanceName)) {
-            instanciaId = effectiveUazapiConfig.whatsapp_instancia_id;
-            instanciaNomeFromDb = mainInstancia.nome || payloadInstanceName;
-            isMainWhatsAppInstance = true;
-            console.log('Matched payload instanceName to main WhatsApp instance:', instanciaId);
-          } else {
-            // Instance from payload not found in DB - REJECT the webhook
-            console.error('REJECTING webhook: Instance from payload not found in DB:', payloadInstanceName);
-            await logEvent(effectiveUserId, 'warn', `Webhook rejeitado: instância não registrada "${payloadInstanceName}"`);
-            return new Response(
-              JSON.stringify({ error: 'Instance not registered. Please add this instance via WhatsApp or Disparos tab first.' }),
-              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-        } else {
-          // No main instance configured and instance from payload not found - REJECT
-          console.error('REJECTING webhook: No main instance configured and instance not found:', payloadInstanceName);
-          await logEvent(effectiveUserId, 'warn', `Webhook rejeitado: instância não registrada "${payloadInstanceName}" e nenhuma instância principal configurada`);
-          return new Response(
-            JSON.stringify({ error: 'Instance not registered. Please add this instance via WhatsApp or Disparos tab first.' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
+    // If still no user, reject
+    if (!effectiveUserId) {
+      console.error('Could not resolve user from token or URL');
+      await logEvent('00000000-0000-0000-0000-000000000000', 'error', 'Could not resolve user from token or URL');
+      return new Response(
+        JSON.stringify({ error: 'Could not identify instance. Ensure the instance is registered.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    console.log('Instance resolution complete:', {
+      resolvedFromToken,
+      effectiveUserId,
+      instanciaId,
+      instanciaNomeFromDb,
+      isMainWhatsAppInstance,
+      hasInstanceParam,
+    });
+
+    await logEvent(
+      effectiveUserId,
+      'info',
+      `Webhook recebido${resolvedFromToken ? ' (via token)' : ''}${hasInstanceParam ? ` (instancia: ${rawInstanciaKey})` : ''}`,
+    );
 
     // Determine if we should update WhatsApp or Disparos tables
     // If there's no instance param => WhatsApp (legacy behavior)
     // If there IS an instance param => it's WhatsApp if it's the main instance, otherwise Disparos
     const effectiveHasInstanceParam = hasInstanceParam || Boolean(payloadInstanceName);
-    
-    console.log('Final instance resolution:', {
-      effectiveHasInstanceParam,
-      isMainWhatsAppInstance,
-      instanciaId,
-      instanciaNomeFromDb,
-      effectiveUserId,
-    });
 
     // Check if this is a deleted message event
     if (payload.type === 'DeletedMessage' && payload.event?.Type === 'Deleted') {
@@ -590,10 +491,10 @@ Deno.serve(async (req) => {
 
         if (deleteError) {
           console.error('Error marking messages as deleted:', deleteError);
-          await logEvent(userId, 'error', `Erro ao marcar mensagens como deletadas: ${deleteError.message}`);
+          await logEvent(effectiveUserId, 'error', `Erro ao marcar mensagens como deletadas: ${deleteError.message}`);
         } else {
           console.log(`Marked ${messageIds.length} message(s) as deleted`);
-          await logEvent(userId, 'info', `${messageIds.length} mensagem(s) marcada(s) como deletada(s)`);
+          await logEvent(effectiveUserId, 'info', `${messageIds.length} mensagem(s) marcada(s) como deletada(s)`);
         }
       }
 
@@ -611,7 +512,7 @@ Deno.serve(async (req) => {
 
     if (!hasMessage || !hasChat) {
       console.error('Invalid payload structure');
-      await logEvent(userId, 'error', 'Estrutura de payload inválida', payload);
+      await logEvent(effectiveUserId, 'error', 'Estrutura de payload inválida', payload);
       return new Response(
         JSON.stringify({ error: 'Invalid payload structure' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -637,7 +538,7 @@ Deno.serve(async (req) => {
 
     if (isFromMe) {
       console.log('Processing message sent by user (fromMe=true)');
-      await logEvent(userId, 'info', 'Mensagem enviada pelo usuário (fromMe=true)');
+      await logEvent(effectiveUserId, 'info', 'Mensagem enviada pelo usuário (fromMe=true)');
     }
 
     // Extract data from payload
@@ -647,7 +548,7 @@ Deno.serve(async (req) => {
     const isGroupMessage = chatId.endsWith('@g.us');
     if (isGroupMessage) {
       console.log('Ignoring group message, chatId:', chatId);
-      await logEvent(userId, 'info', `Mensagem de grupo ignorada: ${chatId}`);
+      await logEvent(effectiveUserId, 'info', `Mensagem de grupo ignorada: ${chatId}`);
       return new Response(
         JSON.stringify({ message: 'Group messages are ignored' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -674,7 +575,7 @@ Deno.serve(async (req) => {
 
     if (!phone) {
       console.error('Missing phone number in payload');
-      await logEvent(userId, 'error', 'Número de telefone não encontrado no payload', payload);
+      await logEvent(effectiveUserId, 'error', 'Número de telefone não encontrado no payload', payload);
       return new Response(
         JSON.stringify({ error: 'Missing phone number' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -684,7 +585,7 @@ Deno.serve(async (req) => {
     console.log('Contact info - Phone:', phone, 'Name:', name);
     const normalizedIncoming = normalizePhone(phone);
     console.log('Normalized incoming phone:', normalizedIncoming);
-    await logEvent(userId, 'info', `Contato identificado - Telefone: ${phone} (normalizado: ${normalizedIncoming}), Nome: ${name}`);
+    await logEvent(effectiveUserId, 'info', `Contato identificado - Telefone: ${phone} (normalizado: ${normalizedIncoming}), Nome: ${name}`);
 
     // === Deduplicate webhook events to prevent double-counting unread messages ===
     const messageTimestamp = normalizedPayload.message!.messageTimestamp;
@@ -697,7 +598,7 @@ Deno.serve(async (req) => {
       const { error: dedupError } = await supabase
         .from('webhook_message_dedup')
         .insert({
-          user_id: userId,
+          user_id: effectiveUserId,
           instancia_id: instanciaId || null,
           phone_last8: last8Incoming,
           message_timestamp: messageTimestamp,
@@ -723,7 +624,7 @@ Deno.serve(async (req) => {
     let fbCampaignInfo = { campaign_name: null as string | null, adset_name: null as string | null, ad_name: null as string | null };
     if (hasEarlyUtm && earlyUtmData.fb_ad_id) {
       console.log('Fetching Facebook campaign info for ad:', earlyUtmData.fb_ad_id);
-      fbCampaignInfo = await fetchFacebookCampaignInfo(supabase, userId, earlyUtmData.fb_ad_id);
+      fbCampaignInfo = await fetchFacebookCampaignInfo(supabase, effectiveUserId, earlyUtmData.fb_ad_id);
     }
     
     if (hasEarlyUtm) {
@@ -749,7 +650,7 @@ Deno.serve(async (req) => {
           const { data: existingChats } = await supabase
             .from('whatsapp_chats')
             .select('id, contact_number, normalized_number, chat_id, unread_count')
-            .eq('user_id', userId)
+            .eq('user_id', effectiveUserId)
             .is('deleted_at', null);
 
           const matchingChat = existingChats?.find(c =>
@@ -842,7 +743,7 @@ Deno.serve(async (req) => {
             const { data: tombstone } = await supabase
               .from('whatsapp_chat_deletions')
               .select('deleted_at')
-              .eq('user_id', userId)
+              .eq('user_id', effectiveUserId)
               .eq('phone_last8', last8Incoming)
               .maybeSingle();
 
@@ -870,7 +771,7 @@ Deno.serve(async (req) => {
               await supabase
                 .from('whatsapp_chat_deletions')
                 .delete()
-                .eq('user_id', userId)
+                .eq('user_id', effectiveUserId)
                 .eq('phone_last8', last8Incoming);
 
               // Create a brand new chat with history_cleared_at set
@@ -879,7 +780,7 @@ Deno.serve(async (req) => {
               const { data: newChat, error: createError } = await supabase
                 .from('whatsapp_chats')
                 .insert({
-                  user_id: userId,
+                  user_id: effectiveUserId,
                   chat_id: waChatId,
                   contact_number: phone,
                   contact_name: name,
@@ -901,7 +802,7 @@ Deno.serve(async (req) => {
                   const { data: existingChat } = await supabase
                     .from('whatsapp_chats')
                     .select('id')
-                    .eq('user_id', userId)
+                    .eq('user_id', effectiveUserId)
                     .eq('normalized_number', normalizedIncoming)
                     .is('deleted_at', null)
                     .maybeSingle();
@@ -963,7 +864,7 @@ Deno.serve(async (req) => {
             const { data: newChat, error: createError } = await supabase
               .from('whatsapp_chats')
               .insert({
-                user_id: userId,
+                user_id: effectiveUserId,
                 chat_id: waChatId,
                 contact_number: phone,
                 contact_name: name,
@@ -984,7 +885,7 @@ Deno.serve(async (req) => {
                 const { data: existingChat } = await supabase
                   .from('whatsapp_chats')
                   .select('id')
-                  .eq('user_id', userId)
+                  .eq('user_id', effectiveUserId)
                   .eq('normalized_number', normalizedIncoming)
                   .is('deleted_at', null)
                   .maybeSingle();
@@ -1046,7 +947,7 @@ Deno.serve(async (req) => {
           let disparosQuery = supabase
             .from('disparos_chats')
             .select('id, contact_number, normalized_number, chat_id, unread_count, instancia_id')
-            .eq('user_id', userId)
+            .eq('user_id', effectiveUserId)
             .is('deleted_at', null);
 
           if (instanciaId) {
@@ -1144,7 +1045,7 @@ Deno.serve(async (req) => {
             const { data: tombstone } = await supabase
               .from('disparos_chat_deletions')
               .select('deleted_at')
-              .eq('user_id', userId)
+              .eq('user_id', effectiveUserId)
               .eq('phone_last8', last8Incoming)
               .eq('instancia_id', instanciaId)
               .maybeSingle();
@@ -1175,7 +1076,7 @@ Deno.serve(async (req) => {
               await supabase
                 .from('disparos_chat_deletions')
                 .delete()
-                .eq('user_id', userId)
+                .eq('user_id', effectiveUserId)
                 .eq('phone_last8', last8Incoming)
                 .eq('instancia_id', instanciaId);
 
@@ -1190,7 +1091,7 @@ Deno.serve(async (req) => {
               const { data: newChat, error: createError } = await supabase
                 .from('disparos_chats')
                 .insert({
-                  user_id: userId,
+                user_id: effectiveUserId,
                   chat_id: disparosChatId,
                   contact_number: phone,
                   contact_name: name,
@@ -1213,7 +1114,7 @@ Deno.serve(async (req) => {
                   const { data: existingChat } = await supabase
                     .from('disparos_chats')
                     .select('id')
-                    .eq('user_id', userId)
+                    .eq('user_id', effectiveUserId)
                     .eq('normalized_number', normalizedIncoming)
                     .eq('instancia_id', instanciaId)
                     .is('deleted_at', null)
@@ -1274,7 +1175,7 @@ Deno.serve(async (req) => {
             const { data: newChat, error: createError } = await supabase
               .from('disparos_chats')
               .insert({
-                user_id: userId,
+                user_id: effectiveUserId,
                 chat_id: disparosChatId,
                 contact_number: phone,
                 contact_name: name,
@@ -1296,7 +1197,7 @@ Deno.serve(async (req) => {
                 const { data: existingChat } = await supabase
                   .from('disparos_chats')
                   .select('id')
-                  .eq('user_id', userId)
+                  .eq('user_id', effectiveUserId)
                   .eq('normalized_number', normalizedIncoming)
                   .eq('instancia_id', instanciaId)
                   .is('deleted_at', null)
@@ -1362,12 +1263,12 @@ Deno.serve(async (req) => {
     const { data: userProfile, error: profileError } = await supabase
       .from('profiles')
       .select('created_at')
-      .eq('id', userId)
+      .eq('id', effectiveUserId)
       .maybeSingle();
 
     if (profileError) {
       console.error('Error fetching user profile:', profileError);
-      await logEvent(userId, 'error', `Erro ao buscar perfil do usuário: ${profileError.message}`);
+      await logEvent(effectiveUserId, 'error', `Erro ao buscar perfil do usuário: ${profileError.message}`);
       // Continue without blocking unread/preview updates
     }
 
@@ -1381,7 +1282,7 @@ Deno.serve(async (req) => {
     // If message is older than user creation date, ignore it
     if (messageDate < userCreatedDate) {
       console.log('Message is older than user creation date, ignoring');
-      await logEvent(userId, 'info', `Mensagem anterior à criação do usuário ignorada: ${name} (${phone})`);
+      await logEvent(effectiveUserId, 'info', `Mensagem anterior à criação do usuário ignorada: ${name} (${phone})`);
       return new Response(
         JSON.stringify({ 
           message: 'Message predates user creation, ignoring',
@@ -1437,7 +1338,7 @@ Deno.serve(async (req) => {
     // Handle standard referral format
     if (referral) {
       console.log('Click-to-WhatsApp referral data detected (standard format):', JSON.stringify(referral));
-      await logEvent(userId, 'info', `Dados de anúncio CTWA detectados: ${JSON.stringify(referral)}`);
+      await logEvent(effectiveUserId, 'info', `Dados de anúncio CTWA detectados: ${JSON.stringify(referral)}`);
       
       // Map referral data to UTM-like fields
       utmData.utm_source = 'facebook';
@@ -1451,7 +1352,7 @@ Deno.serve(async (req) => {
     // Handle UAZAPI format: externalAdReply in contextInfo
     else if (externalAdReply && conversionSource === 'FB_Ads') {
       console.log('Click-to-WhatsApp ad data detected (UAZAPI format):', JSON.stringify(externalAdReply));
-      await logEvent(userId, 'info', `Dados de anúncio CTWA (UAZAPI) detectados: ${JSON.stringify(externalAdReply)}`);
+      await logEvent(effectiveUserId, 'info', `Dados de anúncio CTWA (UAZAPI) detectados: ${JSON.stringify(externalAdReply)}`);
 
       // Map externalAdReply data to UTM-like fields
       // UAZAPI sends sourceID (uppercase D) - check both variants
@@ -1470,7 +1371,7 @@ Deno.serve(async (req) => {
         utmData.fbclid = utmData.fbclid || fbclid;
 
         if (adId) {
-          await logEvent(userId, 'info', `CTWA payload decodificado: adId=${adId}`);
+          await logEvent(effectiveUserId, 'info', `CTWA payload decodificado: adId=${adId}`);
         }
       }
 
@@ -1486,7 +1387,7 @@ Deno.serve(async (req) => {
     // Fetch real Facebook campaign names if we have an ad ID (for lead enrichment)
     let leadFbCampaignInfo = { campaign_id: null as string | null, campaign_name: null as string | null, adset_id: null as string | null, adset_name: null as string | null, ad_name: null as string | null };
     if (utmData.fb_ad_id) {
-      leadFbCampaignInfo = await fetchFacebookCampaignInfo(supabase, userId, utmData.fb_ad_id);
+      leadFbCampaignInfo = await fetchFacebookCampaignInfo(supabase, effectiveUserId, utmData.fb_ad_id);
       console.log('Fetched Facebook campaign info for lead:', leadFbCampaignInfo);
       // Update utmData with enriched names and IDs
       utmData.fb_campaign_id = leadFbCampaignInfo.campaign_id;
@@ -1520,11 +1421,11 @@ Deno.serve(async (req) => {
     const { data: allLeads, error: searchError } = await supabase
       .from('leads')
       .select('id, status, telefone, nome, deleted_at, origem, utm_source, fbclid')
-      .eq('user_id', userId);
+      .eq('user_id', effectiveUserId);
 
     if (searchError) {
       console.error('Error searching for existing leads:', searchError);
-      await logEvent(userId, 'error', `Erro ao buscar leads existentes: ${searchError.message}`);
+      await logEvent(effectiveUserId, 'error', `Erro ao buscar leads existentes: ${searchError.message}`);
       return new Response(
         JSON.stringify({ error: 'Database error', details: searchError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1549,7 +1450,7 @@ Deno.serve(async (req) => {
     // Se já é cliente, não mexe
     if (matchingLead && !matchingLead.deleted_at && matchingLead.status === 'cliente') {
       console.log('Contact is already a client, ignoring');
-      await logEvent(userId, 'info', `Contato já é cliente: ${name} (${phone})`);
+      await logEvent(effectiveUserId, 'info', `Contato já é cliente: ${name} (${phone})`);
       return new Response(
         JSON.stringify({ message: 'Contact is already a client', lead_id: matchingLead.id }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1604,7 +1505,7 @@ Deno.serve(async (req) => {
 
       if (restoreError) {
         console.error('Error restoring lead:', restoreError);
-        await logEvent(userId, 'error', `Erro ao restaurar lead: ${restoreError.message}`);
+        await logEvent(effectiveUserId, 'error', `Erro ao restaurar lead: ${restoreError.message}`);
         return new Response(
           JSON.stringify({ error: 'Failed to restore lead', details: restoreError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1612,7 +1513,7 @@ Deno.serve(async (req) => {
       }
 
       console.log('Lead restored successfully from webhook (keeping original created_at):', matchingLead.id);
-      await logEvent(userId, 'info', `Lead restaurado com dados originais: ${name} (ID: ${matchingLead.id})`);
+      await logEvent(effectiveUserId, 'info', `Lead restaurado com dados originais: ${name} (ID: ${matchingLead.id})`);
 
       return new Response(
         JSON.stringify({ message: 'Lead restored successfully', lead_id: matchingLead.id, action: 'restored' }),
@@ -1647,7 +1548,7 @@ Deno.serve(async (req) => {
         updateData.fb_adset_name = utmData.fb_adset_name;
         updateData.fb_ad_name = utmData.fb_ad_name;
         console.log('Adding UTM data to existing lead:', utmData);
-        await logEvent(userId, 'info', `Dados UTM adicionados ao lead existente: ${JSON.stringify(utmData)}`);
+        await logEvent(effectiveUserId, 'info', `Dados UTM adicionados ao lead existente: ${JSON.stringify(utmData)}`);
       }
 
       // Add instance name if available and not set
@@ -1662,14 +1563,14 @@ Deno.serve(async (req) => {
 
       if (updateError) {
         console.error('Error updating lead:', updateError);
-        await logEvent(userId, 'error', `Erro ao atualizar lead: ${updateError.message}`);
+        await logEvent(effectiveUserId, 'error', `Erro ao atualizar lead: ${updateError.message}`);
         return new Response(
           JSON.stringify({ error: 'Failed to update lead', details: updateError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      await logEvent(userId, 'info', `Lead atualizado: ${name} (${phone})`);
+      await logEvent(effectiveUserId, 'info', `Lead atualizado: ${name} (${phone})`);
       return new Response(
         JSON.stringify({ message: 'Lead updated successfully', lead_id: matchingLead.id, action: 'updated' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1678,12 +1579,12 @@ Deno.serve(async (req) => {
 
     // Não existe -> criar
     console.log('No matching lead found, creating new lead...');
-    await logEvent(userId, 'info', `Criando novo lead para ${name} (${phone})`);
+    await logEvent(effectiveUserId, 'info', `Criando novo lead para ${name} (${phone})`);
 
     const { data: newLead, error: insertError } = await supabase
       .from('leads')
       .insert({
-        user_id: userId,
+        user_id: effectiveUserId,
         nome: name,
         telefone: normalizedIncoming,
         procedimento_nome: `Contato via ${leadOrigem}`,
@@ -1714,7 +1615,7 @@ Deno.serve(async (req) => {
 
     if (insertError) {
       console.error('Error creating lead:', insertError);
-      await logEvent(userId, 'error', `Erro ao criar lead: ${insertError.message}`, { name, phone, normalizedIncoming });
+      await logEvent(effectiveUserId, 'error', `Erro ao criar lead: ${insertError.message}`, { name, phone, normalizedIncoming });
       return new Response(
         JSON.stringify({ error: 'Failed to create lead', details: insertError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1722,7 +1623,7 @@ Deno.serve(async (req) => {
     }
 
     console.log('Lead created successfully from webhook:', newLead.id);
-    await logEvent(userId, 'info', `Lead criado com sucesso: ${name} (ID: ${newLead.id})`);
+    await logEvent(effectiveUserId, 'info', `Lead criado com sucesso: ${name} (ID: ${newLead.id})`);
 
     return new Response(
       JSON.stringify({ message: 'Lead created successfully', lead_id: newLead.id, lead_name: newLead.nome, action: 'created' }),
