@@ -527,8 +527,36 @@ serve(async (req) => {
         .select();
 
       if (insertError) {
+        const errAny: any = insertError;
         console.error("Error inserting chat:", insertError);
-        throw insertError;
+
+        // Handle race-condition/conflict: another sync inserted the same chat between our UPDATE and INSERT.
+        // The table has a partial unique index for (user_id, normalized_number) WHERE deleted_at IS NULL.
+        // In that case, fetch the existing active row and proceed without failing the whole sync.
+        if (errAny?.code === "23505") {
+          console.warn(
+            `[SYNC] Duplicate key on insert for ${row.normalized_number}. Fetching existing active row instead of failing.`,
+          );
+
+          const { data: existingRow, error: existingRowError } = await supabase
+            .from("whatsapp_chats")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("normalized_number", row.normalized_number)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+          if (existingRowError) {
+            throw new Error(existingRowError.message);
+          }
+
+          if (existingRow) {
+            syncedChats.push(existingRow);
+            continue;
+          }
+        }
+
+        throw new Error(errAny?.message ?? "Erro ao inserir chat");
       }
 
       if (insertedRows && insertedRows.length > 0) syncedChats.push(insertedRows[0]);
@@ -577,9 +605,20 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error in uazapi-get-chats:", error);
+    try {
+      console.error("Error in uazapi-get-chats (serialized):", JSON.stringify(error));
+    } catch {
+      // ignore serialization errors
+    }
 
     // Update sync status with error
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errAny: any = error;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : errAny?.message
+          ? String(errAny.message)
+          : "Unknown error";
     try {
       const authHeaderRetry = req.headers.get("Authorization");
       if (authHeaderRetry) {
