@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { startOfDayBrasilia, endOfDayBrasilia, parseDateStringBrasilia } from "@/utils/timezone";
 
 export type StatusAgendamento = "agendado" | "confirmado" | "realizado" | "cancelado";
 
@@ -43,10 +44,10 @@ export const useAgendamentos = (filters?: {
         .order("data_agendamento", { ascending: true });
 
       if (filters?.data) {
-        const startDate = new Date(filters.data);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(filters.data);
-        endDate.setHours(23, 59, 59, 999);
+        // Usar timezone de Brasília para criar os limites do dia
+        const dateToFilter = parseDateStringBrasilia(filters.data);
+        const startDate = startOfDayBrasilia(dateToFilter);
+        const endDate = endOfDayBrasilia(dateToFilter);
         
         query = query
           .gte("data_agendamento", startDate.toISOString())
@@ -195,16 +196,15 @@ export const useAgendamentosExcluidos = (dateStart?: Date, dateEnd?: Date) => {
         .order("excluido_em", { ascending: false });
 
       // Filtrar por período do agendamento (não pela data de exclusão)
+      // Usar timezone de Brasília para consistência
       if (dateStart) {
-        const startOfDay = new Date(dateStart);
-        startOfDay.setHours(0, 0, 0, 0);
-        query = query.gte("data_agendamento", startOfDay.toISOString());
+        const startOfDayDate = startOfDayBrasilia(dateStart);
+        query = query.gte("data_agendamento", startOfDayDate.toISOString());
       }
 
       if (dateEnd) {
-        const endOfDay = new Date(dateEnd);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte("data_agendamento", endOfDay.toISOString());
+        const endOfDayDate = endOfDayBrasilia(dateEnd);
+        query = query.lte("data_agendamento", endOfDayDate.toISOString());
       }
 
       const { data, error } = await query;
