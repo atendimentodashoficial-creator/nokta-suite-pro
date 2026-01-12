@@ -17,28 +17,6 @@ interface AvisoAgendamento {
   intervalo_max: number;
 }
 
-interface Agendamento {
-  id: string;
-  data_agendamento: string;
-  aviso_3dias: boolean;
-  aviso_dia_anterior: boolean;
-  aviso_dia: boolean;
-  user_id: string;
-  leads: {
-    id: string;
-    nome: string;
-    telefone: string;
-    origem: string | null;
-    instancia_nome: string | null;
-  };
-  procedimentos: {
-    nome: string;
-  } | null;
-  profissionais: {
-    nome: string;
-  } | null;
-}
-
 interface WhatsAppConfig {
   base_url: string;
   api_key: string;
@@ -62,59 +40,44 @@ interface PendingAviso {
   profissionalNome: string;
   leadOrigem: string | null;
   leadInstanciaNome: string | null;
-  agendamentoInstanciaNome: string | null; // Prioritário para roteamento
+  agendamentoInstanciaNome: string | null;
 }
 
 // Configuration
-const BATCH_SIZE = 10;
-const MAX_EXECUTION_TIME_MS = 90000; // 90 seconds (Edge Function limit is ~120s)
+const MAX_MESSAGES_PER_EXECUTION = 5;
 
 // Get current time in São Paulo timezone
 function getSaoPauloTime(): Date {
   const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
   const saoPauloOffset = -3 * 60 * 60 * 1000;
   return new Date(utc + saoPauloOffset);
 }
 
 // Helper to delay between sends
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const getRandomInterval = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
-// Self-invoke to continue processing
-async function selfInvokeContinue(pendingAvisos: PendingAviso[], processedCount: number) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  
-  console.log(`Self-invoking to continue processing ${pendingAvisos.length} remaining avisos...`);
-  
-  try {
-    const response = await fetch(`${supabaseUrl}/functions/v1/enviar-avisos-agendamento`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${serviceRoleKey}`,
-      },
-      body: JSON.stringify({
-        action: "continue",
-        pendingAvisos,
-        processedCount,
-      }),
-    });
-    
-    if (!response.ok) {
-      console.error(`Self-invoke failed: ${response.status} ${response.statusText}`);
-    } else {
-      console.log(`Self-invoke successful, continuing in background`);
-    }
-  } catch (error) {
-    console.error("Self-invoke error:", error);
+// Calculate next check time for an aviso (next day at horario_envio)
+function calculateNextCheckAt(horarioEnvio: string): string {
+  const saoPauloNow = getSaoPauloTime();
+  const [hora, minuto] = horarioEnvio.split(":").map(Number);
+
+  // Today at the scheduled time
+  const todayScheduled = new Date(saoPauloNow);
+  todayScheduled.setHours(hora, minuto, 0, 0);
+
+  // If we're past today's scheduled time, schedule for tomorrow
+  if (saoPauloNow >= todayScheduled) {
+    todayScheduled.setDate(todayScheduled.getDate() + 1);
   }
+
+  return todayScheduled.toISOString();
 }
 
-// Process a single aviso
+// Process a single aviso message
 async function processAviso(
   supabase: any,
   aviso: PendingAviso,
@@ -124,13 +87,11 @@ async function processAviso(
   }
 ): Promise<{ success: boolean; result: any }> {
   const { defaultConfig, instanceConfigMap } = configs;
-  
+
   // Determine which instance to use
-  // Priority: 1) agendamentoInstanciaNome, 2) leadInstanciaNome, 3) default
   let config: WhatsAppConfig | null = null;
   let instanceUsed = "default";
 
-  // First check if agendamento has a specific instance (from Disparos scheduling)
   const instanciaParaUsar = aviso.agendamentoInstanciaNome || aviso.leadInstanciaNome;
   const isFromDisparos = aviso.leadOrigem === "Disparos" || !!aviso.agendamentoInstanciaNome;
 
@@ -143,7 +104,7 @@ async function processAviso(
     instanceUsed = "WhatsApp (default)";
     console.log(`Aviso for ${aviso.clienteNome} using default WhatsApp instance`);
   } else {
-    console.log(`No suitable WhatsApp config for ${aviso.clienteNome} (origem=${aviso.leadOrigem}, instancia=${instanciaParaUsar})`);
+    console.log(`No suitable WhatsApp config for ${aviso.clienteNome}`);
     return { success: false, result: { error: "No config available" } };
   }
 
@@ -171,9 +132,9 @@ async function processAviso(
     const response = await fetch(`${config.base_url}/send/text`, {
       method: "POST",
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
         "Content-Type": "application/json",
-        "token": config.api_key,
+        token: config.api_key,
       },
       body: JSON.stringify({
         number: formattedPhone,
@@ -191,14 +152,7 @@ async function processAviso(
         const updateData: Record<string, boolean> = {};
         updateData[aviso.flagField] = true;
 
-        const { error: updateError } = await supabase
-          .from("agendamentos")
-          .update(updateData)
-          .eq("id", aviso.agendamentoId);
-
-        if (updateError) {
-          console.error(`Error updating flag ${aviso.flagField}:`, updateError);
-        }
+        await supabase.from("agendamentos").update(updateData).eq("id", aviso.agendamentoId);
       }
 
       // Log the sent aviso
@@ -256,9 +210,7 @@ async function processAviso(
         success: false,
         result: {
           agendamento_id: aviso.agendamentoId,
-          aviso: aviso.avisoNome,
           phone: formattedPhone,
-          instance: instanceUsed,
           status: "error",
           error: responseData.message || "Unknown error",
         },
@@ -294,7 +246,6 @@ async function processAviso(
       success: false,
       result: {
         agendamento_id: aviso.agendamentoId,
-        aviso: aviso.avisoNome,
         phone: formattedPhone,
         status: "error",
         error: sendError.message,
@@ -314,58 +265,38 @@ Deno.serve(async (req) => {
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     console.error("Missing backend env vars");
-    return new Response(
-      JSON.stringify({ success: false, error: "Missing backend env vars" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: false, error: "Missing backend env vars" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   const authHeader = req.headers.get("Authorization") ?? "";
-
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-  const startTime = Date.now();
 
   try {
     const saoPauloNow = getSaoPauloTime();
     console.log(`Starting enviar-avisos-agendamento at ${saoPauloNow.toISOString()} (São Paulo time)`);
 
-    // Check if this is a continuation request
-    let pendingAvisos: PendingAviso[] = [];
-    let previousProcessedCount = 0;
-    let isContinuation = false;
+    // Parse request body
     let filterAvisoId: string | null = null;
-    let skipHorarioCheck = false;
-    let requestedUserIdFromBody: string | null = null;
+    let action: string | null = null;
+    let requestedUserId: string | null = null;
 
     if (req.method === "POST") {
       try {
         const body = await req.json();
-
-        if (body.action === "continue" && body.pendingAvisos) {
-          // This is a continuation request
-          isContinuation = true;
-          pendingAvisos = body.pendingAvisos;
-          previousProcessedCount = body.processedCount || 0;
-          console.log(
-            `Continuation request: ${pendingAvisos.length} pending avisos, ${previousProcessedCount} already processed`
-          );
-        } else {
-          filterAvisoId = body.aviso_id || null;
-          requestedUserIdFromBody = body.user_id || null;
-          skipHorarioCheck = !!filterAvisoId;
-          if (filterAvisoId) {
-            console.log(`Manual test mode: aviso_id=${filterAvisoId}`);
-          }
-        }
+        filterAvisoId = body.aviso_id || null;
+        action = body.action || null;
+        requestedUserId = body.user_id || null;
       } catch {
-        // No body or invalid JSON, continue normally
+        // No body or invalid JSON
       }
     }
 
-    // Resolve user scope (default: authenticated user)
+    // Resolve user from auth header
     let effectiveUserId: string | null = null;
-    if (!isContinuation && SUPABASE_ANON_KEY && authHeader) {
+    if (SUPABASE_ANON_KEY && authHeader) {
       try {
         const authed = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: authHeader } },
@@ -379,196 +310,166 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If caller provided a user_id, only accept it when it matches the authenticated user.
-    if (requestedUserIdFromBody) {
-      if (effectiveUserId && requestedUserIdFromBody !== effectiveUserId) {
-        console.warn(
-          `Ignoring mismatched user_id from body (body=${requestedUserIdFromBody}, auth=${effectiveUserId})`
-        );
+    // Validate user_id from body matches auth
+    if (requestedUserId) {
+      if (effectiveUserId && requestedUserId !== effectiveUserId) {
+        console.warn(`Ignoring mismatched user_id from body`);
       } else if (!effectiveUserId) {
-        effectiveUserId = requestedUserIdFromBody;
+        effectiveUserId = requestedUserId;
       }
     }
 
-    // If not a continuation, build the pending avisos list
-    if (!isContinuation) {
-      // Get active avisos
-      let avisosQuery = supabase
-        .from("avisos_agendamento")
-        .select("*")
-        .eq("ativo", true);
+    // Get the aviso configuration
+    let avisosQuery = supabase.from("avisos_agendamento").select("*").eq("ativo", true);
 
-      // If we know the user, only process their avisos (avoids cross-tenant sends)
-      if (effectiveUserId) {
-        avisosQuery = avisosQuery.eq("user_id", effectiveUserId);
+    if (filterAvisoId) {
+      avisosQuery = avisosQuery.eq("id", filterAvisoId);
+    } else if (effectiveUserId) {
+      avisosQuery = avisosQuery.eq("user_id", effectiveUserId);
+    }
+
+    const { data: avisos, error: avisosError } = await avisosQuery;
+
+    if (avisosError) {
+      throw new Error(`Error fetching avisos: ${avisosError.message}`);
+    }
+
+    if (!avisos || avisos.length === 0) {
+      console.log("No active avisos found");
+      return new Response(JSON.stringify({ success: true, message: "No active avisos", sent: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`Found ${avisos.length} active avisos`);
+
+    const results: any[] = [];
+    let totalSent = 0;
+
+    // Process each aviso
+    for (const aviso of avisos as AvisoAgendamento[]) {
+      const userId = aviso.user_id;
+      console.log(`Processing aviso "${aviso.nome}" for user ${userId}`);
+
+      // Check if it's time to send (or past time)
+      const [envioHora, envioMinuto] = aviso.horario_envio.split(":").map(Number);
+      const currentHour = saoPauloNow.getHours();
+      const currentMinute = saoPauloNow.getMinutes();
+      const currentTotal = currentHour * 60 + currentMinute;
+      const envioTotal = envioHora * 60 + envioMinuto;
+
+      // Skip if too early (unless manual test)
+      if (!filterAvisoId && currentTotal < envioTotal) {
+        console.log(`Skipping aviso "${aviso.nome}" - too early (now=${currentTotal}, scheduled=${envioTotal})`);
+        continue;
       }
 
-      if (filterAvisoId) {
-        avisosQuery = avisosQuery.eq("id", filterAvisoId);
+      // Get appointments for next 7 days
+      const hojeSP = new Date(saoPauloNow);
+      hojeSP.setHours(0, 0, 0, 0);
+
+      const em7Dias = new Date(hojeSP);
+      em7Dias.setDate(em7Dias.getDate() + 7);
+      em7Dias.setHours(23, 59, 59, 999);
+
+      const { data: agendamentos, error: agendamentosError } = await supabase
+        .from("agendamentos")
+        .select(
+          `
+          id,
+          data_agendamento,
+          aviso_3dias,
+          aviso_dia_anterior,
+          aviso_dia,
+          user_id,
+          origem_agendamento,
+          origem_instancia_nome,
+          leads!inner(id, nome, telefone, origem, instancia_nome),
+          procedimentos(nome),
+          profissionais(nome)
+        `
+        )
+        .eq("user_id", userId)
+        .in("status", ["agendado", "confirmado"])
+        .gte("data_agendamento", hojeSP.toISOString())
+        .lte("data_agendamento", em7Dias.toISOString());
+
+      if (agendamentosError || !agendamentos || agendamentos.length === 0) {
+        console.log(`No upcoming appointments for user ${userId}`);
+        continue;
       }
 
-      const { data: avisos, error: avisosError } = await avisosQuery;
+      console.log(`Found ${agendamentos.length} upcoming appointments for user ${userId}`);
 
-      if (avisosError) {
-        throw new Error(`Error fetching avisos: ${avisosError.message}`);
-      }
+      // Build pending list for this aviso
+      const pendingAvisos: PendingAviso[] = [];
 
-      if (!avisos || avisos.length === 0) {
-        console.log("No active avisos found");
-        return new Response(
-          JSON.stringify({ success: true, message: "No active avisos", sent: 0 }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      for (const ag of agendamentos as any[]) {
+        const dataAgendamento = new Date(ag.data_agendamento);
+        const dataAgendamentoSP = new Date(dataAgendamento.getTime());
+        dataAgendamentoSP.setHours(0, 0, 0, 0);
 
-      console.log(`Found ${avisos.length} active avisos`);
+        const hojeDateSP = new Date(saoPauloNow);
+        hojeDateSP.setHours(0, 0, 0, 0);
 
-      // Group avisos by user_id
-      const avisosByUser: Record<string, AvisoAgendamento[]> = {};
-      for (const aviso of avisos) {
-        if (!avisosByUser[aviso.user_id]) {
-          avisosByUser[aviso.user_id] = [];
-        }
-        avisosByUser[aviso.user_id].push(aviso);
-      }
+        const diffDays = Math.round((dataAgendamentoSP.getTime() - hojeDateSP.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Build pending avisos list
-      for (const [userId, userAvisos] of Object.entries(avisosByUser)) {
-        console.log(`Processing user ${userId} with ${userAvisos.length} avisos`);
-
-        // Get appointments for next 7 days
-        const hojeSP = new Date(saoPauloNow);
-        hojeSP.setHours(0, 0, 0, 0);
-
-        const em7Dias = new Date(hojeSP);
-        em7Dias.setDate(em7Dias.getDate() + 7);
-        em7Dias.setHours(23, 59, 59, 999);
-
-        const { data: agendamentos, error: agendamentosError } = await supabase
-          .from("agendamentos")
-          .select(`
-            id,
-            data_agendamento,
-            aviso_3dias,
-            aviso_dia_anterior,
-            aviso_dia,
-            user_id,
-            origem_agendamento,
-            origem_instancia_nome,
-            leads!inner(id, nome, telefone, origem, instancia_nome),
-            procedimentos(nome),
-            profissionais(nome)
-          `)
-          .eq("user_id", userId)
-          .in("status", ["agendado", "confirmado"])
-          .gte("data_agendamento", hojeSP.toISOString())
-          .lte("data_agendamento", em7Dias.toISOString());
-
-        if (agendamentosError || !agendamentos || agendamentos.length === 0) {
-          console.log(`No upcoming appointments for user ${userId}`);
+        if (diffDays !== aviso.dias_antes) {
           continue;
         }
 
-        console.log(`Found ${agendamentos.length} upcoming appointments for user ${userId}`);
-
-        // Process each aviso for this user
-        for (const aviso of userAvisos) {
-          console.log(`Checking aviso "${aviso.nome}" (${aviso.dias_antes} dias antes, horario: ${aviso.horario_envio})`);
-
-          // Check current time vs horario_envio
-          // If the scheduled time has already passed and it wasn't sent yet, we still send (catch-up).
-          if (!skipHorarioCheck) {
-            const [envioHora, envioMinuto] = aviso.horario_envio.split(":").map(Number);
-            const currentHour = saoPauloNow.getHours();
-            const currentMinute = saoPauloNow.getMinutes();
-
-            const currentTotal = currentHour * 60 + currentMinute;
-            const envioTotal = envioHora * 60 + envioMinuto;
-
-            // Too early -> skip. Past the scheduled time -> allow sending.
-            if (currentTotal < envioTotal) {
-              console.log(`Skipping aviso "${aviso.nome}" - too early (now=${currentTotal}, scheduled=${envioTotal})`);
-              continue;
-            }
-
-            console.log(`Aviso "${aviso.nome}" is past scheduled time (catch-up enabled)`);
-          }
-
-          // Find matching agendamentos
-          for (const ag of agendamentos as any[]) {
-            const dataAgendamento = new Date(ag.data_agendamento);
-            const dataAgendamentoSP = new Date(dataAgendamento.getTime());
-            dataAgendamentoSP.setHours(0, 0, 0, 0);
-
-            const hojeDateSP = new Date(saoPauloNow);
-            hojeDateSP.setHours(0, 0, 0, 0);
-
-            const diffDays = Math.round((dataAgendamentoSP.getTime() - hojeDateSP.getTime()) / (1000 * 60 * 60 * 24));
-
-            if (diffDays !== aviso.dias_antes) {
-              continue;
-            }
-
-            // Determine flag field
-            let flagField = "";
-            if (aviso.dias_antes === 0) {
-              flagField = "aviso_dia";
-              if (ag.aviso_dia) continue;
-            } else if (aviso.dias_antes === 1) {
-              flagField = "aviso_dia_anterior";
-              if (ag.aviso_dia_anterior) continue;
-            } else if (aviso.dias_antes === 3) {
-              flagField = "aviso_3dias";
-              if (ag.aviso_3dias) continue;
-            }
-
-            const telefone = ag.leads?.telefone;
-            if (!telefone) continue;
-
-            // Add to pending list
-            // Prioriza origem_instancia_nome do agendamento, depois instancia_nome do lead
-            const instanciaNomeParaUsar = ag.origem_instancia_nome || ag.leads?.instancia_nome || null;
-            
-            pendingAvisos.push({
-              userId,
-              avisoId: aviso.id,
-              avisoNome: aviso.nome,
-              diasAntes: aviso.dias_antes,
-              intervaloMin: aviso.intervalo_min || 15,
-              intervaloMax: aviso.intervalo_max || 33,
-              mensagemTemplate: aviso.mensagem,
-              agendamentoId: ag.id,
-              flagField,
-              clienteId: ag.leads?.id || "",
-              clienteNome: ag.leads?.nome || "Desconhecido",
-              telefone,
-              dataAgendamento: ag.data_agendamento,
-              procedimentoNome: ag.procedimentos?.nome || "Consulta",
-              profissionalNome: ag.profissionais?.nome || "",
-              leadOrigem: ag.origem_agendamento || ag.leads?.origem || null,
-              leadInstanciaNome: ag.leads?.instancia_nome || null,
-              agendamentoInstanciaNome: ag.origem_instancia_nome || null,
-            });
-          }
+        // Determine flag field
+        let flagField = "";
+        if (aviso.dias_antes === 0) {
+          flagField = "aviso_dia";
+          if (ag.aviso_dia) continue;
+        } else if (aviso.dias_antes === 1) {
+          flagField = "aviso_dia_anterior";
+          if (ag.aviso_dia_anterior) continue;
+        } else if (aviso.dias_antes === 3) {
+          flagField = "aviso_3dias";
+          if (ag.aviso_3dias) continue;
         }
+
+        const telefone = ag.leads?.telefone;
+        if (!telefone) continue;
+
+        pendingAvisos.push({
+          userId,
+          avisoId: aviso.id,
+          avisoNome: aviso.nome,
+          diasAntes: aviso.dias_antes,
+          intervaloMin: aviso.intervalo_min || 15,
+          intervaloMax: aviso.intervalo_max || 33,
+          mensagemTemplate: aviso.mensagem,
+          agendamentoId: ag.id,
+          flagField,
+          clienteId: ag.leads?.id || "",
+          clienteNome: ag.leads?.nome || "Desconhecido",
+          telefone,
+          dataAgendamento: ag.data_agendamento,
+          procedimentoNome: ag.procedimentos?.nome || "Consulta",
+          profissionalNome: ag.profissionais?.nome || "",
+          leadOrigem: ag.origem_agendamento || ag.leads?.origem || null,
+          leadInstanciaNome: ag.leads?.instancia_nome || null,
+          agendamentoInstanciaNome: ag.origem_instancia_nome || null,
+        });
       }
 
-      console.log(`Built pending avisos list: ${pendingAvisos.length} avisos to send`);
-    }
+      if (pendingAvisos.length === 0) {
+        console.log(`No pending messages for aviso "${aviso.nome}"`);
+        // Update next_check_at to tomorrow
+        const nextCheckAt = calculateNextCheckAt(aviso.horario_envio);
+        await supabase
+          .from("avisos_agendamento")
+          .update({ next_check_at: nextCheckAt, last_check_at: new Date().toISOString() })
+          .eq("id", aviso.id);
+        continue;
+      }
 
-    if (pendingAvisos.length === 0) {
-      console.log("No avisos to send");
-      return new Response(
-        JSON.stringify({ success: true, message: "No avisos to send", sent: previousProcessedCount }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      console.log(`${pendingAvisos.length} messages to send for aviso "${aviso.nome}"`);
 
-    // Group pending avisos by user to load configs once
-    const userIds = [...new Set(pendingAvisos.map(a => a.userId))];
-    const userConfigs: Record<string, { defaultConfig: WhatsAppConfig | null; instanceConfigMap: Record<string, WhatsAppConfig> }> = {};
-
-    for (const userId of userIds) {
+      // Load configs for this user
       const { data: defaultConfig } = await supabase
         .from("uazapi_config")
         .select("base_url, api_key")
@@ -592,98 +493,69 @@ Deno.serve(async (req) => {
         }
       }
 
-      userConfigs[userId] = {
-        defaultConfig: defaultConfig || null,
-        instanceConfigMap,
-      };
-    }
+      const configs = { defaultConfig: defaultConfig || null, instanceConfigMap };
 
-    // Process avisos in batches
-    let processedCount = previousProcessedCount;
-    const results: any[] = [];
-    let batchCount = 0;
-
-    while (pendingAvisos.length > 0) {
-      // Check if we're running out of time
-      const elapsedTime = Date.now() - startTime;
-      if (elapsedTime >= MAX_EXECUTION_TIME_MS) {
-        console.log(`Approaching time limit (${elapsedTime}ms). Self-invoking to continue...`);
-        
-        // Fire and forget - self-invoke to continue
-        selfInvokeContinue(pendingAvisos, processedCount);
-        
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: "Processing continued in background",
-            sent: processedCount,
-            remaining: pendingAvisos.length,
-            results,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Check if we've processed enough for this batch
-      if (batchCount >= BATCH_SIZE && pendingAvisos.length > 0) {
-        console.log(`Batch limit reached (${BATCH_SIZE}). Self-invoking to continue...`);
-        
-        // Fire and forget - self-invoke to continue
-        selfInvokeContinue(pendingAvisos, processedCount);
-        
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: "Processing continued in background",
-            sent: processedCount,
-            remaining: pendingAvisos.length,
-            results,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Get next aviso
-      const aviso = pendingAvisos.shift()!;
-      const configs = userConfigs[aviso.userId];
-
-      if (!configs || (!configs.defaultConfig && Object.keys(configs.instanceConfigMap).length === 0)) {
-        console.log(`No config for user ${aviso.userId}, skipping aviso`);
+      if (!configs.defaultConfig && Object.keys(configs.instanceConfigMap).length === 0) {
+        console.log(`No WhatsApp config for user ${userId}, skipping aviso`);
         continue;
       }
 
-      // Process this aviso
-      const { success, result } = await processAviso(supabase, aviso, configs);
-      results.push(result);
-      
-      if (success) {
-        processedCount++;
-      }
-      batchCount++;
+      // Process messages (up to MAX_MESSAGES_PER_EXECUTION to avoid timeout)
+      let processedInThisAviso = 0;
+      for (const pending of pendingAvisos) {
+        if (processedInThisAviso >= MAX_MESSAGES_PER_EXECUTION) {
+          // Schedule next check in 30 seconds to continue
+          const nextCheckAt = new Date(Date.now() + 30 * 1000).toISOString();
+          await supabase
+            .from("avisos_agendamento")
+            .update({ next_check_at: nextCheckAt, last_check_at: new Date().toISOString() })
+            .eq("id", aviso.id);
+          console.log(`Reached message limit, scheduled next check at ${nextCheckAt}`);
+          break;
+        }
 
-      // Wait between messages using the aviso's interval config
-      if (pendingAvisos.length > 0) {
-        const randomInterval = getRandomInterval(aviso.intervaloMin, aviso.intervaloMax);
-        console.log(`Waiting ${randomInterval}s before next message...`);
-        await delay(randomInterval * 1000);
+        const { success, result } = await processAviso(supabase, pending, configs);
+        results.push(result);
+
+        if (success) {
+          totalSent++;
+        }
+        processedInThisAviso++;
+
+        // Wait between messages
+        if (processedInThisAviso < pendingAvisos.length && processedInThisAviso < MAX_MESSAGES_PER_EXECUTION) {
+          const randomInterval = getRandomInterval(pending.intervaloMin, pending.intervaloMax);
+          console.log(`Waiting ${randomInterval}s before next message...`);
+          await delay(randomInterval * 1000);
+        }
+      }
+
+      // If we processed all messages for this aviso, schedule for tomorrow
+      if (processedInThisAviso >= pendingAvisos.length || processedInThisAviso < MAX_MESSAGES_PER_EXECUTION) {
+        const nextCheckAt = calculateNextCheckAt(aviso.horario_envio);
+        await supabase
+          .from("avisos_agendamento")
+          .update({ next_check_at: nextCheckAt, last_check_at: new Date().toISOString() })
+          .eq("id", aviso.id);
+        console.log(`Aviso "${aviso.nome}" completed, next check at ${nextCheckAt}`);
       }
     }
 
-    console.log(`Finished processing. Total sent: ${processedCount}`);
+    console.log(`Finished processing. Total sent: ${totalSent}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        sent: processedCount,
+        sent: totalSent,
         results,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Error in enviar-avisos-agendamento:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

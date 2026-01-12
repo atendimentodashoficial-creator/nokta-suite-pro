@@ -415,7 +415,9 @@ export type Database = {
           id: string
           intervalo_max: number
           intervalo_min: number
+          last_check_at: string | null
           mensagem: string
+          next_check_at: string | null
           nome: string
           updated_at: string
           user_id: string
@@ -428,7 +430,9 @@ export type Database = {
           id?: string
           intervalo_max?: number
           intervalo_min?: number
+          last_check_at?: string | null
           mensagem: string
+          next_check_at?: string | null
           nome: string
           updated_at?: string
           user_id: string
@@ -441,7 +445,9 @@ export type Database = {
           id?: string
           intervalo_max?: number
           intervalo_min?: number
+          last_check_at?: string | null
           mensagem?: string
+          next_check_at?: string | null
           nome?: string
           updated_at?: string
           user_id?: string

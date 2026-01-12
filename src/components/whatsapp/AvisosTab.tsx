@@ -284,6 +284,29 @@ export function AvisosTab() {
       const intervaloMinSec = formIntervaloUnit === "minutes" ? formIntervaloMin * 60 : formIntervaloMin;
       const intervaloMaxSec = formIntervaloUnit === "minutes" ? formIntervaloMax * 60 : formIntervaloMax;
 
+      // Calculate next_check_at based on horario_envio
+      const calculateNextCheckAt = (horarioEnvio: string, isActive: boolean): string | null => {
+        if (!isActive) return null;
+        
+        const now = new Date();
+        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+        const saoPauloOffset = -3 * 60 * 60 * 1000;
+        const saoPauloNow = new Date(utc + saoPauloOffset);
+        
+        const [hora, minuto] = horarioEnvio.split(":").map(Number);
+        const todayScheduled = new Date(saoPauloNow);
+        todayScheduled.setHours(hora, minuto, 0, 0);
+        
+        // If past today's time, schedule for tomorrow
+        if (saoPauloNow >= todayScheduled) {
+          todayScheduled.setDate(todayScheduled.getDate() + 1);
+        }
+        
+        return todayScheduled.toISOString();
+      };
+
+      const nextCheckAt = calculateNextCheckAt(formHorarioEnvio, formAtivo);
+
       if (editingAviso) {
         // Update existing
         const { error } = await supabase
@@ -296,6 +319,7 @@ export function AvisosTab() {
             intervalo_min: intervaloMinSec,
             intervalo_max: intervaloMaxSec,
             ativo: formAtivo,
+            next_check_at: nextCheckAt,
           })
           .eq('id', editingAviso.id);
 
@@ -314,6 +338,7 @@ export function AvisosTab() {
             intervalo_min: intervaloMinSec,
             intervalo_max: intervaloMaxSec,
             ativo: formAtivo,
+            next_check_at: nextCheckAt,
           });
 
         if (error) throw error;
@@ -334,9 +359,30 @@ export function AvisosTab() {
   // Toggle aviso active state
   const handleToggleAtivo = async (aviso: AvisoAgendamento) => {
     try {
+      const newAtivo = !aviso.ativo;
+      
+      // Calculate next_check_at when activating
+      let nextCheckAt: string | null = null;
+      if (newAtivo && aviso.horario_envio) {
+        const now = new Date();
+        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+        const saoPauloOffset = -3 * 60 * 60 * 1000;
+        const saoPauloNow = new Date(utc + saoPauloOffset);
+        
+        const [hora, minuto] = aviso.horario_envio.split(":").map(Number);
+        const todayScheduled = new Date(saoPauloNow);
+        todayScheduled.setHours(hora, minuto, 0, 0);
+        
+        if (saoPauloNow >= todayScheduled) {
+          todayScheduled.setDate(todayScheduled.getDate() + 1);
+        }
+        
+        nextCheckAt = todayScheduled.toISOString();
+      }
+      
       const { error } = await supabase
         .from('avisos_agendamento')
-        .update({ ativo: !aviso.ativo })
+        .update({ ativo: newAtivo, next_check_at: nextCheckAt })
         .eq('id', aviso.id);
 
       if (error) throw error;
