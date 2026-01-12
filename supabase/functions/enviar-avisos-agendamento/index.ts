@@ -452,6 +452,20 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Check if already sent for this specific agendamento+aviso combination
+        const { data: alreadySent } = await supabase
+          .from("avisos_enviados_log")
+          .select("id")
+          .eq("agendamento_id", ag.id)
+          .eq("aviso_id", aviso.id)
+          .eq("status", "enviado")
+          .limit(1);
+
+        if (alreadySent && alreadySent.length > 0) {
+          console.log(`Skipping agendamento ${ag.id} - already sent for this aviso`);
+          continue;
+        }
+
         // Determine flag field
         let flagField = "";
         if (aviso.dias_antes === 0) {
