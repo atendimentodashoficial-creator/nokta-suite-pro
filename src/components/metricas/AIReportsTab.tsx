@@ -410,24 +410,27 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         : clienteIdToPhone[a.cliente_id];
       if (!phone) return;
 
-      const ts = periodTs(a.created_at || a.data_agendamento);
-      if (ts === null) return;
-
-      // CONTAR TODOS os agendamentos criados no período (independente do status)
-      // Isso reflete todos que passaram pelo calendário
-      phonesWithAgendamento.add(phone);
-
       // Attribution check - usar leadsByPhoneAll para incluir clientes
       const lead = leadsByPhoneAll[phone];
       const isDisparos = isDisparosLead(lead?.origem, (lead as any)?.origem_tipo);
       const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
 
-      if (isDisparos) phonesAgendadosDisparos.add(phone);
-      else if (isTracked) phonesAgendadosTracked.add(phone);
-      else phonesAgendadosUntracked.add(phone);
+      // AGENDAMENTOS REGISTRADOS: usar created_at (data de criação)
+      const tsCreated = periodTs(a.created_at);
+      if (tsCreated !== null) {
+        phonesWithAgendamento.add(phone);
+        if (isDisparos) phonesAgendadosDisparos.add(phone);
+        else if (isTracked) phonesAgendadosTracked.add(phone);
+        else phonesAgendadosUntracked.add(phone);
+      }
+
+      // AGENDAMENTOS REALIZADOS: usar data_agendamento (data do serviço)
+      // Para data_agendamento (campo date), usar periodTsForDate
+      const tsAgendamento = periodTsForDate(a.data_agendamento);
 
       // Não Compareceu = cancelado (sem fatura = não fechou negócio após não comparecer)
-      if (a.status === "cancelado") {
+      // Usar data_agendamento pois reflete quando deveria ter ocorrido
+      if (a.status === "cancelado" && tsAgendamento !== null) {
         phonesWithNaoCompareceu.add(phone);
         if (isDisparos) phonesNaoCompareceuDisparos.add(phone);
         else if (isTracked) phonesNaoCompareceuTracked.add(phone);
@@ -435,7 +438,8 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       }
 
       // Compareceu (via agendamento) = has fatura linked diretamente
-      if (agendamentoTemFatura) {
+      // Usar data_agendamento pois reflete quando o serviço foi realizado
+      if (agendamentoTemFatura && tsAgendamento !== null) {
         phonesWithCompareceu.add(phone);
         if (isDisparos) phonesCompareceuAgendDisparos.add(phone);
         else if (isTracked) phonesCompareceuAgendTracked.add(phone);
