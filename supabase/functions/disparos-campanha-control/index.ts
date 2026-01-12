@@ -160,53 +160,74 @@ serve(async (req) => {
           );
         }
 
-        // OPTIMISTIC LOCK: Check if we can proceed with this execution
-        // Only proceed if next_send_at is null OR has passed
-        // First, fetch current campaign state to check lock
+        // OPTIMISTIC LOCK (idempotent): ensure only ONE execution can process a campaign at a time.
+        // We do this by performing a conditional UPDATE that only succeeds if the row
+        // hasn't changed since we read it (updated_at match).
         const { data: currentCampaign, error: fetchError } = await supabase
           .from("disparos_campanhas")
           .select("id, status, next_send_at, updated_at")
           .eq("id", campanha_id)
           .single();
-        
+
         if (fetchError || !currentCampaign) {
           throw new Error("Campanha não encontrada para lock check");
         }
 
         const now = new Date();
+        const nowIso = now.toISOString();
         const nextSendAt = currentCampaign.next_send_at ? new Date(currentCampaign.next_send_at) : null;
-        
-        // Check if another process is handling this campaign
+
+        // If next_send_at is in the future, someone already claimed/queued this campaign.
         if (nextSendAt && nextSendAt > now) {
-          console.log(`Campaign ${campanha_id}: Lock not available - next_send_at is ${nextSendAt.toISOString()}, now is ${now.toISOString()}`);
+          console.log(
+            `Campaign ${campanha_id}: Skip - next_send_at is ${nextSendAt.toISOString()}, now is ${nowIso}`,
+          );
           return new Response(
-            JSON.stringify({ 
-              success: true, 
+            JSON.stringify({
+              success: true,
               message: "Campanha está sendo processada por outra execução",
-              skipped: true
+              skipped: true,
             }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
 
-        // Acquire lock by setting next_send_at to future time
-        const lockTime = new Date(Date.now() + 60000).toISOString(); // 60 seconds lock
-        
-        const { error: lockError } = await supabase
+        // Claim lock for enough time to cover the whole execution (blocks + delays).
+        // NOTE: we use next_send_at as a lightweight lock so other 'continue' calls will skip.
+        const lockUntilIso = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+
+        const { data: lockRows, error: lockError } = await supabase
           .from("disparos_campanhas")
-          .update({ 
+          .update({
             status: "running",
-            next_send_at: lockTime // Temporarily set to prevent other calls
+            next_send_at: lockUntilIso,
+            updated_at: nowIso,
           })
           .eq("id", campanha_id)
-          .eq("status", "running");
+          .eq("status", "running")
+          .eq("updated_at", currentCampaign.updated_at)
+          .select("id");
 
         if (lockError) {
           console.error(`Campaign ${campanha_id}: Lock acquisition error:`, lockError);
           throw lockError;
         }
 
-        console.log(`Campaign ${campanha_id}: Lock acquired successfully`);
+        if (!lockRows || lockRows.length === 0) {
+          console.log(
+            `Campaign ${campanha_id}: Lock not acquired (row changed). Another execution won the race.`,
+          );
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: "Campanha está sendo processada por outra execução",
+              skipped: true,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        console.log(`Campaign ${campanha_id}: Lock acquired successfully until ${lockUntilIso}`);
       }
 
       // Update campaign status (only set iniciado_em on first start)
@@ -647,6 +668,16 @@ async function processCampaign(
     if (elapsedTime > MAX_EXECUTION_TIME_MS) {
       console.log(`Time limit reached (${Math.round(elapsedTime / 1000)}s), saving state and scheduling next batch...`);
       await saveRotationState();
+
+      // IMPORTANT: for short-delay mode, next_send_at is used only as an execution lock.
+      // Clear it before self-scheduling, otherwise the next 'continue' call will be skipped.
+      if (!isLongDelayMode) {
+        await supabase
+          .from("disparos_campanhas")
+          .update({ next_send_at: null })
+          .eq("id", campanha.id);
+      }
+
       await scheduleNextBatch(campanha.id);
       return;
     }
@@ -655,23 +686,29 @@ async function processCampaign(
     if (processedCount >= batchSize) {
       console.log(`Batch size limit reached (${processedCount} contacts), saving state...`);
       await saveRotationState();
-      
+
       // For long delays, set next_send_at and DON'T schedule immediately
       if (isLongDelayMode) {
         const delaySeconds = Math.random() * (campanha.delay_max - campanha.delay_min) + campanha.delay_min;
         const nextSendAt = new Date(Date.now() + delaySeconds * 1000).toISOString();
-        
+
         await supabase
           .from("disparos_campanhas")
           .update({ next_send_at: nextSendAt })
           .eq("id", campanha.id);
-        
+
         const delayMinutes = Math.floor(delaySeconds / 60);
         const delayRemainingSecs = Math.round(delaySeconds % 60);
         console.log(`Long delay mode: Next send scheduled at ${nextSendAt} (in ${delayMinutes}min ${delayRemainingSecs}s)`);
         console.log(`Frontend polling will call 'continue' action after delay expires`);
       } else {
         // For short delays, schedule next batch immediately
+        // (clear lock before scheduling to avoid skipping)
+        await supabase
+          .from("disparos_campanhas")
+          .update({ next_send_at: null })
+          .eq("id", campanha.id);
+
         await scheduleNextBatch(campanha.id);
       }
       return;
@@ -916,6 +953,13 @@ async function processCampaign(
     } else {
       // Short delay mode: schedule next batch immediately
       console.log(`Batch complete, more contacts pending. Scheduling next batch...`);
+
+      // Clear lock before self-scheduling (short-delay campaigns don't use next_send_at as a timer)
+      await supabase
+        .from("disparos_campanhas")
+        .update({ next_send_at: null })
+        .eq("id", campanha.id);
+
       await scheduleNextBatch(campanha.id);
     }
   } else {
