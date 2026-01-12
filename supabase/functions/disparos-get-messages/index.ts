@@ -44,28 +44,14 @@ serve(async (req) => {
       console.error("Error fetching chat:", chatError);
     }
 
-    // If history was cleared, we only use database messages (skip UAZapi entirely)
+    // If history_cleared_at is set, we filter out messages older than this timestamp.
+    // This happens when a chat was deleted and then recreated after a new message arrived.
     const historyClearedAt = chatData?.history_cleared_at 
       ? new Date(chatData.history_cleared_at).getTime() 
       : null;
 
     if (historyClearedAt) {
-      console.log('History was cleared - returning only database messages (skipping UAZapi)');
-      
-      // Get message count from DB so frontend knows if there are messages
-      const { count } = await supabase
-        .from('disparos_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('chat_id', db_chat_id);
-      
-      return new Response(JSON.stringify({ 
-        success: true, 
-        count: count || 0, 
-        skipped: true,
-        db_only: true 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.log('History cleared at:', chatData?.history_cleared_at, '- will filter old messages');
     }
 
     console.log("Chat created_at:", chatData?.created_at);
@@ -203,6 +189,11 @@ serve(async (req) => {
       const isFromMe = msg.fromMe ?? msg.key?.fromMe ?? false;
       const msgTimestamp = toIsoTimestamp(msg.messageTimestamp || msg.timestamp);
       const msgDate = new Date(msgTimestamp);
+
+      // When history was cleared, ignore any provider messages older than the clear time.
+      if (historyClearedAt && msgDate.getTime() < historyClearedAt) {
+        continue;
+      }
       
       let rawContent = msg.text || msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.body || "";
       if (!rawContent && typeof msg.content === "string") {
