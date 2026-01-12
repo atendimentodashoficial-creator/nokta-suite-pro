@@ -24,6 +24,8 @@ export function useAvisosAgendamentoScheduler() {
     const checkAndContinue = async () => {
       if (cancelled) return;
 
+      console.log("[AvisosScheduler] Running check for user:", user.id);
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
@@ -46,6 +48,8 @@ export function useAvisosAgendamentoScheduler() {
           return;
         }
 
+        console.log("[AvisosScheduler] Found active avisos:", activeAvisos?.length || 0);
+
         const dueAvisos = (activeAvisos || []).filter((aviso) => {
           if (processingRef.current.has(aviso.id)) return false;
 
@@ -61,6 +65,8 @@ export function useAvisosAgendamentoScheduler() {
           // Fallback: if no next_check_at but time has passed today
           return currentMinute >= avisoMinute;
         });
+
+        console.log("[AvisosScheduler] Due avisos to trigger:", dueAvisos.length);
 
         for (const aviso of dueAvisos) {
           processingRef.current.add(aviso.id);
