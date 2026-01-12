@@ -133,6 +133,7 @@ export default function Disparos() {
   };
 
   // Load chats from database (excluding deleted ones)
+  // Only show chats with messages AFTER any instance was created (avoid old conversations)
   const loadChats = async (): Promise<any[]> => {
     try {
       const { data, error } = await supabase
@@ -142,10 +143,32 @@ export default function Disparos() {
         .order('last_message_time', { ascending: false, nullsFirst: false });
       if (error) throw error;
       const deduped = dedupeChatsByInstanceAndPhone(data || []);
-      setChats(deduped);
-      setFilteredChats(deduped);
+
+      // Filter: only show chats where the message time (or creation) is after the instance was created
+      // This prevents showing old conversations that existed before Disparos was configured
+      const visible = deduped.filter((chat) => {
+        // Get the instance creation date for this chat's instance
+        const instancia = instanciasMap[chat.instancia_id];
+        if (!instancia) return true; // If no instance info, show chat
+        
+        const instanciaCreatedAt = (instancia as any).created_at;
+        if (!instanciaCreatedAt) return true; // If no creation date, show chat
+        
+        const instanciaCreatedMs = new Date(instanciaCreatedAt).getTime();
+        if (!Number.isFinite(instanciaCreatedMs)) return true;
+        
+        const chatTime = Math.max(
+          chat.last_message_time ? new Date(chat.last_message_time).getTime() : 0,
+          chat.created_at ? new Date(chat.created_at).getTime() : 0
+        );
+        
+        return chatTime >= instanciaCreatedMs;
+      });
+
+      setChats(visible);
+      setFilteredChats(visible);
       setChatsLoaded(true);
-      return deduped;
+      return visible;
     } catch (error: any) {
       console.error('Error loading disparos chats:', error);
       toast.error('Erro ao carregar chats de disparos');
@@ -578,10 +601,13 @@ export default function Disparos() {
   }, [qrPollingInterval]);
 
   // Load chats and config on mount
+  // IMPORTANT: loadInstancias must complete before loadChats so the filter by instance creation date works
   useEffect(() => {
-    checkConfig();
-    loadChats();
-    loadInstancias();
+    (async () => {
+      await checkConfig();
+      await loadInstancias();
+      await loadChats();
+    })();
   }, []);
 
   // Deep-link support: /disparos?chat=PHONE[&instancia_nome=NAME][&prefill=MESSAGE]
