@@ -672,7 +672,9 @@ Deno.serve(async (req) => {
 
     // Increment unread_count for the chat (both WhatsApp and Disparos tables)
     // Only if this is NOT a duplicate event
-    if (last8Incoming && !isDuplicate) {
+    const shouldIncrementUnread = Boolean(last8Incoming) && !isDuplicate && !isFromMe;
+
+    if (last8Incoming) {
       try {
         // ===== WhatsApp chats =====
         // Check if this instancia_id is the user's WhatsApp main instance
@@ -746,7 +748,7 @@ Deno.serve(async (req) => {
                 chat_id: matchingChat.id,
                 message_id: messageId,
                 content: messageText || '',
-                sender_type: 'customer',
+                sender_type: isFromMe ? 'admin' : 'customer',
                 media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                 timestamp: msgTime,
                 // Include UTM attribution directly
@@ -824,9 +826,9 @@ Deno.serve(async (req) => {
                   normalized_number: normalizedIncoming,
                   last_message: messageText || 'Nova mensagem',
                   last_message_time: msgTime,
-                  unread_count: 1,
+                  unread_count: isFromMe ? 0 : 1,
                   provider_unread_baseline: 0,
-                  provider_unread_count: 1,
+                  provider_unread_count: isFromMe ? 0 : 1,
                   history_cleared_at: historyClearedAt, // Don't show messages before this time
                 })
                 .select('id')
@@ -867,7 +869,7 @@ Deno.serve(async (req) => {
                     chat_id: chatIdForMessage,
                     message_id: messageId,
                     content: messageText || '',
-                    sender_type: 'customer',
+                    sender_type: isFromMe ? 'admin' : 'customer',
                     media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                     timestamp: msgTime,
                     utm_source: earlyUtmData.utm_source,
@@ -908,9 +910,9 @@ Deno.serve(async (req) => {
                 normalized_number: normalizedIncoming,
                 last_message: messageText || 'Nova mensagem',
                 last_message_time: msgTime,
-                unread_count: 1,
+                 unread_count: isFromMe ? 0 : 1,
                 provider_unread_baseline: 0,
-                provider_unread_count: 1,
+                provider_unread_count: isFromMe ? 0 : 1,
               })
               .select('id')
               .single();
@@ -950,7 +952,7 @@ Deno.serve(async (req) => {
                   chat_id: chatIdForMessage,
                   message_id: messageId,
                   content: messageText || '',
-                  sender_type: 'customer',
+                  sender_type: isFromMe ? 'admin' : 'customer',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
                   // Include UTM attribution directly
@@ -1054,7 +1056,7 @@ Deno.serve(async (req) => {
                 chat_id: matchingDisparosChat.id,
                 message_id: messageId,
                 content: messageText || '',
-                sender_type: 'contact',
+                sender_type: isFromMe ? 'admin' : 'contact',
                 media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                 timestamp: msgTime,
                 // Include UTM attribution directly
@@ -1135,7 +1137,7 @@ Deno.serve(async (req) => {
                   normalized_number: normalizedIncoming,
                   last_message: messageText || 'Nova mensagem',
                   last_message_time: msgTime,
-                  unread_count: 1,
+                  unread_count: isFromMe ? 0 : 1,
                   instancia_id: instanciaId,
                   instancia_nome: instanciaInfo?.nome || 'Instância',
                   history_cleared_at: historyClearedAt, // Don't show messages before this time
@@ -1179,7 +1181,7 @@ Deno.serve(async (req) => {
                     chat_id: disparosChatIdForMessage,
                     message_id: messageId,
                     content: messageText || '',
-                    sender_type: 'contact',
+                    sender_type: isFromMe ? 'admin' : 'contact',
                     media_type: mediaPlaceholder ? (anyMsgLocal?.mediaType || anyMsgLocal?.messageType || null) : null,
                     timestamp: msgTime,
                     utm_source: earlyUtmData.utm_source,
@@ -1219,7 +1221,7 @@ Deno.serve(async (req) => {
                 normalized_number: normalizedIncoming,
                 last_message: messageText || 'Nova mensagem',
                 last_message_time: msgTime,
-                unread_count: 1,
+                unread_count: isFromMe ? 0 : 1,
                 instancia_id: instanciaId,
                 instancia_nome: instanciaInfo?.nome || 'Instância',
               })
@@ -1263,7 +1265,7 @@ Deno.serve(async (req) => {
                   chat_id: disparosChatIdForMessage,
                   message_id: messageId,
                   content: messageText || '',
-                  sender_type: 'contact',
+                  sender_type: isFromMe ? 'admin' : 'contact',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
                   // Include UTM attribution directly
