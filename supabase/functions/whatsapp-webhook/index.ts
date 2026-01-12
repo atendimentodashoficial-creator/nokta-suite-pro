@@ -758,53 +758,116 @@ Deno.serve(async (req) => {
               console.log('Saved WhatsApp message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
             }
           } else {
-            // Chat doesn't exist yet - create it automatically so the UI can show it immediately
+            // Chat doesn't exist yet. If the user deleted it recently, do NOT recreate it from old history.
+            // We only bring it back when the contact sends a message AFTER the deletion moment.
             const waChatId = normalizedPayload.chat!.wa_chatid || `${normalizedIncoming}@s.whatsapp.net`;
-            const msgTime = new Date(
-              messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
-            ).toISOString();
+            const msgTimeMs = messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000;
+            const msgTime = new Date(msgTimeMs).toISOString();
 
-            const { data: newChat, error: createError } = await supabase
+            // Check tombstone (soft-deleted chat) by last 8 digits
+            const { data: deletedChats } = await supabase
               .from('whatsapp_chats')
-              .insert({
-                user_id: userId,
-                chat_id: waChatId,
-                contact_number: phone,
-                contact_name: name,
-                normalized_number: normalizedIncoming,
-                last_message: messageText || 'Nova mensagem',
-                last_message_time: msgTime,
-                unread_count: 1,
-                provider_unread_baseline: 0,
-                provider_unread_count: 1,
-              })
-              .select('id')
-              .single();
+              .select('id, contact_number, normalized_number, chat_id, deleted_at, contact_name')
+              .eq('user_id', userId)
+              .not('deleted_at', 'is', null)
+              .order('deleted_at', { ascending: false })
+              .limit(2000);
+
+            const deletedMatch = deletedChats?.find((c) =>
+              getLast8Digits(c.contact_number) === last8Incoming ||
+              getLast8Digits(c.normalized_number) === last8Incoming ||
+              getLast8Digits(c.chat_id) === last8Incoming
+            );
+
+            if (deletedMatch?.deleted_at) {
+              const deletedAtMs = new Date(deletedMatch.deleted_at).getTime();
+
+              if (Number.isFinite(deletedAtMs) && msgTimeMs <= deletedAtMs) {
+                console.log(
+                  '[WhatsApp] Ignoring old webhook message for a deleted chat',
+                  { last8Incoming, msgTimeMs, deletedAtMs }
+                );
+
+                // IMPORTANT: return early to avoid recreating chat/leads/messages from historical events
+                return new Response(JSON.stringify({ ok: true, ignored: true }), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            }
 
             let chatIdForMessage: string | null = null;
 
-            if (createError) {
-              if (createError.code === '23505') {
-                // Chat already exists (race condition) - fetch the existing chat ID
-                console.log('Chat already exists (race condition), fetching existing chat...');
-                const { data: existingChat } = await supabase
-                  .from('whatsapp_chats')
-                  .select('id')
-                  .eq('user_id', userId)
-                  .eq('normalized_number', normalizedIncoming)
-                  .is('deleted_at', null)
-                  .maybeSingle();
-                
-                if (existingChat) {
-                  chatIdForMessage = existingChat.id;
-                  console.log('Found existing chat:', chatIdForMessage);
+            // If we have a deleted chat row and this is a NEW message, restore it (chat starts empty because messages were deleted)
+            if (deletedMatch?.id) {
+              const { data: restoredChat, error: restoreError } = await supabase
+                .from('whatsapp_chats')
+                .update({
+                  deleted_at: null,
+                  chat_id: waChatId,
+                  contact_number: phone,
+                  normalized_number: normalizedIncoming,
+                  contact_name: (deletedMatch.contact_name && deletedMatch.contact_name.trim()) ? deletedMatch.contact_name : name,
+                  last_message: messageText || 'Nova mensagem',
+                  last_message_time: msgTime,
+                  unread_count: 1,
+                  provider_unread_baseline: 0,
+                  provider_unread_count: 1,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', deletedMatch.id)
+                .select('id')
+                .single();
+
+              if (restoreError) {
+                console.error('Error restoring WhatsApp chat:', restoreError);
+              } else if (restoredChat?.id) {
+                console.log('Restored deleted WhatsApp chat:', restoredChat.id, 'for', name);
+                chatIdForMessage = restoredChat.id;
+              }
+            }
+
+            // Otherwise, create a brand new chat
+            if (!chatIdForMessage) {
+              const { data: newChat, error: createError } = await supabase
+                .from('whatsapp_chats')
+                .insert({
+                  user_id: userId,
+                  chat_id: waChatId,
+                  contact_number: phone,
+                  contact_name: name,
+                  normalized_number: normalizedIncoming,
+                  last_message: messageText || 'Nova mensagem',
+                  last_message_time: msgTime,
+                  unread_count: 1,
+                  provider_unread_baseline: 0,
+                  provider_unread_count: 1,
+                })
+                .select('id')
+                .single();
+
+              if (createError) {
+                if ((createError as any).code === '23505') {
+                  // Chat already exists (race condition) - fetch the existing chat ID
+                  console.log('Chat already exists (race condition), fetching existing chat...');
+                  const { data: existingChat } = await supabase
+                    .from('whatsapp_chats')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('normalized_number', normalizedIncoming)
+                    .is('deleted_at', null)
+                    .maybeSingle();
+
+                  if (existingChat) {
+                    chatIdForMessage = existingChat.id;
+                    console.log('Found existing chat:', chatIdForMessage);
+                  }
+                } else {
+                  console.error('Error creating WhatsApp chat:', createError);
                 }
               } else {
-                console.error('Error creating WhatsApp chat:', createError);
+                console.log('Created new WhatsApp chat:', newChat.id, 'for', name);
+                chatIdForMessage = newChat.id;
               }
-            } else {
-              console.log('Created new WhatsApp chat:', newChat.id, 'for', name);
-              chatIdForMessage = newChat.id;
             }
 
             // Save the first message to whatsapp_messages (even if chat was created by another request)

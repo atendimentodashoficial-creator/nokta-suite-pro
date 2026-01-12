@@ -214,13 +214,14 @@ serve(async (req) => {
       return clean.slice(-8);
     };
 
-    // Buscar TODOS os chats existentes para preservar unread_count, contact_name e verificar duplicatas por últimos 8 dígitos
+    // Buscar TODOS os chats existentes (ativos) para preservar unread_count, contact_name e verificar duplicatas por últimos 8 dígitos
     const { data: existingChats } = await supabase
       .from("whatsapp_chats")
       .select(
         "id, normalized_number, contact_number, chat_id, contact_name, unread_count, deleted_at, last_message_time, last_read_at, provider_unread_count, provider_unread_baseline",
       )
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .is("deleted_at", null);
 
     // Criar mapa usando últimos 8 dígitos para identificar chats existentes
     const existingByLast8 = new Map<string, any>();
