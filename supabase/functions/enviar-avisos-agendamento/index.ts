@@ -375,28 +375,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Check if this aviso was already executed today (based on last_check_at)
-      if (!filterAvisoId && aviso.last_check_at) {
-        const lastCheckDate = new Date(aviso.last_check_at);
-        const lastCheckSP = new Date(lastCheckDate.getTime() - 3 * 60 * 60 * 1000); // Convert to SP time
-        const todaySP = new Date(saoPauloNow);
-        todaySP.setHours(0, 0, 0, 0);
-        lastCheckSP.setHours(0, 0, 0, 0);
-        
-        // If already checked today AND after the scheduled time, skip
-        if (lastCheckSP.getTime() >= todaySP.getTime()) {
-          const lastCheckTime = new Date(aviso.last_check_at);
-          const lastCheckHour = lastCheckTime.getUTCHours() - 3; // SP is UTC-3
-          const lastCheckMinute = lastCheckTime.getUTCMinutes();
-          const lastCheckTotal = lastCheckHour * 60 + lastCheckMinute;
-          
-          // Only skip if last check was at or after the scheduled time
-          if (lastCheckTotal >= envioTotal) {
-            console.log(`Skipping aviso "${aviso.nome}" - already executed today at ${aviso.last_check_at}`);
-            continue;
-          }
-        }
-      }
+      // NOTE: We no longer skip based on last_check_at here.
+      // Instead, we'll check for pending messages later and only skip if there are none.
+      // This ensures new agendamentos added after the initial check are still processed.
 
       // Get appointments for next 7 days
       const hojeSP = new Date(saoPauloNow);
@@ -437,8 +418,9 @@ Deno.serve(async (req) => {
 
       // Build pending list for this aviso
       const pendingAvisos: PendingAviso[] = [];
-
-      for (const ag of agendamentos as any[]) {
+      
+      // Get all agendamentos that match dias_antes
+      const matchingAgendamentos = (agendamentos as any[]).filter(ag => {
         const dataAgendamento = new Date(ag.data_agendamento);
         const dataAgendamentoSP = new Date(dataAgendamento.getTime());
         dataAgendamentoSP.setHours(0, 0, 0, 0);
@@ -447,11 +429,23 @@ Deno.serve(async (req) => {
         hojeDateSP.setHours(0, 0, 0, 0);
 
         const diffDays = Math.round((dataAgendamentoSP.getTime() - hojeDateSP.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays === aviso.dias_antes;
+      });
 
-        if (diffDays !== aviso.dias_antes) {
-          continue;
-        }
+      if (matchingAgendamentos.length === 0) {
+        console.log(`No matching appointments for aviso "${aviso.nome}" (dias_antes=${aviso.dias_antes})`);
+        // Update timestamps - no matching appointments today
+        const nextCheckAt = calculateNextCheckAt(aviso.horario_envio);
+        await supabase
+          .from("avisos_agendamento")
+          .update({ next_check_at: nextCheckAt, last_check_at: new Date().toISOString() })
+          .eq("id", aviso.id);
+        continue;
+      }
+      
+      console.log(`Found ${matchingAgendamentos.length} matching appointments for aviso "${aviso.nome}"`);
 
+      for (const ag of matchingAgendamentos) {
         // Check if already sent for this specific agendamento+aviso combination
         const { data: alreadySent } = await supabase
           .from("avisos_enviados_log")
