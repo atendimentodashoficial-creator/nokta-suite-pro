@@ -6,9 +6,8 @@ import { useLeads, useLeadStats } from "@/hooks/useLeads";
 import { useDespesasTotal } from "@/hooks/useDespesas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo, useEffect } from "react";
-import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { toZonedTime } from "date-fns-tz";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -25,12 +24,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  nowInBrasilia,
+  startOfDayBrasilia,
+  endOfDayBrasilia,
+  startOfWeekBrasilia,
+  endOfWeekBrasilia,
+  startOfMonthBrasilia,
+  endOfMonthBrasilia,
+  toZonedBrasilia,
+  TIMEZONE_BRASILIA
+} from "@/utils/timezone";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [periodFilter, setPeriodFilter] = useState("this_month");
-  const [dataInicial, setDataInicial] = useState<Date | undefined>(startOfMonth(new Date()));
-  const [dataFinal, setDataFinal] = useState<Date | undefined>(endOfMonth(new Date()));
+  const [dataInicial, setDataInicial] = useState<Date | undefined>(startOfMonthBrasilia());
+  const [dataFinal, setDataFinal] = useState<Date | undefined>(endOfMonthBrasilia());
   
   const { data: allLeads, isLoading: allLeadsLoading } = useLeads();
   const { data: clientes, isLoading: clientesLoading } = useLeads("cliente");
@@ -46,46 +56,46 @@ export default function Dashboard() {
 
   // Atualizar datas quando o período mudar
   useEffect(() => {
-    const now = new Date();
+    const now = nowInBrasilia();
     switch (periodFilter) {
       case "today":
-        setDataInicial(startOfDay(now));
-        setDataFinal(endOfDay(now));
+        setDataInicial(startOfDayBrasilia(now));
+        setDataFinal(endOfDayBrasilia(now));
         break;
       case "yesterday":
         const yesterday = subDays(now, 1);
-        setDataInicial(startOfDay(yesterday));
-        setDataFinal(endOfDay(yesterday));
+        setDataInicial(startOfDayBrasilia(yesterday));
+        setDataFinal(endOfDayBrasilia(yesterday));
         break;
       case "last_7_days":
-        setDataInicial(startOfDay(subDays(now, 6)));
-        setDataFinal(endOfDay(now));
+        setDataInicial(startOfDayBrasilia(subDays(now, 6)));
+        setDataFinal(endOfDayBrasilia(now));
         break;
       case "last_30_days":
-        setDataInicial(startOfDay(subDays(now, 29)));
-        setDataFinal(endOfDay(now));
+        setDataInicial(startOfDayBrasilia(subDays(now, 29)));
+        setDataFinal(endOfDayBrasilia(now));
         break;
       case "this_week":
-        setDataInicial(startOfWeek(now, { weekStartsOn: 0 }));
-        setDataFinal(endOfWeek(now, { weekStartsOn: 0 }));
+        setDataInicial(startOfWeekBrasilia(now, { weekStartsOn: 0 }));
+        setDataFinal(endOfWeekBrasilia(now, { weekStartsOn: 0 }));
         break;
       case "last_week":
-        const lastWeekStart = startOfWeek(subDays(now, 7), { weekStartsOn: 0 });
+        const lastWeekStart = startOfWeekBrasilia(subDays(now, 7), { weekStartsOn: 0 });
         setDataInicial(lastWeekStart);
-        setDataFinal(endOfWeek(lastWeekStart, { weekStartsOn: 0 }));
+        setDataFinal(endOfWeekBrasilia(lastWeekStart, { weekStartsOn: 0 }));
         break;
       case "this_month":
-        setDataInicial(startOfMonth(now));
-        setDataFinal(endOfMonth(now));
+        setDataInicial(startOfMonthBrasilia(now));
+        setDataFinal(endOfMonthBrasilia(now));
         break;
       case "last_month":
         const lastMonth = subMonths(now, 1);
-        setDataInicial(startOfMonth(lastMonth));
-        setDataFinal(endOfMonth(lastMonth));
+        setDataInicial(startOfMonthBrasilia(lastMonth));
+        setDataFinal(endOfMonthBrasilia(lastMonth));
         break;
       case "max":
         setDataInicial(new Date(2020, 0, 1));
-        setDataFinal(endOfDay(now));
+        setDataFinal(endOfDayBrasilia(now));
         break;
       case "custom":
         break;
@@ -94,12 +104,9 @@ export default function Dashboard() {
 
   // Filtrar dados por período
   const dadosFiltrados = useMemo(() => {
-    const TIMEZONE = "America/Sao_Paulo";
-    
     const leads = allLeads?.filter(lead => {
       if (!dataInicial && !dataFinal) return true;
-      // Converter UTC para Brasília para comparar com filtros locais
-      const leadDate = toZonedTime(new Date(lead.created_at), TIMEZONE);
+      const leadDate = toZonedBrasilia(new Date(lead.created_at));
       if (dataInicial && leadDate < dataInicial) return false;
       if (dataFinal && leadDate > dataFinal) return false;
       return true;
@@ -107,7 +114,7 @@ export default function Dashboard() {
 
     const clientesFiltrados = clientes?.filter(cliente => {
       if (!dataInicial && !dataFinal) return true;
-      const clienteDate = toZonedTime(new Date(cliente.created_at), TIMEZONE);
+      const clienteDate = toZonedBrasilia(new Date(cliente.created_at));
       if (dataInicial && clienteDate < dataInicial) return false;
       if (dataFinal && clienteDate > dataFinal) return false;
       return true;
@@ -173,11 +180,9 @@ export default function Dashboard() {
     const agendsRegistrados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
       if (!dataInicial && !dataFinal) return true;
-      // Converter UTC para Brasília para comparar com filtros locais
-      const agDate = toZonedTime(new Date(ag.created_at), TIMEZONE);
-      // Comparar usando início e fim do dia para garantir inclusão correta
-      if (dataInicial && agDate < startOfDay(dataInicial)) return false;
-      if (dataFinal && agDate > endOfDay(dataFinal)) return false;
+      const agDate = toZonedBrasilia(new Date(ag.created_at));
+      if (dataInicial && agDate < dataInicial) return false;
+      if (dataFinal && agDate > dataFinal) return false;
       return true;
     }) || [];
 
@@ -185,11 +190,9 @@ export default function Dashboard() {
     const agendsRealizados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
       if (!dataInicial && !dataFinal) return true;
-      // data_agendamento também é timestamp UTC
-      const agDate = toZonedTime(new Date(ag.data_agendamento), TIMEZONE);
-      // Comparar usando início e fim do dia para garantir inclusão correta
-      if (dataInicial && agDate < startOfDay(dataInicial)) return false;
-      if (dataFinal && agDate > endOfDay(dataFinal)) return false;
+      const agDate = toZonedBrasilia(new Date(ag.data_agendamento));
+      if (dataInicial && agDate < dataInicial) return false;
+      if (dataFinal && agDate > dataFinal) return false;
       return true;
     }) || [];
 
@@ -511,7 +514,7 @@ export default function Dashboard() {
                   <CalendarComponent
                     mode="single"
                     selected={dataInicial}
-                    onSelect={(date) => date && setDataInicial(startOfDay(date))}
+                    onSelect={(date) => date && setDataInicial(startOfDayBrasilia(date))}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
@@ -537,7 +540,7 @@ export default function Dashboard() {
                   <CalendarComponent
                     mode="single"
                     selected={dataFinal}
-                    onSelect={(date) => date && setDataFinal(endOfDay(date))}
+                    onSelect={(date) => date && setDataFinal(endOfDayBrasilia(date))}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
