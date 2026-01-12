@@ -5,10 +5,13 @@ import { Sidebar, SidebarContent } from "@/components/layout/Sidebar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { usePersonalizacaoContext } from "@/contexts/PersonalizacaoContext";
+import { useDisparosCampaignScheduler } from "@/hooks/useDisparosCampaignScheduler";
 import { cn } from "@/lib/utils";
 import noktaLogoDefault from "@/assets/nokta-logo.png";
 
 export default function Layout() {
+  useDisparosCampaignScheduler();
+
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const { logoUrl, config } = usePersonalizacaoContext();
