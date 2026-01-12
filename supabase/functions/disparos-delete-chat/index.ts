@@ -144,16 +144,15 @@ serve(async (req) => {
       console.error("Error deleting kanban positions:", kanbanError);
     }
 
-    // Soft delete the chats (mark as deleted)
-    const now = new Date().toISOString();
+    // Hard delete the chats (permanent deletion like WhatsApp)
     const { error: deleteError } = await supabase
       .from("disparos_chats")
-      .update({ deleted_at: now })
+      .delete()
       .in("normalized_number", normalizedNumbers)
       .eq("user_id", user.id);
 
     if (deleteError) {
-      console.error("Error soft-deleting chats:", deleteError);
+      console.error("Error deleting chats:", deleteError);
       throw new Error("Error deleting chats");
     }
 

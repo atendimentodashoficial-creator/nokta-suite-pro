@@ -260,7 +260,6 @@ serve(async (req) => {
 
     // Processar chats do WhatsApp - verificando por últimos 8 dígitos
     const chatsToUpsert: any[] = [];
-    const chatsToInsertNew: any[] = []; // Chats deletados com nova interação - criar novo registro
     const processedLast8 = new Set<string>();
 
     // Best-effort: when provider doesn't send wa_lastMessageTextVote for media,
@@ -352,8 +351,6 @@ serve(async (req) => {
         contactName = providerDerivedName;
       }
       
-      const deletedAt = existingChat?.deleted_at;
-
       // Última mensagem vinda do provedor
       const lastMsgTime = chat.wa_lastMsgTimestamp ? new Date(chat.wa_lastMsgTimestamp) : null;
       const incomingLastTime = lastMsgTime ? lastMsgTime.getTime() : 0;
@@ -365,49 +362,10 @@ serve(async (req) => {
         console.log("[SYNC][debug] last_message missing for chat with timestamp. Available keys:", keys);
       }
 
-      // Se o chat foi deletado E tem última mensagem nova, criar um NOVO registro (como Disparos)
-      const hasNewMessageAfterDeletion = deletedAt && lastMsgTime && new Date(deletedAt) < lastMsgTime;
-
-      // Se o chat foi deletado e NÃO tem mensagem nova após a exclusão, pular completamente (igual Disparos)
-      if (deletedAt && !hasNewMessageAfterDeletion) {
-        console.log(`[SYNC] Skipping deleted chat ${chat.phone} - no new message after deletion`);
-        continue;
-      }
-
-      if (hasNewMessageAfterDeletion) {
-        // Criar novo chat após exclusão (igual Disparos)
-        // Regra de não-lidas:
-        // - O provedor pode retornar um unread acumulado (ex: 104) mesmo para um chat "novo".
-        // - Para evitar ressuscitar contagens antigas, o chat recriado começa com 1 não-lida.
-        // - Travamos o baseline no unread atual do provedor para que o delta futuro seja apenas do que vier depois.
-        const deletedAtTime = new Date(deletedAt);
-
-        const providerUnread = chat.wa_unreadCount || 0;
-        const newUnread = 1;
-        const nextProviderBaseline = providerUnread;
-
-        console.log(
-          `[SYNC] Creating new chat for ${chat.phone} after deletion - showing messages after ${deletedAtTime.toISOString()} (providerUnread=${providerUnread}, unread_reset=${newUnread})`,
-        );
-
-        chatsToInsertNew.push({
-          user_id: user.id,
-          chat_id: chat.wa_chatid || chat.id,
-          contact_name: contactName,
-          contact_number: chat.phone,
-          normalized_number: normalized,
-          last_message: lastMessage,
-          last_message_time: lastMsgTime.toISOString(),
-          unread_count: newUnread,
-          provider_unread_count: providerUnread,
-          provider_unread_baseline: nextProviderBaseline,
-          profile_pic_url: chat.imagePreview || null,
-          created_at: deletedAtTime.toISOString(),
-          updated_at: new Date().toISOString(),
-          deleted_at: null,
-        });
-        continue;
-      }
+      // With hard delete, we don't need to check for deleted_at anymore
+      // If the chat doesn't exist in the DB, it will be created fresh
+      // If it exists, it will be updated
+      // The chat only "comes back" when the contact sends a NEW message via webhook
 
       // Usar last_read_at + contador do provedor com baseline para determinar a quantidade de mensagens novas
       const lastReadAt = existingChat?.last_read_at
@@ -452,17 +410,7 @@ serve(async (req) => {
       });
     }
 
-    // Inserir novos chats criados após exclusão (com novo ID e created_at)
-    if (chatsToInsertNew.length > 0) {
-      console.log(`[SYNC] Inserting ${chatsToInsertNew.length} new chats after deletion`);
-      const { error: insertNewError } = await supabase
-        .from("whatsapp_chats")
-        .insert(chatsToInsertNew);
-
-      if (insertNewError) {
-        console.error("Error inserting new chats after deletion:", insertNewError);
-      }
-    }
+    // Note: chats are now hard deleted, so no need for chatsToInsertNew logic
 
     // OBS: não usamos mais upsert com onConflict aqui porque agora o índice único é parcial (deleted_at IS NULL)
     // e o Postgres não consegue resolver ON CONFLICT sem a cláusula WHERE.
@@ -498,25 +446,15 @@ serve(async (req) => {
         continue;
       }
 
-      // Não existe chat ativo para esse número.
-      // Verificar se há chat DELETADO - se sim, NÃO inserir novo (o chat foi excluído intencionalmente)
-      // Novos chats só devem ser criados via webhook quando chegar mensagem nova.
-      const { data: deletedChat } = await supabase
-        .from("whatsapp_chats")
-        .select("id, deleted_at")
-        .eq("user_id", user.id)
-        .eq("normalized_number", row.normalized_number)
-        .not("deleted_at", "is", null)
-        .limit(1)
-        .maybeSingle();
-
-      if (deletedChat) {
-        // Chat foi deletado - não recriar durante sync
-        console.log(`[SYNC] Skipping insert for ${row.normalized_number} - chat was deleted at ${deletedChat.deleted_at}`);
+      // Chat doesn't exist in DB - DON'T create it during sync.
+      // New chats should only be created via webhook when a new message arrives.
+      // This ensures that hard-deleted chats don't come back during sync.
+      if (!row.isExisting) {
+        console.log(`[SYNC] Skipping insert for ${row.normalized_number} - new chats only created via webhook`);
         continue;
       }
 
-      // Não existe nenhum chat (nem ativo, nem deletado) -> inserir novo
+      // Fallback insert for existing chats that failed to update (shouldn't happen)
       const createdAt = row.last_message_time || new Date().toISOString();
       const { isExisting, ...rowWithoutFlag } = row;
       const { data: insertedRows, error: insertError } = await supabase
@@ -532,9 +470,6 @@ serve(async (req) => {
         const errAny: any = insertError;
         console.error("Error inserting chat:", insertError);
 
-        // Handle race-condition/conflict: another sync inserted the same chat between our UPDATE and INSERT.
-        // The table has a partial unique index for (user_id, normalized_number) WHERE deleted_at IS NULL.
-        // In that case, fetch the existing active row and proceed without failing the whole sync.
         if (errAny?.code === "23505") {
           console.warn(
             `[SYNC] Duplicate key on insert for ${row.normalized_number}. Fetching existing active row instead of failing.`,
@@ -564,20 +499,7 @@ serve(async (req) => {
       if (insertedRows && insertedRows.length > 0) syncedChats.push(insertedRows[0]);
     }
 
-    // Adicionar também os chats recém-criados após exclusão (para resposta/lead creation)
-    if (chatsToInsertNew.length > 0) {
-      const { data: newRows } = await supabase
-        .from("whatsapp_chats")
-        .select("*")
-        .eq("user_id", user.id)
-        .in(
-          "normalized_number",
-          chatsToInsertNew.map((c: any) => c.normalized_number),
-        )
-        .is("deleted_at", null);
-
-      if (newRows && newRows.length > 0) syncedChats.push(...newRows);
-    }
+    // Note: With hard delete, chats are fully removed and only come back via webhook when contact sends a new message
 
     // NOTE: Lead creation removed from sync.
     // Leads are now ONLY created via webhook when new messages arrive after connection.
