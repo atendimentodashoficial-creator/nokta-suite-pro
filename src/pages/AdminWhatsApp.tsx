@@ -183,19 +183,20 @@ export default function AdminWhatsApp() {
           setMainInstance(instance);
           setHasConfig(true);
           
-          // Set instanceConnectedAt to filter old chats
-          // Use the LATEST of: uazapi_config.updated_at, instance.updated_at, or instance.created_at
-          const configUpdatedAt = uazapiConfig.updated_at ? new Date(uazapiConfig.updated_at).getTime() : 0;
-          const instanceUpdatedAt = instance.updated_at ? new Date(instance.updated_at).getTime() : 0;
-          const instanceCreatedAt = instance.created_at ? new Date(instance.created_at).getTime() : 0;
-          const latestTimestamp = Math.max(configUpdatedAt, instanceUpdatedAt, instanceCreatedAt);
-          
+          // Set instanceConnectedAt to filter old chats.
+          // IMPORTANT: this must be STABLE. Using updated_at makes the cutoff move forward on every sync,
+          // causing chats to "disappear" after the auto-sync runs.
+          // So we base it on the configuration creation time (when the WhatsApp config was first linked).
+          const configCreatedAtMs = uazapiConfig.created_at ? new Date(uazapiConfig.created_at).getTime() : 0;
+          const instanceCreatedAtMs = instance.created_at ? new Date(instance.created_at).getTime() : 0;
+
+          const stableTimestamp = Math.max(configCreatedAtMs, instanceCreatedAtMs);
+
           let connectedAt: string | null = null;
-          if (latestTimestamp > 0) {
-            connectedAt = new Date(latestTimestamp).toISOString();
+          if (stableTimestamp > 0) {
+            connectedAt = new Date(stableTimestamp).toISOString();
             setInstanceConnectedAt(connectedAt);
           }
-          
           checkConnectionStatus(instance.base_url, instance.api_key);
           return connectedAt;
         }
