@@ -3123,6 +3123,7 @@ export type Database = {
           contact_number: string
           created_at: string
           deleted_at: string | null
+          history_cleared_at: string | null
           id: string
           last_message: string | null
           last_message_time: string | null
@@ -3141,6 +3142,7 @@ export type Database = {
           contact_number: string
           created_at?: string
           deleted_at?: string | null
+          history_cleared_at?: string | null
           id?: string
           last_message?: string | null
           last_message_time?: string | null
@@ -3159,6 +3161,7 @@ export type Database = {
           contact_number?: string
           created_at?: string
           deleted_at?: string | null
+          history_cleared_at?: string | null
           id?: string
           last_message?: string | null
           last_message_time?: string | null

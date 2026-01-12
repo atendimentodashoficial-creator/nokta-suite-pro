@@ -788,6 +788,9 @@ Deno.serve(async (req) => {
               }
 
               // Message is NEWER than deletion - user wants to re-open the chat
+              // Save the tombstone deleted_at to use as history_cleared_at
+              const historyClearedAt = tombstone.deleted_at;
+              
               // Remove the tombstone so future syncs won't skip this phone
               console.log('[WhatsApp] New message after deletion - removing tombstone for', last8Incoming);
               await supabase
@@ -795,11 +798,94 @@ Deno.serve(async (req) => {
                 .delete()
                 .eq('user_id', userId)
                 .eq('phone_last8', last8Incoming);
+
+              // Create a brand new chat with history_cleared_at set
+              let chatIdForMessage: string | null = null;
+
+              const { data: newChat, error: createError } = await supabase
+                .from('whatsapp_chats')
+                .insert({
+                  user_id: userId,
+                  chat_id: waChatId,
+                  contact_number: phone,
+                  contact_name: name,
+                  normalized_number: normalizedIncoming,
+                  last_message: messageText || 'Nova mensagem',
+                  last_message_time: msgTime,
+                  unread_count: 1,
+                  provider_unread_baseline: 0,
+                  provider_unread_count: 1,
+                  history_cleared_at: historyClearedAt, // Don't show messages before this time
+                })
+                .select('id')
+                .single();
+
+              if (createError) {
+                if ((createError as any).code === '23505') {
+                  // Chat already exists (race condition) - fetch the existing chat ID
+                  console.log('Chat already exists (race condition), fetching existing chat...');
+                  const { data: existingChat } = await supabase
+                    .from('whatsapp_chats')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('normalized_number', normalizedIncoming)
+                    .is('deleted_at', null)
+                    .maybeSingle();
+
+                  if (existingChat) {
+                    chatIdForMessage = existingChat.id;
+                    console.log('Found existing chat:', chatIdForMessage);
+                  }
+                } else {
+                  console.error('Error creating WhatsApp chat:', createError);
+                }
+              } else {
+                console.log('Created new WhatsApp chat with history_cleared_at:', newChat.id, 'for', name);
+                chatIdForMessage = newChat.id;
+              }
+
+              // Save the first message to whatsapp_messages
+              if (chatIdForMessage) {
+                const anyMsg = normalizedPayload.message as any;
+                const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
+
+                const { error: msgInsertError } = await supabase
+                  .from('whatsapp_messages')
+                  .upsert({
+                    chat_id: chatIdForMessage,
+                    message_id: messageId,
+                    content: messageText || '',
+                    sender_type: 'customer',
+                    media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                    timestamp: msgTime,
+                    utm_source: earlyUtmData.utm_source,
+                    utm_campaign: earlyUtmData.utm_campaign,
+                    utm_medium: earlyUtmData.utm_medium,
+                    utm_content: earlyUtmData.utm_content,
+                    utm_term: earlyUtmData.utm_term,
+                    fbclid: earlyUtmData.fbclid,
+                    ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
+                    fb_ad_id: earlyUtmData.fb_ad_id,
+                    fb_campaign_name: fbCampaignInfo.campaign_name,
+                    fb_adset_name: fbCampaignInfo.adset_name,
+                    fb_ad_name: fbCampaignInfo.ad_name,
+                  }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
+
+                if (msgInsertError) {
+                  console.error('Error saving first WhatsApp message:', msgInsertError);
+                } else {
+                  console.log('Saved first WhatsApp message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
+                }
+              }
+
+              return new Response(JSON.stringify({ ok: true }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
             }
 
+            // No tombstone - create chat normally
             let chatIdForMessage: string | null = null;
 
-            // Create a brand new chat (old chat rows were hard deleted)
             const { data: newChat, error: createError } = await supabase
               .from('whatsapp_chats')
               .insert({
