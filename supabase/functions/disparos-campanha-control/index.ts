@@ -163,6 +163,8 @@ serve(async (req) => {
         // OPTIMISTIC LOCK: Use atomic update to prevent race conditions
         // Only proceed if next_send_at is null OR has passed
         // Immediately set next_send_at to a future time to "claim" this execution slot
+        // NOTE: PostgREST filter values use dot separators, so we MUST avoid milliseconds in ISO strings.
+        const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
         const lockTime = new Date(Date.now() + 60000).toISOString(); // 60 seconds lock
         
         const { data: lockResult, error: lockError } = await supabase
@@ -173,7 +175,7 @@ serve(async (req) => {
           })
           .eq("id", campanha_id)
           .eq("status", "running") // Only if still running
-          .or(`next_send_at.is.null,next_send_at.lte.${new Date().toISOString()}`) // Only if no pending schedule or schedule has passed
+          .or(`next_send_at.is.null,next_send_at.lte.${nowIso}`) // Only if no pending schedule or schedule has passed
           .select("id")
           .maybeSingle();
 
