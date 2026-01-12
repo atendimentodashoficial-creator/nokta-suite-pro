@@ -1332,6 +1332,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    // === SKIP lead creation/update when message is sent BY USER (fromMe=true) ===
+    // We only want to track leads when the CONTACT sends a message (not when we send)
+    // The "respondeu" field should only be true when the contact actually responded
+    if (isFromMe) {
+      console.log('Skipping lead creation/update for outgoing message (fromMe=true)');
+      return new Response(
+        JSON.stringify({ 
+          message: 'Outgoing message processed, skipping lead update',
+          action: 'skipped_outgoing'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // === Lead creation for WhatsApp (same logic as Disparos) ===
     // Extract referral data from Click-to-WhatsApp ads FIRST (before lead creation/update)
     // UAZAPI sends ad data in multiple possible locations:
