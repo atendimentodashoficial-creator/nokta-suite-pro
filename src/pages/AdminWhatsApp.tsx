@@ -1072,7 +1072,17 @@ export default function AdminWhatsApp() {
           chatId
         }
       });
-      if (error) throw error;
+      
+      // Silently ignore 404 errors (chat was deleted or doesn't exist)
+      if (error) {
+        // Check if it's a "Chat not found" error - don't throw, just return
+        const errorMsg = (data as any)?.error || error?.message || '';
+        if (errorMsg.includes("Chat not found") || errorMsg.includes("404")) {
+          console.log("Chat not found, skipping mark-read:", chatId);
+          return;
+        }
+        throw error;
+      }
       const providerBaseline = (data as any)?.baseline ?? 0;
 
       // Update local state (both lists + selected)
