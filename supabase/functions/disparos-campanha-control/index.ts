@@ -160,23 +160,42 @@ serve(async (req) => {
           );
         }
 
-        // Check if we need to wait before sending next message
-        if (campanha.next_send_at) {
-          const nextSendTime = new Date(campanha.next_send_at).getTime();
-          const now = Date.now();
-          if (now < nextSendTime) {
-            const waitSeconds = Math.ceil((nextSendTime - now) / 1000);
-            console.log(`Campaign ${campanha_id}: Next send scheduled in ${waitSeconds}s, skipping this call`);
-            return new Response(
-              JSON.stringify({ 
-                success: true, 
-                message: `Aguardando delay - próximo envio em ${waitSeconds}s`,
-                next_send_at: campanha.next_send_at
-              }),
-              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
+        // OPTIMISTIC LOCK: Use atomic update to prevent race conditions
+        // Only proceed if next_send_at is null OR has passed
+        // Immediately set next_send_at to a future time to "claim" this execution slot
+        const lockTime = new Date(Date.now() + 60000).toISOString(); // 60 seconds lock
+        
+        const { data: lockResult, error: lockError } = await supabase
+          .from("disparos_campanhas")
+          .update({ 
+            status: "running",
+            next_send_at: lockTime // Temporarily set to prevent other calls
+          })
+          .eq("id", campanha_id)
+          .eq("status", "running") // Only if still running
+          .or(`next_send_at.is.null,next_send_at.lte.${new Date().toISOString()}`) // Only if no pending schedule or schedule has passed
+          .select("id")
+          .maybeSingle();
+
+        if (lockError) {
+          console.error(`Campaign ${campanha_id}: Lock acquisition error:`, lockError);
+          throw lockError;
         }
+
+        if (!lockResult) {
+          // Another process is already handling this campaign
+          console.log(`Campaign ${campanha_id}: Could not acquire lock - another process is handling it`);
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: "Campanha está sendo processada por outra execução",
+              skipped: true
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log(`Campaign ${campanha_id}: Lock acquired successfully`);
       }
 
       // Update campaign status (only set iniciado_em on first start)
@@ -188,12 +207,6 @@ serve(async (req) => {
             iniciado_em: campanha.iniciado_em || new Date().toISOString(),
             next_send_at: null // Clear any previous scheduling
           })
-          .eq("id", campanha_id);
-      } else {
-        // For continue, just ensure status is running (already verified it's not paused)
-        await supabase
-          .from("disparos_campanhas")
-          .update({ status: "running" })
           .eq("id", campanha_id);
       }
 
