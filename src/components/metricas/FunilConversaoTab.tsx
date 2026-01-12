@@ -656,8 +656,18 @@ export function FunilConversaoTab() {
           if (Number.isNaN(d.getTime())) return null;
           return d >= startOfPeriod && d <= endOfPeriod ? d.getTime() : null;
         }
-        // Fallback para timestamps completos
-        return periodTs(dateStr);
+        // Para timestamps completos (como data_agendamento), extrair apenas a data
+        // e comparar no timezone local para consistência com a UI
+        const parsed = new Date(dateStr);
+        if (Number.isNaN(parsed.getTime())) return null;
+        // Criar data local baseada no dia que o timestamp representa
+        const localDate = new Date(
+          parsed.getFullYear(),
+          parsed.getMonth(),
+          parsed.getDate(),
+          12, 0, 0, 0
+        );
+        return localDate >= startOfPeriod && localDate <= endOfPeriod ? localDate.getTime() : null;
       };
 
       // Criar set de clientes que têm fatura (para validar agendamentos "realizado")
@@ -702,21 +712,26 @@ export function FunilConversaoTab() {
           return; // Ignorar agendamentos "realizado" sem fatura vinculada
         }
 
-        const ts = periodTs(a.created_at || (a as any).data_agendamento);
-        if (ts === null) return;
+        // AGENDAMENTOS REGISTRADOS: usar created_at (data de criação)
+        const tsCreated = periodTs(a.created_at);
+        if (tsCreated !== null) {
+          // Contar agendamentos visíveis no app criados no período
+          phonesWithAgendamentoInPeriod.add(phone);
+          phonesWithAgendamentoInPeriodForStage.add(phone);
 
-        // Contar agendamentos visíveis no app criados no período
-        phonesWithAgendamentoInPeriod.add(phone);
-        phonesWithAgendamentoInPeriodForStage.add(phone);
-
-        // Marcar se é não compareceu (status cancelado) - aparece na aba "Não Compareceu"
-        if (a.status === "cancelado") {
-          phonesWithNaoCompareceuInPeriod.add(phone);
+          // Guardar o primeiro agendamento (criado) dentro do período
+          if (agendamentoTsByPhone[phone] === undefined || tsCreated < agendamentoTsByPhone[phone]) {
+            agendamentoTsByPhone[phone] = tsCreated;
+          }
         }
 
-        // Guardar o primeiro agendamento (criado) dentro do período
-        if (agendamentoTsByPhone[phone] === undefined || ts < agendamentoTsByPhone[phone]) {
-          agendamentoTsByPhone[phone] = ts;
+        // AGENDAMENTOS REALIZADOS: usar data_agendamento (data do serviço)
+        // Para data_agendamento (timestamp), usar periodTsForDate para tratar como data local
+        const tsAgendamento = periodTsForDate((a as any).data_agendamento);
+
+        // Marcar se é não compareceu (status cancelado) - baseado na data do agendamento
+        if (a.status === "cancelado" && tsAgendamento !== null) {
+          phonesWithNaoCompareceuInPeriod.add(phone);
         }
       });
 
@@ -934,7 +949,8 @@ export function FunilConversaoTab() {
         const phone = clienteIdToPhone[a.cliente_id];
         if (!phone) return;
         
-        const ts = periodTs(a.created_at || (a as any).data_agendamento);
+        // Usar created_at para agendamentos registrados (data de criação)
+        const ts = periodTs(a.created_at);
         if (ts === null) return;
         
         // Contar TODOS os agendamentos no período para atribuição

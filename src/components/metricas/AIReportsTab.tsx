@@ -258,8 +258,18 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         if (Number.isNaN(d.getTime())) return null;
         return d >= startOfPeriod && d <= endOfPeriod ? d.getTime() : null;
       }
-      // Fallback para timestamps completos
-      return periodTs(dateStr);
+      // Para timestamps completos (como data_agendamento), extrair apenas a data
+      // e comparar no timezone local para consistência com a UI
+      const parsed = new Date(dateStr);
+      if (Number.isNaN(parsed.getTime())) return null;
+      // Criar data local baseada no dia que o timestamp representa em Brasília (UTC-3)
+      const localDate = new Date(
+        parsed.getFullYear(),
+        parsed.getMonth(),
+        parsed.getDate(),
+        12, 0, 0, 0
+      );
+      return localDate >= startOfPeriod && localDate <= endOfPeriod ? localDate.getTime() : null;
     };
 
     // Normalize phone to last 8 digits
