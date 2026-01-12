@@ -259,6 +259,20 @@ serve(async (req) => {
         .in("id", duplicateIds);
     }
 
+    // ===== Load deletion tombstones to prevent re-importing deleted chats =====
+    const { data: deletionTombstones } = await supabase
+      .from("whatsapp_chat_deletions")
+      .select("phone_last8, deleted_at")
+      .eq("user_id", user.id);
+
+    const tombstoneMap = new Map<string, number>();
+    for (const t of deletionTombstones || []) {
+      if (t.phone_last8 && t.deleted_at) {
+        tombstoneMap.set(t.phone_last8, new Date(t.deleted_at).getTime());
+      }
+    }
+    console.log(`[SYNC] Loaded ${tombstoneMap.size} deletion tombstones`);
+
     // Processar chats do WhatsApp - verificando por últimos 8 dígitos
     const chatsToUpsert: any[] = [];
     const processedLast8 = new Set<string>();
@@ -305,6 +319,14 @@ serve(async (req) => {
 
       if (!last8 || processedLast8.has(last8)) continue;
       processedLast8.add(last8);
+
+      // ===== Check tombstone: skip if this phone was deleted =====
+      const tombstoneDeletedAt = tombstoneMap.get(last8);
+      if (tombstoneDeletedAt) {
+        // Chat was deleted - skip import entirely during sync
+        console.log(`[SYNC] Skipping chat ${chat.phone} because tombstone exists (deleted at ${new Date(tombstoneDeletedAt).toISOString()})`);
+        continue;
+      }
 
       const existingChat = existingByLast8.get(last8);
       

@@ -3021,6 +3021,27 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_chat_deletions: {
+        Row: {
+          deleted_at: string
+          id: string
+          phone_last8: string
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          id?: string
+          phone_last8: string
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string
+          id?: string
+          phone_last8?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_chat_kanban: {
         Row: {
           chat_id: string

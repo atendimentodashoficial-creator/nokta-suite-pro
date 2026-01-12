@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper to get last 8 digits for matching
+function getLast8Digits(phone: string): string {
+  if (!phone) return "";
+  const clean = phone.replace(/[^\d]/g, "").replace(/@.*$/, "");
+  return clean.slice(-8);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -46,7 +53,7 @@ serve(async (req) => {
     // Fetch the chats to get their chat_id (WhatsApp ID) and normalized_number
     const { data: chats, error: chatsError } = await supabase
       .from("whatsapp_chats")
-      .select("id, chat_id, normalized_number")
+      .select("id, chat_id, contact_number, normalized_number")
       .eq("user_id", user.id)
       .in("id", chatIdsToProcess);
 
@@ -61,6 +68,16 @@ serve(async (req) => {
 
     // Get normalized numbers for deleting all related records
     const normalizedNumbers = [...new Set(chats.map(c => c.normalized_number).filter(Boolean))];
+
+    // Compute last 8 digits for each chat to create deletion tombstones
+    const phoneLast8Set = new Set<string>();
+    for (const chat of chats) {
+      const last8 = getLast8Digits(chat.contact_number || chat.normalized_number || chat.chat_id);
+      if (last8 && last8.length === 8) {
+        phoneLast8Set.add(last8);
+      }
+    }
+    const phoneLast8List = Array.from(phoneLast8Set);
 
     // Get UAZapi config for this user
     const { data: config } = await supabase
@@ -129,7 +146,7 @@ serve(async (req) => {
 
     const allChatDbIds = allChatsToDelete?.map(c => c.id) || chatIdsToProcess;
 
-    // Delete messages from database
+    // Delete messages from database (HARD DELETE)
     console.log(`Deleting messages for ${allChatDbIds.length} chat(s)...`);
     const { error: messagesError } = await supabase
       .from("whatsapp_messages")
@@ -152,30 +169,39 @@ serve(async (req) => {
       console.error("Error deleting kanban positions:", kanbanError);
     }
 
-    // Soft-delete chats (keep a tombstone) so old history cannot be re-imported.
-    // Messages are fully deleted above, so when the contact messages again the chat restarts empty.
-    const nowIso = new Date().toISOString();
-
+    // HARD DELETE the chat rows from database
     const { error: deleteError } = await supabase
       .from("whatsapp_chats")
-      .update({
-        deleted_at: nowIso,
-        updated_at: nowIso,
-        unread_count: 0,
-        last_message: null,
-        last_message_time: null,
-        provider_unread_count: 0,
-        provider_unread_baseline: 0,
-      })
+      .delete()
       .in("normalized_number", normalizedNumbers)
       .eq("user_id", user.id);
 
     if (deleteError) {
-      console.error("Error soft-deleting chats:", deleteError);
+      console.error("Error deleting chats:", deleteError);
       throw new Error("Error deleting chats");
     }
 
-    console.log(`=== Successfully deleted ${chatIdsToProcess.length} chat(s) ===`);
+    // Create deletion tombstones so sync/webhook never re-imports these phones
+    const nowIso = new Date().toISOString();
+
+    for (const last8 of phoneLast8List) {
+      const { error: tombstoneError } = await supabase
+        .from("whatsapp_chat_deletions")
+        .upsert(
+          {
+            user_id: user.id,
+            phone_last8: last8,
+            deleted_at: nowIso,
+          },
+          { onConflict: "user_id,phone_last8" }
+        );
+
+      if (tombstoneError) {
+        console.error("Error creating tombstone for", last8, tombstoneError);
+      }
+    }
+
+    console.log(`=== Successfully deleted ${chatIdsToProcess.length} chat(s) and created ${phoneLast8List.length} tombstone(s) ===`);
 
     return new Response(
       JSON.stringify({ success: true, deleted: chatIdsToProcess.length }),
