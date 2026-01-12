@@ -714,9 +714,10 @@ Deno.serve(async (req) => {
             ).toISOString();
 
             // Include UTM data directly in the insert (extracted earlier)
+            // Use insert instead of upsert to catch actual errors (not silenced by ignoreDuplicates)
             const { error: msgInsertError } = await supabase
               .from('whatsapp_messages')
-              .upsert({
+              .insert({
                 chat_id: matchingChat.id,
                 message_id: messageId,
                 content: messageText || '',
@@ -736,12 +737,17 @@ Deno.serve(async (req) => {
                 fb_campaign_name: fbCampaignInfo.campaign_name,
                 fb_adset_name: fbCampaignInfo.adset_name,
                 fb_ad_name: fbCampaignInfo.ad_name,
-              }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
+              });
 
             if (msgInsertError) {
-              console.error('Error saving WhatsApp message:', msgInsertError);
+              // If it's a duplicate, that's ok - just log it
+              if ((msgInsertError as any).code === '23505') {
+                console.log('Message already exists (duplicate):', messageId);
+              } else {
+                console.error('Error saving WhatsApp message:', msgInsertError, 'chat_id:', matchingChat.id, 'message_id:', messageId);
+              }
             } else {
-              console.log('Saved WhatsApp message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
+              console.log('Saved WhatsApp message:', messageId, 'to chat:', matchingChat.id);
             }
           } else {
             // Chat doesn't exist yet. If the user deleted it recently, do NOT recreate it from old history.
@@ -920,14 +926,13 @@ Deno.serve(async (req) => {
 
               const { error: msgInsertError } = await supabase
                 .from('whatsapp_messages')
-                .upsert({
+                .insert({
                   chat_id: chatIdForMessage,
                   message_id: messageId,
                   content: messageText || '',
                   sender_type: isFromMe ? 'agent' : 'customer',
                   media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
                   timestamp: msgTime,
-                  // Include UTM attribution directly
                   utm_source: earlyUtmData.utm_source,
                   utm_campaign: earlyUtmData.utm_campaign,
                   utm_medium: earlyUtmData.utm_medium,
@@ -935,17 +940,20 @@ Deno.serve(async (req) => {
                   utm_term: earlyUtmData.utm_term,
                   fbclid: earlyUtmData.fbclid,
                   ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
-                  // Include real Facebook campaign names
                   fb_ad_id: earlyUtmData.fb_ad_id,
                   fb_campaign_name: fbCampaignInfo.campaign_name,
                   fb_adset_name: fbCampaignInfo.adset_name,
                   fb_ad_name: fbCampaignInfo.ad_name,
-                }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
+                });
 
               if (msgInsertError) {
-                console.error('Error saving first WhatsApp message:', msgInsertError);
+                if ((msgInsertError as any).code === '23505') {
+                  console.log('First message already exists (duplicate):', messageId);
+                } else {
+                  console.error('Error saving first WhatsApp message:', msgInsertError, 'chat_id:', chatIdForMessage, 'message_id:', messageId);
+                }
               } else {
-                console.log('Saved first WhatsApp message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
+                console.log('Saved first WhatsApp message:', messageId, 'to new chat:', chatIdForMessage);
               }
             }
           }
