@@ -175,8 +175,9 @@ export default function Dashboard() {
       if (!dataInicial && !dataFinal) return true;
       // Converter UTC para Brasília para comparar com filtros locais
       const agDate = toZonedTime(new Date(ag.created_at), TIMEZONE);
-      if (dataInicial && agDate < dataInicial) return false;
-      if (dataFinal && agDate > dataFinal) return false;
+      // Comparar usando início e fim do dia para garantir inclusão correta
+      if (dataInicial && agDate < startOfDay(dataInicial)) return false;
+      if (dataFinal && agDate > endOfDay(dataFinal)) return false;
       return true;
     }) || [];
 
@@ -186,8 +187,9 @@ export default function Dashboard() {
       if (!dataInicial && !dataFinal) return true;
       // data_agendamento também é timestamp UTC
       const agDate = toZonedTime(new Date(ag.data_agendamento), TIMEZONE);
-      if (dataInicial && agDate < dataInicial) return false;
-      if (dataFinal && agDate > dataFinal) return false;
+      // Comparar usando início e fim do dia para garantir inclusão correta
+      if (dataInicial && agDate < startOfDay(dataInicial)) return false;
+      if (dataFinal && agDate > endOfDay(dataFinal)) return false;
       return true;
     }) || [];
 
