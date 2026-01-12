@@ -343,12 +343,9 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
           setShouldScrollToBottom(true);
         }
 
-        // Trigger background API sync if we have no real messages (only virtual or none)
-        const hasOnlyVirtualMessages = finalMessages.length <= 1 && finalMessages[0]?.id?.startsWith('virtual-');
-        if ((finalMessages.length === 0 || hasOnlyVirtualMessages) && previousLength === 0 && chat.chat_id) {
-          console.log('[ChatWindow] No real messages, triggering background API sync...');
-          syncMessagesFromApiSilent();
-        }
+        // Do NOT fetch provider history automatically.
+        // Chats/messages must be created/updated via webhook only, to avoid resurrecting deleted conversations.
+
       }
     } catch (error: any) {
       console.error('Error loading messages:', error);
@@ -468,64 +465,23 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     throw lastError;
   };
 
-  // Background sync with UAZapi (silent, catches missed webhook messages)
-  const syncMessagesFromApiSilent = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+  // IMPORTANT: we do NOT fetch message history from the provider automatically.
+  // Messages should come from the database (populated by webhooks) to avoid resurrecting deleted history.
 
-      const response = await invokeWithRetry('uazapi-get-messages', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: { chatid: chat.chat_id }
-      }, 2); // 2 retries for silent sync
-
-      const incoming = response.data.messages || [];
-      if (incoming.length > messages.length) {
-        setMessages(mergeMessagesPreservingAttribution(incoming));
-        setShouldScrollToBottom(true);
-      }
-    } catch (error: any) {
-      // Silent fail for background sync - don't bother user
-      console.error('Background sync error (silent):', error.message);
-    }
-  };
-
-  // Manual sync with UAZapi (user-triggered with feedback)
+  // Manual refresh (DB only)
   const syncMessagesFromApi = async () => {
     setIsLoadingMessages(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Sessão expirada. Faça login novamente.');
-        return;
-      }
-
-      const response = await invokeWithRetry('uazapi-get-messages', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: { chatid: chat.chat_id }
-      }, 3); // 3 retries for manual sync
-
-      const incoming = response.data.messages || [];
-      setMessages(mergeMessagesPreservingAttribution(incoming));
-      setShouldScrollToBottom(true);
-      toast.success('Mensagens sincronizadas');
+      await loadMessages(true);
+      toast.success('Mensagens atualizadas');
     } catch (error: any) {
-      console.error('Error syncing messages:', error);
-      const isNetworkError = error.message?.includes('Failed to fetch') || 
-                             error.message?.includes('NetworkError');
-      if (isNetworkError) {
-        toast.error('Conexão instável. Tente novamente em alguns segundos.');
-      } else {
-        toast.error('Erro ao sincronizar mensagens.');
-      }
+      console.error('Error refreshing messages:', error);
+      toast.error('Erro ao atualizar mensagens');
     } finally {
       setIsLoadingMessages(false);
     }
   };
+
 
   const loadLabels = async () => {
     try {
@@ -1208,10 +1164,8 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     if (onMessagesRead) {
       onMessagesRead();
     }
-    
-    // Background sync to catch any messages missed by webhook
-    syncMessagesFromApiSilent();
   }, [chat.id]);
+
 
   // Realtime subscription for new and updated messages
   useEffect(() => {
