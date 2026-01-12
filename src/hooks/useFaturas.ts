@@ -12,6 +12,7 @@ export interface Fatura {
   valor: number;
   status: StatusFatura;
   observacoes: string | null;
+  data_fatura: string | null;
   data_follow_up: string | null;
   created_at: string;
   updated_at: string;

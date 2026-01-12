@@ -49,6 +49,7 @@ const faturaSchema = z.object({
   status: z.enum(["negociacao", "fechado"], { required_error: "Selecione o status" }),
   procedimento_id: z.string().optional(),
   profissional_id: z.string().optional(),
+  data_fatura: z.string().min(1, "Data é obrigatória"),
   data_follow_up: z.string().optional(),
   observacoes: z.string().max(500).optional(),
   upsells: z.array(upsellSchema).optional(),
@@ -70,6 +71,7 @@ interface NovaFaturaDialogProps {
   procedimentoId?: string;
   profissionalId?: string;
   agendamentoId?: string;
+  dataAgendamento?: string;
 }
 
 export function NovaFaturaDialog({
@@ -80,6 +82,7 @@ export function NovaFaturaDialog({
   procedimentoId,
   profissionalId,
   agendamentoId,
+  dataAgendamento,
 }: NovaFaturaDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createFatura = useCreateFatura();
@@ -88,11 +91,25 @@ export function NovaFaturaDialog({
   const { data: profissionais } = useProfissionais();
   const { data: produtos } = useProdutos(true);
 
+  // Extrair apenas a data do dataAgendamento (que pode ter hora)
+  const getDataFaturaDefault = () => {
+    if (dataAgendamento) {
+      // Se tiver data do agendamento, usar ela (pode ser ISO ou date string)
+      const data = new Date(dataAgendamento);
+      if (!isNaN(data.getTime())) {
+        return format(data, "yyyy-MM-dd");
+      }
+    }
+    // Fallback para hoje
+    return format(new Date(), "yyyy-MM-dd");
+  };
+
   const form = useForm<FaturaFormData>({
     resolver: zodResolver(faturaSchema),
     defaultValues: {
       status: undefined,
       observacoes: "",
+      data_fatura: getDataFaturaDefault(),
       data_follow_up: format(new Date(), "yyyy-MM-dd"),
       procedimento_id: procedimentoId || undefined,
       profissional_id: profissionalId || undefined,
@@ -184,6 +201,7 @@ export function NovaFaturaDialog({
         procedimento_id: data.procedimento_id || null,
         profissional_id: data.profissional_id || null,
         observacoes: data.observacoes || null,
+        data_fatura: data.data_fatura || null,
         data_follow_up: data.data_follow_up || null,
         meio_pagamento: data.meio_pagamento || null,
         forma_pagamento: data.forma_pagamento,
@@ -282,7 +300,7 @@ export function NovaFaturaDialog({
         <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="valor"
@@ -323,6 +341,20 @@ export function NovaFaturaDialog({
                           <SelectItem value="fechado">Fechado</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="data_fatura"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data *</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
