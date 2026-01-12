@@ -764,6 +764,7 @@ export type Database = {
           media_base64: string | null
           media_url: string | null
           mensagem: string | null
+          next_send_at: string | null
           nome: string
           status: string
           tipo_mensagem: string
@@ -789,6 +790,7 @@ export type Database = {
           media_base64?: string | null
           media_url?: string | null
           mensagem?: string | null
+          next_send_at?: string | null
           nome: string
           status?: string
           tipo_mensagem: string
@@ -814,6 +816,7 @@ export type Database = {
           media_base64?: string | null
           media_url?: string | null
           mensagem?: string | null
+          next_send_at?: string | null
           nome?: string
           status?: string
           tipo_mensagem?: string
