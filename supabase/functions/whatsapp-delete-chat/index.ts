@@ -66,10 +66,7 @@ serve(async (req) => {
       throw new Error("No chats found");
     }
 
-    // Get normalized numbers for deleting all related records
-    const normalizedNumbers = [...new Set(chats.map(c => c.normalized_number).filter(Boolean))];
-
-    // Compute last 8 digits for each chat to create deletion tombstones
+    // Compute last 8 digits for each selected chat to create deletion tombstones
     const phoneLast8Set = new Set<string>();
     for (const chat of chats) {
       const last8 = getLast8Digits(chat.contact_number || chat.normalized_number || chat.chat_id);
@@ -78,6 +75,40 @@ serve(async (req) => {
       }
     }
     const phoneLast8List = Array.from(phoneLast8Set);
+
+    // Find ALL chat rows in DB that match these phones (important because many legacy rows may have normalized_number = null)
+    const { data: userChats, error: userChatsError } = await supabase
+      .from("whatsapp_chats")
+      .select("id, chat_id, contact_number, normalized_number")
+      .eq("user_id", user.id);
+
+    if (userChatsError) {
+      console.error("Error fetching user chats:", userChatsError);
+      throw new Error("Error fetching user chats");
+    }
+
+    const chatIdsToDeleteDb = (userChats || [])
+      .filter((c) => {
+        const last8 = getLast8Digits(c.contact_number || c.normalized_number || c.chat_id);
+        return last8 && phoneLast8Set.has(last8);
+      })
+      .map((c) => c.id);
+
+    const providerChatIdsToDelete = Array.from(
+      new Set(
+        (userChats || [])
+          .filter((c) => {
+            const last8 = getLast8Digits(c.contact_number || c.normalized_number || c.chat_id);
+            return last8 && phoneLast8Set.has(last8);
+          })
+          .map((c) => c.chat_id)
+          .filter(Boolean)
+      )
+    );
+
+    console.log(
+      `Matched ${chatIdsToDeleteDb.length} DB chat row(s) for deletion (selected=${chatIdsToProcess.length}, phones=${phoneLast8List.length})`
+    );
 
     // Get UAZapi config for this user
     const { data: config } = await supabase
@@ -102,12 +133,12 @@ serve(async (req) => {
       };
 
       const CONCURRENCY = 8;
-      const queue = [...chats];
+      const queue = [...providerChatIdsToDelete];
 
       const worker = async () => {
         while (queue.length) {
-          const chat = queue.shift();
-          if (!chat) break;
+          const chatId = queue.shift();
+          if (!chatId) break;
 
           try {
             await withTimeout(2500, async (signal) => {
@@ -119,17 +150,17 @@ serve(async (req) => {
                   "Content-Type": "application/json",
                   "token": config.api_key,
                 },
-                body: JSON.stringify({ chatId: chat.chat_id }),
+                body: JSON.stringify({ chatId }),
               });
 
               if (!response.ok) {
                 const text = await response.text();
-                console.error(`UAZapi delete error for ${chat.chat_id}:`, text);
+                console.error(`UAZapi delete error for ${chatId}:`, text);
               }
             });
           } catch (apiError) {
             // Don't fail the whole delete if provider delete fails/timeouts
-            console.error(`Error deleting chat ${chat.chat_id} from UAZapi:`, apiError);
+            console.error(`Error deleting chat ${chatId} from UAZapi:`, apiError);
           }
         }
       };
@@ -137,21 +168,12 @@ serve(async (req) => {
       await Promise.all(Array.from({ length: CONCURRENCY }, worker));
     }
 
-    // Get all chat DB IDs to delete (including any with same normalized_number)
-    const { data: allChatsToDelete } = await supabase
-      .from("whatsapp_chats")
-      .select("id")
-      .eq("user_id", user.id)
-      .in("normalized_number", normalizedNumbers);
-
-    const allChatDbIds = allChatsToDelete?.map(c => c.id) || chatIdsToProcess;
-
     // Delete messages from database (HARD DELETE)
-    console.log(`Deleting messages for ${allChatDbIds.length} chat(s)...`);
+    console.log(`Deleting messages for ${chatIdsToDeleteDb.length} chat(s)...`);
     const { error: messagesError } = await supabase
       .from("whatsapp_messages")
       .delete()
-      .in("chat_id", allChatDbIds);
+      .in("chat_id", chatIdsToDeleteDb);
 
     if (messagesError) {
       console.error("Error deleting messages:", messagesError);
@@ -163,17 +185,17 @@ serve(async (req) => {
     const { error: kanbanError } = await supabase
       .from("whatsapp_chat_kanban")
       .delete()
-      .in("chat_id", allChatDbIds);
+      .in("chat_id", chatIdsToDeleteDb);
 
     if (kanbanError) {
       console.error("Error deleting kanban positions:", kanbanError);
     }
 
-    // HARD DELETE the chat rows from database
+    // HARD DELETE the chat rows from database (by ID, not by normalized_number)
     const { error: deleteError } = await supabase
       .from("whatsapp_chats")
       .delete()
-      .in("normalized_number", normalizedNumbers)
+      .in("id", chatIdsToDeleteDb)
       .eq("user_id", user.id);
 
     if (deleteError) {
