@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     // Use limit(1) instead of maybeSingle() to avoid errors when duplicates exist
     const { data: existingChats, error: chatCheckError } = await supabase
       .from('whatsapp_chats')
-      .select('id, created_at, last_message, last_message_time')
+      .select('id, created_at, last_message, last_message_time, history_cleared_at')
       .eq('user_id', user.id)
       .eq('chat_id', chatid)
       .is('deleted_at', null)
@@ -79,8 +79,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // NOTE: We no longer filter messages by chat created_at since we want to show old conversations
-    // The created_at filter was meant for chats recreated after deletion, but now we import all history
+    // If history_cleared_at is set, we filter out messages older than this timestamp
+    // This happens when a chat was deleted and then recreated after a new message arrived
+    const historyClearedAt = existingChat.history_cleared_at 
+      ? new Date(existingChat.history_cleared_at).getTime() 
+      : null;
+    
+    if (historyClearedAt) {
+      console.log('History cleared at:', existingChat.history_cleared_at, '- will filter old messages');
+    }
 
     // Lead creation is now handled ONLY by webhook for new incoming messages
     // Old conversations should NOT create leads when opened
@@ -158,51 +165,66 @@ Deno.serve(async (req) => {
       return colonIndex >= 0 ? fullId.substring(colonIndex + 1) : fullId;
     };
 
-    // Process messages from UAZapi
-    const processedMessages = messages.map((msg: any) => {
-      let mediaType = 'text';
-      let mediaUrl: string | null = null;
+    // Process messages from UAZapi, filtering by history_cleared_at if set
+    const processedMessages = messages
+      .filter((msg: any) => {
+        // If history was cleared, filter out messages older than that timestamp
+        if (historyClearedAt) {
+          const msgTimestamp = msg.messageTimestamp > 9999999999 
+            ? msg.messageTimestamp 
+            : msg.messageTimestamp * 1000;
+          if (msgTimestamp <= historyClearedAt) {
+            return false; // Skip old messages
+          }
+        }
+        return true;
+      })
+      .map((msg: any) => {
+        let mediaType = 'text';
+        let mediaUrl: string | null = null;
 
-      // Map message types
-      if (msg.messageType === 'ImageMessage') {
-        mediaType = 'image';
-        mediaUrl = msg.content?.URL || null;
-      } else if (msg.messageType === 'VideoMessage') {
-        mediaType = 'video';
-        mediaUrl = msg.content?.URL || null;
-      } else if (msg.messageType === 'AudioMessage') {
-        mediaType = 'audio';
-        mediaUrl = msg.content?.URL || null;
-      } else if (msg.messageType === 'DocumentMessage') {
-        mediaType = 'document';
-        mediaUrl = msg.content?.URL || null;
-      }
+        // Map message types
+        if (msg.messageType === 'ImageMessage') {
+          mediaType = 'image';
+          mediaUrl = msg.content?.URL || null;
+        } else if (msg.messageType === 'VideoMessage') {
+          mediaType = 'video';
+          mediaUrl = msg.content?.URL || null;
+        } else if (msg.messageType === 'AudioMessage') {
+          mediaType = 'audio';
+          mediaUrl = msg.content?.URL || null;
+        } else if (msg.messageType === 'DocumentMessage') {
+          mediaType = 'document';
+          mediaUrl = msg.content?.URL || null;
+        }
 
-      // Check if message was deleted
-      const isDeleted = msg.status === 'Deleted';
+        // Check if message was deleted
+        const isDeleted = msg.status === 'Deleted';
 
-      // Keep original full ID for frontend, but we'll use base ID for DB lookup
-      const fullMessageId = msg.id;
-      const baseMessageId = extractBaseMessageId(fullMessageId);
+        // Keep original full ID for frontend, but we'll use base ID for DB lookup
+        const fullMessageId = msg.id;
+        const baseMessageId = extractBaseMessageId(fullMessageId);
 
-      return {
-        message_id: fullMessageId,
-        base_message_id: baseMessageId, // Used for DB lookup
-        sender_type: msg.fromMe ? 'agent' : 'customer',
-        content: isDeleted ? 'Mensagem apagada' : (msg.text || ''),
-        media_type: mediaType,
-        media_url: mediaUrl,
-        timestamp: new Date(msg.messageTimestamp).toISOString(),
-        status: msg.fromMe
-          ? msg.status === 'Read'
-            ? 'read'
-            : msg.status === 'Delivered'
-              ? 'delivered'
-              : 'sent'
-          : null,
-        deleted: isDeleted,
-      };
-    });
+        return {
+          message_id: fullMessageId,
+          base_message_id: baseMessageId, // Used for DB lookup
+          sender_type: msg.fromMe ? 'agent' : 'customer',
+          content: isDeleted ? 'Mensagem apagada' : (msg.text || ''),
+          media_type: mediaType,
+          media_url: mediaUrl,
+          timestamp: new Date(msg.messageTimestamp).toISOString(),
+          status: msg.fromMe
+            ? msg.status === 'Read'
+              ? 'read'
+              : msg.status === 'Delivered'
+                ? 'delivered'
+                : 'sent'
+            : null,
+          deleted: isDeleted,
+        };
+      });
+    
+    console.log(`After history filtering: ${processedMessages.length} messages (filtered ${messages.length - processedMessages.length})`);
 
     // Overlay deletion status and UTM data from database
     // Use base message IDs for lookup since DB stores without owner prefix
