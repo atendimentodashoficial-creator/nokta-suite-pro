@@ -111,7 +111,8 @@ export default function AdminWhatsApp() {
   };
 
   // Load chats from database (excluding deleted ones)
-  const loadChats = async () => {
+  // Optionally pass connectedAt timestamp to filter old chats (useful when called right after checkConfig)
+  const loadChats = async (connectedAtOverride?: string | null) => {
     try {
       const { data, error } = await supabase
         .from('whatsapp_chats')
@@ -127,7 +128,9 @@ export default function AdminWhatsApp() {
       const deduped = dedupeChatsByLast8(data || []);
 
       // Não mostrar conversas antigas: só mostrar chats com mensagem (ou criação) após a conexão/configuração.
-      const connectedAtMs = instanceConnectedAt ? new Date(instanceConnectedAt).getTime() : null;
+      // Use override if provided, otherwise use state value
+      const connectedAtValue = connectedAtOverride !== undefined ? connectedAtOverride : instanceConnectedAt;
+      const connectedAtMs = connectedAtValue ? new Date(connectedAtValue).getTime() : null;
       const visible = connectedAtMs && Number.isFinite(connectedAtMs)
         ? deduped.filter((c) => {
             const t1 = c.last_message_time ? new Date(c.last_message_time).getTime() : 0;
@@ -148,19 +151,20 @@ export default function AdminWhatsApp() {
 
   // Check if user has a main WhatsApp instance (ONLY via uazapi_config)
   // IMPORTANT: WhatsApp tab must NOT reuse Disparos instances.
-  const checkConfig = async () => {
+  // Returns the instanceConnectedAt timestamp for immediate use
+  const checkConfig = async (): Promise<string | null> => {
     try {
       if (!user?.id) {
         setMainInstance(null);
         setHasConfig(false);
         setConnectionStatus('disconnected');
-        return;
+        return null;
       }
 
       // Only check uazapi_config for linked instance
       const { data: uazapiConfig, error: cfgError } = await supabase
         .from('uazapi_config')
-        .select('whatsapp_instancia_id, base_url, api_key')
+        .select('whatsapp_instancia_id, base_url, api_key, updated_at, created_at')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -170,26 +174,44 @@ export default function AdminWhatsApp() {
         // Load the linked instance from disparos_instancias (shared storage, but logically WhatsApp-owned)
         const { data: instance } = await supabase
           .from('disparos_instancias')
-          .select('id, nome, base_url, api_key')
+          .select('id, nome, base_url, api_key, created_at, updated_at')
           .eq('id', uazapiConfig.whatsapp_instancia_id)
           .single();
 
         if (instance) {
           setMainInstance(instance);
           setHasConfig(true);
+          
+          // Set instanceConnectedAt to filter old chats
+          // Use the LATEST of: uazapi_config.updated_at, instance.updated_at, or instance.created_at
+          const configUpdatedAt = uazapiConfig.updated_at ? new Date(uazapiConfig.updated_at).getTime() : 0;
+          const instanceUpdatedAt = instance.updated_at ? new Date(instance.updated_at).getTime() : 0;
+          const instanceCreatedAt = instance.created_at ? new Date(instance.created_at).getTime() : 0;
+          const latestTimestamp = Math.max(configUpdatedAt, instanceUpdatedAt, instanceCreatedAt);
+          
+          let connectedAt: string | null = null;
+          if (latestTimestamp > 0) {
+            connectedAt = new Date(latestTimestamp).toISOString();
+            setInstanceConnectedAt(connectedAt);
+          }
+          
           checkConnectionStatus(instance.base_url, instance.api_key);
-          return;
+          return connectedAt;
         }
       }
 
       // No WhatsApp instance configured
       setMainInstance(null);
       setHasConfig(false);
+      setInstanceConnectedAt(null);
       setConnectionStatus('disconnected');
+      return null;
     } catch {
       setMainInstance(null);
       setHasConfig(false);
+      setInstanceConnectedAt(null);
       setConnectionStatus('disconnected');
+      return null;
     }
   };
 
@@ -895,8 +917,8 @@ export default function AdminWhatsApp() {
   // Load chats and config on mount
   useEffect(() => {
     (async () => {
-      await checkConfig();
-      await loadChats();
+      const connectedAt = await checkConfig();
+      await loadChats(connectedAt);
     })();
   }, []);
 
