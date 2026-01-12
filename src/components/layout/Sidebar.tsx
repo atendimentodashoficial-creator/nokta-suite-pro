@@ -56,7 +56,7 @@ export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse
 
   return (
     <TooltipProvider delayDuration={0}>
-      <>
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Logo / Expand Button */}
         <div className={cn(
           "h-20 flex items-center border-b border-sidebar-border",
@@ -228,7 +228,7 @@ export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse
             </Button>
           )}
         </div>
-      </>
+      </div>
     </TooltipProvider>
   );
 };
