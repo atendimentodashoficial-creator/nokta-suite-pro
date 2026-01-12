@@ -128,9 +128,10 @@ export default function AdminWhatsApp() {
       const deduped = dedupeChatsByLast8(data || []);
 
       // Não mostrar conversas antigas: só mostrar chats com mensagem (ou criação) após a conexão/configuração.
-      // Use override if provided, otherwise use state value
+      // Use override if provided, otherwise use state value.
+      // Add a 5-second tolerance to avoid filtering out newly created chats due to timestamp precision issues.
       const connectedAtValue = connectedAtOverride !== undefined ? connectedAtOverride : instanceConnectedAt;
-      const connectedAtMs = connectedAtValue ? new Date(connectedAtValue).getTime() : null;
+      const connectedAtMs = connectedAtValue ? new Date(connectedAtValue).getTime() - 5000 : null;
       const visible = connectedAtMs && Number.isFinite(connectedAtMs)
         ? deduped.filter((c) => {
             const t1 = c.last_message_time ? new Date(c.last_message_time).getTime() : 0;
@@ -969,7 +970,8 @@ export default function AdminWhatsApp() {
 
         // IMPORTANT: also apply the same "no old history" filter used in loadChats.
         // Otherwise, background sync (and realtime updates) can reintroduce old chats in-memory.
-        const connectedAtMs = instanceConnectedAt ? new Date(instanceConnectedAt).getTime() : null;
+        // Add a 5-second tolerance to avoid filtering out newly created chats due to timestamp precision issues.
+        const connectedAtMs = instanceConnectedAt ? new Date(instanceConnectedAt).getTime() - 5000 : null;
         if (connectedAtMs && Number.isFinite(connectedAtMs)) {
           return merged.filter((c) => {
             const t1 = c.last_message_time ? new Date(c.last_message_time).getTime() : 0;
