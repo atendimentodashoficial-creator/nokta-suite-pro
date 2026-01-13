@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useProfissionais } from "@/hooks/useProfissionais";
-import { useEscalas, useAusencias, useCreateEscala, useDeleteEscala, useUpdateEscala, useCreateAusencia, useDeleteAusencia } from "@/hooks/useEscalas";
+import { useEscalas, useAusencias, useCreateEscala, useDeleteEscala, useUpdateEscala, useCreateAusencia, useUpdateAusencia, useDeleteAusencia } from "@/hooks/useEscalas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -69,6 +69,17 @@ export default function Escala() {
   const [horariosAusencia, setHorariosAusencia] = useState<Array<{ inicio: string; fim: string }>>([{ inicio: "07:00", fim: "08:30" }]);
   const [diaInteiro, setDiaInteiro] = useState(false);
   const [motivo, setMotivo] = useState("");
+  
+  // Estado para editar ausência
+  const [dialogEditarAusencia, setDialogEditarAusencia] = useState(false);
+  const [ausenciaEditando, setAusenciaEditando] = useState<{
+    id: string;
+    data_inicio: string;
+    data_fim: string;
+    hora_inicio: string | null;
+    hora_fim: string | null;
+    motivo: string | null;
+  } | null>(null);
   const {
     data: profissionais
   } = useProfissionais(true);
@@ -82,6 +93,7 @@ export default function Escala() {
   const deleteEscala = useDeleteEscala();
   const updateEscala = useUpdateEscala();
   const createAusencia = useCreateAusencia();
+  const updateAusencia = useUpdateAusencia();
   const deleteAusencia = useDeleteAusencia();
 
   // Filtra ausências por profissional
@@ -388,12 +400,52 @@ export default function Escala() {
       });
     }
   };
+  const handleEditarAusencia = (ausencia: {
+    id: string;
+    data_inicio: string;
+    data_fim: string;
+    hora_inicio: string | null;
+    hora_fim: string | null;
+    motivo: string | null;
+  }) => {
+    setAusenciaEditando(ausencia);
+    setDialogEditarAusencia(true);
+  };
+
+  const handleSalvarEdicaoAusencia = async () => {
+    if (!ausenciaEditando) return;
+    
+    try {
+      await updateAusencia.mutateAsync({
+        id: ausenciaEditando.id,
+        data_inicio: ausenciaEditando.data_inicio,
+        data_fim: ausenciaEditando.data_fim,
+        hora_inicio: ausenciaEditando.hora_inicio || null,
+        hora_fim: ausenciaEditando.hora_fim || null,
+        motivo: ausenciaEditando.motivo || null
+      });
+      toast({
+        title: "Ausência atualizada"
+      });
+      setDialogEditarAusencia(false);
+      setAusenciaEditando(null);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar a ausência",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleDeletarAusencia = async (id: string) => {
     try {
       await deleteAusencia.mutateAsync(id);
       toast({
         title: "Ausência removida"
       });
+      setDialogEditarAusencia(false);
+      setAusenciaEditando(null);
     } catch (error) {
       toast({
         title: "Erro",
@@ -575,21 +627,117 @@ export default function Escala() {
                       {format(parseISO(ausencia.data_fim), "dd/MM/yyyy", {
                   locale: ptBR
                 })}
+                      {(ausencia.hora_inicio || ausencia.hora_fim) && (
+                        <span className="text-xs text-primary ml-2">
+                          ({ausencia.hora_inicio || "00:00"} - {ausencia.hora_fim || "23:59"})
+                        </span>
+                      )}
                     </p>
-                    {(ausencia.hora_inicio || ausencia.hora_fim) && (
-                      <p className="text-xs text-primary">
-                        Horário: {ausencia.hora_inicio || "00:00"} - {ausencia.hora_fim || "23:59"}
-                      </p>
-                    )}
-                    {ausencia.motivo && <p className="text-xs text-muted-foreground truncate">{ausencia.motivo}</p>}
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDeletarAusencia(ausencia.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditarAusencia({
+                      id: ausencia.id,
+                      data_inicio: ausencia.data_inicio,
+                      data_fim: ausencia.data_fim,
+                      hora_inicio: ausencia.hora_inicio,
+                      hora_fim: ausencia.hora_fim,
+                      motivo: ausencia.motivo
+                    })}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>)}
             </div> : <p className="text-center text-muted-foreground py-8">Nenhuma ausência registrada</p>}
         </CardContent>
       </Card>
+
+      {/* Dialog Editar Ausência */}
+      <Dialog open={dialogEditarAusencia} onOpenChange={setDialogEditarAusencia}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Ausência</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Data Início</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {ausenciaEditando?.data_inicio ? format(parseISO(ausenciaEditando.data_inicio), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar 
+                      mode="single" 
+                      selected={ausenciaEditando?.data_inicio ? parseISO(ausenciaEditando.data_inicio) : undefined} 
+                      onSelect={(date) => date && setAusenciaEditando(prev => prev ? { ...prev, data_inicio: format(date, "yyyy-MM-dd") } : null)} 
+                      locale={ptBR} 
+                      className="pointer-events-auto" 
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label>Data Fim</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {ausenciaEditando?.data_fim ? format(parseISO(ausenciaEditando.data_fim), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar 
+                      mode="single" 
+                      selected={ausenciaEditando?.data_fim ? parseISO(ausenciaEditando.data_fim) : undefined} 
+                      onSelect={(date) => date && setAusenciaEditando(prev => prev ? { ...prev, data_fim: format(date, "yyyy-MM-dd") } : null)} 
+                      locale={ptBR} 
+                      className="pointer-events-auto" 
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Hora Início (opcional)</Label>
+                <Input 
+                  type="time" 
+                  value={ausenciaEditando?.hora_inicio || ""} 
+                  onChange={e => setAusenciaEditando(prev => prev ? { ...prev, hora_inicio: e.target.value || null } : null)} 
+                />
+              </div>
+              <div>
+                <Label>Hora Fim (opcional)</Label>
+                <Input 
+                  type="time" 
+                  value={ausenciaEditando?.hora_fim || ""} 
+                  onChange={e => setAusenciaEditando(prev => prev ? { ...prev, hora_fim: e.target.value || null } : null)} 
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Motivo (opcional)</Label>
+              <Textarea 
+                value={ausenciaEditando?.motivo || ""} 
+                onChange={e => setAusenciaEditando(prev => prev ? { ...prev, motivo: e.target.value || null } : null)} 
+                placeholder="Ex: Férias, Licença médica..."
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="destructive" onClick={() => ausenciaEditando && handleDeletarAusencia(ausenciaEditando.id)} className="flex-1">
+                <Trash2 className="h-4 w-4 mr-1" />
+                Excluir
+              </Button>
+              <Button onClick={handleSalvarEdicaoAusencia} className="flex-1">
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Copiar Dia */}
       <Dialog open={dialogCopiarDia} onOpenChange={setDialogCopiarDia}>
