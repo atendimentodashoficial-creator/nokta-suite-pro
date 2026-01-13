@@ -1135,41 +1135,39 @@ export default function Conexoes() {
           {hasGoogleAdsConfig ? (
             <div className="space-y-4">
               <div className="grid gap-3">
-                <div>
+                <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Developer Token</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      type={showGoogleAdsCredentials ? "text" : "password"}
-                      value={googleAdsDeveloperToken}
-                      readOnly
-                      className="font-mono text-sm"
-                    />
-                  </div>
+                  <Input
+                    type={showGoogleAdsCredentials ? "text" : "password"}
+                    value={googleAdsDeveloperToken}
+                    onChange={(e) => setGoogleAdsDeveloperToken(e.target.value)}
+                    className="font-mono text-sm"
+                  />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Client ID</Label>
                   <Input
                     type={showGoogleAdsCredentials ? "text" : "password"}
                     value={googleAdsClientId}
-                    readOnly
+                    onChange={(e) => setGoogleAdsClientId(e.target.value)}
                     className="font-mono text-sm"
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Client Secret</Label>
                   <Input
                     type={showGoogleAdsCredentials ? "text" : "password"}
                     value={googleAdsClientSecret}
-                    readOnly
+                    onChange={(e) => setGoogleAdsClientSecret(e.target.value)}
                     className="font-mono text-sm"
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Refresh Token</Label>
                   <Input
                     type={showGoogleAdsCredentials ? "text" : "password"}
                     value={googleAdsRefreshToken}
-                    readOnly
+                    onChange={(e) => setGoogleAdsRefreshToken(e.target.value)}
                     className="font-mono text-sm"
                   />
                 </div>
@@ -1192,6 +1190,9 @@ export default function Conexoes() {
                   )}
                   Testar Conexão
                 </Button>
+                <Button onClick={saveGoogleAdsConfig} disabled={savingGoogleAds}>
+                  {savingGoogleAds ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                </Button>
               </div>
 
               {googleAdsTestResult && (
@@ -1209,42 +1210,6 @@ export default function Conexoes() {
                   </div>
                 </div>
               )}
-
-              <div className="border-t pt-4">
-                <Label className="text-sm font-medium">Atualizar Credenciais</Label>
-                <div className="grid gap-3 mt-2">
-                  <Input
-                    type="password"
-                    value={newGoogleAdsDeveloperToken}
-                    onChange={(e) => setNewGoogleAdsDeveloperToken(e.target.value)}
-                    placeholder="Novo Developer Token"
-                  />
-                  <Input
-                    type="password"
-                    value={newGoogleAdsClientId}
-                    onChange={(e) => setNewGoogleAdsClientId(e.target.value)}
-                    placeholder="Novo Client ID"
-                  />
-                  <Input
-                    type="password"
-                    value={newGoogleAdsClientSecret}
-                    onChange={(e) => setNewGoogleAdsClientSecret(e.target.value)}
-                    placeholder="Novo Client Secret"
-                  />
-                  <Input
-                    type="password"
-                    value={newGoogleAdsRefreshToken}
-                    onChange={(e) => setNewGoogleAdsRefreshToken(e.target.value)}
-                    placeholder="Novo Refresh Token"
-                  />
-                  <Button 
-                    onClick={saveGoogleAdsConfig} 
-                    disabled={savingGoogleAds || (!newGoogleAdsDeveloperToken && !newGoogleAdsClientId && !newGoogleAdsClientSecret && !newGoogleAdsRefreshToken)}
-                  >
-                    {savingGoogleAds ? <Loader2 className="h-4 w-4 animate-spin" /> : "Atualizar"}
-                  </Button>
-                </div>
-              </div>
             </div>
           ) : (
             <div className="space-y-4">
