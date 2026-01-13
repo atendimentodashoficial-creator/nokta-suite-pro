@@ -987,7 +987,7 @@ export default function Conexoes() {
           {/* Ad Accounts Section */}
           {hasMetaToken && <div className="border-t pt-4">
             <div className="mb-4">
-              <Label>Contas de Anúncios</Label>
+              <Label className="text-base font-medium">Contas de Anúncios</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Vincule suas contas para monitorar saldo e gastos
               </p>
