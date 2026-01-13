@@ -117,6 +117,19 @@ export default function Escala() {
         newSet.delete(profissionalId);
       } else {
         newSet.add(profissionalId);
+        // Ao expandir profissional, expandir também todos os dias ativos
+        const profData = escalasPorProfissional.find(p => p.profissional.id === profissionalId);
+        if (profData) {
+          setDiasExpandidos(prevDias => {
+            const newDiasSet = new Set(prevDias);
+            profData.dias.forEach(dia => {
+              if (dia.ativo) {
+                newDiasSet.add(`${profissionalId}-${dia.value}`);
+              }
+            });
+            return newDiasSet;
+          });
+        }
       }
       return newSet;
     });
