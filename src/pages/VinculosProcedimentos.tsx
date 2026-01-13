@@ -1,123 +1,81 @@
-import { useMemo } from "react";
-import { Users, GripVertical, ChevronDown } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Stethoscope, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { useVinculos, useCreateVinculo, useDeleteVinculo, useUpdateVinculoOrdem } from "@/hooks/useProcedimentoProfissional";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useVinculos, useCreateVinculo, useDeleteVinculo } from "@/hooks/useProcedimentoProfissional";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-interface SortableProfissionalItemProps {
-  id: string;
-  profissionalId: string;
-  profissionalNome: string;
-  vinculoId: string | null;
-  isActive: boolean;
-  onToggle: (profissionalId: string, isActive: boolean, vinculoId: string | null) => void;
-  isPending: boolean;
-}
-function SortableProfissionalItem({
-  id,
-  profissionalId,
-  profissionalNome,
-  vinculoId,
-  isActive,
-  onToggle,
-  isPending
-}: SortableProfissionalItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({
-    id,
-    disabled: !isActive
-  });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1
-  };
-  return (
-    <div ref={setNodeRef} style={style} className="flex items-center justify-between gap-2 p-3 rounded-lg border bg-card">
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        {isActive && (
-          <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded flex-shrink-0">
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </button>
-        )}
-        {!isActive && <div className="w-6 flex-shrink-0" />}
-        <span className={`text-sm font-medium truncate ${!isActive ? 'text-muted-foreground' : ''}`}>
-          {profissionalNome}
-        </span>
-      </div>
-      <Switch checked={isActive} onCheckedChange={checked => onToggle(profissionalId, checked, vinculoId)} disabled={isPending} className="flex-shrink-0" />
-    </div>
-  );
-}
+
 export default function VinculosProcedimentos() {
-  const {
-    data: vinculos,
-    isLoading
-  } = useVinculos();
-  const {
-    data: procedimentos
-  } = useProcedimentos(true);
-  const {
-    data: profissionais
-  } = useProfissionais(true);
+  const [profissionalSelecionado, setProfissionalSelecionado] = useState<string>("todos");
+  const [profissionaisExpandidos, setProfissionaisExpandidos] = useState<Set<string>>(new Set());
+
+  const { data: vinculos, isLoading } = useVinculos();
+  const { data: procedimentos } = useProcedimentos(true);
+  const { data: profissionais } = useProfissionais(true);
   const createVinculo = useCreateVinculo();
   const deleteVinculo = useDeleteVinculo();
-  const updateOrdem = useUpdateVinculoOrdem();
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, {
-    coordinateGetter: sortableKeyboardCoordinates
-  }));
 
-  // Build data structure: for each procedure, list all professionals with their vinculo status
-  const procedimentosComProfissionais = useMemo(() => {
+  // Build data structure: for each professional, list all procedures with their vinculo status
+  const profissionaisComProcedimentos = useMemo(() => {
     if (!procedimentos || !profissionais) return [];
-    return procedimentos.map(proc => {
-      // Get all vinculos for this procedure
-      const vinculosDoProc = vinculos?.filter((v: any) => v.procedimento_id === proc.id) || [];
+    
+    const profissionaisParaMostrar = profissionalSelecionado === "todos" 
+      ? profissionais 
+      : profissionais.filter(p => p.id === profissionalSelecionado);
 
-      // Map all professionals, marking which ones are linked
-      const profissionaisComStatus = profissionais.map(prof => {
-        const vinculo = vinculosDoProc.find((v: any) => v.profissional_id === prof.id);
+    return profissionaisParaMostrar.map(prof => {
+      // Get all vinculos for this professional
+      const vinculosDoProf = vinculos?.filter((v: any) => v.profissional_id === prof.id) || [];
+
+      // Map all procedures, marking which ones are linked
+      const procedimentosComStatus = procedimentos.map(proc => {
+        const vinculo = vinculosDoProf.find((v: any) => v.procedimento_id === proc.id);
         return {
-          profissionalId: prof.id,
-          profissionalNome: prof.nome,
+          procedimentoId: proc.id,
+          procedimentoNome: proc.nome,
+          procedimentoCategoria: proc.categoria,
           vinculoId: vinculo?.id || null,
           isActive: !!vinculo,
-          ordem: vinculo?.ordem ?? 999
         };
       });
 
-      // Sort: active ones first by ordem, then inactive ones alphabetically
-      profissionaisComStatus.sort((a, b) => {
+      // Sort: active ones first, then alphabetically
+      procedimentosComStatus.sort((a, b) => {
         if (a.isActive && !b.isActive) return -1;
         if (!a.isActive && b.isActive) return 1;
-        if (a.isActive && b.isActive) return a.ordem - b.ordem;
-        return a.profissionalNome.localeCompare(b.profissionalNome);
+        return a.procedimentoNome.localeCompare(b.procedimentoNome);
       });
-      const activeCount = profissionaisComStatus.filter(p => p.isActive).length;
+
+      const activeCount = procedimentosComStatus.filter(p => p.isActive).length;
       return {
-        procedimento: proc,
-        profissionais: profissionaisComStatus,
+        profissional: prof,
+        procedimentos: procedimentosComStatus,
         activeCount
       };
     });
-  }, [vinculos, procedimentos, profissionais]);
-  const handleToggle = (procedimentoId: string) => (profissionalId: string, isActive: boolean, vinculoId: string | null) => {
+  }, [vinculos, procedimentos, profissionais, profissionalSelecionado]);
+
+  const toggleProfissionalExpandido = (profissionalId: string) => {
+    setProfissionaisExpandidos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(profissionalId)) {
+        newSet.delete(profissionalId);
+      } else {
+        newSet.add(profissionalId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleToggle = (profissionalId: string) => (procedimentoId: string, isActive: boolean, vinculoId: string | null) => {
     if (isActive) {
       // Create new vinculo
-      const vinculosDoProc = vinculos?.filter((v: any) => v.procedimento_id === procedimentoId) || [];
-      const maxOrdem = vinculosDoProc.reduce((max: number, v: any) => Math.max(max, v.ordem ?? 0), 0);
+      const vinculosDoProf = vinculos?.filter((v: any) => v.profissional_id === profissionalId) || [];
+      const maxOrdem = vinculosDoProf.reduce((max: number, v: any) => Math.max(max, v.ordem ?? 0), 0);
       createVinculo.mutate({
         procedimento_id: procedimentoId,
         profissional_id: profissionalId,
@@ -128,77 +86,111 @@ export default function VinculosProcedimentos() {
       deleteVinculo.mutate(vinculoId);
     }
   };
-  const handleDragEnd = (procedimentoId: string, profissionaisAtivos: typeof procedimentosComProfissionais[0]['profissionais']) => (event: DragEndEvent) => {
-    const {
-      active,
-      over
-    } = event;
-    if (over && active.id !== over.id) {
-      const activeProfissionais = profissionaisAtivos.filter(p => p.isActive);
-      const oldIndex = activeProfissionais.findIndex(p => p.profissionalId === active.id);
-      const newIndex = activeProfissionais.findIndex(p => p.profissionalId === over.id);
-      const reordered = arrayMove(activeProfissionais, oldIndex, newIndex);
 
-      // Update ordem for all active items
-      reordered.forEach((prof, index) => {
-        if (prof.vinculoId) {
-          updateOrdem.mutate({
-            id: prof.vinculoId,
-            ordem: index
-          });
-        }
-      });
-    }
-  };
-  const totalVinculos = vinculos?.length || 0;
-  return <div className="space-y-6">
+  return (
+    <div className="space-y-4">
+      {/* Filtro por Profissional */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Vínculos por Procedimento</CardTitle>
-          
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-semibold">Filtrar por Profissional</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? <div className="text-center py-8 text-muted-foreground">Carregando...</div> : procedimentosComProfissionais.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-              Cadastre procedimentos e profissionais primeiro
-            </div> : <Accordion type="multiple" className="space-y-2">
-              {procedimentosComProfissionais.map(item => {
-                const activeProfissionais = item.profissionais.filter(p => p.isActive);
-                return (
-                  <AccordionItem key={item.procedimento.id} value={item.procedimento.id} className="rounded-lg border px-4">
-                    <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-base">{item.procedimento.nome}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          <Users className="w-3 h-3 mr-1" />
-                          {item.activeCount}
-                        </Badge>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(item.procedimento.id, item.profissionais)}>
-                        <SortableContext items={activeProfissionais.map(p => p.profissionalId)} strategy={verticalListSortingStrategy}>
-                          <div className="space-y-2 pb-2">
-                            {item.profissionais.map(prof => (
-                              <SortableProfissionalItem 
-                                key={prof.profissionalId} 
-                                id={prof.profissionalId} 
-                                profissionalId={prof.profissionalId} 
-                                profissionalNome={prof.profissionalNome} 
-                                vinculoId={prof.vinculoId} 
-                                isActive={prof.isActive} 
-                                onToggle={handleToggle(item.procedimento.id)} 
-                                isPending={createVinculo.isPending || deleteVinculo.isPending} 
-                              />
-                            ))}
-                          </div>
-                        </SortableContext>
-                      </DndContext>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>}
+          <Select value={profissionalSelecionado} onValueChange={setProfissionalSelecionado}>
+            <SelectTrigger>
+              <SelectValue placeholder="Todos os profissionais" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os profissionais</SelectItem>
+              {profissionais?.map(prof => (
+                <SelectItem key={prof.id} value={prof.id}>
+                  {prof.nome} {prof.especialidade && `- ${prof.especialidade}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
-    </div>;
+
+      {/* Lista de Profissionais com Procedimentos */}
+      {isLoading ? (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">Carregando...</div>
+          </CardContent>
+        </Card>
+      ) : profissionaisComProcedimentos.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
+              Cadastre procedimentos e profissionais primeiro
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        profissionaisComProcedimentos.map(({ profissional, procedimentos: procs, activeCount }) => (
+          <Collapsible 
+            key={profissional.id} 
+            open={profissionaisExpandidos.has(profissional.id)} 
+            onOpenChange={() => toggleProfissionalExpandido(profissional.id)}
+          >
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    {profissionaisExpandidos.has(profissional.id) ? (
+                      <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    )}
+                    <Stethoscope className="h-5 w-5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <CardTitle className="text-base font-semibold truncate">
+                        {profissional.nome}
+                      </CardTitle>
+                      <Badge variant="secondary" className="text-xs flex-shrink-0">
+                        {activeCount} procedimento{activeCount !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0 space-y-2">
+                  {procs.map(proc => (
+                    <div
+                      key={proc.procedimentoId}
+                      className={`flex items-center justify-between gap-2 p-3 rounded-lg border ${
+                        !proc.isActive ? "bg-muted/30" : "bg-card"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-sm font-medium truncate ${!proc.isActive ? 'text-muted-foreground' : ''}`}>
+                            {proc.procedimentoNome}
+                          </span>
+                          {proc.procedimentoCategoria && (
+                            <Badge variant="outline" className="text-xs flex-shrink-0">
+                              {proc.procedimentoCategoria}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <Switch
+                        checked={proc.isActive}
+                        onCheckedChange={(checked) => 
+                          handleToggle(profissional.id)(proc.procedimentoId, checked, proc.vinculoId)
+                        }
+                        disabled={createVinculo.isPending || deleteVinculo.isPending}
+                        className="flex-shrink-0"
+                      />
+                    </div>
+                  ))}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        ))
+      )}
+    </div>
+  );
 }
