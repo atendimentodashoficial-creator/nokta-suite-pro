@@ -102,7 +102,7 @@ export function PeriodFilter({
 
       {/* Mobile: date pickers on new line */}
       {value === "custom" && (
-        <div className="flex sm:hidden items-center gap-2">
+        <div className="flex sm:hidden items-center gap-2 self-start">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="min-w-[90px]">
