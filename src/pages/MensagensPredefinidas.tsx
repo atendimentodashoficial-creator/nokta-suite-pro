@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Edit, Trash2, Play, Pause, Mic, Square, Upload, Volume2, FolderPlus, Folder, GripVertical, MessageSquare } from "lucide-react";
+import { Plus, Pencil, Trash2, Play, Pause, Mic, Square, Upload, Volume2, FolderPlus, Folder, GripVertical, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -80,7 +80,7 @@ function SortableMensagemCard({ mensagem, onEdit, onDelete }: SortableMensagemCa
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(mensagem)}>
-          <Edit className="w-4 h-4" />
+          <Pencil className="w-4 h-4" />
         </Button>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(mensagem.id)}>
           <Trash2 className="w-4 h-4 text-destructive" />
@@ -150,7 +150,7 @@ function SortableAudioCard({ audio, playingAudioId, onPlay, onEdit, onDelete, fo
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(audio)}>
-          <Edit className="w-4 h-4" />
+          <Pencil className="w-4 h-4" />
         </Button>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(audio.id)}>
           <Trash2 className="w-4 h-4 text-destructive" />
@@ -221,7 +221,7 @@ function SortableBlocoMensagemCard({
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(bloco); }} className="h-8 w-8">
-                <Edit className="w-4 h-4" />
+                <Pencil className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(bloco.id); }} className="h-8 w-8">
                 <Trash2 className="w-4 h-4 text-destructive" />
@@ -331,7 +331,7 @@ function SortableBlocoAudioCard({
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(bloco); }} className="h-8 w-8">
-                <Edit className="w-4 h-4" />
+                <Pencil className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(bloco.id); }} className="h-8 w-8">
                 <Trash2 className="w-4 h-4 text-destructive" />
@@ -855,7 +855,7 @@ export default function MensagensPredefinidas() {
 
         {/* Tab: Text Messages */}
         <TabsContent value="texto" className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <h2 className="text-2xl font-bold">Mensagens Pré-definidas</h2>
               <p className="text-sm text-muted-foreground">
@@ -863,13 +863,15 @@ export default function MensagensPredefinidas() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => handleOpenBlocoDialog()}>
+              <Button variant="outline" size="sm" onClick={() => handleOpenBlocoDialog()}>
                 <FolderPlus className="w-4 h-4 mr-2" />
-                Novo Bloco
+                <span className="hidden sm:inline">Novo Bloco</span>
+                <span className="sm:hidden">Bloco</span>
               </Button>
-              <Button onClick={() => handleOpenDialog()}>
+              <Button size="sm" onClick={() => handleOpenDialog()}>
                 <Plus className="w-4 h-4 mr-2" />
-                Nova Mensagem
+                <span className="hidden sm:inline">Nova Mensagem</span>
+                <span className="sm:hidden">Mensagem</span>
               </Button>
             </div>
           </div>
@@ -947,7 +949,7 @@ export default function MensagensPredefinidas() {
 
         {/* Tab: Audio Messages */}
         <TabsContent value="audio" className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <h2 className="text-2xl font-bold">Áudios Pré-definidos</h2>
               <p className="text-sm text-muted-foreground">
@@ -955,13 +957,15 @@ export default function MensagensPredefinidas() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => handleOpenAudioBlocoDialog()}>
+              <Button variant="outline" size="sm" onClick={() => handleOpenAudioBlocoDialog()}>
                 <FolderPlus className="w-4 h-4 mr-2" />
-                Novo Bloco
+                <span className="hidden sm:inline">Novo Bloco</span>
+                <span className="sm:hidden">Bloco</span>
               </Button>
-              <Button onClick={() => handleOpenAudioDialog()}>
+              <Button size="sm" onClick={() => handleOpenAudioDialog()}>
                 <Plus className="w-4 h-4 mr-2" />
-                Adicionar Áudio
+                <span className="hidden sm:inline">Adicionar Áudio</span>
+                <span className="sm:hidden">Áudio</span>
               </Button>
             </div>
           </div>
