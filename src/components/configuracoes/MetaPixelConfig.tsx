@@ -339,7 +339,8 @@ export function MetaPixelConfig() {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(event.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+                                <span className="sm:hidden">{format(new Date(event.created_at), "dd/MM HH:mm", { locale: ptBR })}</span>
+                                <span className="hidden sm:inline">{format(new Date(event.created_at), "HH:mm dd/MM", { locale: ptBR })}</span>
                               </span>
                               <Button
                                 variant="ghost"
