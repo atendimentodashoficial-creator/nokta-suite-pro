@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { Link2, CheckCircle2, XCircle, Eye, EyeOff, Loader2, RefreshCw, Plus, Trash2, Bot, Database, ChevronDown, ChevronRight } from "lucide-react";
+import { Link2, CheckCircle2, XCircle, Eye, EyeOff, Loader2, RefreshCw, Plus, Trash2, Bot, Database, ChevronDown, ChevronRight, Crosshair } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { MetaPixelConfig } from "@/components/configuracoes/MetaPixelConfig";
 interface LinkedAdAccount {
   id: string;
   ad_account_id: string;
@@ -119,6 +120,7 @@ export default function Conexoes() {
   const [googleAdsOpen, setGoogleAdsOpen] = useState(false);
   const [openAIOpen, setOpenAIOpen] = useState(false);
   const [apifyOpen, setApifyOpen] = useState(false);
+  const [metaPixelOpen, setMetaPixelOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -1293,6 +1295,35 @@ export default function Conexoes() {
           </div>
           </CardContent>
         </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Meta Pixel Card */}
+      <Collapsible open={metaPixelOpen} onOpenChange={setMetaPixelOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
+                    <Crosshair className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Meta Pixel</CardTitle>
+                    <CardDescription>
+                      Configure a integração com o Meta Pixel para rastrear conversões
+                    </CardDescription>
+                  </div>
+                </div>
+                {metaPixelOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <MetaPixelConfig />
+            </CardContent>
+          </CollapsibleContent>
         </Card>
       </Collapsible>
     </div>;
