@@ -56,62 +56,121 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between gap-2 p-3 rounded-lg border ${
+      className={`relative p-3 rounded-lg border ${
         !profissional.ativo ? "opacity-50 bg-muted/50" : "bg-card"
       }`}
     >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
-        >
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm truncate">{profissional.nome}</span>
-            {profissional.especialidade && (
-              <Badge variant="outline" className="text-xs flex-shrink-0">{profissional.especialidade}</Badge>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
-            {profissional.telefone && (
-              <span className="flex items-center gap-1">
-                <Phone className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate">{profissional.telefone}</span>
-              </span>
-            )}
-            {profissional.email && (
-              <span className="flex items-center gap-1 hidden sm:flex">
-                <Mail className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate">{profissional.email}</span>
-              </span>
-            )}
+      {/* Desktop layout */}
+      <div className="hidden sm:flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+          >
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-sm truncate">{profissional.nome}</span>
+              {profissional.especialidade && (
+                <Badge variant="outline" className="text-xs flex-shrink-0">{profissional.especialidade}</Badge>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+              {profissional.telefone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{profissional.telefone}</span>
+                </span>
+              )}
+              {profissional.email && (
+                <span className="flex items-center gap-1">
+                  <Mail className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{profissional.email}</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Switch
+            checked={profissional.ativo}
+            onCheckedChange={() => onToggleAtivo(profissional)}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onEdit(profissional)}
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onDelete(profissional)}
+          >
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <Switch
-          checked={profissional.ativo}
-          onCheckedChange={() => onToggleAtivo(profissional)}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => onEdit(profissional)}
-        >
-          <Pencil className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => onDelete(profissional)}
-        >
-          <Trash2 className="w-4 h-4 text-destructive" />
-        </Button>
+
+      {/* Mobile layout */}
+      <div className="sm:hidden">
+        {/* Top row: drag handle, content, edit/delete icons */}
+        <div className="flex items-start gap-2">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0 mt-1"
+          >
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-sm truncate">{profissional.nome}</span>
+              {profissional.especialidade && (
+                <Badge variant="outline" className="text-xs flex-shrink-0">{profissional.especialidade}</Badge>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+              {profissional.telefone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{profissional.telefone}</span>
+                </span>
+              )}
+            </div>
+          </div>
+          {/* Edit/Delete icons - top right */}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onEdit(profissional)}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onDelete(profissional)}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            </Button>
+          </div>
+        </div>
+        {/* Bottom row: toggle - bottom right */}
+        <div className="flex justify-end mt-2">
+          <Switch
+            checked={profissional.ativo}
+            onCheckedChange={() => onToggleAtivo(profissional)}
+          />
+        </div>
       </div>
     </div>
   );

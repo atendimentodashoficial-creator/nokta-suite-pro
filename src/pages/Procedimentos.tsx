@@ -56,52 +56,107 @@ function SortableProcedimentoItem({ procedimento, onEdit, onDelete, onToggleAtiv
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between gap-2 p-3 rounded-lg border ${
+      className={`relative p-3 rounded-lg border ${
         !procedimento.ativo ? "opacity-50 bg-muted/50" : "bg-card"
       }`}
     >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
-        >
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm truncate">{procedimento.nome}</span>
-            {procedimento.categoria && (
-              <Badge variant="outline" className="text-xs flex-shrink-0">{procedimento.categoria}</Badge>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
-            <span>R$ {procedimento.valor_medio ? procedimento.valor_medio.toFixed(2) : 'N/D'}</span>
-            <span>{procedimento.tempo_atendimento_minutos || procedimento.duracao_minutos || 60}min</span>
+      {/* Desktop layout */}
+      <div className="hidden sm:flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+          >
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-sm truncate">{procedimento.nome}</span>
+              {procedimento.categoria && (
+                <Badge variant="outline" className="text-xs flex-shrink-0">{procedimento.categoria}</Badge>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+              <span>R$ {procedimento.valor_medio ? procedimento.valor_medio.toFixed(2) : 'N/D'}</span>
+              <span>{procedimento.tempo_atendimento_minutos || procedimento.duracao_minutos || 60}min</span>
+            </div>
           </div>
         </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Switch
+            checked={procedimento.ativo}
+            onCheckedChange={() => onToggleAtivo(procedimento)}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onEdit(procedimento)}
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onDelete(procedimento)}
+          >
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <Switch
-          checked={procedimento.ativo}
-          onCheckedChange={() => onToggleAtivo(procedimento)}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => onEdit(procedimento)}
-        >
-          <Pencil className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => onDelete(procedimento)}
-        >
-          <Trash2 className="w-4 h-4 text-destructive" />
-        </Button>
+
+      {/* Mobile layout */}
+      <div className="sm:hidden">
+        {/* Top row: drag handle, content, edit/delete icons */}
+        <div className="flex items-start gap-2">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0 mt-1"
+          >
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-sm truncate">{procedimento.nome}</span>
+              {procedimento.categoria && (
+                <Badge variant="outline" className="text-xs flex-shrink-0">{procedimento.categoria}</Badge>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+              <span>R$ {procedimento.valor_medio ? procedimento.valor_medio.toFixed(2) : 'N/D'}</span>
+              <span>{procedimento.tempo_atendimento_minutos || procedimento.duracao_minutos || 60}min</span>
+            </div>
+          </div>
+          {/* Edit/Delete icons - top right */}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onEdit(procedimento)}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onDelete(procedimento)}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            </Button>
+          </div>
+        </div>
+        {/* Bottom row: toggle - bottom right */}
+        <div className="flex justify-end mt-2">
+          <Switch
+            checked={procedimento.ativo}
+            onCheckedChange={() => onToggleAtivo(procedimento)}
+          />
+        </div>
       </div>
     </div>
   );
