@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter, QrCode, Loader2, Smartphone, Unplug, Settings, Pencil, Keyboard } from "lucide-react";
+import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter, QrCode, Loader2, Smartphone, Unplug, Settings, Pencil, Keyboard, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -1563,14 +1563,14 @@ export default function Disparos() {
         }
         setQrCodeDialogOpen(open);
       }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <QrCode className="h-5 w-5" />
               Conectar WhatsApp
             </DialogTitle>
             <DialogDescription>
-              {selectedQrInstancia?.nome || "Nova Instância"}
+              Escaneie o QR Code com seu WhatsApp
             </DialogDescription>
           </DialogHeader>
           
@@ -1597,17 +1597,12 @@ export default function Disparos() {
               </>
             ) : (
               <div className="w-64 h-64 flex flex-col items-center justify-center bg-muted rounded-lg gap-2">
-                <X className="h-8 w-8 text-muted-foreground" />
+                <XCircle className="h-8 w-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Erro ao carregar</span>
               </div>
             )}
             
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => selectedQrInstancia && handleConnectInstance(selectedQrInstancia)} 
-              disabled={qrCodeLoading}
-            >
+            <Button variant="outline" size="sm" onClick={() => selectedQrInstancia && handleConnectInstance(selectedQrInstancia)} disabled={qrCodeLoading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${qrCodeLoading ? 'animate-spin' : ''}`} />
               Atualizar QR Code
             </Button>
