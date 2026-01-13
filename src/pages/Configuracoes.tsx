@@ -9,7 +9,6 @@ import MensagensPredefinidas from "./MensagensPredefinidas";
 import Escala from "./Escala";
 import VinculosProcedimentos from "./VinculosProcedimentos";
 import Produtos from "./Produtos";
-import Personalizacao from "./Personalizacao";
 import Conexoes from "./Conexoes";
 import TiposAgendamento from "./TiposAgendamento";
 import { MetaPixelConfig } from "@/components/configuracoes/MetaPixelConfig";
@@ -23,7 +22,6 @@ const tabOptions = [
   { value: "tipos", label: "Tipos" },
   { value: "produtos", label: "Produtos" },
   { value: "mensagens", label: "Mensagens" },
-  { value: "personalizacao", label: "Personalização" },
   { value: "conexoes", label: "Conexões" },
   { value: "pixel", label: "Meta Pixel" },
   { value: "reset", label: "Reset" },
@@ -96,10 +94,6 @@ export default function Configuracoes() {
         
         <TabsContent value="mensagens">
           <MensagensPredefinidas />
-        </TabsContent>
-
-        <TabsContent value="personalizacao">
-          <Personalizacao />
         </TabsContent>
 
         <TabsContent value="conexoes">

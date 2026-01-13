@@ -4,7 +4,6 @@ import { Menu } from "lucide-react";
 import { Sidebar, SidebarContent } from "@/components/layout/Sidebar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { usePersonalizacaoContext } from "@/contexts/PersonalizacaoContext";
 import { useDisparosCampaignScheduler } from "@/hooks/useDisparosCampaignScheduler";
 import { cn } from "@/lib/utils";
 import noktaLogoDefault from "@/assets/nokta-logo.png";
@@ -14,8 +13,6 @@ export default function Layout() {
 
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const { logoUrl, config } = usePersonalizacaoContext();
-  const isCustomLogo = config?.logo_url;
 
   return (
     <div className="min-h-screen bg-background">
@@ -36,9 +33,9 @@ export default function Layout() {
           </SheetContent>
         </Sheet>
         <img 
-          src={logoUrl} 
+          src={noktaLogoDefault} 
           alt="Logo" 
-          className={`h-7 w-auto object-contain ml-3 ${!isCustomLogo ? 'brightness-0 invert' : ''}`}
+          className="h-7 w-auto object-contain ml-3 brightness-0 invert"
         />
       </div>
 
