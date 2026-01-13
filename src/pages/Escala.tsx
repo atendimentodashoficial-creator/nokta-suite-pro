@@ -289,7 +289,7 @@ export default function Escala() {
     }
   };
   const handleAdicionarHorarioAusencia = () => {
-    setHorariosAusencia(prev => [...prev, { inicio: "09:00", fim: "10:30" }]);
+    setHorariosAusencia(prev => [...prev, { inicio: "", fim: "" }]);
   };
 
   const handleRemoverHorarioAusencia = (index: number) => {
