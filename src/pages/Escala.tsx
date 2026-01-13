@@ -204,20 +204,17 @@ export default function Escala() {
     const ultimoHorario = horariosExistentes?.[horariosExistentes.length - 1];
     const novoInicio = ultimoHorario?.hora_fim || "08:00";
     
-    // Calcula hora fim padrão (1 hora depois do início)
-    const [horaI, minI] = novoInicio.split(":").map(Number);
-    const horaFim = String(Math.min(horaI + 1, 23)).padStart(2, "0") + ":" + String(minI).padStart(2, "0");
-    
     try {
       await createEscala.mutateAsync({
         profissional_id: profissionalId,
         dia_semana: diaSemana,
         hora_inicio: novoInicio,
-        hora_fim: horaFim,
+        hora_fim: novoInicio, // Mesmo horário para forçar edição
         ativo: true
       });
       toast({
-        title: "Horário adicionado"
+        title: "Horário adicionado",
+        description: "Clique no lápis para ajustar o horário de término"
       });
     } catch (error) {
       toast({
@@ -656,10 +653,15 @@ export default function Escala() {
             </div>
             <div>
               <Label>Hora Fim</Label>
-              <Input type="time" value={editandoHorario?.hora_fim || ""} onChange={e => setEditandoHorario(prev => prev ? {
-              ...prev,
-              hora_fim: e.target.value
-            } : null)} />
+              <Input 
+                type="time" 
+                value={editandoHorario?.hora_fim || ""} 
+                min={editandoHorario?.hora_inicio || undefined}
+                onChange={e => setEditandoHorario(prev => prev ? {
+                  ...prev,
+                  hora_fim: e.target.value
+                } : null)} 
+              />
             </div>
             <Button onClick={handleSalvarEdicaoHorario} className="w-full">
               Salvar
