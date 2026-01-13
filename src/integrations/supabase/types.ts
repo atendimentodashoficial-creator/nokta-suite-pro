@@ -2644,6 +2644,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          ordem: number | null
           procedimento_id: string
           profissional_id: string
           user_id: string
@@ -2651,6 +2652,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          ordem?: number | null
           procedimento_id: string
           profissional_id: string
           user_id: string
@@ -2658,6 +2660,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          ordem?: number | null
           procedimento_id?: string
           profissional_id?: string
           user_id?: string

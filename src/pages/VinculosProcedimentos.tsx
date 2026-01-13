@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Plus, Trash2, Users, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -20,9 +20,76 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useVinculos, useCreateVinculo, useDeleteVinculo } from "@/hooks/useProcedimentoProfissional";
+import { useVinculos, useCreateVinculo, useDeleteVinculo, useUpdateVinculoOrdem } from "@/hooks/useProcedimentoProfissional";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+interface SortableProfissionalItemProps {
+  vinculoId: string;
+  profissionalNome: string;
+  onDelete: (id: string) => void;
+}
+
+function SortableProfissionalItem({ vinculoId, profissionalNome, onDelete }: SortableProfissionalItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: vinculoId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+    >
+      <div className="flex items-center gap-3">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </button>
+        <span className="text-sm font-medium">{profissionalNome}</span>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+        onClick={() => onDelete(vinculoId)}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
 
 export default function VinculosProcedimentos() {
   const [procedimentoId, setProcedimentoId] = useState<string>("");
@@ -34,6 +101,14 @@ export default function VinculosProcedimentos() {
   const { data: profissionais } = useProfissionais(true);
   const createVinculo = useCreateVinculo();
   const deleteVinculo = useDeleteVinculo();
+  const updateOrdem = useUpdateVinculoOrdem();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Group vinculos by procedimento
   const vinculosPorProcedimento = useMemo(() => {
@@ -42,9 +117,11 @@ export default function VinculosProcedimentos() {
     return procedimentos.map((proc) => {
       const profissionaisVinculados = vinculos
         .filter((v: any) => v.procedimento_id === proc.id)
+        .sort((a: any, b: any) => (a.ordem ?? 0) - (b.ordem ?? 0))
         .map((v: any) => ({
           vinculoId: v.id,
           profissional: v.profissionais,
+          ordem: v.ordem ?? 0,
         }));
       
       return {
@@ -71,8 +148,12 @@ export default function VinculosProcedimentos() {
       return;
     }
 
+    // Get max ordem for this procedimento
+    const vinculosDoProc = vinculos?.filter((v: any) => v.procedimento_id === procedimentoId) || [];
+    const maxOrdem = vinculosDoProc.reduce((max: number, v: any) => Math.max(max, v.ordem ?? 0), 0);
+
     createVinculo.mutate(
-      { procedimento_id: procedimentoId, profissional_id: profissionalId },
+      { procedimento_id: procedimentoId, profissional_id: profissionalId, ordem: maxOrdem + 1 },
       {
         onSuccess: () => {
           setProcedimentoId("");
@@ -86,6 +167,25 @@ export default function VinculosProcedimentos() {
     if (deleteId) {
       deleteVinculo.mutate(deleteId, {
         onSuccess: () => setDeleteId(null),
+      });
+    }
+  };
+
+  const handleDragEnd = (procedimentoItemId: string) => (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const item = procedimentosComVinculos.find((i) => i.procedimento.id === procedimentoItemId);
+      if (!item) return;
+
+      const oldIndex = item.profissionais.findIndex((p) => p.vinculoId === active.id);
+      const newIndex = item.profissionais.findIndex((p) => p.vinculoId === over.id);
+
+      const reordered = arrayMove(item.profissionais, oldIndex, newIndex);
+
+      // Update ordem for all items
+      reordered.forEach((prof, index) => {
+        updateOrdem.mutate({ id: prof.vinculoId, ordem: index });
       });
     }
   };
@@ -168,24 +268,27 @@ export default function VinculosProcedimentos() {
                       {item.profissionais.length}
                     </Badge>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {item.profissionais.map((prof) => (
-                      <div
-                        key={prof.vinculoId}
-                        className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5 text-sm"
-                      >
-                        <span>{prof.profissional?.nome}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 hover:bg-destructive/20"
-                          onClick={() => setDeleteId(prof.vinculoId)}
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd(item.procedimento.id)}
+                  >
+                    <SortableContext
+                      items={item.profissionais.map((p) => p.vinculoId)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-2">
+                        {item.profissionais.map((prof) => (
+                          <SortableProfissionalItem
+                            key={prof.vinculoId}
+                            vinculoId={prof.vinculoId}
+                            profissionalNome={prof.profissional?.nome || ""}
+                            onDelete={setDeleteId}
+                          />
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </SortableContext>
+                  </DndContext>
                 </div>
               ))}
             </div>
