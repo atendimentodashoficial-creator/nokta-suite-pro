@@ -954,7 +954,8 @@ export default function Escala() {
                     {profissionalSelecionado === "todos" && <p className="text-xs text-muted-foreground mb-1">
                         {getNomeProfissional(grupo.profissional_id)}
                       </p>}
-                    <p className="font-medium text-sm">
+                    <p className="font-medium text-sm flex items-center gap-1">
+                      <CalendarIcon className="w-3 h-3" />
                       {format(parseISO(grupo.data), "dd/MM/yyyy", { locale: ptBR })}
                     </p>
                   </div>
