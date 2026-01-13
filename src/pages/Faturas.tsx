@@ -11,8 +11,6 @@ import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
 import { EditarFaturaDialog } from "@/components/clientes/EditarFaturaDialog";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -25,13 +23,13 @@ import { toast } from "sonner";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
 import { PixelStatusBadge } from "@/components/faturas/PixelStatusBadge";
-import { startOfMonthBrasilia, endOfMonthBrasilia, toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
+import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
+import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 
 export default function Faturas() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dataInicial, setDataInicial] = useState<Date | undefined>(startOfMonthBrasilia());
-  const [dataFinal, setDataFinal] = useState<Date | undefined>(endOfMonthBrasilia());
+  const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd } = usePeriodFilter("this_month");
   const [filtroProcedimento, setFiltroProcedimento] = useState<string>("all");
   const [filtroProfissional, setFiltroProfissional] = useState<string>("all");
   const [selecionarClienteOpen, setSelecionarClienteOpen] = useState(false);
@@ -58,12 +56,10 @@ export default function Faturas() {
     data: profissionais
   } = useProfissionais();
   const faturasFiltradas = todasFaturas?.filter(fatura => {
-    if (dataInicial || dataFinal) {
-      // Converter UTC para Brasília para comparar com filtros locais
-      const faturaDate = toZonedBrasilia(fatura.created_at);
-      if (dataInicial && faturaDate < startOfDayBrasilia(dataInicial)) return false;
-      if (dataFinal && faturaDate > endOfDayBrasilia(dataFinal)) return false;
-    }
+    // Converter UTC para Brasília para comparar com filtros locais
+    const faturaDate = toZonedBrasilia(fatura.created_at);
+    if (faturaDate < startOfDayBrasilia(dateStart)) return false;
+    if (faturaDate > endOfDayBrasilia(dateEnd)) return false;
     return true;
   });
   const totalFechado = faturasFiltradas?.reduce((sum, f) => {
@@ -104,81 +100,50 @@ export default function Faturas() {
         </Button>
       </div>
 
-      {/* Filtros de Data */}
+      {/* Filtros */}
       <Card className="p-4 shadow-card">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-sm font-medium mb-2 block">Data Inicial</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dataInicial && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dataInicial ? format(dataInicial, "dd/MM/yyyy", {
-                  locale: ptBR
-                }) : "Selecione"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dataInicial} onSelect={setDataInicial} initialFocus className="pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-          </div>
+        <div className="flex flex-wrap gap-4 items-center">
+          <PeriodFilter
+            value={periodFilter}
+            onChange={setPeriodFilter}
+            dateStart={dateStart}
+            dateEnd={dateEnd}
+            onDateStartChange={setDateStart}
+            onDateEndChange={setDateEnd}
+          />
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-sm font-medium mb-2 block">Data Final</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dataFinal && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dataFinal ? format(dataFinal, "dd/MM/yyyy", {
-                  locale: ptBR
-                }) : "Selecione"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dataFinal} onSelect={setDataFinal} initialFocus className="pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <Select value={filtroProcedimento} onValueChange={setFiltroProcedimento}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Procedimento" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Procedimentos</SelectItem>
+              {procedimentos?.map(proc => <SelectItem key={proc.id} value={proc.id}>
+                  {proc.nome}
+                </SelectItem>)}
+            </SelectContent>
+          </Select>
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-sm font-medium mb-2 block">Procedimento</label>
-            <Select value={filtroProcedimento} onValueChange={setFiltroProcedimento}>
-              <SelectTrigger>
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {procedimentos?.map(proc => <SelectItem key={proc.id} value={proc.id}>
-                    {proc.nome}
-                  </SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Profissional" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Profissionais</SelectItem>
+              {profissionais?.map(prof => <SelectItem key={prof.id} value={prof.id}>
+                  {prof.nome}
+                </SelectItem>)}
+            </SelectContent>
+          </Select>
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-sm font-medium mb-2 block">Profissional</label>
-            <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
-              <SelectTrigger>
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {profissionais?.map(prof => <SelectItem key={prof.id} value={prof.id}>
-                    {prof.nome}
-                  </SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {(dataInicial || dataFinal || filtroProcedimento !== "all" || filtroProfissional !== "all") && <Button variant="outline" onClick={() => {
-          setDataInicial(undefined);
-          setDataFinal(undefined);
-          setFiltroProcedimento("all");
-          setFiltroProfissional("all");
-        }}>
+          {(filtroProcedimento !== "all" || filtroProfissional !== "all") && (
+            <Button variant="outline" size="sm" onClick={() => {
+              setFiltroProcedimento("all");
+              setFiltroProfissional("all");
+            }}>
               Limpar Filtros
-            </Button>}
+            </Button>
+          )}
         </div>
       </Card>
 

@@ -9,37 +9,19 @@ import { useState, useMemo, useEffect } from "react";
 import { format, subDays, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
 import { useFaturas } from "@/hooks/useFaturas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  nowInBrasilia,
-  startOfDayBrasilia,
-  endOfDayBrasilia,
-  startOfWeekBrasilia,
-  endOfWeekBrasilia,
-  startOfMonthBrasilia,
-  endOfMonthBrasilia,
   toZonedBrasilia
 } from "@/utils/timezone";
+import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [periodFilter, setPeriodFilter] = useState("this_month");
-  const [dataInicial, setDataInicial] = useState<Date | undefined>(startOfMonthBrasilia());
-  const [dataFinal, setDataFinal] = useState<Date | undefined>(endOfMonthBrasilia());
+  const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd } = usePeriodFilter("this_month");
   
   const { data: allLeads, isLoading: allLeadsLoading } = useLeads();
   const { data: clientes, isLoading: clientesLoading } = useLeads("cliente");
@@ -53,74 +35,25 @@ export default function Dashboard() {
   const [adsSpendLoading, setAdsSpendLoading] = useState(false);
   const [hasAdsConfig, setHasAdsConfig] = useState(false);
 
-  // Atualizar datas quando o período mudar
-  useEffect(() => {
-    const now = nowInBrasilia();
-    switch (periodFilter) {
-      case "today":
-        setDataInicial(startOfDayBrasilia(now));
-        setDataFinal(endOfDayBrasilia(now));
-        break;
-      case "yesterday":
-        const yesterday = subDays(now, 1);
-        setDataInicial(startOfDayBrasilia(yesterday));
-        setDataFinal(endOfDayBrasilia(yesterday));
-        break;
-      case "last_7_days":
-        setDataInicial(startOfDayBrasilia(subDays(now, 6)));
-        setDataFinal(endOfDayBrasilia(now));
-        break;
-      case "last_30_days":
-        setDataInicial(startOfDayBrasilia(subDays(now, 29)));
-        setDataFinal(endOfDayBrasilia(now));
-        break;
-      case "this_week":
-        setDataInicial(startOfWeekBrasilia(now, { weekStartsOn: 0 }));
-        setDataFinal(endOfWeekBrasilia(now, { weekStartsOn: 0 }));
-        break;
-      case "last_week":
-        const lastWeekStart = startOfWeekBrasilia(subDays(now, 7), { weekStartsOn: 0 });
-        setDataInicial(lastWeekStart);
-        setDataFinal(endOfWeekBrasilia(lastWeekStart, { weekStartsOn: 0 }));
-        break;
-      case "this_month":
-        setDataInicial(startOfMonthBrasilia(now));
-        setDataFinal(endOfMonthBrasilia(now));
-        break;
-      case "last_month":
-        const lastMonth = subMonths(now, 1);
-        setDataInicial(startOfMonthBrasilia(lastMonth));
-        setDataFinal(endOfMonthBrasilia(lastMonth));
-        break;
-      case "max":
-        setDataInicial(new Date(2020, 0, 1));
-        setDataFinal(endOfDayBrasilia(now));
-        break;
-      case "custom":
-        break;
-    }
-  }, [periodFilter]);
+  // O usePeriodFilter já gerencia as datas automaticamente
 
   // Filtrar dados por período
   const dadosFiltrados = useMemo(() => {
     const leads = allLeads?.filter(lead => {
-      if (!dataInicial && !dataFinal) return true;
       const leadDate = toZonedBrasilia(new Date(lead.created_at));
-      if (dataInicial && leadDate < dataInicial) return false;
-      if (dataFinal && leadDate > dataFinal) return false;
+      if (leadDate < dateStart) return false;
+      if (leadDate > dateEnd) return false;
       return true;
     }) || [];
 
     const clientesFiltrados = clientes?.filter(cliente => {
-      if (!dataInicial && !dataFinal) return true;
       const clienteDate = toZonedBrasilia(new Date(cliente.created_at));
-      if (dataInicial && clienteDate < dataInicial) return false;
-      if (dataFinal && clienteDate > dataFinal) return false;
+      if (clienteDate < dateStart) return false;
+      if (clienteDate > dateEnd) return false;
       return true;
     }) || [];
 
     const fats = faturas?.filter(fat => {
-      if (!dataInicial && !dataFinal) return true;
       // Usar data_fatura se preenchida, senão fallback para created_at
       // Para data_fatura (campo date YYYY-MM-DD), criar data no timezone local
       let fatDate: Date;
@@ -135,8 +68,8 @@ export default function Dashboard() {
       } else {
         fatDate = new Date(fat.created_at);
       }
-      if (dataInicial && fatDate < dataInicial) return false;
-      if (dataFinal && fatDate > dataFinal) return false;
+      if (fatDate < dateStart) return false;
+      if (fatDate > dateEnd) return false;
       return true;
     }) || [];
 
@@ -173,25 +106,23 @@ export default function Dashboard() {
     // Filtrar agendamentos por created_at (quando foi REGISTRADO/criado)
     const agendsRegistrados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
-      if (!dataInicial && !dataFinal) return true;
       const agDate = toZonedBrasilia(new Date(ag.created_at));
-      if (dataInicial && agDate < dataInicial) return false;
-      if (dataFinal && agDate > dataFinal) return false;
+      if (agDate < dateStart) return false;
+      if (agDate > dateEnd) return false;
       return true;
     }) || [];
 
     // Filtrar agendamentos por data_agendamento (quando foi REALIZADO/marcado para acontecer)
     const agendsRealizados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
-      if (!dataInicial && !dataFinal) return true;
       const agDate = toZonedBrasilia(new Date(ag.data_agendamento));
-      if (dataInicial && agDate < dataInicial) return false;
-      if (dataFinal && agDate > dataFinal) return false;
+      if (agDate < dateStart) return false;
+      if (agDate > dateEnd) return false;
       return true;
     }) || [];
 
     return { leads, clientes: clientesFiltrados, agendamentos: agendsRegistrados, agendamentosRealizados: agendsRealizados, faturas: fats };
-  }, [allLeads, clientes, agendamentos, faturas, dataInicial, dataFinal]);
+  }, [allLeads, clientes, agendamentos, faturas, dateStart, dateEnd]);
 
   // Buscar gasto de anúncios do período
   useEffect(() => {
@@ -226,8 +157,8 @@ export default function Dashboard() {
         setAdsSpendLoading(true);
 
         // Buscar gasto de todas as contas
-        const dateStartStr = dataInicial ? format(dataInicial, "yyyy-MM-dd") : format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd");
-        const dateEndStr = dataFinal ? format(dataFinal, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+        const dateStartStr = format(dateStart, "yyyy-MM-dd");
+        const dateEndStr = format(dateEnd, "yyyy-MM-dd");
 
         let totalSpend = 0;
 
@@ -267,7 +198,7 @@ export default function Dashboard() {
     };
 
     fetchAdsSpend();
-  }, [user, dataInicial, dataFinal]);
+  }, [user, dateStart, dateEnd]);
 
   // Calcular métricas
   // LEADS (igual à aba Leads): contar leads gerados no período, deduplicados (useLeads já vem deduplicado)
@@ -466,88 +397,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Filtros de Data */}
+      {/* Filtros */}
       <Card className="p-4 shadow-card">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <span className="text-sm font-medium">Período:</span>
-          
-          <Select value={periodFilter} onValueChange={setPeriodFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Selecione o período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Hoje</SelectItem>
-              <SelectItem value="yesterday">Ontem</SelectItem>
-              <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
-              <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
-              <SelectItem value="this_week">Esta semana</SelectItem>
-              <SelectItem value="last_week">Semana passada</SelectItem>
-              <SelectItem value="this_month">Este mês</SelectItem>
-              <SelectItem value="last_month">Mês passado</SelectItem>
-              <SelectItem value="max">Máximo</SelectItem>
-              <SelectItem value="custom">Personalizado</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {periodFilter === "custom" && (
-            <>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full md:w-auto justify-start text-left font-normal",
-                      !dataInicial && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dataInicial ? format(dataInicial, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={dataInicial}
-                    onSelect={(date) => date && setDataInicial(startOfDayBrasilia(date))}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <span className="text-muted-foreground text-center md:text-left">até</span>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full md:w-auto justify-start text-left font-normal",
-                      !dataFinal && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dataFinal ? format(dataFinal, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={dataFinal}
-                    onSelect={(date) => date && setDataFinal(endOfDayBrasilia(date))}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </>
-          )}
-
-          {periodFilter !== "custom" && dataInicial && dataFinal && (
-            <span className="text-sm text-muted-foreground">
-              {format(dataInicial, "dd/MM/yyyy", { locale: ptBR })} - {format(dataFinal, "dd/MM/yyyy", { locale: ptBR })}
-            </span>
-          )}
+        <div className="flex flex-wrap items-center gap-4">
+          <PeriodFilter
+            value={periodFilter}
+            onChange={setPeriodFilter}
+            dateStart={dateStart}
+            dateEnd={dateEnd}
+            onDateStartChange={setDateStart}
+            onDateEndChange={setDateEnd}
+          />
         </div>
       </Card>
 
