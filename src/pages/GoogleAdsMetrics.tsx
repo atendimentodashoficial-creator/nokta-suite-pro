@@ -496,14 +496,14 @@ export default function GoogleAdsMetrics() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Período */}
-              <div className="flex flex-wrap gap-4 items-end">
-                <div className="space-y-2">
-                  <Label>Período</Label>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
                   <Select value={periodFilter} onValueChange={setPeriodFilter}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-[180px] bg-background">
                       <SelectValue placeholder="Selecione o período" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="today">Hoje</SelectItem>
                       <SelectItem value="yesterday">Ontem</SelectItem>
                       <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
@@ -520,71 +520,64 @@ export default function GoogleAdsMetrics() {
 
                 {periodFilter === "custom" && (
                   <>
-                    <div className="space-y-2">
-                      <Label>Data inicial</Label>
-                      <Popover open={calendarStartOpen} onOpenChange={setCalendarStartOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-[180px] justify-start text-left font-normal",
-                              !dateStart && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateStart ? format(dateStart, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={dateStart}
-                            onSelect={(date) => {
-                              if (date) setDateStart(date);
-                              setCalendarStartOpen(false);
-                            }}
-                            initialFocus
-                            className="p-3 pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                    <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
+                    <Popover open={calendarStartOpen} onOpenChange={setCalendarStartOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "justify-start text-left font-normal",
+                            !dateStart && "text-muted-foreground"
+                          )}
+                        >
+                          {dateStart ? format(dateStart, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dateStart}
+                          onSelect={(date) => {
+                            if (date) setDateStart(date);
+                            setCalendarStartOpen(false);
+                          }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
 
-                    <div className="space-y-2">
-                      <Label>Data final</Label>
-                      <Popover open={calendarEndOpen} onOpenChange={setCalendarEndOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-[180px] justify-start text-left font-normal",
-                              !dateEnd && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateEnd ? format(dateEnd, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={dateEnd}
-                            onSelect={(date) => {
-                              if (date) setDateEnd(date);
-                              setCalendarEndOpen(false);
-                            }}
-                            initialFocus
-                            className="p-3 pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                    <span className="text-muted-foreground text-sm">até</span>
+
+                    <Popover open={calendarEndOpen} onOpenChange={setCalendarEndOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "justify-start text-left font-normal",
+                            !dateEnd && "text-muted-foreground"
+                          )}
+                        >
+                          {dateEnd ? format(dateEnd, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dateEnd}
+                          onSelect={(date) => {
+                            if (date) setDateEnd(date);
+                            setCalendarEndOpen(false);
+                          }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </>
                 )}
-
-                <div className="text-sm text-muted-foreground">
-                  {format(dateStart, "dd/MM/yyyy", { locale: ptBR })} - {format(dateEnd, "dd/MM/yyyy", { locale: ptBR })}
-                </div>
               </div>
 
               {/* Lista de Contas */}
@@ -626,134 +619,118 @@ export default function GoogleAdsMetrics() {
 
         <TabsContent value="campaigns" className="space-y-6">
           {/* Filtros */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarIcon className="h-5 w-5" />
-                Filtros
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-4 items-end justify-between">
-                <div className="flex flex-wrap gap-4 items-end">
-                  {/* Seleção de Conta */}
-                  <div className="space-y-2">
-                    <Label>Conta de Anúncios</Label>
-                    <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                      <SelectTrigger className="w-[250px]">
-                        <SelectValue placeholder="Selecione a conta" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {linkedAccounts.map((account) => (
-                          <SelectItem key={account.id} value={account.customer_id}>
-                            {account.account_name || account.customer_id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Período */}
-                  <div className="space-y-2">
-                    <Label>Período</Label>
-                    <Select value={periodFilter} onValueChange={setPeriodFilter}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Selecione o período" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="today">Hoje</SelectItem>
-                        <SelectItem value="yesterday">Ontem</SelectItem>
-                        <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
-                        <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
-                        <SelectItem value="this_week">Esta semana</SelectItem>
-                        <SelectItem value="last_week">Semana passada</SelectItem>
-                        <SelectItem value="this_month">Este mês</SelectItem>
-                        <SelectItem value="last_month">Mês passado</SelectItem>
-                        <SelectItem value="max">Máximo</SelectItem>
-                        <SelectItem value="custom">Personalizado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {periodFilter === "custom" && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>Data inicial</Label>
-                        <Popover open={calendarStartOpen} onOpenChange={setCalendarStartOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-[180px] justify-start text-left font-normal",
-                                !dateStart && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {dateStart ? format(dateStart, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={dateStart}
-                              onSelect={(date) => {
-                                if (date) setDateStart(date);
-                                setCalendarStartOpen(false);
-                              }}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Data final</Label>
-                        <Popover open={calendarEndOpen} onOpenChange={setCalendarEndOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-[180px] justify-start text-left font-normal",
-                                !dateEnd && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {dateEnd ? format(dateEnd, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={dateEnd}
-                              onSelect={(date) => {
-                                if (date) setDateEnd(date);
-                                setCalendarEndOpen(false);
-                              }}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="text-sm text-muted-foreground">
-                    {format(dateStart, "dd/MM/yyyy", { locale: ptBR })} - {format(dateEnd, "dd/MM/yyyy", { locale: ptBR })}
-                  </div>
-                </div>
-
-                <Button 
-                  variant="outline" 
-                  onClick={fetchCampaignMetrics}
-                  disabled={loadingMetrics}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loadingMetrics ? "animate-spin" : ""}`} />
-                  Atualizar
-                </Button>
+          <Card className="p-4 shadow-card">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Conta de Anúncios */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Conta:</span>
+                <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                  <SelectTrigger className="w-[250px] bg-background">
+                    <SelectValue placeholder="Selecione a conta" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border shadow-lg z-50">
+                    {linkedAccounts.map((account) => (
+                      <SelectItem key={account.id} value={account.customer_id}>
+                        {account.account_name || account.customer_id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
+
+              {/* Período */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
+                <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                  <SelectTrigger className="w-[180px] bg-background">
+                    <SelectValue placeholder="Selecione o período" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border shadow-lg z-50">
+                    <SelectItem value="today">Hoje</SelectItem>
+                    <SelectItem value="yesterday">Ontem</SelectItem>
+                    <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
+                    <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
+                    <SelectItem value="this_week">Esta semana</SelectItem>
+                    <SelectItem value="last_week">Semana passada</SelectItem>
+                    <SelectItem value="this_month">Este mês</SelectItem>
+                    <SelectItem value="last_month">Mês passado</SelectItem>
+                    <SelectItem value="max">Máximo</SelectItem>
+                    <SelectItem value="custom">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {periodFilter === "custom" && (
+                <>
+                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
+                  <Popover open={calendarStartOpen} onOpenChange={setCalendarStartOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !dateStart && "text-muted-foreground"
+                        )}
+                      >
+                        {dateStart ? format(dateStart, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateStart}
+                        onSelect={(date) => {
+                          if (date) setDateStart(date);
+                          setCalendarStartOpen(false);
+                        }}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <span className="text-muted-foreground text-sm">até</span>
+
+                  <Popover open={calendarEndOpen} onOpenChange={setCalendarEndOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !dateEnd && "text-muted-foreground"
+                        )}
+                      >
+                        {dateEnd ? format(dateEnd, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateEnd}
+                        onSelect={(date) => {
+                          if (date) setDateEnd(date);
+                          setCalendarEndOpen(false);
+                        }}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </>
+              )}
+
+              <Button 
+                variant="outline" 
+                onClick={fetchCampaignMetrics}
+                disabled={loadingMetrics}
+                size="sm"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loadingMetrics ? "animate-spin" : ""}`} />
+                Atualizar
+              </Button>
+            </div>
           </Card>
 
           {/* Cards de Resumo */}

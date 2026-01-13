@@ -499,63 +499,63 @@ export default function Extrator() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Basic Options */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="searchQuery">Busca / Categoria *</Label>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Busca:</span>
               <Input
                 id="searchQuery"
-                placeholder="Ex: dentistas, restaurantes, salões..."
+                placeholder="Ex: dentistas, restaurantes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-[200px]"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="location">Localização *</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Localização:</span>
               <Input
                 id="location"
-                placeholder="Ex: São Paulo, SP, Brasil"
+                placeholder="Ex: São Paulo, SP"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
+                className="w-[180px]"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="maxResults">Quantidade máxima</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="maxResults"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={maxResults}
-                  onChange={(e) => setMaxResults(e.target.value)}
-                  className="w-24"
-                  placeholder="Ex: 50"
-                />
-                <Select value={["5", "10", "20", "50", "100", "200"].includes(maxResults) ? maxResults : "_custom"} onValueChange={(val) => val !== "_custom" && setMaxResults(val)}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                    <SelectItem value="200">200</SelectItem>
-                    {!["5", "10", "20", "50", "100", "200"].includes(maxResults) && (
-                      <SelectItem value="_custom" disabled>{maxResults} (custom)</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Quantidade:</span>
+              <Input
+                id="maxResults"
+                type="number"
+                min="1"
+                max="1000"
+                value={maxResults}
+                onChange={(e) => setMaxResults(e.target.value)}
+                className="w-20"
+                placeholder="50"
+              />
+              <Select value={["5", "10", "20", "50", "100", "200"].includes(maxResults) ? maxResults : "_custom"} onValueChange={(val) => val !== "_custom" && setMaxResults(val)}>
+                <SelectTrigger className="w-[100px] bg-background">
+                  <SelectValue placeholder="Selecionar" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                  {!["5", "10", "20", "50", "100", "200"].includes(maxResults) && (
+                    <SelectItem value="_custom" disabled>{maxResults} (custom)</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="language">Idioma</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Idioma:</span>
               <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger>
+                <SelectTrigger className="w-[150px] bg-background">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-50">
                   <SelectItem value="pt-BR">Português (BR)</SelectItem>
                   <SelectItem value="pt">Português</SelectItem>
                   <SelectItem value="en">Inglês</SelectItem>
@@ -574,16 +574,16 @@ export default function Extrator() {
                 <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-4">
+            <CollapsibleContent className="pt-4">
               {/* Filtros */}
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="space-y-2">
-                  <Label>Avaliação Mínima</Label>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Avaliação:</span>
                   <Select value={placeMinimumStars} onValueChange={setPlaceMinimumStars}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-[120px] bg-background">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="_none">Todas</SelectItem>
                       <SelectItem value="two">⭐ 2+</SelectItem>
                       <SelectItem value="twoAndHalf">⭐ 2.5+</SelectItem>
@@ -594,26 +594,26 @@ export default function Extrator() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Filtrar por Website</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Website:</span>
                   <Select value={websiteFilter} onValueChange={setWebsiteFilter}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-[140px] bg-background">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="allPlaces">Todos</SelectItem>
                       <SelectItem value="withWebsite">Com website</SelectItem>
                       <SelectItem value="withoutWebsite">Sem website</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Correspondência de Nome</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Correspondência:</span>
                   <Select value={searchMatching} onValueChange={setSearchMatching}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-[160px] bg-background">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="all">Todos os resultados</SelectItem>
                       <SelectItem value="only_includes">Nome contém busca</SelectItem>
                       <SelectItem value="only_exact">Nome exato</SelectItem>
@@ -621,13 +621,14 @@ export default function Extrator() {
                   </Select>
                 </div>
                 {savedLists.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Excluir Repetidos</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Excluir Repetidos:</span>
                     <Popover open={showCompareListsDropdown} onOpenChange={setShowCompareListsDropdown}>
                       <PopoverTrigger asChild>
                         <Button 
                           variant="outline" 
-                          className="w-full justify-between h-10 px-3 py-2 font-normal text-sm border-input"
+                          size="sm"
+                          className="justify-between font-normal"
                         >
                           <span className="truncate">
                             {compareListIds.length === 0 
@@ -637,7 +638,7 @@ export default function Extrator() {
                           <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[250px] p-0 bg-popover z-50" align="start">
+                      <PopoverContent className="w-[250px] p-0 bg-background border shadow-lg z-50" align="start">
                         <ScrollArea className="max-h-[200px]">
                           <div className="p-1">
                             {savedLists.map(lista => (
