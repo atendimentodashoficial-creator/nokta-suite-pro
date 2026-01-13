@@ -307,11 +307,12 @@ export function HistoricoAvisosTab() {
                       {/* Right side: Date/Time + Delete button */}
                       <div className="flex items-center justify-between sm:justify-end gap-3 pl-13 sm:pl-0">
                         <div className="flex items-center gap-3 text-muted-foreground">
-                          <div className="flex items-center gap-1 text-sm">
+                          {/* Mobile: Data primeiro, Desktop: Horário primeiro */}
+                          <div className="flex items-center gap-1 text-sm sm:order-2">
                             <Calendar className="h-3.5 w-3.5" />
                             {formatInTimeZone(log.enviado_em, 'America/Sao_Paulo', "dd/MM/yyyy")}
                           </div>
-                          <div className="flex items-center gap-1 text-xs">
+                          <div className="flex items-center gap-1 text-xs sm:order-1">
                             <Clock className="h-3 w-3" />
                             {formatInTimeZone(log.enviado_em, 'America/Sao_Paulo', "HH:mm")}
                           </div>
