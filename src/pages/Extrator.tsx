@@ -498,8 +498,8 @@ export default function Extrator() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Basic Options */}
-          <div className="flex flex-wrap items-center gap-4">
+          {/* Basic Options - Linha 1 */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Busca:</span>
               <Input
@@ -522,16 +522,6 @@ export default function Extrator() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Quantidade:</span>
-              <Input
-                id="maxResults"
-                type="number"
-                min="1"
-                max="1000"
-                value={maxResults}
-                onChange={(e) => setMaxResults(e.target.value)}
-                className="w-20"
-                placeholder="50"
-              />
               <Select value={["5", "10", "20", "50", "100", "200"].includes(maxResults) ? maxResults : "_custom"} onValueChange={(val) => val !== "_custom" && setMaxResults(val)}>
                 <SelectTrigger className="w-[100px] bg-background">
                   <SelectValue placeholder="Selecionar" />
@@ -552,7 +542,7 @@ export default function Extrator() {
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Idioma:</span>
               <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger className="w-[150px] bg-background">
+                <SelectTrigger className="w-[140px] bg-background">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
@@ -574,13 +564,13 @@ export default function Extrator() {
                 <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="pt-4">
-              {/* Filtros */}
-              <div className="flex flex-wrap items-center gap-4">
+            <CollapsibleContent className="pt-4 space-y-4">
+              {/* Filtros - Linha 2 */}
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Avaliação:</span>
+                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Avaliação mín.:</span>
                   <Select value={placeMinimumStars} onValueChange={setPlaceMinimumStars}>
-                    <SelectTrigger className="w-[120px] bg-background">
+                    <SelectTrigger className="w-[100px] bg-background">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg z-50">
@@ -597,7 +587,7 @@ export default function Extrator() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Website:</span>
                   <Select value={websiteFilter} onValueChange={setWebsiteFilter}>
-                    <SelectTrigger className="w-[140px] bg-background">
+                    <SelectTrigger className="w-[130px] bg-background">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg z-50">
@@ -610,11 +600,11 @@ export default function Extrator() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Correspondência:</span>
                   <Select value={searchMatching} onValueChange={setSearchMatching}>
-                    <SelectTrigger className="w-[160px] bg-background">
+                    <SelectTrigger className="w-[150px] bg-background">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg z-50">
-                      <SelectItem value="all">Todos os resultados</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="only_includes">Nome contém busca</SelectItem>
                       <SelectItem value="only_exact">Nome exato</SelectItem>
                     </SelectContent>
@@ -622,13 +612,13 @@ export default function Extrator() {
                 </div>
                 {savedLists.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Excluir Repetidos:</span>
+                    <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Excluir repetidos:</span>
                     <Popover open={showCompareListsDropdown} onOpenChange={setShowCompareListsDropdown}>
                       <PopoverTrigger asChild>
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="justify-between font-normal"
+                          className="justify-between font-normal w-[120px]"
                         >
                           <span className="truncate">
                             {compareListIds.length === 0 
