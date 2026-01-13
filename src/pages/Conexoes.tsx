@@ -952,7 +952,7 @@ export default function Conexoes() {
             <div>
               <Label>Access Token</Label>
               <div className="flex gap-2 mt-1">
-                <Input type={showMetaToken ? "text" : "password"} value={metaAccessToken} onChange={e => setMetaAccessToken(e.target.value)} placeholder="Cole o Access Token aqui" className="font-mono text-sm" />
+                <Input type={showMetaToken ? "text" : "password"} value={metaAccessToken} onChange={e => setMetaAccessToken(e.target.value)} placeholder="" className="font-mono text-sm" />
                 <Button variant="outline" size="icon" onClick={() => setShowMetaToken(!showMetaToken)}>
                   {showMetaToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -993,7 +993,7 @@ export default function Conexoes() {
             <div className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
                 <Label>Ad Account ID</Label>
-                <Input placeholder="ex: act_1234567890" value={newAccountId} onChange={e => setNewAccountId(e.target.value)} className="mt-1" />
+                <Input placeholder="" value={newAccountId} onChange={e => setNewAccountId(e.target.value)} className="mt-1" />
               </div>
               <div className="w-[140px]">
                 <Label>Tipo de Conta</Label>
@@ -1081,19 +1081,19 @@ export default function Conexoes() {
             <div className="grid gap-3">
               <div>
                 <Label>Developer Token</Label>
-                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsDeveloperToken} onChange={e => setGoogleAdsDeveloperToken(e.target.value)} placeholder="Cole o Developer Token aqui" className="font-mono text-sm mt-1" />
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsDeveloperToken} onChange={e => setGoogleAdsDeveloperToken(e.target.value)} placeholder="" className="font-mono text-sm mt-1" />
               </div>
               <div>
                 <Label>Client ID (OAuth)</Label>
-                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientId} onChange={e => setGoogleAdsClientId(e.target.value)} placeholder="Cole o Client ID aqui" className="font-mono text-sm mt-1" />
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientId} onChange={e => setGoogleAdsClientId(e.target.value)} placeholder="" className="font-mono text-sm mt-1" />
               </div>
               <div>
                 <Label>Client Secret (OAuth)</Label>
-                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientSecret} onChange={e => setGoogleAdsClientSecret(e.target.value)} placeholder="Cole o Client Secret aqui" className="font-mono text-sm mt-1" />
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientSecret} onChange={e => setGoogleAdsClientSecret(e.target.value)} placeholder="" className="font-mono text-sm mt-1" />
               </div>
               <div>
                 <Label>Refresh Token</Label>
-                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsRefreshToken} onChange={e => setGoogleAdsRefreshToken(e.target.value)} placeholder="Cole o Refresh Token aqui" className="font-mono text-sm mt-1" />
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsRefreshToken} onChange={e => setGoogleAdsRefreshToken(e.target.value)} placeholder="" className="font-mono text-sm mt-1" />
               </div>
             </div>
 
@@ -1147,7 +1147,7 @@ export default function Conexoes() {
             <div className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
                 <Label className="text-xs text-muted-foreground">Customer ID</Label>
-                <Input placeholder="ex: 123-456-7890" value={newGoogleCustomerId} onChange={e => setNewGoogleCustomerId(e.target.value)} className="mt-1" />
+                <Input placeholder="" value={newGoogleCustomerId} onChange={e => setNewGoogleCustomerId(e.target.value)} className="mt-1" />
               </div>
               <Button onClick={addGoogleAdsAccount} disabled={addingGoogleAccount}>
                 {addingGoogleAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <>
@@ -1207,7 +1207,7 @@ export default function Conexoes() {
             <div>
               <Label>API Key</Label>
               <div className="flex gap-2 mt-1">
-                <Input type={showOpenAIKey ? "text" : "password"} value={openAIKey} onChange={e => setOpenAIKey(e.target.value)} placeholder="Cole a API Key aqui (sk-...)" className="font-mono text-sm" />
+                <Input type={showOpenAIKey ? "text" : "password"} value={openAIKey} onChange={e => setOpenAIKey(e.target.value)} placeholder="" className="font-mono text-sm" />
                 <Button variant="outline" size="icon" onClick={() => setShowOpenAIKey(!showOpenAIKey)}>
                   {showOpenAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -1265,7 +1265,7 @@ export default function Conexoes() {
             <div>
               <Label>API Key</Label>
               <div className="flex gap-2 mt-1">
-                <Input type={showApifyKey ? "text" : "password"} value={apifyApiKey} onChange={e => setApifyApiKey(e.target.value)} placeholder="Cole sua API Key aqui" className="font-mono text-sm" />
+                <Input type={showApifyKey ? "text" : "password"} value={apifyApiKey} onChange={e => setApifyApiKey(e.target.value)} placeholder="" className="font-mono text-sm" />
                 <Button variant="outline" size="icon" onClick={() => setShowApifyKey(!showApifyKey)}>
                   {showApifyKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
