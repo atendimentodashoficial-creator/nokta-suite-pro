@@ -204,7 +204,7 @@ export default function Escala() {
     const ultimoHorario = horariosExistentes?.[horariosExistentes.length - 1];
     const novoInicio = ultimoHorario?.hora_fim || "08:00";
     
-    // Calcula hora fim padrão (30 minutos depois do início)
+    // Calcula hora fim padrão (30 minutos depois do início) para passar na constraint
     const [horaI, minI] = novoInicio.split(":").map(Number);
     let novaHora = horaI;
     let novoMin = minI + 30;
@@ -668,6 +668,15 @@ export default function Escala() {
                 type="time" 
                 value={editandoHorario?.hora_fim || ""} 
                 min={editandoHorario?.hora_inicio || undefined}
+                onFocus={e => {
+                  // Se vazio, preenche com hora_inicio para o seletor iniciar do lugar certo
+                  if (!e.target.value && editandoHorario?.hora_inicio) {
+                    setEditandoHorario(prev => prev ? {
+                      ...prev,
+                      hora_fim: prev.hora_inicio
+                    } : null);
+                  }
+                }}
                 onChange={e => setEditandoHorario(prev => prev ? {
                   ...prev,
                   hora_fim: e.target.value
