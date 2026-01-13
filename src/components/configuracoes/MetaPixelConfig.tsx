@@ -317,23 +317,23 @@ export function MetaPixelConfig() {
                           key={event.id}
                           className="p-3 border rounded-lg space-y-2 bg-muted/30"
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge variant={isSuccess ? 'default' : isError ? 'destructive' : 'secondary'}>
                                 {event.event_name}
                               </Badge>
                               {isSuccess ? (
                                 <div className="flex items-center gap-1 text-green-600">
-                                  <CheckCircle2 className="h-4 w-4" />
-                                  <span className="text-xs font-medium">Recebido pelo Meta</span>
+                                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                  <span className="text-xs font-medium">Recebido</span>
                                 </div>
                               ) : isError ? (
                                 <div className="flex items-center gap-1 text-red-600">
-                                  <XCircle className="h-4 w-4" />
+                                  <XCircle className="h-4 w-4 shrink-0" />
                                   <span className="text-xs font-medium">Erro</span>
                                 </div>
                               ) : (
-                                <Clock className="h-4 w-4 text-yellow-500" />
+                                <Clock className="h-4 w-4 text-yellow-500 shrink-0" />
                               )}
                             </div>
                             <span className="text-xs text-muted-foreground">
@@ -342,9 +342,9 @@ export function MetaPixelConfig() {
                           </div>
                           
                           {/* Dados enviados */}
-                          <div className="p-2 bg-background rounded border">
+                          <div className="p-2 bg-background rounded border overflow-hidden">
                             <p className="text-xs font-medium text-muted-foreground mb-1">Dados do Evento:</p>
-                            <div className="grid grid-cols-2 gap-1 text-xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
                               <div>
                                 <span className="text-muted-foreground">Evento:</span>{" "}
                                 <span className="font-medium">{event.event_name}</span>
@@ -356,25 +356,25 @@ export function MetaPixelConfig() {
                                 </div>
                               )}
                               {event.lead_id && (
-                                <div className="col-span-2">
+                                <div className="col-span-1 sm:col-span-2 break-all">
                                   <span className="text-muted-foreground">Lead ID:</span>{" "}
                                   <span className="font-mono text-xs">{event.lead_id.slice(0, 8)}...</span>
                                 </div>
                               )}
                               {event.utm_source && (
-                                <div>
+                                <div className="break-all">
                                   <span className="text-muted-foreground">UTM Source:</span>{" "}
                                   <span className="font-medium">{event.utm_source}</span>
                                 </div>
                               )}
                               {event.utm_campaign && (
-                                <div>
+                                <div className="break-all">
                                   <span className="text-muted-foreground">UTM Campaign:</span>{" "}
-                                  <span className="font-medium">{event.utm_campaign}</span>
+                                  <span className="font-medium truncate">{event.utm_campaign}</span>
                                 </div>
                               )}
                               {event.fbclid && (
-                                <div className="col-span-2">
+                                <div className="col-span-1 sm:col-span-2 break-all">
                                   <span className="text-muted-foreground">FBCLID:</span>{" "}
                                   <span className="font-mono text-xs">{event.fbclid.slice(0, 20)}...</span>
                                 </div>
@@ -382,11 +382,10 @@ export function MetaPixelConfig() {
                             </div>
                           </div>
 
-                          {/* Dados do cliente enviados */}
                           {(event as any).customer_data_sent && (
-                            <div className="p-2 bg-background rounded border">
+                            <div className="p-2 bg-background rounded border overflow-hidden">
                               <p className="text-xs font-medium text-muted-foreground mb-1">Dados do Cliente Enviados:</p>
-                              <div className="grid grid-cols-2 gap-1 text-xs">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
                                 {(event as any).customer_data_sent?.values?.phone && (
                                   <div>
                                     <span className="text-green-600">✓</span>{" "}
@@ -402,7 +401,7 @@ export function MetaPixelConfig() {
                                   </div>
                                 )}
                                 {(event as any).customer_data_sent?.values?.name && (
-                                  <div className="col-span-2">
+                                  <div className="col-span-1 sm:col-span-2 break-all">
                                     <span className="text-green-600">✓</span>{" "}
                                     <span className="text-muted-foreground">Nome:</span>{" "}
                                     <span className="font-medium">{(event as any).customer_data_sent.values.name}</span>
@@ -461,7 +460,7 @@ export function MetaPixelConfig() {
                           )}
 
                           {/* Resposta do Meta */}
-                          <div className="p-2 bg-background rounded border">
+                          <div className="p-2 bg-background rounded border overflow-hidden">
                             <p className="text-xs font-medium text-muted-foreground mb-1">Resposta do Meta:</p>
                             {isSuccess ? (
                               <div className="text-xs text-green-600">
