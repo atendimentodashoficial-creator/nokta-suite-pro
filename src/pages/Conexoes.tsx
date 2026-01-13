@@ -970,26 +970,21 @@ export default function Conexoes() {
 
           {/* Ad Accounts Section */}
           {hasMetaToken && <div className="border-t pt-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <Label className="text-base font-medium">Contas de Anúncios</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Vincule suas contas para monitorar saldo e gastos
-                </p>
-              </div>
-              <Badge variant="secondary" className="gap-1">
-                {linkedAdAccounts.length} conta{linkedAdAccounts.length !== 1 ? "s" : ""}
-              </Badge>
+            <div className="mb-4">
+              <Label className="text-base font-medium">Contas de Anúncios</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Vincule suas contas para monitorar saldo e gastos
+              </p>
             </div>
             
             {/* Formulário para adicionar conta */}
             <div className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
-                <Label className="text-xs text-muted-foreground">Ad Account ID</Label>
+                <Label>Ad Account ID</Label>
                 <Input placeholder="ex: act_1234567890" value={newAccountId} onChange={e => setNewAccountId(e.target.value)} className="mt-1" />
               </div>
               <div className="w-[140px]">
-                <Label className="text-xs text-muted-foreground">Tipo de Conta</Label>
+                <Label>Tipo de Conta</Label>
                 <Select value={newAccountType} onValueChange={setNewAccountType}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -1064,19 +1059,19 @@ export default function Conexoes() {
           <div className="space-y-4">
             <div className="grid gap-3">
               <div>
-                <Label className="text-xs text-muted-foreground">Developer Token</Label>
+                <Label>Developer Token</Label>
                 <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsDeveloperToken} onChange={e => setGoogleAdsDeveloperToken(e.target.value)} placeholder="Obtenha no Google Ads API Center" className="font-mono text-sm mt-1" />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Client ID (OAuth)</Label>
+                <Label>Client ID (OAuth)</Label>
                 <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientId} onChange={e => setGoogleAdsClientId(e.target.value)} placeholder="Ex: 123456789-abc.apps.googleusercontent.com" className="font-mono text-sm mt-1" />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Client Secret (OAuth)</Label>
+                <Label>Client Secret (OAuth)</Label>
                 <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientSecret} onChange={e => setGoogleAdsClientSecret(e.target.value)} placeholder="Obtenha no Google Cloud Console" className="font-mono text-sm mt-1" />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Refresh Token</Label>
+                <Label>Refresh Token</Label>
                 <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsRefreshToken} onChange={e => setGoogleAdsRefreshToken(e.target.value)} placeholder="Gerado via fluxo OAuth" className="font-mono text-sm mt-1" />
               </div>
             </div>
