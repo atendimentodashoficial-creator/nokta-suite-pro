@@ -12,6 +12,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
 import { toast } from "sonner";
+import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
@@ -41,9 +42,27 @@ export default function NaoCompareceu() {
   const queryClient = useQueryClient();
   const deleteAgendamento = useDeleteAgendamento();
   
+  // Period filter - default to this month
+  const {
+    periodFilter,
+    setPeriodFilter,
+    dateStart,
+    setDateStart,
+    dateEnd,
+    setDateEnd,
+    filterByPeriod,
+  } = usePeriodFilter("this_month");
+  
   const { data: todosAgendamentos, isLoading } = useAgendamentos();
 
-  const agendamentosCancelados = todosAgendamentos?.filter(ag => ag.status === "cancelado") || [];
+  // Filter by status and period
+  const agendamentosCancelados = (todosAgendamentos?.filter(ag => ag.status === "cancelado") || [])
+    .filter(ag => {
+      const agDate = new Date(ag.data_agendamento);
+      const startOfPeriod = new Date(dateStart.getFullYear(), dateStart.getMonth(), dateStart.getDate(), 0, 0, 0, 0);
+      const endOfPeriod = new Date(dateEnd.getFullYear(), dateEnd.getMonth(), dateEnd.getDate(), 23, 59, 59, 999);
+      return agDate >= startOfPeriod && agDate <= endOfPeriod;
+    });
 
   const filteredAgendamentos = agendamentosCancelados.filter((agendamento) => {
     const searchLower = searchTerm.toLowerCase();
@@ -222,16 +241,26 @@ export default function NaoCompareceu() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Search */}
+      {/* Period Filter and Search */}
       <Card className="p-4 shadow-card">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou telefone..."
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+        <div className="flex flex-col gap-4">
+          <PeriodFilter
+            value={periodFilter}
+            onChange={setPeriodFilter}
+            dateStart={dateStart}
+            dateEnd={dateEnd}
+            onDateStartChange={setDateStart}
+            onDateEndChange={setDateEnd}
           />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou telefone..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </Card>
 
