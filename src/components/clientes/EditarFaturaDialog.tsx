@@ -359,18 +359,16 @@ export function EditarFaturaDialog({
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {/* Linha 1: Data e Status */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="valor_base"
+                  name="data_fatura"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valor Base</FormLabel>
+                      <FormLabel>Data da Fatura</FormLabel>
                       <FormControl>
-                        <CurrencyInput
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
+                        <Input type="date" className="w-full" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -403,14 +401,18 @@ export function EditarFaturaDialog({
                 />
               </div>
 
+              {/* Linha 2: Valor */}
               <FormField
                 control={form.control}
-                name="data_fatura"
+                name="valor_base"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data da Fatura</FormLabel>
+                    <FormLabel>Valor Base</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <CurrencyInput
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
