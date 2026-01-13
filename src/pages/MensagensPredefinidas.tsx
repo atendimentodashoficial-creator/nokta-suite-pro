@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Edit, Trash2, Play, Pause, Mic, Square, Upload, Volume2, FolderPlus, Folder, GripVertical } from "lucide-react";
+import { Plus, Edit, Trash2, Play, Pause, Mic, Square, Upload, Volume2, FolderPlus, Folder, GripVertical, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -72,8 +72,9 @@ function SortableMensagemCard({ mensagem, onEdit, onDelete }: SortableMensagemCa
         </button>
         <div className="flex-1 min-w-0">
           <span className="font-medium text-sm truncate block">{mensagem.titulo}</span>
-          <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words line-clamp-2">
-            {mensagem.conteudo}
+          <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words line-clamp-2 flex items-start gap-1">
+            <MessageSquare className="w-3 h-3 flex-shrink-0 mt-0.5" />
+            <span>{mensagem.conteudo}</span>
           </p>
         </div>
       </div>
