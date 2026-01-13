@@ -149,8 +149,9 @@ export default function Conexoes() {
     }
   };
 
-  const validateAndSaveOpenAIKey = async () => {
-    if (!newOpenAIKey.trim()) {
+  const validateAndSaveOpenAIKey = async (keyOverride?: string) => {
+    const keyToSave = keyOverride || newOpenAIKey;
+    if (!keyToSave.trim()) {
       toast({
         title: "Erro",
         description: "Por favor, insira a API Key",
@@ -165,7 +166,7 @@ export default function Conexoes() {
       
       // Use the "save" action which validates AND saves the key
       const response = await supabase.functions.invoke("save-openai-key", {
-        body: { action: "save", api_key: newOpenAIKey.trim() },
+        body: { action: "save", api_key: keyToSave.trim() },
         headers: {
           Authorization: `Bearer ${session.session?.access_token}`,
         },
@@ -187,7 +188,7 @@ export default function Conexoes() {
 
       // Key is valid and saved
       setHasOpenAIKey(true);
-      setOpenAIKey("sk-••••••••••••••••••••••••••••••••");
+      setOpenAIKey(keyToSave.trim());
       setNewOpenAIKey("");
       setOpenAITestResult({ success: true, message: response.data.message });
       toast({
@@ -1404,13 +1405,13 @@ export default function Conexoes() {
         <CardContent className="space-y-4">
           {hasOpenAIKey ? (
             <div className="space-y-4">
-              <div>
-                <Label>API Key Atual</Label>
-                <div className="flex gap-2 mt-1">
+              <div className="space-y-2">
+                <Label>API Key</Label>
+                <div className="flex gap-2">
                   <Input
                     type={showOpenAIKey ? "text" : "password"}
                     value={openAIKey}
-                    readOnly
+                    onChange={(e) => setOpenAIKey(e.target.value)}
                     className="font-mono text-sm"
                   />
                   <Button
@@ -1421,6 +1422,17 @@ export default function Conexoes() {
                     {showOpenAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Obtenha sua API Key em{" "}
+                  <a 
+                    href="https://platform.openai.com/api-keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    platform.openai.com/api-keys
+                  </a>
+                </p>
               </div>
 
               <div className="flex gap-2">
@@ -1432,13 +1444,8 @@ export default function Conexoes() {
                   )}
                   Testar Conexão
                 </Button>
-                <Button variant="destructive" onClick={removeOpenAIKey} disabled={removingOpenAI}>
-                  {removingOpenAI ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 mr-2" />
-                  )}
-                  Remover Chave
+                <Button onClick={() => validateAndSaveOpenAIKey(openAIKey)} disabled={savingOpenAI}>
+                  {savingOpenAI ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
                 </Button>
               </div>
 
@@ -1456,32 +1463,6 @@ export default function Conexoes() {
                   </div>
                 </div>
               )}
-
-              <div className="border-t pt-4">
-                <Label>Atualizar API Key</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input
-                    type="password"
-                    value={newOpenAIKey}
-                    onChange={(e) => setNewOpenAIKey(e.target.value)}
-                    placeholder="Cole a nova API Key aqui (sk-...)"
-                  />
-                  <Button onClick={validateAndSaveOpenAIKey} disabled={savingOpenAI || !newOpenAIKey}>
-                    {savingOpenAI ? <Loader2 className="h-4 w-4 animate-spin" /> : "Validar"}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Obtenha sua API Key em{" "}
-                  <a 
-                    href="https://platform.openai.com/api-keys" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    platform.openai.com/api-keys
-                  </a>
-                </p>
-              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -1506,7 +1487,7 @@ export default function Conexoes() {
                   </a>
                 </p>
               </div>
-              <Button onClick={validateAndSaveOpenAIKey} disabled={savingOpenAI || !newOpenAIKey}>
+              <Button onClick={() => validateAndSaveOpenAIKey()} disabled={savingOpenAI || !newOpenAIKey}>
                 {savingOpenAI ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
