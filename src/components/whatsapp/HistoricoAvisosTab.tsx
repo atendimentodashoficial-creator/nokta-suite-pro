@@ -206,10 +206,10 @@ export function HistoricoAvisosTab() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Mobile: Filters first, then search */}
-            <div className="flex gap-3 sm:hidden order-1">
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Período:</span>
+            {/* Mobile: Filters first (stacked), then search */}
+            <div className="flex flex-col gap-3 sm:hidden order-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap w-16">Período:</span>
                 <Select value={dateFilter} onValueChange={setDateFilter}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Período" />
@@ -222,8 +222,8 @@ export function HistoricoAvisosTab() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Status:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap w-16">Status:</span>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Status" />
