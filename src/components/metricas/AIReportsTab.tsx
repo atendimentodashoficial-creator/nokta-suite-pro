@@ -1366,8 +1366,8 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                 <div className="flex items-center gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        {format(dateStart, "dd/MM/yyyy", { locale: ptBR })}
+                      <Button variant="outline" size="sm" className="min-w-[90px]">
+                        {format(dateStart, "dd/MM/yy", { locale: ptBR })}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -1376,14 +1376,15 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         selected={dateStart}
                         onSelect={(date) => date && setDateStart(date)}
                         locale={ptBR}
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
-                  <span className="text-muted-foreground">até</span>
+                  <span className="text-muted-foreground text-sm">até</span>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        {format(dateEnd, "dd/MM/yyyy", { locale: ptBR })}
+                      <Button variant="outline" size="sm" className="min-w-[90px]">
+                        {format(dateEnd, "dd/MM/yy", { locale: ptBR })}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -1392,6 +1393,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                         selected={dateEnd}
                         onSelect={(date) => date && setDateEnd(date)}
                         locale={ptBR}
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>

@@ -314,19 +314,18 @@ export function ContaAnunciosTab() {
           </div>
 
           {periodFilter === "custom" && (
-            <>
-              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
+            <div className="flex items-center gap-2">
               <Popover open={calendarStartOpen} onOpenChange={setCalendarStartOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "justify-start text-left font-normal",
+                      "justify-start text-left font-normal min-w-[90px]",
                       !dateStart && "text-muted-foreground"
                     )}
                   >
-                    {dateStart ? format(dateStart, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                    {dateStart ? format(dateStart, "dd/MM/yy", { locale: ptBR }) : "Selecione"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -351,11 +350,11 @@ export function ContaAnunciosTab() {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "justify-start text-left font-normal",
+                      "justify-start text-left font-normal min-w-[90px]",
                       !dateEnd && "text-muted-foreground"
                     )}
                   >
-                    {dateEnd ? format(dateEnd, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                    {dateEnd ? format(dateEnd, "dd/MM/yy", { locale: ptBR }) : "Selecione"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -371,7 +370,7 @@ export function ContaAnunciosTab() {
                   />
                 </PopoverContent>
               </Popover>
-            </>
+            </div>
           )}
 
           <Button 
