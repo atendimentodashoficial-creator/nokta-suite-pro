@@ -103,7 +103,7 @@ export default function Faturas() {
       {/* Filtros */}
       <Card className="p-4 shadow-card">
         <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-start sm:items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground">Período:</span>
             <PeriodFilter
               value={periodFilter}
