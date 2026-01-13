@@ -795,9 +795,21 @@ export function AvisosTab() {
                                 <MessageCircle className="h-4 w-4" />
                               </Button>
                             )}
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${daysBadge.bgColor} ${daysBadge.textColor}`}>
+                            {/* Desktop: days badge inline */}
+                            <span className={`hidden sm:inline-flex text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${daysBadge.bgColor} ${daysBadge.textColor}`}>
                               {daysBadge.label}
                             </span>
+                            {/* Desktop: success badges inline (only show if not failed) */}
+                            {avisosEnviados.filter(a => !a.failed).map((aviso, idx) => (
+                              <Badge 
+                                key={idx}
+                                variant="outline" 
+                                className="hidden sm:inline-flex text-xs text-green-600 border-green-600 dark:text-green-400 dark:border-green-400"
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                {aviso.label}
+                              </Badge>
+                            ))}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {ag.leads?.telefone && formatPhoneDisplay(ag.leads.telefone)}
@@ -820,6 +832,22 @@ export function AvisosTab() {
                       
                       {/* Right side: Date/Time + Badges */}
                       <div className="flex flex-col sm:items-end gap-1.5 pl-13 sm:pl-0">
+                        {/* Mobile: days badge + success badges above date */}
+                        <div className="flex sm:hidden flex-wrap items-center gap-2">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${daysBadge.bgColor} ${daysBadge.textColor}`}>
+                            {daysBadge.label}
+                          </span>
+                          {avisosEnviados.filter(a => !a.failed).map((aviso, idx) => (
+                            <Badge 
+                              key={idx}
+                              variant="outline" 
+                              className="text-xs text-green-600 border-green-600 dark:text-green-400 dark:border-green-400"
+                            >
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              {aviso.label}
+                            </Badge>
+                          ))}
+                        </div>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Clock className="h-3.5 w-3.5" />
                           {formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', "dd/MM 'às' HH:mm")}
@@ -830,24 +858,6 @@ export function AvisosTab() {
                               {ag.procedimentos.nome}
                             </Badge>
                           )}
-                          {avisosEnviados.map((aviso, idx) => (
-                            <Badge 
-                              key={idx}
-                              variant="outline" 
-                              className={`text-xs ${
-                                aviso.failed 
-                                  ? 'text-red-600 border-red-600 dark:text-red-400 dark:border-red-400' 
-                                  : 'text-green-600 border-green-600 dark:text-green-400 dark:border-green-400'
-                              }`}
-                            >
-                              {aviso.failed ? (
-                                <X className="h-3 w-3 mr-1" />
-                              ) : (
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                              )}
-                              {aviso.label}
-                            </Badge>
-                          ))}
                         </div>
                       </div>
                     </div>
