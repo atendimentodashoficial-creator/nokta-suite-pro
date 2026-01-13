@@ -7,7 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Calendar, Calendar as CalendarIcon, Clock, User, Phone, Plus, Check, X, RefreshCw, MessageCircle, Trash2, FileText, Bell, History } from "lucide-react";
+import { Calendar, Calendar as CalendarIcon, Clock, User, Phone, Plus, Check, X, RefreshCw, MessageCircle, Trash2, FileText, Bell, History, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { format, startOfDay, endOfDay, addDays, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ReagendarDialog } from "@/components/clientes/ReagendarDialog";
@@ -43,6 +44,7 @@ export default function Agenda() {
   const [filtroProfissional, setFiltroProfissional] = useState<string>("all");
   const [novoAgendamentoOpen, setNovoAgendamentoOpen] = useState(false);
   const [deleteAgendamento, setDeleteAgendamento] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("mes-atual");
   const [dataInicio, setDataInicio] = useState<Date>(startOfMonth(new Date()));
   const [dataFim, setDataFim] = useState<Date>(endOfMonth(new Date()));
@@ -143,6 +145,19 @@ export default function Agenda() {
       todosAgendamentos = todosAgendamentos.filter(ag => ag.profissional_id === filtroProfissional);
     }
 
+    // Aplicar filtro de busca
+    if (searchTerm.trim()) {
+      const termo = searchTerm.toLowerCase().trim();
+      todosAgendamentos = todosAgendamentos.filter(ag => {
+        const nome = (ag.leads?.nome || "").toLowerCase();
+        const telefone = (ag.leads?.telefone || "").toLowerCase();
+        const profissional = (ag.profissionais?.nome || "").toLowerCase();
+        const procedimento = (ag.procedimentos?.nome || "").toLowerCase();
+        const tipo = (ag.tipo || "").toLowerCase();
+        return nome.includes(termo) || telefone.includes(termo) || profissional.includes(termo) || procedimento.includes(termo) || tipo.includes(termo);
+      });
+    }
+
     // Agrupar por data
     const grupos: {
       [key: string]: any[];
@@ -167,7 +182,7 @@ export default function Agenda() {
       data: parseISO(dataKey),
       agendamentos: grupos[dataKey]
     }));
-  }, [agendamentos, filtroProfissional, inicio, fim]);
+  }, [agendamentos, filtroProfissional, inicio, fim, searchTerm]);
   const totalItens = agendamentosPorData.reduce((sum, grupo) => sum + grupo.agendamentos.length, 0);
   const handleMarcarCompareceu = async (agendamento: any, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -241,7 +256,19 @@ export default function Agenda() {
         <>
         {/* Filtros */}
       <Card className="p-4 shadow-card">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-col gap-4">
+          {/* Campo de Busca */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, telefone, profissional..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-4">
           {/* Filtro de Período */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
@@ -315,6 +342,7 @@ export default function Agenda() {
               </SelectContent>
             </Select>
           </div>
+        </div>
         </div>
       </Card>
 
