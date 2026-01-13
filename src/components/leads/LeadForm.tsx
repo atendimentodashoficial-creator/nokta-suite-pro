@@ -149,7 +149,7 @@ export function LeadForm() {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nome">Nome *</Label>
+            <Label htmlFor="nome">Nome</Label>
             <Input
               id="nome"
               value={nome}
@@ -160,7 +160,7 @@ export function LeadForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="telefone">Telefone *</Label>
+            <Label htmlFor="telefone">Telefone</Label>
             <CountryCodeSelect 
               value={countryCode} 
               onChange={setCountryCode}

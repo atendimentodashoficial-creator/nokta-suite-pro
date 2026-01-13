@@ -328,7 +328,7 @@ export default function Procedimentos() {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome *</Label>
+                  <Label htmlFor="nome">Nome</Label>
                   <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do procedimento" required />
                 </div>
 
@@ -344,7 +344,7 @@ export default function Procedimentos() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="duracao">Duração (minutos) *</Label>
+                    <Label htmlFor="duracao">Duração (minutos)</Label>
                     <Input id="duracao" type="number" value={duracaoMinutos} onChange={e => setDuracaoMinutos(e.target.value)} placeholder="60" required />
                   </div>
                 </div>

@@ -306,7 +306,7 @@ export function NovaFaturaDialog({
                   name="valor"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valor Base *</FormLabel>
+                      <FormLabel>Valor Base</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -329,7 +329,7 @@ export function NovaFaturaDialog({
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status *</FormLabel>
+                      <FormLabel>Status</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -351,7 +351,7 @@ export function NovaFaturaDialog({
                   name="data_fatura"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Data *</FormLabel>
+                      <FormLabel>Data</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>

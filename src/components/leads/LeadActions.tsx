@@ -299,7 +299,7 @@ export function LeadActions({
           </DialogHeader>
           <form onSubmit={handleFollowUpSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="dataFollowUp">Data do Follow-up *</Label>
+              <Label htmlFor="dataFollowUp">Data do Follow-up</Label>
               <Input
                 id="dataFollowUp"
                 type="date"
@@ -310,7 +310,7 @@ export function LeadActions({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="observacao">Observação *</Label>
+              <Label htmlFor="observacao">Observação</Label>
               <Textarea
                 id="observacao"
                 value={observacaoFollowUp}

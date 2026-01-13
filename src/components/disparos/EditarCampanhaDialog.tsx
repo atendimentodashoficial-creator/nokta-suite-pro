@@ -984,7 +984,7 @@ export function EditarCampanhaDialog({
                   {/* Instâncias para disparo */}
                   {instancias.length > 0 && (
                     <div className="space-y-2">
-                      <Label>Instâncias para Disparo *</Label>
+                      <Label>Instâncias para Disparo</Label>
                       <div className="flex flex-wrap gap-2">
                         {instancias.map(inst => {
                           const isSelected = selectedInstancias.includes(inst.id);
@@ -1020,7 +1020,7 @@ export function EditarCampanhaDialog({
 
                   {/* Nome da campanha */}
                   <div className="space-y-2">
-                    <Label>Nome da Campanha *</Label>
+                    <Label>Nome da Campanha</Label>
                     <Input placeholder="Ex: Promoção Janeiro" value={nome} onChange={e => setNome(e.target.value)} />
                   </div>
 
@@ -1156,7 +1156,7 @@ export function EditarCampanhaDialog({
 
                                         {variacao.tipo === "text" ? (
                                           <div className="space-y-1">
-                                            <Label className="text-xs">Mensagem *</Label>
+                                            <Label className="text-xs">Mensagem</Label>
                                             <Textarea
                                               placeholder="Digite sua mensagem..."
                                               value={variacao.mensagem}

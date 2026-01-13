@@ -155,7 +155,7 @@ export default function Produtos() {
                   name="nome"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome *</FormLabel>
+                      <FormLabel>Nome</FormLabel>
                       <FormControl>
                         <Input {...field} placeholder="Nome do produto" />
                       </FormControl>
@@ -169,7 +169,7 @@ export default function Produtos() {
                   name="valor"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valor *</FormLabel>
+                      <FormLabel>Valor</FormLabel>
                       <FormControl>
                         <Input
                           {...field}

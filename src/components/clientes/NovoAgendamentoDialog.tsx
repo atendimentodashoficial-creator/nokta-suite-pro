@@ -745,7 +745,7 @@ export function NovoAgendamentoDialog({
               name="nome"
               render={({ field }) => (
                 <FormItem className="relative">
-                  <FormLabel>Nome *</FormLabel>
+                  <FormLabel>Nome</FormLabel>
                   <FormControl>
                     <Input 
                       {...field} 
@@ -787,7 +787,7 @@ export function NovoAgendamentoDialog({
                 name="telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone *</FormLabel>
+                    <FormLabel>Telefone</FormLabel>
                     <FormControl>
                       <CountryCodeSelect 
                         value={countryCode} 
@@ -861,7 +861,7 @@ export function NovoAgendamentoDialog({
               name="procedimento_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Procedimento *</FormLabel>
+                  <FormLabel>Procedimento</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -886,7 +886,7 @@ export function NovoAgendamentoDialog({
               name="data_agendamento"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data *</FormLabel>
+                  <FormLabel>Data</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -926,7 +926,7 @@ export function NovoAgendamentoDialog({
             {dataWatch && procedimentoWatch && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <FormLabel>Selecione Profissional e Horário *</FormLabel>
+                  <FormLabel>Selecione Profissional e Horário</FormLabel>
                   {profissionalWatch && form.watch("hora") && (
                     <span className="text-xs text-primary">
                       ✓ {profissionais?.find(p => p.id === profissionalWatch)?.nome} - {form.watch("hora")}

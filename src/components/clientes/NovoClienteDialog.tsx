@@ -172,7 +172,7 @@ export function NovoClienteDialog() {
               name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome *</FormLabel>
+                  <FormLabel>Nome</FormLabel>
                   <FormControl>
                     <Input placeholder="Nome completo do cliente" {...field} />
                   </FormControl>
@@ -187,7 +187,7 @@ export function NovoClienteDialog() {
                 name="telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone *</FormLabel>
+                    <FormLabel>Telefone</FormLabel>
                     <FormControl>
                       <CountryCodeSelect 
                         value={countryCode} 
