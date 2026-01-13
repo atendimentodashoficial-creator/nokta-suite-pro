@@ -357,8 +357,8 @@ export function HistoricoAvisosTab() {
                       size="sm"
                       onClick={() => setShowBulkDeleteDialog(true)}
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir {selectedIds.size}
+                      <Trash2 className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Excluir {selectedIds.size}</span>
                     </Button>
                   )}
                   <Button
@@ -366,8 +366,8 @@ export function HistoricoAvisosTab() {
                     size="sm"
                     onClick={exitSelectionMode}
                   >
-                    <X className="h-4 w-4 mr-2" />
-                    Cancelar
+                    <X className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Cancelar</span>
                   </Button>
                 </>
               ) : (
@@ -377,8 +377,8 @@ export function HistoricoAvisosTab() {
                     size="sm"
                     onClick={() => setIsSelectionMode(true)}
                   >
-                    <CheckSquare className="h-4 w-4 mr-2" />
-                    Selecionar
+                    <CheckSquare className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Selecionar</span>
                   </Button>
                 )
               )}
