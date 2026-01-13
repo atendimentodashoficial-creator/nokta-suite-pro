@@ -254,7 +254,24 @@ export default function Escala() {
     hora_inicio: string;
     hora_fim: string;
   }) => {
-    setEditandoHorario({ ...horario, isNew: false });
+    const normInicio = (horario.hora_inicio || "").slice(0, 5);
+    const normFim = (horario.hora_fim || "").slice(0, 5);
+
+    const [h, m] = normInicio.split(":").map(Number);
+    let h2 = h;
+    let m2 = m + 30;
+    if (m2 >= 60) {
+      m2 -= 60;
+      h2 += 1;
+    }
+    const autoFim = `${String(Math.min(h2, 23)).padStart(2, "0")}:${String(m2).padStart(2, "0")}`;
+
+    setEditandoHorario({
+      ...horario,
+      // Se for o fim "automático" (+30min), abre vazio para o usuário escolher
+      hora_fim: normFim === autoFim ? "" : horario.hora_fim,
+      isNew: false,
+    });
     setDialogEditarHorario(true);
   };
   const handleSalvarEdicaoHorario = async () => {
@@ -614,25 +631,42 @@ export default function Escala() {
                         <CollapsibleContent>
                           {dia.ativo && <div className="px-3 pb-3 pt-0 ml-8 space-y-2 border-t">
                               <div className="pt-2 space-y-2">
-                                {dia.horarios.map(horario => <div key={horario.id} className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                      <Input type="time" value={horario.hora_inicio} className="w-20 sm:w-24 h-8 text-xs pointer-events-none" readOnly tabIndex={-1} />
-                                      <span className="text-muted-foreground">-</span>
-                                      <Input type="time" value={horario.hora_fim} className="w-20 sm:w-24 h-8 text-xs pointer-events-none" readOnly tabIndex={-1} />
+                                {dia.horarios.map(horario => {
+                                  const normInicio = (horario.hora_inicio || "").slice(0, 5);
+                                  const normFim = (horario.hora_fim || "").slice(0, 5);
+
+                                  const [h, m] = normInicio.split(":").map(Number);
+                                  let h2 = h;
+                                  let m2 = m + 30;
+                                  if (m2 >= 60) {
+                                    m2 -= 60;
+                                    h2 += 1;
+                                  }
+                                  const autoFim = `${String(Math.min(h2, 23)).padStart(2, "0")}:${String(m2).padStart(2, "0")}`;
+                                  const mostrarFim = normFim === autoFim ? "" : normFim;
+
+                                  return (
+                                    <div key={horario.id} className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <Input type="time" value={normInicio} className="w-20 sm:w-24 h-8 text-xs pointer-events-none" readOnly tabIndex={-1} />
+                                        <span className="text-muted-foreground">-</span>
+                                        <Input type="time" value={mostrarFim} className="w-20 sm:w-24 h-8 text-xs pointer-events-none" readOnly tabIndex={-1} />
+                                      </div>
+                                      <div className="flex gap-1 flex-shrink-0">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditarHorario({
+                                          id: horario.id,
+                                          hora_inicio: horario.hora_inicio,
+                                          hora_fim: horario.hora_fim
+                                        })}>
+                                          <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeletarHorario(horario.id)}>
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
                                     </div>
-                                    <div className="flex gap-1 flex-shrink-0">
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditarHorario({
-                              id: horario.id,
-                              hora_inicio: horario.hora_inicio,
-                              hora_fim: horario.hora_fim
-                            })}>
-                                        <Pencil className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeletarHorario(horario.id)}>
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
-                                  </div>)}
+                                  );
+                                })}
                                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleAdicionarHorario(profissional.id, dia.value, dia.horarios.map(h => ({ hora_inicio: h.hora_inicio, hora_fim: h.hora_fim })))}>
                                   <Plus className="h-3 w-3 mr-1" />
                                   Horário
