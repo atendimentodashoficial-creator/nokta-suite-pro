@@ -88,38 +88,47 @@ export default function EmNegociacao() {
       {/* Filtros */}
       <Card className="p-4 shadow-card">
         <div className="flex flex-wrap gap-4 items-center">
-          <PeriodFilter
-            value={periodFilter}
-            onChange={setPeriodFilter}
-            dateStart={dateStart}
-            dateEnd={dateEnd}
-            onDateStartChange={setDateStart}
-            onDateEndChange={setDateEnd}
-          />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Período:</span>
+            <PeriodFilter
+              value={periodFilter}
+              onChange={setPeriodFilter}
+              dateStart={dateStart}
+              dateEnd={dateEnd}
+              onDateStartChange={setDateStart}
+              onDateEndChange={setDateEnd}
+            />
+          </div>
 
-          <Select value={filtroProcedimento} onValueChange={setFiltroProcedimento}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Procedimento" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos Procedimentos</SelectItem>
-              {procedimentos?.map(proc => <SelectItem key={proc.id} value={proc.id}>
-                  {proc.nome}
-                </SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Profissional:</span>
+            <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {profissionais?.map(prof => <SelectItem key={prof.id} value={prof.id}>
+                    {prof.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Profissional" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos Profissionais</SelectItem>
-              {profissionais?.map(prof => <SelectItem key={prof.id} value={prof.id}>
-                  {prof.nome}
-                </SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Procedimento:</span>
+            <Select value={filtroProcedimento} onValueChange={setFiltroProcedimento}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {procedimentos?.map(proc => <SelectItem key={proc.id} value={proc.id}>
+                    {proc.nome}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
 
           {(filtroProcedimento !== "all" || filtroProfissional !== "all") && (
             <Button variant="outline" size="sm" onClick={() => {
