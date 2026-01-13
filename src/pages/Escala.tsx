@@ -200,10 +200,13 @@ export default function Escala() {
       }
     }
   };
-  const handleAdicionarHorario = (profissionalId: string, diaSemana: number) => {
+  const handleAdicionarHorario = (profissionalId: string, diaSemana: number, horariosExistentes?: Array<{ hora_inicio: string; hora_fim: string }>) => {
+    const ultimoHorario = horariosExistentes?.[horariosExistentes.length - 1];
+    const novoInicio = ultimoHorario?.hora_fim || "";
+    
     setEditandoHorario({
       id: null,
-      hora_inicio: "",
+      hora_inicio: novoInicio,
       hora_fim: "",
       profissional_id: profissionalId,
       dia_semana: diaSemana,
@@ -609,7 +612,7 @@ export default function Escala() {
                                       </Button>
                                     </div>
                                   </div>)}
-                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleAdicionarHorario(profissional.id, dia.value)}>
+                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleAdicionarHorario(profissional.id, dia.value, dia.horarios.map(h => ({ hora_inicio: h.hora_inicio, hora_fim: h.hora_fim })))}>
                                   <Plus className="h-3 w-3 mr-1" />
                                   Horário
                                 </Button>
