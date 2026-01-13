@@ -17,6 +17,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { PrimeiraInteracaoConfig } from "./PrimeiraInteracaoConfig";
+import { IceBreakersConfig } from "./IceBreakersConfig";
 
 const gatilhoSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
@@ -120,6 +121,23 @@ export function InstagramGatilhosTab() {
       botao_formulario_texto: "Preencher Formulário",
       responder_comentario: false,
       resposta_comentario_texto: "",
+    },
+  });
+
+  const { data: config } = useQuery({
+    queryKey: ["instagram-config"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const { data, error } = await supabase
+        .from("instagram_config")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -1191,6 +1209,16 @@ export function InstagramGatilhosTab() {
 
       {/* Primeira Interação - Boas Vindas */}
       <PrimeiraInteracaoConfig />
+
+      {/* Ice Breakers Configuration */}
+      {config?.id && (
+        <IceBreakersConfig
+          configId={config.id}
+          iceBreakers={(config as any).ice_breakers || []}
+          pageAccessToken={config.page_access_token}
+          instagramAccountId={config.instagram_account_id}
+        />
+      )}
     </div>
   );
 }
