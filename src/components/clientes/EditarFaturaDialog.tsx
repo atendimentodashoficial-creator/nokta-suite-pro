@@ -549,7 +549,6 @@ export function EditarFaturaDialog({
 
               {/* Forma de Pagamento */}
               <div className="space-y-3 pt-2">
-                <FormLabel className="text-base font-semibold">Pagamento</FormLabel>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
