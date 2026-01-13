@@ -48,12 +48,15 @@ export default function Escala() {
   const [dialogEditarHorario, setDialogEditarHorario] = useState(false);
   const [editandoHorario, setEditandoHorario] = useState<{
     id: string | null;
+    tempId?: string;
     hora_inicio: string;
     hora_fim: string;
     profissional_id?: string;
     dia_semana?: number;
     isNew?: boolean;
   } | null>(null);
+
+  const [horariosRascunho, setHorariosRascunho] = useState<Record<string, Array<{ tempId: string; inicio: string; fim: string }>>>({});
 
   // Estados para controlar expansão
   const [profissionaisExpandidos, setProfissionaisExpandidos] = useState<Set<string>>(new Set());
@@ -200,40 +203,50 @@ export default function Escala() {
       }
     }
   };
-  const handleAdicionarHorario = async (profissionalId: string, diaSemana: number, horariosExistentes?: Array<{ hora_inicio: string; hora_fim: string }>) => {
-    const ultimoHorario = horariosExistentes?.[horariosExistentes.length - 1];
-    const novoInicio = ultimoHorario?.hora_fim || "08:00";
-    
-    // Calcula hora fim padrão (30 minutos depois do início) para passar na constraint
-    const [horaI, minI] = novoInicio.split(":").map(Number);
-    let novaHora = horaI;
-    let novoMin = minI + 30;
-    if (novoMin >= 60) {
-      novoMin -= 60;
-      novaHora += 1;
-    }
-    if (novaHora > 23) novaHora = 23;
-    const horaFim = String(novaHora).padStart(2, "0") + ":" + String(novoMin).padStart(2, "0");
-    
-    try {
-      await createEscala.mutateAsync({
-        profissional_id: profissionalId,
-        dia_semana: diaSemana,
-        hora_inicio: novoInicio,
-        hora_fim: horaFim,
-        ativo: true
-      });
-      toast({
-        title: "Horário adicionado",
-        description: "Clique no lápis para ajustar"
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível adicionar o horário",
-        variant: "destructive"
-      });
-    }
+  const handleAdicionarHorario = (profissionalId: string, diaSemana: number, horariosExistentes: Array<{ hora_inicio: string; hora_fim: string }> = []) => {
+    const key = `${profissionalId}-${diaSemana}`;
+
+    const calcFim30 = (inicio: string) => {
+      const norm = (inicio || "").slice(0, 5);
+      if (!/^\d{2}:\d{2}$/.test(norm)) return "";
+      const [h, m] = norm.split(":").map(Number);
+      let h2 = h;
+      let m2 = m + 30;
+      if (m2 >= 60) {
+        m2 -= 60;
+        h2 += 1;
+      }
+      return `${String(Math.min(h2, 23)).padStart(2, "0")}:${String(m2).padStart(2, "0")}`;
+    };
+
+    setHorariosRascunho(prev => {
+      const drafts = prev[key] || [];
+      const lastDraft = drafts[drafts.length - 1];
+      const ultimoHorario = horariosExistentes[horariosExistentes.length - 1];
+
+      let novoInicio = "";
+
+      // Se o último é rascunho, só dá pra usar o fim se ele já foi definido
+      if (lastDraft) {
+        novoInicio = lastDraft.fim || "";
+      } else if (!ultimoHorario) {
+        // Primeiro horário do dia: começar com um default razoável
+        novoInicio = "08:00";
+      } else {
+        const start = (ultimoHorario.hora_inicio || "").slice(0, 5);
+        const end = (ultimoHorario.hora_fim || "").slice(0, 5);
+        const autoFim = calcFim30(start);
+
+        // Se o fim é "automático" (+30), consideramos desconhecido -> começa em branco
+        novoInicio = end && autoFim && end !== autoFim ? end : "";
+      }
+
+      const tempId = `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      return {
+        ...prev,
+        [key]: [...drafts, { tempId, inicio: novoInicio, fim: "" }]
+      };
+    });
   };
   const handleDeletarHorario = async (id: string) => {
     try {
@@ -250,12 +263,31 @@ export default function Escala() {
     }
   };
   const handleEditarHorario = (horario: {
-    id: string;
+    id?: string | null;
+    tempId?: string;
+    profissional_id?: string;
+    dia_semana?: number;
     hora_inicio: string;
     hora_fim: string;
   }) => {
+    const isDraft = !horario.id && !!horario.tempId;
+
     const normInicio = (horario.hora_inicio || "").slice(0, 5);
     const normFim = (horario.hora_fim || "").slice(0, 5);
+
+    if (isDraft) {
+      setEditandoHorario({
+        id: null,
+        tempId: horario.tempId,
+        profissional_id: horario.profissional_id,
+        dia_semana: horario.dia_semana,
+        hora_inicio: normInicio,
+        hora_fim: normFim,
+        isNew: true,
+      });
+      setDialogEditarHorario(true);
+      return;
+    }
 
     const [h, m] = normInicio.split(":").map(Number);
     let h2 = h;
@@ -267,9 +299,10 @@ export default function Escala() {
     const autoFim = `${String(Math.min(h2, 23)).padStart(2, "0")}:${String(m2).padStart(2, "0")}`;
 
     setEditandoHorario({
-      ...horario,
+      id: horario.id || null,
+      hora_inicio: normInicio,
       // Se for o fim "automático" (+30min), abre vazio para o usuário escolher
-      hora_fim: normFim === autoFim ? "" : horario.hora_fim,
+      hora_fim: normFim === autoFim ? "" : normFim,
       isNew: false,
     });
     setDialogEditarHorario(true);
@@ -289,7 +322,7 @@ export default function Escala() {
     
     try {
       if (editandoHorario.isNew && editandoHorario.profissional_id && editandoHorario.dia_semana !== undefined) {
-        // Criando novo horário
+        // Criando novo horário (rascunho -> banco)
         await createEscala.mutateAsync({
           profissional_id: editandoHorario.profissional_id,
           dia_semana: editandoHorario.dia_semana,
@@ -297,6 +330,16 @@ export default function Escala() {
           hora_fim: editandoHorario.hora_fim,
           ativo: true
         });
+
+        // Remove rascunho (se existir)
+        if (editandoHorario.tempId) {
+          const key = `${editandoHorario.profissional_id}-${editandoHorario.dia_semana}`;
+          setHorariosRascunho(prev => ({
+            ...prev,
+            [key]: (prev[key] || []).filter(h => h.tempId !== editandoHorario.tempId)
+          }));
+        }
+
         toast({
           title: "Horário adicionado"
         });
@@ -667,6 +710,44 @@ export default function Escala() {
                                     </div>
                                   );
                                 })}
+                                {(horariosRascunho[diaKey] || []).map((rascunho) => (
+                                  <div key={rascunho.tempId} className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                      <Input type="time" value={rascunho.inicio} className="w-20 sm:w-24 h-8 text-xs pointer-events-none" readOnly tabIndex={-1} />
+                                      <span className="text-muted-foreground">-</span>
+                                      <Input type="time" value={rascunho.fim} className="w-20 sm:w-24 h-8 text-xs pointer-events-none" readOnly tabIndex={-1} />
+                                    </div>
+                                    <div className="flex gap-1 flex-shrink-0">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => handleEditarHorario({
+                                          tempId: rascunho.tempId,
+                                          profissional_id: profissional.id,
+                                          dia_semana: dia.value,
+                                          hora_inicio: rascunho.inicio,
+                                          hora_fim: rascunho.fim,
+                                        })}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() =>
+                                          setHorariosRascunho((prev) => ({
+                                            ...prev,
+                                            [diaKey]: (prev[diaKey] || []).filter((h) => h.tempId !== rascunho.tempId),
+                                          }))
+                                        }
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
                                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleAdicionarHorario(profissional.id, dia.value, dia.horarios.map(h => ({ hora_inicio: h.hora_inicio, hora_fim: h.hora_fim })))}>
                                   <Plus className="h-3 w-3 mr-1" />
                                   Horário
