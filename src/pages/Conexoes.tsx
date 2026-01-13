@@ -351,8 +351,9 @@ export default function Conexoes() {
     }
   };
 
-  const saveMetaToken = async () => {
-    if (!newMetaToken.trim()) {
+  const saveMetaToken = async (tokenOverride?: string) => {
+    const tokenToSave = tokenOverride || newMetaToken;
+    if (!tokenToSave.trim()) {
       toast({
         title: "Erro",
         description: "Por favor, insira o Access Token",
@@ -367,7 +368,7 @@ export default function Conexoes() {
         .from("facebook_config")
         .upsert({
           user_id: user?.id,
-          access_token: newMetaToken.trim(),
+          access_token: tokenToSave.trim(),
           updated_at: new Date().toISOString(),
         }, {
           onConflict: "user_id"
@@ -389,7 +390,7 @@ export default function Conexoes() {
       }
 
       setHasMetaToken(true);
-      setMetaAccessToken(newMetaToken.trim());
+      setMetaAccessToken(tokenToSave.trim());
       setNewMetaToken("");
       setMetaTestResult({ success: true, message: "Conectado com sucesso!", userName: response.data.user_name });
       
@@ -914,13 +915,13 @@ export default function Conexoes() {
         <CardContent className="space-y-4">
           {hasMetaToken ? (
             <div className="space-y-4">
-              <div>
-                <Label>Access Token Atual</Label>
-                <div className="flex gap-2 mt-1">
+              <div className="space-y-2">
+                <Label>Access Token</Label>
+                <div className="flex gap-2">
                   <Input
                     type={showMetaToken ? "text" : "password"}
                     value={metaAccessToken}
-                    readOnly
+                    onChange={(e) => setMetaAccessToken(e.target.value)}
                     className="font-mono text-sm"
                   />
                   <Button
@@ -942,6 +943,9 @@ export default function Conexoes() {
                   )}
                   Testar Conexão
                 </Button>
+                <Button onClick={() => saveMetaToken(metaAccessToken)} disabled={savingMetaToken}>
+                  {savingMetaToken ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                </Button>
               </div>
 
               {metaTestResult && (
@@ -959,21 +963,6 @@ export default function Conexoes() {
                   </div>
                 </div>
               )}
-
-              <div className="border-t pt-4">
-                <Label>Atualizar Token</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input
-                    type="password"
-                    value={newMetaToken}
-                    onChange={(e) => setNewMetaToken(e.target.value)}
-                    placeholder="Cole o novo Access Token aqui"
-                  />
-                  <Button onClick={saveMetaToken} disabled={savingMetaToken || !newMetaToken}>
-                    {savingMetaToken ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-                  </Button>
-                </div>
-              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -990,7 +979,7 @@ export default function Conexoes() {
                   Obtenha o token em developers.facebook.com
                 </p>
               </div>
-              <Button onClick={saveMetaToken} disabled={savingMetaToken || !newMetaToken}>
+              <Button onClick={() => saveMetaToken()} disabled={savingMetaToken || !newMetaToken}>
                 {savingMetaToken ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
