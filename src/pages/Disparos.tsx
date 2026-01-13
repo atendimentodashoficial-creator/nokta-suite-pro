@@ -1847,7 +1847,7 @@ export default function Disparos() {
 
       {/* Instance Manager Dialog */}
       <Dialog open={showInstanceManager} onOpenChange={setShowInstanceManager}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Gerenciar Instâncias</DialogTitle>
             <DialogDescription>
@@ -1876,23 +1876,24 @@ export default function Disparos() {
                   
                   return (
                     <Card key={instancia.id} className="p-4">
-                      <div className="flex items-center justify-between gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                             isConnected ? 'bg-green-500' : isLoading ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
                           }`} />
-                          <div>
-                            <h4 className="font-medium">{instancia.nome}</h4>
+                          <div className="min-w-0">
+                            <h4 className="font-medium truncate">{instancia.nome}</h4>
                             <p className="text-xs text-muted-foreground">
                               {isConnected ? 'Conectado' : isLoading ? 'Verificando...' : 'Desconectado'}
                             </p>
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end sm:justify-start">
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8"
                             onClick={() => {
                               setEditingInstancia(instancia);
                               setEditingNome(instancia.nome || "");
@@ -1908,15 +1909,16 @@ export default function Disparos() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDisconnectInstance(instancia)}
-                              className="text-destructive hover:text-destructive"
+                              className="text-destructive hover:text-destructive h-8 px-2 sm:px-3"
                             >
-                              <Unplug className="h-4 w-4 mr-2" />
-                              Desconectar
+                              <Unplug className="h-4 w-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Desconectar</span>
                             </Button>
                           ) : (
                             <Button
                               variant="default"
                               size="sm"
+                              className="h-8 px-2 sm:px-3"
                               onClick={() => handleConnectInstance(instancia)}
                               disabled={isLoading}
                             >
@@ -1924,8 +1926,8 @@ export default function Disparos() {
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <>
-                                  <QrCode className="h-4 w-4 mr-2" />
-                                  Conectar
+                                  <QrCode className="h-4 w-4 sm:mr-2" />
+                                  <span className="hidden sm:inline">Conectar</span>
                                 </>
                               )}
                             </Button>
@@ -1933,6 +1935,7 @@ export default function Disparos() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8"
                             onClick={() => checkConnectionStatus(instancia)}
                           >
                             <RefreshCw className="h-4 w-4" />
@@ -1940,8 +1943,8 @@ export default function Disparos() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
                             onClick={() => handleDeleteInstance(instancia.id)}
-                            className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
