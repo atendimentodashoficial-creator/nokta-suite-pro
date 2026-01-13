@@ -96,8 +96,8 @@ export default function Faturas() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-          <Receipt className="w-6 h-6" />
-          <h1 className="text-2xl font-bold">Faturas Fechadas</h1>
+          <FileText className="w-6 h-6" />
+          <h1 className="text-2xl font-bold">Faturas</h1>
         </div>
         <Button onClick={() => setSelecionarClienteOpen(true)}>
           + Nova Fatura
