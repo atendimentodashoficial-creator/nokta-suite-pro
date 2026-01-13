@@ -16,6 +16,7 @@ import { Plus, Trash2, Loader2, Zap, MessageCircle, AtSign, Image, Link2, MouseP
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { PrimeiraInteracaoConfig } from "./PrimeiraInteracaoConfig";
 
 const gatilhoSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
@@ -1187,6 +1188,9 @@ export function InstagramGatilhosTab() {
           ))}
         </div>
       )}
+
+      {/* Primeira Interação - Boas Vindas */}
+      <PrimeiraInteracaoConfig />
     </div>
   );
 }
