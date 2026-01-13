@@ -1881,7 +1881,7 @@ export default function AdminWhatsApp() {
 
       {/* Manage Instance Dialog */}
       <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Gerenciar Instância</DialogTitle>
             <DialogDescription>
@@ -1904,14 +1904,14 @@ export default function AdminWhatsApp() {
               </div>
             ) : (
               <Card className="p-4">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${
+                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
                       connectionStatus === 'connected' ? 'bg-green-500' : 
                       connectionStatus === 'loading' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
                     }`} />
-                    <div>
-                      <h4 className="font-medium">{mainInstance.nome}</h4>
+                    <div className="min-w-0">
+                      <h4 className="font-medium truncate">{mainInstance.nome}</h4>
                       <p className="text-xs text-muted-foreground">
                         {connectionStatus === 'connected' ? 'Conectado' : 
                          connectionStatus === 'loading' ? 'Verificando...' : 'Desconectado'}
@@ -1919,10 +1919,11 @@ export default function AdminWhatsApp() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end sm:justify-start">
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
                       onClick={() => {
                         setEditingName(mainInstance.nome || "");
                         setManageDialogOpen(false);
@@ -1937,18 +1938,19 @@ export default function AdminWhatsApp() {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="text-destructive hover:text-destructive h-8 px-2 sm:px-3"
                         onClick={() => {
                           handleDisconnect();
                         }}
-                        className="text-destructive hover:text-destructive"
                       >
-                        <Unplug className="h-4 w-4 mr-2" />
-                        Desconectar
+                        <Unplug className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Desconectar</span>
                       </Button>
                     ) : (
                       <Button
                         variant="default"
                         size="sm"
+                        className="h-8 px-2 sm:px-3"
                         onClick={() => {
                           setManageDialogOpen(false);
                           handleOpenQrCode();
@@ -1959,8 +1961,8 @@ export default function AdminWhatsApp() {
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
-                            <QrCode className="h-4 w-4 mr-2" />
-                            Conectar
+                            <QrCode className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Conectar</span>
                           </>
                         )}
                       </Button>
@@ -1968,6 +1970,7 @@ export default function AdminWhatsApp() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
                       onClick={() => checkConnectionStatus(mainInstance.base_url, mainInstance.api_key)}
                     >
                       <RefreshCw className="h-4 w-4" />
@@ -1975,8 +1978,8 @@ export default function AdminWhatsApp() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
                       onClick={() => setDeleteInstanceConfirmOpen(true)}
-                      className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
