@@ -114,10 +114,10 @@ export function InstagramConfigTab() {
   return <div className="space-y-6">
       {/* Webhook Info */}
       <div className="space-y-4">
-        <Label className="text-sm font-medium">Configuração do Webhook</Label>
+        <Label>Configuração do Webhook</Label>
         
         <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Callback URL</Label>
+          <Label>Callback URL</Label>
           <div className="flex gap-2">
             <Input value={webhookUrl} readOnly className="font-mono text-xs" />
             <Button variant="outline" size="icon" onClick={() => copyToClipboard(webhookUrl, "URL")}>
@@ -127,7 +127,7 @@ export function InstagramConfigTab() {
         </div>
 
         {config?.webhook_verify_token && <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Verify Token</Label>
+            <Label>Verify Token</Label>
             <div className="flex gap-2">
               <Input value={config.webhook_verify_token} readOnly className="font-mono text-xs" />
               <Button variant="outline" size="icon" onClick={() => copyToClipboard(config.webhook_verify_token, "Token")}>
