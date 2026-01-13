@@ -425,7 +425,10 @@ export function PixelStatusBadge({
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
             <Button 
               variant="outline" 
-              onClick={openChatWithFormMessage}
+              onClick={() => {
+                setReviewDialogOpen(false);
+                openChatWithFormMessage();
+              }}
               className="w-full sm:w-auto order-1 sm:order-none"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
