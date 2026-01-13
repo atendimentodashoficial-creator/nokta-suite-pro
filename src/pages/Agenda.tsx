@@ -257,6 +257,82 @@ export default function Agenda() {
         {/* Filtros */}
       <Card className="p-4 shadow-card">
         <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Filtro de Período */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
+              <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
+                <SelectTrigger className="w-[180px] bg-background">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="dia-atual">Dia Atual</SelectItem>
+                  <SelectItem value="semana-passada">Semana Passada</SelectItem>
+                  <SelectItem value="semana-atual">Semana Atual</SelectItem>
+                  <SelectItem value="proxima-semana">Próxima Semana</SelectItem>
+                  <SelectItem value="mes-passado">Mês Passado</SelectItem>
+                  <SelectItem value="mes-atual">Mês Atual</SelectItem>
+                  <SelectItem value="proximo-mes">Próximo Mês</SelectItem>
+                  <SelectItem value="personalizado">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Data Início e Fim - apenas quando personalizado */}
+              {filtroPeriodo === "personalizado" && (
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="min-w-[90px]">
+                        {format(dataInicio, "dd/MM/yy", { locale: ptBR })}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarPicker
+                        mode="single"
+                        selected={dataInicio}
+                        onSelect={(date) => date && setDataInicio(date)}
+                        locale={ptBR}
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-muted-foreground text-sm">até</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="min-w-[90px]">
+                        {format(dataFim, "dd/MM/yy", { locale: ptBR })}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarPicker
+                        mode="single"
+                        selected={dataFim}
+                        onSelect={(date) => date && setDataFim(date)}
+                        locale={ptBR}
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+            </div>
+
+            {/* Filtro de Profissional */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Profissional:</span>
+              <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
+                <SelectTrigger className="w-[200px] bg-background">
+                  <SelectValue placeholder="Todos os profissionais" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="all">Todos</SelectItem>
+                  {profissionais?.filter(p => p.ativo).map(prof => <SelectItem key={prof.id} value={prof.id}>{prof.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
           {/* Campo de Busca */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -267,82 +343,6 @@ export default function Agenda() {
               className="pl-9 h-9"
             />
           </div>
-          
-          <div className="flex flex-wrap items-center gap-4">
-          {/* Filtro de Período */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
-            <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
-              <SelectTrigger className="w-[180px] bg-background">
-                <Calendar className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="dia-atual">Dia Atual</SelectItem>
-                <SelectItem value="semana-passada">Semana Passada</SelectItem>
-                <SelectItem value="semana-atual">Semana Atual</SelectItem>
-                <SelectItem value="proxima-semana">Próxima Semana</SelectItem>
-                <SelectItem value="mes-passado">Mês Passado</SelectItem>
-                <SelectItem value="mes-atual">Mês Atual</SelectItem>
-                <SelectItem value="proximo-mes">Próximo Mês</SelectItem>
-                <SelectItem value="personalizado">Personalizado</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Data Início e Fim - apenas quando personalizado */}
-            {filtroPeriodo === "personalizado" && (
-              <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="min-w-[90px]">
-                      {format(dataInicio, "dd/MM/yy", { locale: ptBR })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarPicker
-                      mode="single"
-                      selected={dataInicio}
-                      onSelect={(date) => date && setDataInicio(date)}
-                      locale={ptBR}
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-                <span className="text-muted-foreground text-sm">até</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="min-w-[90px]">
-                      {format(dataFim, "dd/MM/yy", { locale: ptBR })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarPicker
-                      mode="single"
-                      selected={dataFim}
-                      onSelect={(date) => date && setDataFim(date)}
-                      locale={ptBR}
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
-          </div>
-
-          {/* Filtro de Profissional */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Profissional:</span>
-            <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
-              <SelectTrigger className="w-[200px] bg-background">
-                <SelectValue placeholder="Todos os profissionais" />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="all">Todos</SelectItem>
-                {profissionais?.filter(p => p.ativo).map(prof => <SelectItem key={prof.id} value={prof.id}>{prof.nome}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
         </div>
       </Card>
 
