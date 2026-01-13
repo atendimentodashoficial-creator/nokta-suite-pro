@@ -180,16 +180,16 @@ export default function Escala() {
         <>
           {/* Escala Semanal */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Escala Semanal
+                <Clock className="h-5 w-5 flex-shrink-0" />
+                <span>Escala Semanal</span>
               </CardTitle>
               <Dialog open={dialogEscalaAberto} onOpenChange={setDialogEscalaAberto}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button size="sm" className="flex-shrink-0">
                     <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Horário
+                    <span className="hidden sm:inline">Adicionar</span> Horário
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -231,14 +231,14 @@ export default function Escala() {
               {escalas && escalas.length > 0 ? (
                 <div className="space-y-2">
                   {escalas.map((escala) => (
-                    <div key={escala.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{DIAS_SEMANA.find((d) => d.value === escala.dia_semana)?.label}</p>
-                        <p className="text-sm text-muted-foreground">
+                    <div key={escala.id} className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-card">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{DIAS_SEMANA.find((d) => d.value === escala.dia_semana)?.label}</p>
+                        <p className="text-xs text-muted-foreground">
                           {escala.hora_inicio} - {escala.hora_fim}
                         </p>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeletarEscala(escala.id)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDeletarEscala(escala.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -252,16 +252,16 @@ export default function Escala() {
 
           {/* Ausências */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Ausências / Férias
+                <Calendar className="h-5 w-5 flex-shrink-0" />
+                <span>Ausências / Férias</span>
               </CardTitle>
               <Dialog open={dialogAusenciaAberto} onOpenChange={setDialogAusenciaAberto}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button size="sm" className="flex-shrink-0">
                     <Plus className="h-4 w-4 mr-2" />
-                    Registrar Ausência
+                    <span className="hidden sm:inline">Registrar</span> Ausência
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -292,15 +292,15 @@ export default function Escala() {
               {ausencias && ausencias.length > 0 ? (
                 <div className="space-y-2">
                   {ausencias.map((ausencia) => (
-                    <div key={ausencia.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">
+                    <div key={ausencia.id} className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-card">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm">
                           {format(parseISO(ausencia.data_inicio), "dd/MM/yyyy", { locale: ptBR })} -{" "}
                           {format(parseISO(ausencia.data_fim), "dd/MM/yyyy", { locale: ptBR })}
                         </p>
-                        {ausencia.motivo && <p className="text-sm text-muted-foreground">{ausencia.motivo}</p>}
+                        {ausencia.motivo && <p className="text-xs text-muted-foreground truncate">{ausencia.motivo}</p>}
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeletarAusencia(ausencia.id)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDeletarAusencia(ausencia.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

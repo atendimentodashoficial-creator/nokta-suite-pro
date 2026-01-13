@@ -43,18 +43,22 @@ function SortableProfissionalItem({
     transition,
     opacity: isDragging ? 0.5 : 1
   };
-  return <div ref={setNodeRef} style={style} className="flex items-center justify-between p-3 rounded-lg border bg-card">
-      <div className="flex items-center gap-3">
-        {isActive && <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center justify-between gap-2 p-3 rounded-lg border bg-card">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        {isActive && (
+          <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded flex-shrink-0">
             <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </button>}
-        {!isActive && <div className="w-6" />}
-        <span className={`text-sm font-medium ${!isActive ? 'text-muted-foreground' : ''}`}>
+          </button>
+        )}
+        {!isActive && <div className="w-6 flex-shrink-0" />}
+        <span className={`text-sm font-medium truncate ${!isActive ? 'text-muted-foreground' : ''}`}>
           {profissionalNome}
         </span>
       </div>
-      <Switch checked={isActive} onCheckedChange={checked => onToggle(profissionalId, checked, vinculoId)} disabled={isPending} />
-    </div>;
+      <Switch checked={isActive} onCheckedChange={checked => onToggle(profissionalId, checked, vinculoId)} disabled={isPending} className="flex-shrink-0" />
+    </div>
+  );
 }
 export default function VinculosProcedimentos() {
   const {

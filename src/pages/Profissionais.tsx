@@ -56,42 +56,42 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between p-3 rounded-lg border ${
+      className={`flex items-center justify-between gap-2 p-3 rounded-lg border ${
         !profissional.ativo ? "opacity-50 bg-muted/50" : "bg-card"
       }`}
     >
-      <div className="flex items-center gap-3 flex-1">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none"
+          className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{profissional.nome}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm truncate">{profissional.nome}</span>
             {profissional.especialidade && (
-              <Badge variant="outline" className="text-xs">{profissional.especialidade}</Badge>
+              <Badge variant="outline" className="text-xs flex-shrink-0">{profissional.especialidade}</Badge>
             )}
           </div>
-          <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
             {profissional.telefone && (
               <span className="flex items-center gap-1">
-                <Phone className="w-3 h-3" />
-                {profissional.telefone}
+                <Phone className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{profissional.telefone}</span>
               </span>
             )}
             {profissional.email && (
-              <span className="flex items-center gap-1">
-                <Mail className="w-3 h-3" />
-                {profissional.email}
+              <span className="flex items-center gap-1 hidden sm:flex">
+                <Mail className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{profissional.email}</span>
               </span>
             )}
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 flex-shrink-0">
         <Switch
           checked={profissional.ativo}
           onCheckedChange={() => onToggleAtivo(profissional)}
@@ -99,6 +99,7 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
         <Button
           variant="ghost"
           size="icon"
+          className="h-8 w-8"
           onClick={() => onEdit(profissional)}
         >
           <Pencil className="w-4 h-4" />
@@ -106,6 +107,7 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
         <Button
           variant="ghost"
           size="icon"
+          className="h-8 w-8"
           onClick={() => onDelete(profissional)}
         >
           <Trash2 className="w-4 h-4 text-destructive" />
@@ -262,14 +264,14 @@ export default function Profissionais() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-lg font-semibold">Profissionais</CardTitle>
           <Dialog open={open} onOpenChange={o => {
             setOpen(o);
             if (!o) limparFormulario();
           }}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" className="flex-shrink-0">
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar
               </Button>
