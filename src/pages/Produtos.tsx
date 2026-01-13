@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Package, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
 import { useProdutos, useCreateProduto, useUpdateProduto, useDeleteProduto, Produto } from "@/hooks/useProdutos";
 import { CurrencyInput, parseCurrencyToNumber } from "@/components/ui/currency-input";
 import {
@@ -278,10 +278,7 @@ export default function Produtos() {
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Package className="h-5 w-5 flex-shrink-0" />
-            <span>Produtos</span>
-          </CardTitle>
+          <CardTitle className="text-lg font-semibold">Produtos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -296,10 +293,7 @@ export default function Produtos() {
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Package className="h-5 w-5 flex-shrink-0" />
-            <span>Produtos</span>
-          </CardTitle>
+          <CardTitle className="text-lg font-semibold">Produtos</CardTitle>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={openCreateDialog} size="sm" className="flex-shrink-0">
@@ -406,9 +400,8 @@ export default function Produtos() {
         <CardContent>
           {sortedProdutos.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Nenhum produto cadastrado.</p>
-              <p className="text-sm">Clique em "Adicionar" para adicionar.</p>
+              <p className="text-sm mt-1">Adicione produtos para usar nos upsells.</p>
             </div>
           ) : (
             <DndContext
