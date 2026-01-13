@@ -241,56 +241,54 @@ export default function Agenda() {
       {activeTab === "agendamentos" ? (
         <>
         {/* Filtros */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Filtro de Período */}
-            <div className="space-y-2">
-              <Label>Período:</Label>
-              <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
-                <SelectTrigger className="w-full bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
-                  <SelectItem value="personalizado">Personalizado</SelectItem>
-                  <SelectItem value="mes-passado">Mês Passado</SelectItem>
-                  <SelectItem value="mes-atual">Mês Atual</SelectItem>
-                  <SelectItem value="dia-atual">Dia Atual</SelectItem>
-                  <SelectItem value="semana-atual">Semana Atual</SelectItem>
-                  <SelectItem value="semana-passada">Semana Passada</SelectItem>
-                  <SelectItem value="proxima-semana">Próxima Semana</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <Card className="p-4 shadow-card">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Filtro de Período */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
+            <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
+              <SelectTrigger className="w-[180px] bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50">
+                <SelectItem value="personalizado">Personalizado</SelectItem>
+                <SelectItem value="mes-passado">Mês Passado</SelectItem>
+                <SelectItem value="mes-atual">Mês Atual</SelectItem>
+                <SelectItem value="dia-atual">Dia Atual</SelectItem>
+                <SelectItem value="semana-atual">Semana Atual</SelectItem>
+                <SelectItem value="semana-passada">Semana Passada</SelectItem>
+                <SelectItem value="proxima-semana">Próxima Semana</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Data Início */}
-            <div className="space-y-2">
-              <Label>Data início:</Label>
-              <Input type="date" value={dataInicio} onChange={e => {
+          {/* Data Início */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
+            <Input type="date" value={dataInicio} onChange={e => {
               setDataInicio(e.target.value);
               if (filtroPeriodo !== "personalizado") {
                 setFiltroPeriodo("personalizado");
               }
-            }} className="w-full" />
-            </div>
+            }} className="w-[150px]" />
+          </div>
 
-            {/* Data Fim */}
-            <div className="space-y-2">
-              <Label>Data fim:</Label>
-              <Input type="date" value={dataFim} onChange={e => {
+          {/* Data Fim */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data fim:</span>
+            <Input type="date" value={dataFim} onChange={e => {
               setDataFim(e.target.value);
               if (filtroPeriodo !== "personalizado") {
                 setFiltroPeriodo("personalizado");
               }
-            }} className="w-full" />
-            </div>
+            }} className="w-[150px]" />
           </div>
 
           {/* Filtro de Profissional */}
-          <div className="mt-4 space-y-2">
-            <Label>Profissional:</Label>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Profissional:</span>
             <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
-              <SelectTrigger className="w-full bg-background">
+              <SelectTrigger className="w-[200px] bg-background">
                 <SelectValue placeholder="Todos os profissionais" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
@@ -299,7 +297,7 @@ export default function Agenda() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Lista de Compromissos Agrupados por Data */}
