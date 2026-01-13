@@ -2,8 +2,8 @@ import { useState, useMemo } from "react";
 import { useProcedimentos, useCreateProcedimento, useUpdateProcedimento, useDeleteProcedimento } from "@/hooks/useProcedimentos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Search, Filter, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Procedimento } from "@/hooks/useProcedimentos";
 export default function Procedimentos() {
   const [open, setOpen] = useState(false);
@@ -183,55 +183,47 @@ export default function Procedimentos() {
       </div>
 
       {/* Filtros */}
-      <Card>
-        <CardHeader>
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            <CardTitle className="text-base">Filtros</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="filtro-nome">Buscar por nome</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="filtro-nome" value={filtroNome} onChange={e => setFiltroNome(e.target.value)} placeholder="Digite o nome..." className="pl-9" />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="filtro-categoria">Categoria</Label>
-              <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-                <SelectTrigger id="filtro-categoria">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="filtro-status">Status</Label>
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger id="filtro-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="ativos">Ativos</SelectItem>
-                  <SelectItem value="inativos">Inativos</SelectItem>
-                </SelectContent>
-              </Select>
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Buscar:</span>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input value={filtroNome} onChange={e => setFiltroNome(e.target.value)} placeholder="Nome..." className="pl-9 w-[180px]" />
             </div>
           </div>
           
-          <div className="mt-4 text-sm text-muted-foreground">
-            Exibindo {procedimentosFiltrados.length} de {procedimentos?.length || 0} procedimento(s)
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Categoria:</span>
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger className="w-[140px] bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50">
+                <SelectItem value="todas">Todas</SelectItem>
+                {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Status:</span>
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="w-[120px] bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50">
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="ativos">Ativos</SelectItem>
+                <SelectItem value="inativos">Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <span className="text-sm text-muted-foreground ml-auto">
+            {procedimentosFiltrados.length} de {procedimentos?.length || 0}
+          </span>
+        </div>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
