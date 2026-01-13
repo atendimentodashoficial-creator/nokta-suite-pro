@@ -237,21 +237,8 @@ export function HistoricoAvisosTab() {
               </div>
             </div>
             
-            {/* Search bar */}
-            <div className="flex-1 min-w-[200px] order-2 sm:order-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por cliente ou aviso..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-            
-            {/* Desktop: Filters after search */}
-            <div className="hidden sm:flex items-center gap-2 order-2">
+            {/* Desktop: Filters before search (left side) */}
+            <div className="hidden sm:flex items-center gap-2 order-1">
               <span className="text-sm text-muted-foreground whitespace-nowrap">Período:</span>
               <Select value={dateFilter} onValueChange={setDateFilter}>
                 <SelectTrigger className="w-[140px]">
@@ -265,7 +252,7 @@ export function HistoricoAvisosTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="hidden sm:flex items-center gap-2 order-3">
+            <div className="hidden sm:flex items-center gap-2 order-2">
               <span className="text-sm text-muted-foreground whitespace-nowrap">Status:</span>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[140px]">
@@ -277,6 +264,19 @@ export function HistoricoAvisosTab() {
                   <SelectItem value="erro">Erros</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            
+            {/* Search bar - right side on desktop */}
+            <div className="flex-1 min-w-[200px] order-2 sm:order-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por cliente ou aviso..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
         </CardContent>
