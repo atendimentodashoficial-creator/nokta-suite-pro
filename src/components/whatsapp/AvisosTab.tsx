@@ -581,25 +581,6 @@ export function AvisosTab() {
         )}
       </div>
 
-      {/* Variáveis disponíveis */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Variáveis Disponíveis</CardTitle>
-          <CardDescription>
-            Use estas variáveis na mensagem para personalizar automaticamente
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{'{nome}'} - Nome do paciente</Badge>
-            <Badge variant="outline">{'{data}'} - Data do agendamento</Badge>
-            <Badge variant="outline">{'{horario}'} - Horário do agendamento</Badge>
-            <Badge variant="outline">{'{procedimento}'} - Nome do procedimento</Badge>
-            <Badge variant="outline">{'{profissional}'} - Nome do profissional</Badge>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Dashboard de Resumo do Dia - ACIMA dos próximos agendamentos */}
       <Card>
         <CardHeader className="pb-3">
