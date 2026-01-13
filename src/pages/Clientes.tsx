@@ -281,7 +281,7 @@ export default function Clientes() {
       {/* Period Filter & Search */}
       <Card className="p-4 shadow-card space-y-4">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex flex-wrap items-start sm:items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
             <PeriodFilter
               value={periodFilter}
