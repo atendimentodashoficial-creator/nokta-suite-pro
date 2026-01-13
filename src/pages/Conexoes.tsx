@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { Link2, CheckCircle2, XCircle, Eye, EyeOff, Loader2, RefreshCw, Plus, Trash2, Bot, Database } from "lucide-react";
+import { Link2, CheckCircle2, XCircle, Eye, EyeOff, Loader2, RefreshCw, Plus, Trash2, Bot, Database, ChevronDown, ChevronRight } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 interface LinkedAdAccount {
   id: string;
   ad_account_id: string;
@@ -112,6 +113,13 @@ export default function Conexoes() {
     success: boolean;
     message: string;
   } | null>(null);
+
+  // ===== Collapsible States (default collapsed) =====
+  const [metaOpen, setMetaOpen] = useState(false);
+  const [googleAdsOpen, setGoogleAdsOpen] = useState(false);
+  const [openAIOpen, setOpenAIOpen] = useState(false);
+  const [apifyOpen, setApifyOpen] = useState(false);
+
   useEffect(() => {
     if (user) {
       loadMetaConfig();
@@ -917,21 +925,28 @@ export default function Conexoes() {
   }
   return <div className="space-y-6">
       {/* Meta/Facebook Ads Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
-              <MetaIcon className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">Meta Ads</CardTitle>
-              <CardDescription>
-                Configure o Access Token e vincule suas contas de anúncios
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      <Collapsible open={metaOpen} onOpenChange={setMetaOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
+                    <MetaIcon className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Meta Ads</CardTitle>
+                    <CardDescription>
+                      Configure o Access Token e vincule suas contas de anúncios
+                    </CardDescription>
+                  </div>
+                </div>
+                {metaOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6">
           {/* Access Token Section */}
           <div className="space-y-4">
             <div>
@@ -992,7 +1007,7 @@ export default function Conexoes() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={addAdAccount} disabled={addingAccount || !newAccountId.trim()}>
+              <Button onClick={addAdAccount} disabled={addingAccount}>
                 {addingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <>
                     <Plus className="h-4 w-4 mr-2" />
                     Vincular
@@ -1034,25 +1049,34 @@ export default function Conexoes() {
                 Nenhuma conta vinculada. Adicione uma conta acima.
               </p>}
           </div>}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Google Ads Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 dark:bg-amber-950 rounded-lg">
-              <GoogleAdsIcon className="h-5 w-5" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">Google Ads</CardTitle>
-              <CardDescription>
-                Configure as credenciais e vincule suas contas do Google Ads
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Collapsible open={googleAdsOpen} onOpenChange={setGoogleAdsOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 dark:bg-amber-950 rounded-lg">
+                    <GoogleAdsIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Google Ads</CardTitle>
+                    <CardDescription>
+                      Configure as credenciais e vincule suas contas do Google Ads
+                    </CardDescription>
+                  </div>
+                </div>
+                {googleAdsOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
           <div className="space-y-4">
             <div className="grid gap-3">
               <div>
@@ -1093,8 +1117,10 @@ export default function Conexoes() {
                 </div>
               </div>}
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Google Ads Accounts Section */}
       {hasGoogleAdsConfig && <Card>
@@ -1123,7 +1149,7 @@ export default function Conexoes() {
                 <Label className="text-xs text-muted-foreground">Customer ID</Label>
                 <Input placeholder="ex: 123-456-7890" value={newGoogleCustomerId} onChange={e => setNewGoogleCustomerId(e.target.value)} className="mt-1" />
               </div>
-              <Button onClick={addGoogleAdsAccount} disabled={addingGoogleAccount || !newGoogleCustomerId.trim()}>
+              <Button onClick={addGoogleAdsAccount} disabled={addingGoogleAccount}>
                 {addingGoogleAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <>
                     <Plus className="h-4 w-4 mr-2" />
                     Vincular
@@ -1155,23 +1181,28 @@ export default function Conexoes() {
 
 
       {/* OpenAI Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 dark:bg-emerald-950 rounded-lg">
-                <Bot className="h-5 w-5 text-emerald-600" />
+      <Collapsible open={openAIOpen} onOpenChange={setOpenAIOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-950 rounded-lg">
+                    <Bot className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">OpenAI</CardTitle>
+                    <CardDescription>
+                      Configure a API Key da OpenAI para relatórios de IA
+                    </CardDescription>
+                  </div>
+                </div>
+                {openAIOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
               </div>
-              <div>
-                <CardTitle className="text-lg">OpenAI</CardTitle>
-                <CardDescription>
-                  Configure a API Key da OpenAI para relatórios de IA
-                </CardDescription>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
           <div className="space-y-4">
             <div>
               <Label>API Key</Label>
@@ -1202,25 +1233,34 @@ export default function Conexoes() {
                 </div>
               </div>}
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Apify Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-cyan-100 dark:bg-cyan-950 rounded-lg">
-              <Database className="h-5 w-5 text-cyan-600" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">Apify</CardTitle>
-              <CardDescription>
-                Configure a API Key do Apify para web scraping e extração de dados
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Collapsible open={apifyOpen} onOpenChange={setApifyOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-cyan-100 dark:bg-cyan-950 rounded-lg">
+                    <Database className="h-5 w-5 text-cyan-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Apify</CardTitle>
+                    <CardDescription>
+                      Configure a API Key do Apify para web scraping e extração de dados
+                    </CardDescription>
+                  </div>
+                </div>
+                {apifyOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
           <div className="space-y-4">
             <div>
               <Label>API Key</Label>
@@ -1251,7 +1291,9 @@ export default function Conexoes() {
                 </div>
               </div>}
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>;
 }
