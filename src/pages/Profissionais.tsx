@@ -129,9 +129,9 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
           >
             <GripVertical className="w-4 h-4 text-muted-foreground" />
           </button>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-sm truncate">{profissional.nome}</span>
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <div className="flex items-start gap-2 flex-wrap">
+              <span className="font-medium text-sm break-words max-w-full">{profissional.nome}</span>
               {profissional.especialidade && (
                 <Badge variant="outline" className="text-xs flex-shrink-0">{profissional.especialidade}</Badge>
               )}
