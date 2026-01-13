@@ -5,14 +5,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone, RefreshCw, Pencil, Save, X } from "lucide-react";
+import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone, Pencil, Save, X } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { navigateToChat } from "@/utils/chatRouting";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 
 type PixelStatus = "pendente" | "formulario_enviado" | "dados_completos" | "evento_enviado";
@@ -55,69 +52,8 @@ export function PixelStatusBadge({
   const [faturaValor, setFaturaValor] = useState<number | null>(null);
   const [loadingLeadData, setLoadingLeadData] = useState(false);
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const navigate = useNavigate();
   
   const status = pixelStatus || "pendente";
-
-  // Fetch the custom message from meta_pixel_config
-  const { data: pixelConfig } = useQuery({
-    queryKey: ["meta-pixel-config", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await supabase
-        .from("meta_pixel_config")
-        .select("mensagem_formulario")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
-  const openChatWithFormMessage = async () => {
-    try {
-      // Get the form URL
-      const formUrl = `${window.location.origin}/conversao/${faturaId}`;
-      
-      // Use custom message or default
-      const customMessage = pixelConfig?.mensagem_formulario || 
-        "Olá! Para finalizar seu cadastro, precisamos de algumas informações adicionais. Por favor, preencha o formulário abaixo:";
-      const message = `${customMessage}\n\n${formUrl}`;
-
-      // Get the lead's instancia_nome to pass to navigation
-      const { data: leadDataResult } = await supabase
-        .from("leads")
-        .select("instancia_nome, origem")
-        .eq("id", clienteId)
-        .maybeSingle();
-
-      const leadOrigem = leadDataResult?.origem || clienteOrigem;
-      const leadInstanciaNome = leadDataResult?.instancia_nome;
-
-      // Update fatura status to "formulario_enviado" before navigating
-      if (status === "pendente") {
-        await supabase
-          .from("faturas")
-          .update({
-            pixel_status: "formulario_enviado",
-            pixel_form_sent_at: new Date().toISOString(),
-          })
-          .eq("id", faturaId);
-        
-        queryClient.invalidateQueries({ queryKey: ["faturas"] });
-      }
-
-      // Navigate to chat with prefilled message
-      await navigateToChat(navigate, clienteTelefone, leadOrigem, {
-        instanciaNome: leadInstanciaNome,
-        prefillMessage: message,
-      });
-    } catch (error: any) {
-      console.error("Error opening chat:", error);
-      toast.error("Erro ao abrir chat");
-    }
-  };
 
   const openReviewDialog = async () => {
     setLoadingLeadData(true);
@@ -335,27 +271,6 @@ export function PixelStatusBadge({
         </div>
         
         <div className="flex gap-2">
-          {(status === "pendente" || status === "formulario_enviado") && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={openChatWithFormMessage}
-                    className="text-xs"
-                  >
-                    <Send className="h-3 w-3 mr-1" />
-                    {status === "formulario_enviado" ? "Reenviar" : "Enviar"} formulário
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Abre o chat com mensagem pré-preenchida</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          
           {status === "dados_completos" && (
             <TooltipProvider>
               <Tooltip>
@@ -393,8 +308,8 @@ export function PixelStatusBadge({
           setEditData(null);
         }
       }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Megaphone className="h-5 w-5 text-primary" />
               {isEditing ? "Editar dados" : "Conferir dados antes de enviar"}
@@ -407,178 +322,180 @@ export function PixelStatusBadge({
             </DialogDescription>
           </DialogHeader>
 
-          {isEditing && editData ? (
-            <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
-              <div className="space-y-2">
-                <Label htmlFor="edit-nome">Nome</Label>
-                <Input
-                  id="edit-nome"
-                  value={editData.nome || ""}
-                  onChange={(e) => setEditData({ ...editData, nome: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-email">E-mail</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={editData.email || ""}
-                  onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+          <div className="flex-1 overflow-y-auto py-2">
+            {isEditing && editData ? (
+              <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-genero">Gênero</Label>
-                  <Select
-                    value={editData.genero || ""}
-                    onValueChange={(value) => setEditData({ ...editData, genero: value })}
-                  >
-                    <SelectTrigger id="edit-genero">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="masculino">Masculino</SelectItem>
-                      <SelectItem value="feminino">Feminino</SelectItem>
-                      <SelectItem value="outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit-nascimento">Nascimento</Label>
+                  <Label htmlFor="edit-nome">Nome</Label>
                   <Input
-                    id="edit-nascimento"
-                    type="date"
-                    value={editData.data_nascimento || ""}
-                    onChange={(e) => setEditData({ ...editData, data_nascimento: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-endereco">Endereço</Label>
-                <Input
-                  id="edit-endereco"
-                  value={editData.endereco || ""}
-                  onChange={(e) => setEditData({ ...editData, endereco: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-cidade">Cidade</Label>
-                  <Input
-                    id="edit-cidade"
-                    value={editData.cidade || ""}
-                    onChange={(e) => setEditData({ ...editData, cidade: e.target.value })}
+                    id="edit-nome"
+                    value={editData.nome || ""}
+                    onChange={(e) => setEditData({ ...editData, nome: e.target.value })}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-estado">Estado</Label>
+                  <Label htmlFor="edit-email">E-mail</Label>
                   <Input
-                    id="edit-estado"
-                    value={editData.estado || ""}
-                    onChange={(e) => setEditData({ ...editData, estado: e.target.value })}
-                    maxLength={2}
-                    placeholder="UF"
+                    id="edit-email"
+                    type="email"
+                    value={editData.email || ""}
+                    onChange={(e) => setEditData({ ...editData, email: e.target.value })}
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-cep">CEP</Label>
-                <Input
-                  id="edit-cep"
-                  value={editData.cep || ""}
-                  onChange={(e) => setEditData({ ...editData, cep: e.target.value })}
-                  placeholder="00000-000"
-                />
-              </div>
-            </div>
-          ) : leadData && (
-            <div className="space-y-3 py-2">
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Nome</p>
-                  <p className="font-medium">{leadData.nome || "—"}</p>
-                </div>
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-genero">Gênero</Label>
+                    <Select
+                      value={editData.genero || ""}
+                      onValueChange={(value) => setEditData({ ...editData, genero: value })}
+                    >
+                      <SelectTrigger id="edit-genero">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="masculino">Masculino</SelectItem>
+                        <SelectItem value="feminino">Feminino</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Telefone</p>
-                  <p className="font-medium">{leadData.telefone ? formatPhoneDisplay(leadData.telefone) : "—"}</p>
-                </div>
-              </div>
-
-              {leadData.email && (
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">E-mail</p>
-                    <p className="font-medium">{leadData.email}</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-nascimento">Nascimento</Label>
+                    <Input
+                      id="edit-nascimento"
+                      type="date"
+                      value={editData.data_nascimento || ""}
+                      onChange={(e) => setEditData({ ...editData, data_nascimento: e.target.value })}
+                    />
                   </div>
                 </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-endereco">Endereço</Label>
+                  <Input
+                    id="edit-endereco"
+                    value={editData.endereco || ""}
+                    onChange={(e) => setEditData({ ...editData, endereco: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-cidade">Cidade</Label>
+                    <Input
+                      id="edit-cidade"
+                      value={editData.cidade || ""}
+                      onChange={(e) => setEditData({ ...editData, cidade: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-estado">Estado</Label>
+                    <Input
+                      id="edit-estado"
+                      value={editData.estado || ""}
+                      onChange={(e) => setEditData({ ...editData, estado: e.target.value })}
+                      maxLength={2}
+                      placeholder="UF"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-cep">CEP</Label>
+                  <Input
+                    id="edit-cep"
+                    value={editData.cep || ""}
+                    onChange={(e) => setEditData({ ...editData, cep: e.target.value })}
+                    placeholder="00000-000"
+                  />
+                </div>
+              </div>
+            ) : leadData && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
                   <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">Gênero</p>
-                    <p className="font-medium text-sm">{formatGender(leadData.genero)}</p>
+                    <p className="text-xs text-muted-foreground">Nome</p>
+                    <p className="font-medium text-sm">{leadData.nome || "—"}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                  <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
+                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">Nascimento</p>
-                    <p className="font-medium text-sm">{formatDate(leadData.data_nascimento)}</p>
+                    <p className="text-xs text-muted-foreground">Telefone</p>
+                    <p className="font-medium text-sm">{leadData.telefone ? formatPhoneDisplay(leadData.telefone) : "—"}</p>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Endereço</p>
-                  <p className="font-medium text-sm">
-                    {leadData.endereco || leadData.cidade || leadData.estado || leadData.cep ? (
-                      <>
-                        {leadData.endereco && <span className="block">{leadData.endereco}</span>}
-                        {(leadData.cidade || leadData.estado) && (
-                          <span className="block">{[leadData.cidade, leadData.estado].filter(Boolean).join(" - ")}</span>
-                        )}
-                        {leadData.cep && <span>CEP: {leadData.cep}</span>}
-                      </>
-                    ) : "—"}
-                  </p>
+                {leadData.email && (
+                  <div className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
+                    <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">E-mail</p>
+                      <p className="font-medium text-sm">{leadData.email}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg">
+                    <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Gênero</p>
+                      <p className="font-medium text-sm">{formatGender(leadData.genero)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg">
+                    <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Nascimento</p>
+                      <p className="font-medium text-sm">{formatDate(leadData.data_nascimento)}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {(!leadData.genero || !leadData.data_nascimento || !leadData.cep) && (
-                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                  <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                    ⚠️ Alguns campos estão vazios. O evento será enviado com os dados disponíveis.
-                  </p>
+                <div className="flex items-start gap-3 p-2.5 bg-muted/50 rounded-lg">
+                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Endereço</p>
+                    <p className="font-medium text-sm">
+                      {leadData.endereco || leadData.cidade || leadData.estado || leadData.cep ? (
+                        <>
+                          {leadData.endereco && <span className="block">{leadData.endereco}</span>}
+                          {(leadData.cidade || leadData.estado) && (
+                            <span className="block">{[leadData.cidade, leadData.estado].filter(Boolean).join(" - ")}</span>
+                          )}
+                          {leadData.cep && <span>CEP: {leadData.cep}</span>}
+                        </>
+                      ) : "—"}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
 
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
+                {(!leadData.genero || !leadData.data_nascimento || !leadData.cep) && (
+                  <div className="p-2.5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                    <p className="text-xs text-yellow-700 dark:text-yellow-400">
+                      ⚠️ Alguns campos estão vazios. O evento será enviado com os dados disponíveis.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-shrink-0 gap-2 pt-4 border-t">
             {isEditing ? (
-              <>
+              <div className="flex gap-2 w-full">
                 <Button 
                   variant="outline" 
                   onClick={cancelEditing}
-                  className="w-full sm:w-auto"
+                  className="flex-1"
                 >
                   <X className="h-4 w-4 mr-2" />
                   Cancelar
@@ -586,7 +503,7 @@ export function PixelStatusBadge({
                 <Button
                   onClick={saveEdit}
                   disabled={savingEdit}
-                  className="w-full sm:w-auto"
+                  className="flex-1"
                 >
                   {savingEdit ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -595,48 +512,30 @@ export function PixelStatusBadge({
                   )}
                   Salvar
                 </Button>
-              </>
+              </div>
             ) : (
-              <>
-                <div className="flex gap-2 w-full sm:w-auto order-1 sm:order-none">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setReviewDialogOpen(false);
-                      openChatWithFormMessage();
-                    }}
-                    className="flex-1 sm:flex-none"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Reenviar
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={startEditing}
-                    className="flex-1 sm:flex-none"
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                </div>
-                <div className="flex gap-2 w-full sm:w-auto order-2 sm:order-none">
-                  <Button variant="ghost" onClick={() => setReviewDialogOpen(false)} className="flex-1 sm:flex-none">
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={sendPixelEvent}
-                    disabled={sendingEvent}
-                    className="flex-1 sm:flex-none"
-                  >
-                    {sendingEvent ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Megaphone className="h-4 w-4 mr-2" />
-                    )}
-                    Enviar ao Pixel
-                  </Button>
-                </div>
-              </>
+              <div className="flex gap-2 w-full">
+                <Button 
+                  variant="outline" 
+                  onClick={startEditing}
+                  className="flex-1"
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+                <Button
+                  onClick={sendPixelEvent}
+                  disabled={sendingEvent}
+                  className="flex-1"
+                >
+                  {sendingEvent ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Megaphone className="h-4 w-4 mr-2" />
+                  )}
+                  Enviar ao Pixel
+                </Button>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>
