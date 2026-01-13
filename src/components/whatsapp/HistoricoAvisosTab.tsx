@@ -294,7 +294,7 @@ export function HistoricoAvisosTab() {
                             >
                               <MessageCircle className="h-4 w-4" />
                             </Button>
-                            <Badge variant="outline" className="text-xs flex-shrink-0">
+                            <Badge variant="outline" className="text-xs flex-shrink-0 hidden sm:inline-flex">
                               {log.aviso_nome}
                             </Badge>
                           </div>
@@ -305,41 +305,47 @@ export function HistoricoAvisosTab() {
                       </div>
                       
                       {/* Right side: Date/Time + Delete button */}
-                      <div className="flex items-center justify-between sm:justify-end gap-3 pl-13 sm:pl-0">
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          {/* Mobile: Data primeiro, Desktop: Horário primeiro */}
-                          <div className="flex items-center gap-1 text-sm sm:order-2">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {formatInTimeZone(log.enviado_em, 'America/Sao_Paulo', "dd/MM/yyyy")}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between sm:justify-end gap-2 sm:gap-3 pl-13 sm:pl-0">
+                        {/* Badge on mobile - above date */}
+                        <Badge variant="outline" className="text-xs sm:hidden">
+                          {log.aviso_nome}
+                        </Badge>
+                        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                          <div className="flex items-center gap-3 text-muted-foreground">
+                            {/* Mobile: Data primeiro, Desktop: Horário primeiro */}
+                            <div className="flex items-center gap-1 text-sm sm:order-2">
+                              <Calendar className="h-3.5 w-3.5" />
+                              {formatInTimeZone(log.enviado_em, 'America/Sao_Paulo', "dd/MM/yyyy")}
+                            </div>
+                            <div className="flex items-center gap-1 text-xs sm:order-1">
+                              <Clock className="h-3 w-3" />
+                              {formatInTimeZone(log.enviado_em, 'America/Sao_Paulo', "HH:mm")}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 text-xs sm:order-1">
-                            <Clock className="h-3 w-3" />
-                            {formatInTimeZone(log.enviado_em, 'America/Sao_Paulo', "HH:mm")}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="sm:hidden h-8 w-8 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigateToChat(navigate, log.cliente_telefone, log.cliente_origem);
+                              }}
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLogToDelete(log);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="sm:hidden h-8 w-8 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigateToChat(navigate, log.cliente_telefone, log.cliente_origem);
-                            }}
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setLogToDelete(log);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       </div>
                     </div>
