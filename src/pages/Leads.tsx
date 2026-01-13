@@ -272,14 +272,17 @@ export default function Leads() {
       {/* Period Filter & Search */}
       <Card className="p-4 shadow-card space-y-4">
         <div className="flex flex-wrap items-center gap-4">
-          <PeriodFilter
-            value={periodFilter}
-            onChange={setPeriodFilter}
-            dateStart={dateStart}
-            dateEnd={dateEnd}
-            onDateStartChange={setDateStart}
-            onDateEndChange={setDateEnd}
-          />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
+            <PeriodFilter
+              value={periodFilter}
+              onChange={setPeriodFilter}
+              dateStart={dateStart}
+              dateEnd={dateEnd}
+              onDateStartChange={setDateStart}
+              onDateEndChange={setDateEnd}
+            />
+          </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-500"></span>

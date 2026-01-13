@@ -246,7 +246,7 @@ export default function Agenda() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Filtro de Período */}
             <div className="space-y-2">
-              <Label>Período</Label>
+              <Label>Período:</Label>
               <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
                 <SelectTrigger className="w-full bg-background">
                   <SelectValue />
@@ -265,7 +265,7 @@ export default function Agenda() {
 
             {/* Data Início */}
             <div className="space-y-2">
-              <Label>Data início</Label>
+              <Label>Data início:</Label>
               <Input type="date" value={dataInicio} onChange={e => {
               setDataInicio(e.target.value);
               if (filtroPeriodo !== "personalizado") {
@@ -276,7 +276,7 @@ export default function Agenda() {
 
             {/* Data Fim */}
             <div className="space-y-2">
-              <Label>Data fim</Label>
+              <Label>Data fim:</Label>
               <Input type="date" value={dataFim} onChange={e => {
               setDataFim(e.target.value);
               if (filtroPeriodo !== "personalizado") {
@@ -288,7 +288,7 @@ export default function Agenda() {
 
           {/* Filtro de Profissional */}
           <div className="mt-4 space-y-2">
-            <Label>Profissional</Label>
+            <Label>Profissional:</Label>
             <Select value={filtroProfissional} onValueChange={setFiltroProfissional}>
               <SelectTrigger className="w-full bg-background">
                 <SelectValue placeholder="Todos os profissionais" />
