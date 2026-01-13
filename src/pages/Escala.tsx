@@ -334,7 +334,11 @@ export default function Escala() {
     }
   };
   const handleAdicionarHorarioAusencia = () => {
-    setHorariosAusencia(prev => [...prev, { inicio: "", fim: "" }]);
+    setHorariosAusencia(prev => {
+      const lastHorario = prev[prev.length - 1];
+      const novoInicio = lastHorario?.fim || "";
+      return [...prev, { inicio: novoInicio, fim: "" }];
+    });
   };
 
   const handleRemoverHorarioAusencia = (index: number) => {
@@ -422,7 +426,11 @@ export default function Escala() {
   };
 
   const handleAdicionarHorarioAusenciaEditando = () => {
-    setHorariosAusenciaEditando(prev => [...prev, { inicio: "", fim: "" }]);
+    setHorariosAusenciaEditando(prev => {
+      const lastHorario = prev[prev.length - 1];
+      const novoInicio = lastHorario?.fim || "";
+      return [...prev, { inicio: novoInicio, fim: "" }];
+    });
   };
 
   const handleRemoverHorarioAusenciaEditando = (index: number) => {
