@@ -19,14 +19,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatInTimeZone } from "date-fns-tz";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
 import { AvisosTab } from "@/components/whatsapp/AvisosTab";
 import { HistoricoAvisosTab } from "@/components/whatsapp/HistoricoAvisosTab";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 
 export default function Agenda() {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<any>(null);
@@ -44,8 +44,8 @@ export default function Agenda() {
   const [novoAgendamentoOpen, setNovoAgendamentoOpen] = useState(false);
   const [deleteAgendamento, setDeleteAgendamento] = useState<any>(null);
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("mes-atual");
-  const [dataInicio, setDataInicio] = useState<string>("");
-  const [dataFim, setDataFim] = useState<string>("");
+  const [dataInicio, setDataInicio] = useState<Date>(startOfMonth(new Date()));
+  const [dataFim, setDataFim] = useState<Date>(endOfMonth(new Date()));
   const navigate = useNavigate();
   const updateStatus = useUpdateAgendamentoStatus();
   const queryClient = useQueryClient();
@@ -117,16 +117,9 @@ export default function Agenda() {
           fim: endOfMonth(proximoMes)
         };
       case "personalizado":
-        if (dataInicio && dataFim) {
-          return {
-            inicio: startOfDay(parseISO(dataInicio)),
-            fim: endOfDay(parseISO(dataFim))
-          };
-        }
-        // Default para dia atual se datas não estiverem definidas
         return {
-          inicio: startOfDay(hoje),
-          fim: endOfDay(hoje)
+          inicio: startOfDay(dataInicio),
+          fim: endOfDay(dataFim)
         };
       default:
         return {
@@ -250,10 +243,10 @@ export default function Agenda() {
       <Card className="p-4 shadow-card">
         <div className="flex flex-wrap items-center gap-4">
           {/* Filtro de Período */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
               <SelectTrigger className="w-[180px] bg-background">
+                <Calendar className="h-4 w-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
@@ -267,21 +260,46 @@ export default function Agenda() {
                 <SelectItem value="personalizado">Personalizado</SelectItem>
               </SelectContent>
             </Select>
-          </div>
 
-          {/* Data Início e Fim - apenas quando personalizado */}
-          {filtroPeriodo === "personalizado" && (
-            <>
+            {/* Data Início e Fim - apenas quando personalizado */}
+            {filtroPeriodo === "personalizado" && (
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
-                <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="w-[150px]" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="min-w-[90px]">
+                      {format(dataInicio, "dd/MM/yy", { locale: ptBR })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarPicker
+                      mode="single"
+                      selected={dataInicio}
+                      onSelect={(date) => date && setDataInicio(date)}
+                      locale={ptBR}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-muted-foreground text-sm">até</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="min-w-[90px]">
+                      {format(dataFim, "dd/MM/yy", { locale: ptBR })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarPicker
+                      mode="single"
+                      selected={dataFim}
+                      onSelect={(date) => date && setDataFim(date)}
+                      locale={ptBR}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
-              <span className="text-muted-foreground text-sm">até</span>
-              <div className="flex items-center gap-2">
-                <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="w-[150px]" />
-              </div>
-            </>
-          )}
+            )}
+          </div>
 
           {/* Filtro de Profissional */}
           <div className="flex items-center gap-2">
