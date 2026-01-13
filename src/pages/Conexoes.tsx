@@ -107,6 +107,11 @@ export default function Conexoes() {
   const [apifyApiKey, setApifyApiKey] = useState("");
   const [newApifyKey, setNewApifyKey] = useState("");
   const [savingApify, setSavingApify] = useState(false);
+  const [testingApify, setTestingApify] = useState(false);
+  const [apifyTestResult, setApifyTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
   useEffect(() => {
     if (user) {
       loadMetaConfig();
@@ -341,6 +346,45 @@ export default function Conexoes() {
       });
     } finally {
       setSavingApify(false);
+    }
+  };
+
+  const testApifyConnection = async () => {
+    if (!apifyApiKey) {
+      toast({
+        title: "Erro",
+        description: "Nenhuma API Key configurada",
+        variant: "destructive"
+      });
+      return;
+    }
+    setTestingApify(true);
+    setApifyTestResult(null);
+    try {
+      // Test with a simple Apify API call to validate the key
+      const response = await fetch("https://api.apify.com/v2/users/me", {
+        headers: {
+          "Authorization": `Bearer ${apifyApiKey}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setApifyTestResult({
+          success: true,
+          message: `Conectado como ${data.data?.username || "usuário Apify"}`
+        });
+      } else {
+        throw new Error("API Key inválida");
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro ao testar conexão";
+      setApifyTestResult({
+        success: false,
+        message: errorMessage
+      });
+    } finally {
+      setTestingApify(false);
     }
   };
 
@@ -1038,10 +1082,6 @@ export default function Conexoes() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="sm" onClick={() => setShowGoogleAdsCredentials(!showGoogleAdsCredentials)}>
-                {showGoogleAdsCredentials ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                {showGoogleAdsCredentials ? "Ocultar" : "Mostrar"}
-              </Button>
               <Button variant="outline" onClick={testGoogleAdsConnection} disabled={testingGoogleAds || !googleAdsDeveloperToken || !googleAdsClientId || !googleAdsClientSecret || !googleAdsRefreshToken}>
                 {testingGoogleAds ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 Testar Conexão
@@ -1213,10 +1253,23 @@ export default function Conexoes() {
             </div>
 
             <div className="flex gap-2">
+              <Button variant="outline" onClick={testApifyConnection} disabled={testingApify || !apifyApiKey}>
+                {testingApify ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Testar Conexão
+              </Button>
               <Button onClick={saveApifyConfig} disabled={savingApify || !apifyApiKey}>
                 {savingApify ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </Button>
             </div>
+
+            {apifyTestResult && <div className={`p-3 rounded-lg border ${apifyTestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
+                <div className="flex items-center gap-2">
+                  {apifyTestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                  <span className={`text-sm ${apifyTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
+                    {apifyTestResult.message}
+                  </span>
+                </div>
+              </div>}
           </div>
         </CardContent>
       </Card>
