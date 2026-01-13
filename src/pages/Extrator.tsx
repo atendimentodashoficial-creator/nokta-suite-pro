@@ -460,9 +460,11 @@ export default function Extrator() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Database className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Extrator</h1>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          <Database className="w-6 h-6" />
+          <h1 className="text-2xl font-bold">Extrator</h1>
+        </div>
       </div>
 
       {/* Tabs */}
