@@ -84,10 +84,6 @@ function SortableTipoItem({ tipo, onEdit, onDelete, onToggleAtivo }: SortableTip
         <span className="font-medium text-sm truncate">{tipo.nome}</span>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        <Switch
-          checked={tipo.ativo !== false}
-          onCheckedChange={() => onToggleAtivo(tipo)}
-        />
         <Button
           variant="ghost"
           size="icon"
@@ -104,6 +100,10 @@ function SortableTipoItem({ tipo, onEdit, onDelete, onToggleAtivo }: SortableTip
         >
           <Trash2 className="w-4 h-4 text-destructive" />
         </Button>
+        <Switch
+          checked={tipo.ativo !== false}
+          onCheckedChange={() => onToggleAtivo(tipo)}
+        />
       </div>
     </div>
   );

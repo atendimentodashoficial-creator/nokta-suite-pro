@@ -88,10 +88,6 @@ function SortableProcedimentoItem({ procedimento, onEdit, onDelete, onToggleAtiv
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Switch
-            checked={procedimento.ativo}
-            onCheckedChange={() => onToggleAtivo(procedimento)}
-          />
           <Button
             variant="ghost"
             size="icon"
@@ -108,6 +104,10 @@ function SortableProcedimentoItem({ procedimento, onEdit, onDelete, onToggleAtiv
           >
             <Trash2 className="w-4 h-4 text-destructive" />
           </Button>
+          <Switch
+            checked={procedimento.ativo}
+            onCheckedChange={() => onToggleAtivo(procedimento)}
+          />
         </div>
       </div>
 
@@ -138,10 +138,6 @@ function SortableProcedimentoItem({ procedimento, onEdit, onDelete, onToggleAtiv
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Switch
-            checked={procedimento.ativo}
-            onCheckedChange={() => onToggleAtivo(procedimento)}
-          />
           <Button
             variant="ghost"
             size="icon"
@@ -158,6 +154,10 @@ function SortableProcedimentoItem({ procedimento, onEdit, onDelete, onToggleAtiv
           >
             <Trash2 className="w-4 h-4 text-destructive" />
           </Button>
+          <Switch
+            checked={procedimento.ativo}
+            onCheckedChange={() => onToggleAtivo(procedimento)}
+          />
         </div>
       </div>
     </div>
