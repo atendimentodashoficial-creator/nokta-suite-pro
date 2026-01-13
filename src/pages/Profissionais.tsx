@@ -96,10 +96,6 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Switch
-            checked={profissional.ativo}
-            onCheckedChange={() => onToggleAtivo(profissional)}
-          />
           <Button
             variant="ghost"
             size="icon"
@@ -116,6 +112,10 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
           >
             <Trash2 className="w-4 h-4 text-destructive" />
           </Button>
+          <Switch
+            checked={profissional.ativo}
+            onCheckedChange={() => onToggleAtivo(profissional)}
+          />
         </div>
       </div>
 
@@ -147,10 +147,6 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Switch
-            checked={profissional.ativo}
-            onCheckedChange={() => onToggleAtivo(profissional)}
-          />
           <Button
             variant="ghost"
             size="icon"
@@ -167,6 +163,10 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
           >
             <Trash2 className="w-4 h-4 text-destructive" />
           </Button>
+          <Switch
+            checked={profissional.ativo}
+            onCheckedChange={() => onToggleAtivo(profissional)}
+          />
         </div>
       </div>
     </div>
