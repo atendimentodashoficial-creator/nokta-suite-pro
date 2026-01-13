@@ -1304,7 +1304,7 @@ export default function AdminWhatsApp() {
                 </div>
               )}
               
-              {/* Status/Action Button - Mobile */}
+              {/* Status Badge - Mobile (only show when connected or loading) */}
               {isMobile && (
                 connectionStatus === 'connected' ? (
                   <Button 
@@ -1320,31 +1320,7 @@ export default function AdminWhatsApp() {
                   <Badge variant="outline" className="gap-1 h-6 px-2 text-xs ml-auto">
                     <Loader2 className="h-3 w-3 animate-spin" />
                   </Badge>
-                ) : (
-                  <Button 
-                    variant="default" 
-                    size="sm" 
-                    className="gap-1 h-6 px-2 text-xs ml-auto"
-                    onClick={() => {
-                      if (!mainInstance) {
-                        // No instance - open create dialog to set name first
-                        setNewInstanceName("");
-                        setCreateInstanceDialogOpen(true);
-                      } else {
-                        // Has instance but disconnected - open manage dialog
-                        setManageDialogOpen(true);
-                      }
-                    }}
-                    disabled={isCreatingInstance}
-                  >
-                    {isCreatingInstance ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <QrCode className="h-3 w-3" />
-                    )}
-                    Conectar
-                  </Button>
-                )
+                ) : null
               )}
             </div>
             
