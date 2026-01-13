@@ -43,7 +43,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
   };
 
   const formatPercentage = (value: number, total: number) => {
-    if (total === 0) return "0%";
+    if (total === 0) return "0.0%";
     return `${((value / total) * 100).toFixed(1)}%`;
   };
 
@@ -67,7 +67,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       bgLight: "bg-blue-100 dark:bg-blue-900/50",
       width: 88,
       metric: data.spend > 0 && data.agendados > 0 ? `CPA: ${formatCurrency(data.spend / data.agendados)}` : null,
-      conversionRate: data.leads > 0 ? formatPercentage(data.agendados, data.leads) : null,
+      conversionRate: formatPercentage(data.agendados, data.leads),
     },
     {
       name: "Compareceu",
@@ -78,7 +78,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       bgLight: "bg-emerald-100 dark:bg-emerald-900/50",
       width: 76,
       metric: null,
-      conversionRate: data.agendados > 0 ? formatPercentage(data.compareceu, data.agendados) : null,
+      conversionRate: formatPercentage(data.compareceu, data.agendados),
     },
     {
       name: "Não Compareceu",
@@ -89,7 +89,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       bgLight: "bg-red-100 dark:bg-red-900/50",
       width: 76,
       metric: null,
-      conversionRate: data.agendados > 0 ? formatPercentage(data.nao_compareceu, data.agendados) : null,
+      conversionRate: formatPercentage(data.nao_compareceu, data.agendados),
       isNegative: true,
     },
     {
@@ -101,7 +101,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       bgLight: "bg-yellow-100 dark:bg-yellow-900/50",
       width: 64,
       metric: null,
-      conversionRate: data.agendados > 0 ? formatPercentage(data.em_negociacao, data.agendados) : null,
+      conversionRate: formatPercentage(data.em_negociacao, data.agendados),
     },
     {
       name: "Clientes",
@@ -112,7 +112,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       bgLight: "bg-green-100 dark:bg-green-900/50",
       width: 52,
       metric: data.spend > 0 && data.clientes > 0 ? `CAC: ${formatCurrency(data.spend / data.clientes)}` : null,
-      conversionRate: data.leads > 0 ? formatPercentage(data.clientes, data.leads) : null,
+      conversionRate: formatPercentage(data.clientes, data.leads),
     },
   ];
 
