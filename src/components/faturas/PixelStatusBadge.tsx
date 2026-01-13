@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone } from "lucide-react";
+import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -314,7 +314,7 @@ export function PixelStatusBadge({
                     size="sm"
                     onClick={openReviewDialog}
                     disabled={loadingLeadData}
-                    className="text-xs bg-purple-600 hover:bg-purple-700"
+                    className="text-xs"
                   >
                     {loadingLeadData ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -422,22 +422,32 @@ export function PixelStatusBadge({
             </div>
           )}
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={sendPixelEvent}
-              disabled={sendingEvent}
-              className="bg-purple-600 hover:bg-purple-700"
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={openChatWithFormMessage}
+              className="w-full sm:w-auto"
             >
-              {sendingEvent ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Megaphone className="h-4 w-4 mr-2" />
-              )}
-              Enviar ao Pixel
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reenviar formulário
             </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button variant="ghost" onClick={() => setReviewDialogOpen(false)} className="flex-1 sm:flex-none">
+                Cancelar
+              </Button>
+              <Button
+                onClick={sendPixelEvent}
+                disabled={sendingEvent}
+                className="flex-1 sm:flex-none"
+              >
+                {sendingEvent ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Megaphone className="h-4 w-4 mr-2" />
+                )}
+                Enviar ao Pixel
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
