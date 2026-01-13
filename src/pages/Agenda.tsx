@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Calendar, Calendar as CalendarIcon, Clock, User, Phone, Plus, Check, X, RefreshCw, MessageCircle, Trash2, FileText, Bell, History } from "lucide-react";
-import { format, startOfDay, endOfDay, addDays, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths } from "date-fns";
+import { format, startOfDay, endOfDay, addDays, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ReagendarDialog } from "@/components/clientes/ReagendarDialog";
 import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
@@ -109,6 +109,12 @@ export default function Agenda() {
         return {
           inicio: startOfMonth(mesPassado),
           fim: endOfMonth(mesPassado)
+        };
+      case "proximo-mes":
+        const proximoMes = addMonths(hoje, 1);
+        return {
+          inicio: startOfMonth(proximoMes),
+          fim: endOfMonth(proximoMes)
         };
       case "personalizado":
         if (dataInicio && dataFim) {
@@ -251,13 +257,14 @@ export default function Agenda() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="personalizado">Personalizado</SelectItem>
+                <SelectItem value="dia-atual">Dia Atual</SelectItem>
+                <SelectItem value="semana-passada">Semana Passada</SelectItem>
+                <SelectItem value="semana-atual">Semana Atual</SelectItem>
+                <SelectItem value="proxima-semana">Próxima Semana</SelectItem>
                 <SelectItem value="mes-passado">Mês Passado</SelectItem>
                 <SelectItem value="mes-atual">Mês Atual</SelectItem>
-                <SelectItem value="dia-atual">Dia Atual</SelectItem>
-                <SelectItem value="semana-atual">Semana Atual</SelectItem>
-                <SelectItem value="semana-passada">Semana Passada</SelectItem>
-                <SelectItem value="proxima-semana">Próxima Semana</SelectItem>
+                <SelectItem value="proximo-mes">Próximo Mês</SelectItem>
+                <SelectItem value="personalizado">Personalizado</SelectItem>
               </SelectContent>
             </Select>
           </div>
