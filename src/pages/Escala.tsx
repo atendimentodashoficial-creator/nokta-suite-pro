@@ -11,7 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, Trash2, Plus, Clock, Copy, Pencil } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Calendar as CalendarIcon, Trash2, Plus, Clock, Copy, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -27,18 +28,16 @@ const DIAS_SEMANA = [
   { value: 6, label: "Sábado" },
 ];
 
-interface HorarioItem {
-  id?: string;
-  hora_inicio: string;
-  hora_fim: string;
-}
-
 export default function Escala() {
   const { toast } = useToast();
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<string>("todos");
   const [dialogAusenciaAberto, setDialogAusenciaAberto] = useState(false);
   const [dialogEditarHorario, setDialogEditarHorario] = useState(false);
   const [editandoHorario, setEditandoHorario] = useState<{ id: string; hora_inicio: string; hora_fim: string } | null>(null);
+  
+  // Estados para controlar expansão
+  const [profissionaisExpandidos, setProfissionaisExpandidos] = useState<Set<string>>(new Set());
+  const [diasExpandidos, setDiasExpandidos] = useState<Set<string>>(new Set());
 
   // Form states - Ausência
   const [dataInicioAusencia, setDataInicioAusencia] = useState<Date | undefined>();
@@ -55,13 +54,7 @@ export default function Escala() {
   const createAusencia = useCreateAusencia();
   const deleteAusencia = useDeleteAusencia();
 
-  // Filtra escalas e ausências por profissional
-  const escalas = useMemo(() => {
-    if (!todasEscalas) return [];
-    if (profissionalSelecionado === "todos") return todasEscalas;
-    return todasEscalas.filter(e => e.profissional_id === profissionalSelecionado);
-  }, [todasEscalas, profissionalSelecionado]);
-
+  // Filtra ausências por profissional
   const ausencias = useMemo(() => {
     if (!todasAusencias) return [];
     if (profissionalSelecionado === "todos") return todasAusencias;
@@ -92,13 +85,38 @@ export default function Escala() {
       return {
         profissional: prof,
         dias: diasComHorarios,
+        totalHorarios: escalasProf.length,
+        diasAtivos: diasAtivos.size,
       };
     });
   }, [profissionais, todasEscalas, profissionalSelecionado]);
 
+  const toggleProfissionalExpandido = (profissionalId: string) => {
+    setProfissionaisExpandidos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(profissionalId)) {
+        newSet.delete(profissionalId);
+      } else {
+        newSet.add(profissionalId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleDiaExpandido = (key: string) => {
+    setDiasExpandidos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
   const handleToggleDia = async (profissionalId: string, diaSemana: number, ativo: boolean) => {
     if (ativo) {
-      // Ativar dia - criar horário padrão
       try {
         await createEscala.mutateAsync({
           profissional_id: profissionalId,
@@ -112,7 +130,6 @@ export default function Escala() {
         toast({ title: "Erro", description: "Não foi possível ativar o dia", variant: "destructive" });
       }
     } else {
-      // Desativar dia - remover todos os horários desse dia
       const horariosParaRemover = todasEscalas?.filter(
         e => e.profissional_id === profissionalId && e.dia_semana === diaSemana
       ) || [];
@@ -231,7 +248,7 @@ export default function Escala() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Seletor de Profissional */}
       <Card>
         <CardHeader className="pb-3">
@@ -254,103 +271,154 @@ export default function Escala() {
         </CardContent>
       </Card>
 
-      {/* Escala Semanal por Profissional */}
-      {escalasPorProfissional.map(({ profissional, dias }) => (
-        <Card key={profissional.id}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Clock className="h-5 w-5 flex-shrink-0" />
-              <span className="truncate">{profissional.nome}</span>
-              {profissional.especialidade && (
-                <span className="text-sm font-normal text-muted-foreground truncate">
-                  - {profissional.especialidade}
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {dias.map((dia) => (
-              <div key={dia.value} className="border rounded-lg p-3">
-                <div className="flex items-center gap-3 mb-2">
-                  <Switch
-                    checked={dia.ativo}
-                    onCheckedChange={(checked) => handleToggleDia(profissional.id, dia.value, checked)}
-                  />
-                  <span className={cn(
-                    "font-medium text-sm",
-                    !dia.ativo && "text-muted-foreground"
-                  )}>
-                    {dia.label}
-                  </span>
-                </div>
-
-                {dia.ativo && (
-                  <div className="ml-8 space-y-2">
-                    {dia.horarios.map((horario) => (
-                      <div key={horario.id} className="flex items-center gap-2 flex-wrap">
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="time"
-                            value={horario.hora_inicio}
-                            className="w-24 h-8 text-xs"
-                            readOnly
-                          />
-                          <span className="text-muted-foreground">-</span>
-                          <Input
-                            type="time"
-                            value={horario.hora_fim}
-                            className="w-24 h-8 text-xs"
-                            readOnly
-                          />
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleEditarHorario({ id: horario.id, hora_inicio: horario.hora_inicio, hora_fim: horario.hora_fim })}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleDuplicarHorario({
-                              profissional_id: profissional.id,
-                              dia_semana: dia.value,
-                              hora_inicio: horario.hora_inicio,
-                              hora_fim: horario.hora_fim,
-                            })}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleDeletarHorario(horario.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => handleAdicionarHorario(profissional.id, dia.value)}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Horário
-                    </Button>
+      {/* Escala Semanal por Profissional - Colapsável */}
+      {escalasPorProfissional.map(({ profissional, dias, totalHorarios, diasAtivos }) => (
+        <Collapsible
+          key={profissional.id}
+          open={profissionaisExpandidos.has(profissional.id)}
+          onOpenChange={() => toggleProfissionalExpandido(profissional.id)}
+        >
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  {profissionaisExpandidos.has(profissional.id) ? (
+                    <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  )}
+                  <Clock className="h-5 w-5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-base font-semibold truncate">
+                      {profissional.nome}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {diasAtivos} dias ativos • {totalHorarios} horários
+                    </p>
                   </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-2">
+                {dias.map((dia) => {
+                  const diaKey = `${profissional.id}-${dia.value}`;
+                  const isDiaExpandido = diasExpandidos.has(diaKey);
+
+                  return (
+                    <Collapsible
+                      key={dia.value}
+                      open={isDiaExpandido}
+                      onOpenChange={() => dia.ativo && toggleDiaExpandido(diaKey)}
+                    >
+                      <div className="border rounded-lg">
+                        <div className="flex items-center gap-2 p-3">
+                          <Switch
+                            checked={dia.ativo}
+                            onCheckedChange={(checked) => handleToggleDia(profissional.id, dia.value, checked)}
+                          />
+                          <CollapsibleTrigger asChild disabled={!dia.ativo}>
+                            <div className={cn(
+                              "flex-1 flex items-center gap-2 min-w-0",
+                              dia.ativo && "cursor-pointer"
+                            )}>
+                              {dia.ativo && (
+                                isDiaExpandido ? (
+                                  <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                                )
+                              )}
+                              <span className={cn(
+                                "font-medium text-sm",
+                                !dia.ativo && "text-muted-foreground"
+                              )}>
+                                {dia.label}
+                              </span>
+                              {dia.ativo && !isDiaExpandido && (
+                                <span className="text-xs text-muted-foreground">
+                                  ({dia.horarios.length} horário{dia.horarios.length !== 1 ? 's' : ''})
+                                </span>
+                              )}
+                            </div>
+                          </CollapsibleTrigger>
+                        </div>
+
+                        <CollapsibleContent>
+                          {dia.ativo && (
+                            <div className="px-3 pb-3 pt-0 ml-8 space-y-2 border-t">
+                              <div className="pt-2 space-y-2">
+                                {dia.horarios.map((horario) => (
+                                  <div key={horario.id} className="flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        type="time"
+                                        value={horario.hora_inicio}
+                                        className="w-24 h-8 text-xs"
+                                        readOnly
+                                      />
+                                      <span className="text-muted-foreground">-</span>
+                                      <Input
+                                        type="time"
+                                        value={horario.hora_fim}
+                                        className="w-24 h-8 text-xs"
+                                        readOnly
+                                      />
+                                    </div>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => handleEditarHorario({ id: horario.id, hora_inicio: horario.hora_inicio, hora_fim: horario.hora_fim })}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => handleDuplicarHorario({
+                                          profissional_id: profissional.id,
+                                          dia_semana: dia.value,
+                                          hora_inicio: horario.hora_inicio,
+                                          hora_fim: horario.hora_fim,
+                                        })}
+                                      >
+                                        <Copy className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => handleDeletarHorario(horario.id)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => handleAdicionarHorario(profissional.id, dia.value)}
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  Horário
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+                  );
+                })}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       ))}
 
       {/* Dialog Editar Horário */}
