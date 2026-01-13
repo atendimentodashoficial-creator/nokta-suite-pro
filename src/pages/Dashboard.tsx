@@ -400,17 +400,15 @@ export default function Dashboard() {
       {/* Filtros */}
       <Card className="p-4 shadow-card">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Período:</span>
-            <PeriodFilter
-              value={periodFilter}
-              onChange={setPeriodFilter}
-              dateStart={dateStart}
-              dateEnd={dateEnd}
-              onDateStartChange={setDateStart}
-              onDateEndChange={setDateEnd}
-            />
-          </div>
+          <PeriodFilter
+            showLabel
+            value={periodFilter}
+            onChange={setPeriodFilter}
+            dateStart={dateStart}
+            dateEnd={dateEnd}
+            onDateStartChange={setDateStart}
+            onDateEndChange={setDateEnd}
+          />
         </div>
       </Card>
 

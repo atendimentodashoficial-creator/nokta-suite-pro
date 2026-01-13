@@ -26,6 +26,8 @@ interface PeriodFilterProps {
   dateEnd: Date;
   onDateStartChange: (date: Date) => void;
   onDateEndChange: (date: Date) => void;
+  /** Most pages show "Período:" before the filter (like Agenda). Enable to match that layout. */
+  showLabel?: boolean;
   className?: string;
 }
 
@@ -36,73 +38,39 @@ export function PeriodFilter({
   dateEnd,
   onDateStartChange,
   onDateEndChange,
+  showLabel = false,
   className,
 }: PeriodFilterProps) {
   return (
-    <div className={`flex flex-col gap-2 ${className || ""}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={value} onValueChange={(v) => onChange(v as PeriodValue)}>
-          <SelectTrigger className="w-[180px]">
-            <Calendar className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Hoje</SelectItem>
-            <SelectItem value="yesterday">Ontem</SelectItem>
-            <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
-            <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
-            <SelectItem value="this_week">Esta semana</SelectItem>
-            <SelectItem value="last_week">Semana passada</SelectItem>
-            <SelectItem value="this_month">Mês Atual</SelectItem>
-            <SelectItem value="last_month">Mês passado</SelectItem>
-            <SelectItem value="max">Máximo</SelectItem>
-            <SelectItem value="custom">Personalizado</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className={`flex flex-wrap items-center gap-2 ${className || ""}`.trim()}>
+      {showLabel && (
+        <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+          Período:
+        </span>
+      )}
 
-        {/* Desktop: inline date pickers */}
-        {value === "custom" && (
-          <div className="hidden sm:flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="min-w-[90px]">
-                  {format(dateStart, "dd/MM/yy", { locale: ptBR })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={dateStart}
-                  onSelect={(date) => date && onDateStartChange(date)}
-                  locale={ptBR}
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-            <span className="text-muted-foreground text-sm">até</span>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="min-w-[90px]">
-                  {format(dateEnd, "dd/MM/yy", { locale: ptBR })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={dateEnd}
-                  onSelect={(date) => date && onDateEndChange(date)}
-                  locale={ptBR}
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
-      </div>
+      <Select value={value} onValueChange={(v) => onChange(v as PeriodValue)}>
+        <SelectTrigger className="w-[180px]">
+          <Calendar className="h-4 w-4 mr-2" />
+          <SelectValue placeholder="Período" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="today">Hoje</SelectItem>
+          <SelectItem value="yesterday">Ontem</SelectItem>
+          <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
+          <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
+          <SelectItem value="this_week">Esta semana</SelectItem>
+          <SelectItem value="last_week">Semana passada</SelectItem>
+          <SelectItem value="this_month">Mês Atual</SelectItem>
+          <SelectItem value="last_month">Mês passado</SelectItem>
+          <SelectItem value="max">Máximo</SelectItem>
+          <SelectItem value="custom">Personalizado</SelectItem>
+        </SelectContent>
+      </Select>
 
-      {/* Mobile: date pickers on new line */}
+      {/* Datas (apenas quando personalizado). No mobile sempre quebra para baixo, igual na Agenda. */}
       {value === "custom" && (
-        <div className="flex sm:hidden items-center gap-2 self-start">
+        <div className="flex items-center gap-2 basis-full sm:basis-auto">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="min-w-[90px]">
@@ -119,7 +87,9 @@ export function PeriodFilter({
               />
             </PopoverContent>
           </Popover>
+
           <span className="text-muted-foreground text-sm">até</span>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="min-w-[90px]">
