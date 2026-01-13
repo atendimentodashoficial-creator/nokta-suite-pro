@@ -1150,7 +1150,7 @@ export default function Conexoes() {
             {/* Formulário para adicionar conta */}
             <div className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
-                <Label className="text-xs text-muted-foreground">Customer ID</Label>
+                <Label>Customer ID</Label>
                 <Input placeholder="" value={newGoogleCustomerId} onChange={e => setNewGoogleCustomerId(e.target.value)} className="mt-1" />
               </div>
               <Button onClick={addGoogleAdsAccount} disabled={addingGoogleAccount}>
