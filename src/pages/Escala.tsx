@@ -74,12 +74,12 @@ export default function Escala() {
   const [dialogEditarAusencia, setDialogEditarAusencia] = useState(false);
   const [ausenciaEditando, setAusenciaEditando] = useState<{
     id: string;
-    data_inicio: string;
-    data_fim: string;
-    hora_inicio: string | null;
-    hora_fim: string | null;
-    motivo: string | null;
+    profissional_id: string;
   } | null>(null);
+  const [datasAusenciaEditando, setDatasAusenciaEditando] = useState<Date[]>([]);
+  const [horariosAusenciaEditando, setHorariosAusenciaEditando] = useState<Array<{ inicio: string; fim: string }>>([{ inicio: "07:00", fim: "08:30" }]);
+  const [diaInteiroEditando, setDiaInteiroEditando] = useState(false);
+  const [motivoEditando, setMotivoEditando] = useState("");
   const {
     data: profissionais
   } = useProfissionais(true);
@@ -402,33 +402,79 @@ export default function Escala() {
   };
   const handleEditarAusencia = (ausencia: {
     id: string;
+    profissional_id: string;
     data_inicio: string;
     data_fim: string;
     hora_inicio: string | null;
     hora_fim: string | null;
     motivo: string | null;
   }) => {
-    setAusenciaEditando(ausencia);
+    setAusenciaEditando({ id: ausencia.id, profissional_id: ausencia.profissional_id });
+    setDatasAusenciaEditando([parseISO(ausencia.data_inicio)]);
+    setDiaInteiroEditando(!ausencia.hora_inicio && !ausencia.hora_fim);
+    setHorariosAusenciaEditando(
+      ausencia.hora_inicio && ausencia.hora_fim 
+        ? [{ inicio: ausencia.hora_inicio, fim: ausencia.hora_fim }] 
+        : [{ inicio: "07:00", fim: "08:30" }]
+    );
+    setMotivoEditando(ausencia.motivo || "");
     setDialogEditarAusencia(true);
   };
 
+  const handleAdicionarHorarioAusenciaEditando = () => {
+    setHorariosAusenciaEditando(prev => [...prev, { inicio: "", fim: "" }]);
+  };
+
+  const handleRemoverHorarioAusenciaEditando = (index: number) => {
+    setHorariosAusenciaEditando(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAtualizarHorarioAusenciaEditando = (index: number, field: 'inicio' | 'fim', value: string) => {
+    setHorariosAusenciaEditando(prev => prev.map((h, i) => i === index ? { ...h, [field]: value } : h));
+  };
+
   const handleSalvarEdicaoAusencia = async () => {
-    if (!ausenciaEditando) return;
+    if (!ausenciaEditando || datasAusenciaEditando.length === 0) return;
     
     try {
-      await updateAusencia.mutateAsync({
-        id: ausenciaEditando.id,
-        data_inicio: ausenciaEditando.data_inicio,
-        data_fim: ausenciaEditando.data_fim,
-        hora_inicio: ausenciaEditando.hora_inicio || null,
-        hora_fim: ausenciaEditando.hora_fim || null,
-        motivo: ausenciaEditando.motivo || null
-      });
+      // Primeiro, deleta a ausência original
+      await deleteAusencia.mutateAsync(ausenciaEditando.id);
+      
+      // Depois, cria as novas ausências com base nas datas e horários selecionados
+      for (const data of datasAusenciaEditando) {
+        if (diaInteiroEditando) {
+          await createAusencia.mutateAsync({
+            profissional_id: ausenciaEditando.profissional_id,
+            data_inicio: format(data, "yyyy-MM-dd"),
+            data_fim: format(data, "yyyy-MM-dd"),
+            hora_inicio: null,
+            hora_fim: null,
+            motivo: motivoEditando || null
+          });
+        } else {
+          for (const horario of horariosAusenciaEditando) {
+            await createAusencia.mutateAsync({
+              profissional_id: ausenciaEditando.profissional_id,
+              data_inicio: format(data, "yyyy-MM-dd"),
+              data_fim: format(data, "yyyy-MM-dd"),
+              hora_inicio: horario.inicio,
+              hora_fim: horario.fim,
+              motivo: motivoEditando || null
+            });
+          }
+        }
+      }
+      
       toast({
-        title: "Ausência atualizada"
+        title: "Ausência atualizada",
+        description: `${datasAusenciaEditando.length} data(s) registrada(s)`
       });
       setDialogEditarAusencia(false);
       setAusenciaEditando(null);
+      setDatasAusenciaEditando([]);
+      setHorariosAusenciaEditando([{ inicio: "07:00", fim: "08:30" }]);
+      setDiaInteiroEditando(false);
+      setMotivoEditando("");
     } catch (error) {
       toast({
         title: "Erro",
@@ -632,6 +678,7 @@ export default function Escala() {
                   <div className="flex gap-1 flex-shrink-0">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditarAusencia({
                       id: ausencia.id,
+                      profissional_id: ausencia.profissional_id,
                       data_inicio: ausencia.data_inicio,
                       data_fim: ausencia.data_fim,
                       hora_inicio: ausencia.hora_inicio,
@@ -648,73 +695,133 @@ export default function Escala() {
 
       {/* Dialog Editar Ausência */}
       <Dialog open={dialogEditarAusencia} onOpenChange={setDialogEditarAusencia}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Editar Ausência</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Data</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {ausenciaEditando?.data_inicio ? format(parseISO(ausenciaEditando.data_inicio), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar 
-                    mode="single" 
-                    selected={ausenciaEditando?.data_inicio ? parseISO(ausenciaEditando.data_inicio) : undefined} 
-                    onSelect={(date) => date && setAusenciaEditando(prev => prev ? { 
-                      ...prev, 
-                      data_inicio: format(date, "yyyy-MM-dd"),
-                      data_fim: format(date, "yyyy-MM-dd")
-                    } : null)} 
-                    locale={ptBR} 
-                    className="pointer-events-auto" 
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Hora Início (opcional)</Label>
-                <Input 
-                  type="time" 
-                  value={ausenciaEditando?.hora_inicio || ""} 
-                  onChange={e => setAusenciaEditando(prev => prev ? { ...prev, hora_inicio: e.target.value || null } : null)} 
-                />
-              </div>
-              <div>
-                <Label>Hora Fim (opcional)</Label>
-                <Input 
-                  type="time" 
-                  value={ausenciaEditando?.hora_fim || ""} 
-                  onChange={e => setAusenciaEditando(prev => prev ? { ...prev, hora_fim: e.target.value || null } : null)} 
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Motivo (opcional)</Label>
-              <Textarea 
-                value={ausenciaEditando?.motivo || ""} 
-                onChange={e => setAusenciaEditando(prev => prev ? { ...prev, motivo: e.target.value || null } : null)} 
-                placeholder="Ex: Férias, Licença médica..."
+          <div className="flex flex-col sm:flex-row gap-6">
+            {/* Calendário */}
+            <div className="w-full sm:w-auto sm:flex-shrink-0">
+              <Calendar 
+                mode="multiple" 
+                selected={datasAusenciaEditando} 
+                onSelect={(dates) => setDatasAusenciaEditando(dates || [])} 
+                locale={ptBR} 
+                className="pointer-events-auto rounded-md border w-full"
+                classNames={{
+                  months: "flex flex-col w-full",
+                  month: "space-y-4 w-full",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex w-full justify-between",
+                  head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] text-center",
+                  row: "flex w-full mt-2 justify-between",
+                  cell: "flex-1 h-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                  day: "h-9 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-muted rounded-md",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                  day_today: "bg-accent text-accent-foreground font-semibold",
+                }}
               />
             </div>
+            
+            {/* Horários */}
+            <div className="flex-1 space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Que horas você está livre?</Label>
+              </div>
+              
+              {!diaInteiroEditando && (
+                <div className="space-y-2">
+                  {horariosAusenciaEditando.map((horario, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input 
+                        type="time" 
+                        value={horario.inicio} 
+                        onChange={e => handleAtualizarHorarioAusenciaEditando(index, 'inicio', e.target.value)}
+                        className="w-24 h-9 text-sm"
+                      />
+                      <span className="text-muted-foreground">-</span>
+                      <Input 
+                        type="time" 
+                        value={horario.fim} 
+                        onChange={e => handleAtualizarHorarioAusenciaEditando(index, 'fim', e.target.value)}
+                        className="w-24 h-9 text-sm"
+                      />
+                      {horariosAusenciaEditando.length > 1 ? (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8" 
+                          onClick={() => handleRemoverHorarioAusenciaEditando(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8" 
+                          onClick={handleAdicionarHorarioAusenciaEditando}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {horariosAusenciaEditando.length > 1 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 text-xs" 
+                      onClick={handleAdicionarHorarioAusenciaEditando}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Adicionar horário
+                    </Button>
+                  )}
+                </div>
+              )}
+              
+              <div className="flex items-center gap-2 pt-2">
+                <Switch 
+                  checked={diaInteiroEditando} 
+                  onCheckedChange={setDiaInteiroEditando}
+                />
+                <Label className="text-sm">Marcar indisponível (o dia todo)</Label>
+              </div>
+              
+              <div>
+                <Label className="text-xs text-muted-foreground">Motivo (opcional)</Label>
+                <Textarea 
+                  value={motivoEditando} 
+                  onChange={e => setMotivoEditando(e.target.value)} 
+                  placeholder="Ex: Férias, Licença médica..."
+                  className="h-16 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-between gap-2 pt-4 border-t">
+            <Button variant="destructive" onClick={() => ausenciaEditando && handleDeletarAusencia(ausenciaEditando.id)}>
+              <Trash2 className="h-4 w-4 mr-1" />
+              Excluir
+            </Button>
             <div className="flex gap-2">
-              <Button variant="destructive" onClick={() => ausenciaEditando && handleDeletarAusencia(ausenciaEditando.id)} className="flex-1">
-                <Trash2 className="h-4 w-4 mr-1" />
-                Excluir
+              <Button variant="outline" onClick={() => setDialogEditarAusencia(false)}>
+                Fechar
               </Button>
-              <Button onClick={handleSalvarEdicaoAusencia} className="flex-1">
+              <Button 
+                onClick={handleSalvarEdicaoAusencia}
+                disabled={datasAusenciaEditando.length === 0}
+              >
                 Salvar
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+
 
       {/* Dialog Copiar Dia */}
       <Dialog open={dialogCopiarDia} onOpenChange={setDialogCopiarDia}>
