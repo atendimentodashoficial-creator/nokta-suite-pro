@@ -104,13 +104,9 @@ export function MetaPixelConfig() {
             <Label htmlFor="pixel_id">Pixel ID</Label>
             <Input
               id="pixel_id"
-              placeholder="Ex: 1234567890123456"
               value={pixelId}
               onChange={(e) => setPixelId(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              Encontre seu Pixel ID no Gerenciador de Eventos do Meta
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -118,13 +114,9 @@ export function MetaPixelConfig() {
             <Input
               id="access_token"
               type="password"
-              placeholder="Token de acesso da Conversions API"
               value={accessToken}
               onChange={(e) => setAccessToken(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              Gere o token no Meta Business Suite → Gerenciador de Eventos → Configurações
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -132,7 +124,6 @@ export function MetaPixelConfig() {
             <div className="flex gap-2">
               <Input
                 id="test_event_code"
-                placeholder="TEST12345"
                 value={testEventCode}
                 onChange={(e) => setTestEventCode(e.target.value)}
               />
@@ -145,10 +136,6 @@ export function MetaPixelConfig() {
                 <ExternalLink className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TestTube className="h-3 w-3" />
-              Use para testar eventos sem afetar dados reais
-            </p>
           </div>
         </div>
 
@@ -158,28 +145,18 @@ export function MetaPixelConfig() {
             <Label htmlFor="mensagem_formulario">
               Mensagem do Formulário de Conversão
             </Label>
-            <p className="text-sm text-muted-foreground">
-              Esta mensagem será enviada no WhatsApp junto com o link do formulário para coleta de dados
-            </p>
             <textarea
               id="mensagem_formulario"
               className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="Digite a mensagem que será enviada..."
               value={mensagemFormulario}
               onChange={(e) => setMensagemFormulario(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              O link do formulário será adicionado automaticamente ao final da mensagem
-            </p>
           </div>
         </div>
 
         {/* Eventos ativos */}
         <div className="space-y-4">
           <Label>Eventos Automáticos</Label>
-          <p className="text-sm text-muted-foreground">
-            Escolha quais eventos devem ser enviados automaticamente ao Pixel
-          </p>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -530,28 +507,6 @@ export function MetaPixelConfig() {
           </>
         )}
 
-        {/* Links úteis */}
-        <div className="pt-4 border-t">
-          <p className="text-sm font-medium mb-2">Links Úteis</p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open("https://business.facebook.com/events_manager", "_blank")}
-            >
-              <ExternalLink className="h-3 w-3 mr-1" />
-              Gerenciador de Eventos
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open("https://developers.facebook.com/docs/marketing-api/conversions-api/", "_blank")}
-            >
-              <ExternalLink className="h-3 w-3 mr-1" />
-              Documentação API
-            </Button>
-          </div>
-        </div>
     </div>
   );
 }
