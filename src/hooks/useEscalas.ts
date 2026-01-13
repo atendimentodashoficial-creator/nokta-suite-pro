@@ -19,6 +19,8 @@ export interface Ausencia {
   profissional_id: string;
   data_inicio: string;
   data_fim: string;
+  hora_inicio: string | null;
+  hora_fim: string | null;
   motivo: string | null;
   created_at: string;
   updated_at: string;
