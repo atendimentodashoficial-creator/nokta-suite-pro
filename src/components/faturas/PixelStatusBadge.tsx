@@ -337,8 +337,8 @@ export function PixelStatusBadge({
 
       {/* Review Dialog */}
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md mx-auto rounded-lg">
-          <DialogHeader className="pb-2">
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Megaphone className="h-5 w-5 text-primary" />
               Conferir dados antes de enviar
@@ -349,61 +349,61 @@ export function PixelStatusBadge({
           </DialogHeader>
 
           {leadData && (
-            <div className="space-y-2 py-2 max-h-[50vh] overflow-y-auto">
-              <div className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
+            <div className="space-y-3 py-2">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                 <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="min-w-0">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground">Nome</p>
-                  <p className="font-medium truncate">{leadData.nome || "—"}</p>
+                  <p className="font-medium">{leadData.nome || "—"}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                 <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="min-w-0">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground">Telefone</p>
-                  <p className="font-medium truncate">{leadData.telefone ? formatPhoneDisplay(leadData.telefone) : "—"}</p>
+                  <p className="font-medium">{leadData.telefone ? formatPhoneDisplay(leadData.telefone) : "—"}</p>
                 </div>
               </div>
 
               {leadData.email && (
-                <div className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                   <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <div className="min-w-0">
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">E-mail</p>
-                    <p className="font-medium truncate">{leadData.email}</p>
+                    <p className="font-medium">{leadData.email}</p>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                   <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <div className="min-w-0">
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Gênero</p>
-                    <p className="font-medium text-sm truncate">{formatGender(leadData.genero)}</p>
+                    <p className="font-medium text-sm">{formatGender(leadData.genero)}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                   <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <div className="min-w-0">
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Nascimento</p>
-                    <p className="font-medium text-sm truncate">{formatDate(leadData.data_nascimento)}</p>
+                    <p className="font-medium text-sm">{formatDate(leadData.data_nascimento)}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-2.5 bg-muted/50 rounded-lg">
+              <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
                 <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <div className="min-w-0">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground">Endereço</p>
                   <p className="font-medium text-sm">
                     {leadData.endereco || leadData.cidade || leadData.estado || leadData.cep ? (
                       <>
-                        {leadData.endereco && <span className="block truncate">{leadData.endereco}</span>}
+                        {leadData.endereco && <span className="block">{leadData.endereco}</span>}
                         {(leadData.cidade || leadData.estado) && (
-                          <span className="block truncate">{[leadData.cidade, leadData.estado].filter(Boolean).join(" - ")}</span>
+                          <span className="block">{[leadData.cidade, leadData.estado].filter(Boolean).join(" - ")}</span>
                         )}
                         {leadData.cep && <span>CEP: {leadData.cep}</span>}
                       </>
@@ -413,7 +413,7 @@ export function PixelStatusBadge({
               </div>
 
               {(!leadData.genero || !leadData.data_nascimento || !leadData.cep) && (
-                <div className="p-2.5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                   <p className="text-xs text-yellow-700 dark:text-yellow-400">
                     ⚠️ Alguns campos estão vazios. O evento será enviado com os dados disponíveis.
                   </p>
@@ -422,23 +422,23 @@ export function PixelStatusBadge({
             </div>
           )}
 
-          <DialogFooter className="flex-col gap-2 pt-2">
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
             <Button 
               variant="outline" 
               onClick={openChatWithFormMessage}
-              className="w-full"
+              className="w-full sm:w-auto order-1 sm:order-none"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Reenviar formulário
             </Button>
-            <div className="flex gap-2 w-full">
-              <Button variant="ghost" onClick={() => setReviewDialogOpen(false)} className="flex-1">
+            <div className="flex gap-2 w-full sm:w-auto order-2 sm:order-none">
+              <Button variant="ghost" onClick={() => setReviewDialogOpen(false)} className="flex-1 sm:flex-none">
                 Cancelar
               </Button>
               <Button
                 onClick={sendPixelEvent}
                 disabled={sendingEvent}
-                className="flex-1"
+                className="flex-1 sm:flex-none"
               >
                 {sendingEvent ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
