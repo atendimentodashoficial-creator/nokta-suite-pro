@@ -875,21 +875,20 @@ export default function Conexoes() {
       {/* Meta/Facebook Ads Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
-                <MetaIcon className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Meta Ads</CardTitle>
-                <CardDescription>
-                  Configure o Access Token para integração com o Meta Ads
-                </CardDescription>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
+              <MetaIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Meta Ads</CardTitle>
+              <CardDescription>
+                Configure o Access Token e vincule suas contas de anúncios
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          {/* Access Token Section */}
           <div className="space-y-4">
             <div>
               <Label>Access Token</Label>
@@ -924,28 +923,21 @@ export default function Conexoes() {
                 </div>
               </div>}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Ad Accounts Section */}
-      {hasMetaToken && <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                
-                <div>
-                  <CardTitle className="text-lg">Contas de Anúncios</CardTitle>
-                  <CardDescription>
-                    Vincule suas contas de anúncios do Meta Ads para monitorar saldo e gastos
-                  </CardDescription>
-                </div>
+          {/* Ad Accounts Section */}
+          {hasMetaToken && <div className="border-t pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <Label className="text-base font-medium">Contas de Anúncios</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Vincule suas contas para monitorar saldo e gastos
+                </p>
               </div>
               <Badge variant="secondary" className="gap-1">
                 {linkedAdAccounts.length} conta{linkedAdAccounts.length !== 1 ? "s" : ""}
               </Badge>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            
             {/* Formulário para adicionar conta */}
             <div className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
@@ -973,10 +965,10 @@ export default function Conexoes() {
             </div>
 
             {/* Lista de contas vinculadas */}
-            {linkedAdAccounts.length > 0 ? <div className="space-y-2">
+            {linkedAdAccounts.length > 0 ? <div className="space-y-2 mt-4">
                 {linkedAdAccounts.map(account => {
-            const accountType = account.account_type || (account.is_prepay_account ? "prepaid" : "postpaid");
-            return <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                  const accountType = account.account_type || (account.is_prepay_account ? "prepaid" : "postpaid");
+                  return <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{account.account_name || "Conta sem nome"}</p>
@@ -1001,18 +993,27 @@ export default function Conexoes() {
                         </Button>
                       </div>
                     </div>;
-          })}
+                })}
               </div> : <p className="text-sm text-muted-foreground text-center py-4">
                 Nenhuma conta vinculada. Adicione uma conta acima.
               </p>}
-          </CardContent>
-        </Card>}
+          </div>}
+        </CardContent>
+      </Card>
 
       {/* Google Ads Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 dark:bg-amber-950 rounded-lg">
+              <GoogleAdsIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Google Ads</CardTitle>
+              <CardDescription>
+                Configure as credenciais e vincule suas contas do Google Ads
+              </CardDescription>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
