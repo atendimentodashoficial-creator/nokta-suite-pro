@@ -57,31 +57,35 @@ function SortableMensagemCard({ mensagem, onEdit, onDelete }: SortableMensagemCa
   };
 
   return (
-    <Card ref={setNodeRef} style={style} className="p-4">
-      <div className="flex justify-between items-start gap-4">
-        <div
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+    >
+      <div className="flex items-center gap-3 flex-1">
+        <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-muted rounded touch-none"
+          className="cursor-grab active:cursor-grabbing touch-none"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
-        </div>
+        </button>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-lg mb-2">{mensagem.titulo}</h3>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+          <span className="font-medium">{mensagem.titulo}</span>
+          <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words line-clamp-2">
             {mensagem.conteudo}
           </p>
         </div>
-        <div className="flex gap-1 flex-shrink-0">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(mensagem)} className="h-8 w-8">
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => onDelete(mensagem.id)} className="h-8 w-8">
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
       </div>
-    </Card>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={() => onEdit(mensagem)}>
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => onDelete(mensagem.id)}>
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -111,19 +115,23 @@ function SortableAudioCard({ audio, playingAudioId, onPlay, onEdit, onDelete, fo
   };
 
   return (
-    <Card ref={setNodeRef} style={style} className="p-4">
-      <div className="flex items-center gap-4">
-        <div
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+    >
+      <div className="flex items-center gap-3 flex-1">
+        <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-muted rounded touch-none"
+          className="cursor-grab active:cursor-grabbing touch-none"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
-        </div>
+        </button>
         <Button
           variant="outline"
           size="icon"
-          className="flex-shrink-0"
+          className="flex-shrink-0 h-8 w-8"
           onClick={() => onPlay(audio)}
         >
           {playingAudioId === audio.id ? (
@@ -133,21 +141,21 @@ function SortableAudioCard({ audio, playingAudioId, onPlay, onEdit, onDelete, fo
           )}
         </Button>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold">{audio.titulo}</h3>
-          <p className="text-sm text-muted-foreground">
+          <span className="font-medium">{audio.titulo}</span>
+          <p className="text-xs text-muted-foreground mt-1">
             Duração: {formatDuration(audio.duracao_segundos)}
           </p>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(audio)}>
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => onDelete(audio.id)}>
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
       </div>
-    </Card>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={() => onEdit(audio)}>
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => onDelete(audio.id)}>
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -193,28 +201,29 @@ function SortableBlocoMensagemCard({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <Card ref={setNodeRef} style={style} className="p-3">
+      <div ref={setNodeRef} style={style} className="rounded-lg border p-4">
         <CollapsibleTrigger asChild>
           <div className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-2">
-              <div
+              <button
                 {...attributes}
                 {...listeners}
-                className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-muted rounded touch-none"
+                className="cursor-grab active:cursor-grabbing touch-none"
                 onClick={(e) => e.stopPropagation()}
               >
                 <GripVertical className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <Folder className="w-4 h-4 text-muted-foreground" />
-              <h3 className="font-semibold">{bloco.titulo}</h3>
-              <span className="text-xs text-muted-foreground">({mensagens.length})</span>
+              </button>
+              <h3 className="font-semibold text-base">{bloco.titulo}</h3>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                {mensagens.length}
+              </span>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(bloco); }} className="h-7 w-7">
-                <Edit className="w-3 h-3" />
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(bloco); }} className="h-8 w-8">
+                <Edit className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(bloco.id); }} className="h-7 w-7">
-                <Trash2 className="w-3 h-3" />
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(bloco.id); }} className="h-8 w-8">
+                <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
               <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </div>
@@ -235,7 +244,7 @@ function SortableBlocoMensagemCard({
                 items={mensagens.map(m => m.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="grid gap-2">
+                <div className="space-y-2">
                   {mensagens.map(mensagem => (
                     <SortableMensagemCard
                       key={mensagem.id}
@@ -249,7 +258,7 @@ function SortableBlocoMensagemCard({
             </DndContext>
           )}
         </CollapsibleContent>
-      </Card>
+      </div>
     </Collapsible>
   );
 }
@@ -302,28 +311,29 @@ function SortableBlocoAudioCard({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <Card ref={setNodeRef} style={style} className="p-3">
+      <div ref={setNodeRef} style={style} className="rounded-lg border p-4">
         <CollapsibleTrigger asChild>
           <div className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-2">
-              <div
+              <button
                 {...attributes}
                 {...listeners}
-                className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-muted rounded touch-none"
+                className="cursor-grab active:cursor-grabbing touch-none"
                 onClick={(e) => e.stopPropagation()}
               >
                 <GripVertical className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <Folder className="w-4 h-4 text-muted-foreground" />
-              <h3 className="font-semibold">{bloco.titulo}</h3>
-              <span className="text-xs text-muted-foreground">({audios.length})</span>
+              </button>
+              <h3 className="font-semibold text-base">{bloco.titulo}</h3>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                {audios.length}
+              </span>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(bloco); }} className="h-7 w-7">
-                <Edit className="w-3 h-3" />
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(bloco); }} className="h-8 w-8">
+                <Edit className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(bloco.id); }} className="h-7 w-7">
-                <Trash2 className="w-3 h-3" />
+              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(bloco.id); }} className="h-8 w-8">
+                <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
               <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </div>
@@ -344,7 +354,7 @@ function SortableBlocoAudioCard({
                 items={audios.map(a => a.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="grid gap-2">
+                <div className="space-y-2">
                   {audios.map(audio => (
                     <SortableAudioCard
                       key={audio.id}
@@ -361,7 +371,7 @@ function SortableBlocoAudioCard({
             </DndContext>
           )}
         </CollapsibleContent>
-      </Card>
+      </div>
     </Collapsible>
   );
 }
