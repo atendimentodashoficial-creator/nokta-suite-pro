@@ -78,6 +78,7 @@ interface Chat {
   chat_id: string;
   contact_name: string;
   contact_number: string;
+  instancia_id?: string | null;
   instancia_nome?: string | null;
   // Optional fields used to keep the chat list preview in sync
   last_message?: string | null;
@@ -1142,7 +1143,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
                       </div>
                     )}
 
-                    <MessageBubble message={msg} />
+                    <MessageBubble message={msg} instanciaId={chat.instancia_id} />
                   </div>
                 </div>
               </div>

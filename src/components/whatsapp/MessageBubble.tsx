@@ -51,6 +51,8 @@ interface MessageBubbleProps {
     fb_adset_name?: string | null;
     fb_ad_name?: string | null;
   };
+  // Optional instanciaId for Disparos chats (uses disparos_instancias instead of uazapi_config)
+  instanciaId?: string | null;
 }
 
 // Helper function to detect if content is media metadata that should be hidden
@@ -80,7 +82,7 @@ const isMediaMetadata = (content: string, isMediaMessage: boolean): boolean => {
   return false;
 };
 
-export const MessageBubble = ({ message, fallbackAttribution }: MessageBubbleProps) => {
+export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: MessageBubbleProps) => {
   const isAgent = message.sender_type === 'agent';
   const isMedia = message.media_type && message.media_type !== 'text';
   const isDeleted = message.deleted || false;
@@ -110,7 +112,7 @@ export const MessageBubble = ({ message, fallbackAttribution }: MessageBubblePro
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: { messageId: message.message_id }
+        body: { messageId: message.message_id, instanciaId }
       });
 
       if (response.error) throw response.error;
