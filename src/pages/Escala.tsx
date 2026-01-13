@@ -190,8 +190,8 @@ export default function Escala() {
       await createEscala.mutateAsync({
         profissional_id: profissionalId,
         dia_semana: diaSemana,
-        hora_inicio: "13:00",
-        hora_fim: "17:00",
+        hora_inicio: "",
+        hora_fim: "",
         ativo: true
       });
       toast({
