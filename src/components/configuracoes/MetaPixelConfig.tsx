@@ -281,10 +281,8 @@ export function MetaPixelConfig() {
         )}
 
         {/* Histórico de Eventos */}
-        {config && (
-          <>
-            <Separator />
-            <div className="space-y-4">
+        <Separator />
+        <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Histórico de Eventos</Label>
@@ -504,8 +502,6 @@ export function MetaPixelConfig() {
                 )}
               </ScrollArea>
             </div>
-          </>
-        )}
 
     </div>
   );
