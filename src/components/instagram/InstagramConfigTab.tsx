@@ -114,7 +114,7 @@ export function InstagramConfigTab() {
   return <div className="space-y-6">
       {/* Webhook Info */}
       <div className="space-y-4">
-        <Label>Configuração do Webhook</Label>
+        <Label className="text-base font-medium">Configuração do Webhook</Label>
         
         <div className="space-y-2">
           <Label>Callback URL</Label>
