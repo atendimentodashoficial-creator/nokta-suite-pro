@@ -28,6 +28,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
+import { formatPhoneByCountry, getPhonePlaceholder, normalizePhone, extractCountryCode, formatPhoneDisplay } from "@/utils/phoneFormat";
 
 interface SortableProfissionalItemProps {
   profissional: Profissional;
@@ -81,7 +83,7 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
               {profissional.telefone && (
                 <span className="flex items-center gap-1">
                   <Phone className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{profissional.telefone}</span>
+                  <span className="truncate">{formatPhoneDisplay(profissional.telefone)}</span>
                 </span>
               )}
               {profissional.email && (
@@ -138,7 +140,7 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
               {profissional.telefone && (
                 <span className="flex items-center gap-1">
                   <Phone className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{profissional.telefone}</span>
+                  <span className="truncate">{formatPhoneDisplay(profissional.telefone)}</span>
                 </span>
               )}
             </div>
@@ -178,6 +180,7 @@ export default function Profissionais() {
   const [nome, setNome] = useState("");
   const [especialidade, setEspecialidade] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [countryCode, setCountryCode] = useState("55");
   const [email, setEmail] = useState("");
 
   const { data: profissionais, isLoading } = useProfissionais();
@@ -202,7 +205,15 @@ export default function Profissionais() {
     setEditando(prof);
     setNome(prof.nome);
     setEspecialidade(prof.especialidade || "");
-    setTelefone(prof.telefone || "");
+    // Extract country code and phone from stored value
+    if (prof.telefone) {
+      const { countryCode: extractedCode, phoneWithoutCountry } = extractCountryCode(prof.telefone);
+      setCountryCode(extractedCode);
+      setTelefone(phoneWithoutCountry);
+    } else {
+      setCountryCode("55");
+      setTelefone("");
+    }
     setEmail(prof.email || "");
     setOpen(true);
   };
@@ -212,6 +223,7 @@ export default function Profissionais() {
     setNome("");
     setEspecialidade("");
     setTelefone("");
+    setCountryCode("55");
     setEmail("");
   };
 
@@ -221,10 +233,12 @@ export default function Profissionais() {
       toast.error("Nome é obrigatório");
       return;
     }
+    // Build full phone with country code
+    const fullPhone = telefone ? `${countryCode}${normalizePhone(telefone)}` : null;
     const dados = {
       nome,
       especialidade: especialidade || null,
-      telefone: telefone || null,
+      telefone: fullPhone,
       email: email || null,
       ativo: true
     };
@@ -347,7 +361,13 @@ export default function Profissionais() {
 
                 <div className="space-y-2">
                   <Label htmlFor="telefone">Telefone</Label>
-                  <Input id="telefone" value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
+                  <CountryCodeSelect
+                    value={countryCode}
+                    onChange={setCountryCode}
+                    phoneValue={formatPhoneByCountry(telefone, countryCode)}
+                    onPhoneChange={(val) => setTelefone(val.replace(/\D/g, ''))}
+                    placeholder={getPhonePlaceholder(countryCode)}
+                  />
                 </div>
 
                 <div className="space-y-2">
