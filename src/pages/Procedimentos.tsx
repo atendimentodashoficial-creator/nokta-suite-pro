@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, Clock } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -79,7 +79,10 @@ function SortableProcedimentoItem({ procedimento, onEdit, onDelete, onToggleAtiv
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
               <span>R$ {procedimento.valor_medio ? procedimento.valor_medio.toFixed(2) : 'N/D'}</span>
-              <span>{procedimento.tempo_atendimento_minutos || procedimento.duracao_minutos || 60}min</span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {procedimento.tempo_atendimento_minutos || procedimento.duracao_minutos || 60}min
+              </span>
             </div>
           </div>
         </div>
@@ -126,7 +129,10 @@ function SortableProcedimentoItem({ procedimento, onEdit, onDelete, onToggleAtiv
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
               <span>R$ {procedimento.valor_medio ? procedimento.valor_medio.toFixed(2) : 'N/D'}</span>
-              <span>{procedimento.tempo_atendimento_minutos || procedimento.duracao_minutos || 60}min</span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {procedimento.tempo_atendimento_minutos || procedimento.duracao_minutos || 60}min
+              </span>
             </div>
           </div>
         </div>
