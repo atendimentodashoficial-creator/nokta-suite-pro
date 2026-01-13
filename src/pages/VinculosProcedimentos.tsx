@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { Users, GripVertical } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, GripVertical, ChevronDown } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useVinculos, useCreateVinculo, useDeleteVinculo, useUpdateVinculoOrdem } from "@/hooks/useProcedimentoProfissional";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
@@ -159,27 +160,44 @@ export default function VinculosProcedimentos() {
         <CardContent>
           {isLoading ? <div className="text-center py-8 text-muted-foreground">Carregando...</div> : procedimentosComProfissionais.length === 0 ? <div className="text-center py-8 text-muted-foreground">
               Cadastre procedimentos e profissionais primeiro
-            </div> : <div className="space-y-4">
+            </div> : <Accordion type="multiple" className="space-y-2">
               {procedimentosComProfissionais.map(item => {
-            const activeProfissionais = item.profissionais.filter(p => p.isActive);
-            return <div key={item.procedimento.id} className="rounded-lg border p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <h3 className="font-semibold text-base">{item.procedimento.nome}</h3>
-                      <Badge variant="secondary" className="text-xs">
-                        <Users className="w-3 h-3 mr-1" />
-                        {item.activeCount}
-                      </Badge>
-                    </div>
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(item.procedimento.id, item.profissionais)}>
-                      <SortableContext items={activeProfissionais.map(p => p.profissionalId)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-2">
-                          {item.profissionais.map(prof => <SortableProfissionalItem key={prof.profissionalId} id={prof.profissionalId} profissionalId={prof.profissionalId} profissionalNome={prof.profissionalNome} vinculoId={prof.vinculoId} isActive={prof.isActive} onToggle={handleToggle(item.procedimento.id)} isPending={createVinculo.isPending || deleteVinculo.isPending} />)}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
-                  </div>;
-          })}
-            </div>}
+                const activeProfissionais = item.profissionais.filter(p => p.isActive);
+                return (
+                  <AccordionItem key={item.procedimento.id} value={item.procedimento.id} className="rounded-lg border px-4">
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-base">{item.procedimento.nome}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          <Users className="w-3 h-3 mr-1" />
+                          {item.activeCount}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(item.procedimento.id, item.profissionais)}>
+                        <SortableContext items={activeProfissionais.map(p => p.profissionalId)} strategy={verticalListSortingStrategy}>
+                          <div className="space-y-2 pb-2">
+                            {item.profissionais.map(prof => (
+                              <SortableProfissionalItem 
+                                key={prof.profissionalId} 
+                                id={prof.profissionalId} 
+                                profissionalId={prof.profissionalId} 
+                                profissionalNome={prof.profissionalNome} 
+                                vinculoId={prof.vinculoId} 
+                                isActive={prof.isActive} 
+                                onToggle={handleToggle(item.procedimento.id)} 
+                                isPending={createVinculo.isPending || deleteVinculo.isPending} 
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>}
         </CardContent>
       </Card>
     </div>;
