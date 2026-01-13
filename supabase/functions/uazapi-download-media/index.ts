@@ -29,33 +29,59 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { messageId, returnBase64, generateMp3, returnLink, transcribe, downloadQuoted } = await req.json();
+    const { messageId, returnBase64, generateMp3, returnLink, transcribe, downloadQuoted, instanciaId } = await req.json();
     
     if (!messageId) {
       throw new Error('messageId is required');
     }
 
-    console.log('Downloading media for message:', messageId);
+    console.log('Downloading media for message:', messageId, 'instanciaId:', instanciaId);
 
-    // Get user's UAZapi configuration
-    const { data: config, error: configError } = await supabase
-      .from('uazapi_config')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single();
+    let config: { base_url: string; api_key: string } | null = null;
 
-    if (configError || !config) {
-      throw new Error('UAZapi não configurado');
+    // If instanciaId is provided, try to get from disparos_instancias first
+    if (instanciaId) {
+      const { data: disparosConfig, error: disparosError } = await supabase
+        .from('disparos_instancias')
+        .select('base_url, api_key')
+        .eq('id', instanciaId)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (!disparosError && disparosConfig) {
+        config = disparosConfig;
+        console.log('Using disparos_instancias config');
+      }
     }
 
+    // Fallback to uazapi_config if no config found
+    if (!config) {
+      const { data: uazapiConfig, error: configError } = await supabase
+        .from('uazapi_config')
+        .select('base_url, api_key')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (configError || !uazapiConfig) {
+        throw new Error('UAZapi não configurado');
+      }
+      config = uazapiConfig;
+      console.log('Using uazapi_config');
+    }
+
+    // At this point config is guaranteed to be non-null
+    const base_url = config!.base_url;
+    const api_key = config!.api_key;
+
     // Download media from UAZapi
-    const response = await fetch(`${config.base_url}/message/download`, {
+    const response = await fetch(`${base_url}/message/download`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'token': config.api_key,
+        'token': api_key,
       },
       body: JSON.stringify({ 
         id: messageId,
