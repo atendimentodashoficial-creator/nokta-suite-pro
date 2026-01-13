@@ -47,9 +47,12 @@ export default function Escala() {
   const [dialogAusenciaAberto, setDialogAusenciaAberto] = useState(false);
   const [dialogEditarHorario, setDialogEditarHorario] = useState(false);
   const [editandoHorario, setEditandoHorario] = useState<{
-    id: string;
+    id: string | null;
     hora_inicio: string;
     hora_fim: string;
+    profissional_id?: string;
+    dia_semana?: number;
+    isNew?: boolean;
   } | null>(null);
 
   // Estados para controlar expansão
@@ -185,25 +188,16 @@ export default function Escala() {
       }
     }
   };
-  const handleAdicionarHorario = async (profissionalId: string, diaSemana: number) => {
-    try {
-      await createEscala.mutateAsync({
-        profissional_id: profissionalId,
-        dia_semana: diaSemana,
-        hora_inicio: "",
-        hora_fim: "",
-        ativo: true
-      });
-      toast({
-        title: "Horário adicionado"
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível adicionar o horário",
-        variant: "destructive"
-      });
-    }
+  const handleAdicionarHorario = (profissionalId: string, diaSemana: number) => {
+    setEditandoHorario({
+      id: null,
+      hora_inicio: "",
+      hora_fim: "",
+      profissional_id: profissionalId,
+      dia_semana: diaSemana,
+      isNew: true
+    });
+    setDialogEditarHorario(true);
   };
   const handleDeletarHorario = async (id: string) => {
     try {
@@ -224,26 +218,52 @@ export default function Escala() {
     hora_inicio: string;
     hora_fim: string;
   }) => {
-    setEditandoHorario(horario);
+    setEditandoHorario({ ...horario, isNew: false });
     setDialogEditarHorario(true);
   };
   const handleSalvarEdicaoHorario = async () => {
     if (!editandoHorario) return;
-    try {
-      await updateEscala.mutateAsync({
-        id: editandoHorario.id,
-        hora_inicio: editandoHorario.hora_inicio,
-        hora_fim: editandoHorario.hora_fim
-      });
+    
+    // Validar horários
+    if (!editandoHorario.hora_inicio || !editandoHorario.hora_fim) {
       toast({
-        title: "Horário atualizado"
+        title: "Erro",
+        description: "Preencha os horários de início e fim",
+        variant: "destructive"
       });
+      return;
+    }
+    
+    try {
+      if (editandoHorario.isNew && editandoHorario.profissional_id && editandoHorario.dia_semana !== undefined) {
+        // Criando novo horário
+        await createEscala.mutateAsync({
+          profissional_id: editandoHorario.profissional_id,
+          dia_semana: editandoHorario.dia_semana,
+          hora_inicio: editandoHorario.hora_inicio,
+          hora_fim: editandoHorario.hora_fim,
+          ativo: true
+        });
+        toast({
+          title: "Horário adicionado"
+        });
+      } else if (editandoHorario.id) {
+        // Editando horário existente
+        await updateEscala.mutateAsync({
+          id: editandoHorario.id,
+          hora_inicio: editandoHorario.hora_inicio,
+          hora_fim: editandoHorario.hora_fim
+        });
+        toast({
+          title: "Horário atualizado"
+        });
+      }
       setDialogEditarHorario(false);
       setEditandoHorario(null);
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar o horário",
+        description: "Não foi possível salvar o horário",
         variant: "destructive"
       });
     }
@@ -498,11 +518,11 @@ export default function Escala() {
           </Card>
         </Collapsible>)}
 
-      {/* Dialog Editar Horário */}
+      {/* Dialog Editar/Adicionar Horário */}
       <Dialog open={dialogEditarHorario} onOpenChange={setDialogEditarHorario}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Horário</DialogTitle>
+            <DialogTitle>{editandoHorario?.isNew ? 'Adicionar Horário' : 'Editar Horário'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
