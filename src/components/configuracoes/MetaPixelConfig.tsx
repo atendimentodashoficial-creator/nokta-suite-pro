@@ -101,16 +101,28 @@ export function MetaPixelConfig() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <MetaIcon className="h-6 w-6 text-blue-600" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
+              <MetaIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Meta Pixel (Conversions API)</CardTitle>
+              <CardDescription>
+                Configure a integração com o Meta Pixel para rastrear conversões
+              </CardDescription>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-lg font-semibold">Meta Pixel (Conversions API)</CardTitle>
-            <CardDescription>
-              Configure a integração com o Meta Pixel para rastrear conversões
-            </CardDescription>
-          </div>
+          <Badge variant={config ? "default" : "secondary"} className="gap-1">
+            {config ? (
+              <>
+                <CheckCircle2 className="h-3 w-3" />
+                Configurado
+              </>
+            ) : (
+              "Não configurado"
+            )}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -171,7 +183,7 @@ export function MetaPixelConfig() {
         {/* Mensagem do formulário de conversão */}
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="mensagem_formulario" className="text-base font-semibold">
+            <Label htmlFor="mensagem_formulario">
               Mensagem do Formulário de Conversão
             </Label>
             <p className="text-sm text-muted-foreground">
@@ -192,7 +204,7 @@ export function MetaPixelConfig() {
 
         {/* Eventos ativos */}
         <div className="space-y-4">
-          <Label className="text-base font-semibold">Eventos Automáticos</Label>
+          <Label>Eventos Automáticos</Label>
           <p className="text-sm text-muted-foreground">
             Escolha quais eventos devem ser enviados automaticamente ao Pixel
           </p>
@@ -270,7 +282,7 @@ export function MetaPixelConfig() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base font-semibold flex items-center gap-2">
+                  <Label className="flex items-center gap-2">
                     <TestTube className="h-4 w-4" />
                     Testar Envio de Evento
                   </Label>
@@ -326,7 +338,7 @@ export function MetaPixelConfig() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-base font-semibold">Histórico de Eventos</Label>
+                  <Label>Histórico de Eventos</Label>
                   <p className="text-sm text-muted-foreground">
                     Últimos eventos enviados para o Meta Pixel
                   </p>
