@@ -60,6 +60,9 @@ export default function Faturas() {
     const faturaDate = toZonedBrasilia(fatura.created_at);
     if (faturaDate < startOfDayBrasilia(dateStart)) return false;
     if (faturaDate > endOfDayBrasilia(dateEnd)) return false;
+    // Aplicar filtros de profissional e procedimento
+    if (filtroProcedimento !== "all" && fatura.procedimento_id !== filtroProcedimento) return false;
+    if (filtroProfissional !== "all" && fatura.profissional_id !== filtroProfissional) return false;
     return true;
   });
   const totalFechado = faturasFiltradas?.reduce((sum, f) => {
@@ -79,10 +82,7 @@ export default function Faturas() {
   const filteredFaturas = faturasFiltradas?.filter(fatura => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = (fatura.leads as any)?.nome?.toLowerCase().includes(searchLower) || (fatura.leads as any)?.telefone?.includes(searchTerm) || fatura.valor.toString().includes(searchTerm);
-    if (!matchesSearch) return false;
-    if (filtroProcedimento !== "all" && fatura.procedimento_id !== filtroProcedimento) return false;
-    if (filtroProfissional !== "all" && fatura.profissional_id !== filtroProfissional) return false;
-    return true;
+    return matchesSearch;
   });
   const handleWhatsAppClick = (e: React.MouseEvent, telefone: string, origem?: string | null) => {
     e.stopPropagation();
