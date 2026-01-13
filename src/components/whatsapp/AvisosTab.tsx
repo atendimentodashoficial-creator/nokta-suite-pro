@@ -782,6 +782,19 @@ export function AvisosTab() {
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium truncate">{ag.leads?.nome}</p>
+                            {ag.leads?.telefone && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="hidden sm:inline-flex h-7 w-7 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateToChat(navigate, ag.leads.telefone, ag.leads?.origem);
+                                }}
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </Button>
+                            )}
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${daysBadge.bgColor} ${daysBadge.textColor}`}>
                               {daysBadge.label}
                             </span>
@@ -794,7 +807,7 @@ export function AvisosTab() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            className="sm:hidden h-8 w-8 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigateToChat(navigate, ag.leads.telefone, ag.leads?.origem);
