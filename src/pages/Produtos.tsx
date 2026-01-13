@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, FileText } from "lucide-react";
 import { useProdutos, useCreateProduto, useUpdateProduto, useDeleteProduto, Produto } from "@/hooks/useProdutos";
 import { CurrencyInput, parseCurrencyToNumber } from "@/components/ui/currency-input";
 import {
@@ -116,7 +116,10 @@ function SortableProdutoItem({ produto, onEdit, onDelete, onToggleAtivo }: Sorta
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
               <span>R$ {produto.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               {produto.descricao && (
-                <span className="truncate hidden sm:inline">{produto.descricao}</span>
+                <span className="flex items-center gap-1 truncate hidden sm:inline-flex">
+                  <FileText className="w-3 h-3 flex-shrink-0" />
+                  {produto.descricao}
+                </span>
               )}
             </div>
           </div>
