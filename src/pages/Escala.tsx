@@ -204,17 +204,28 @@ export default function Escala() {
     const ultimoHorario = horariosExistentes?.[horariosExistentes.length - 1];
     const novoInicio = ultimoHorario?.hora_fim || "08:00";
     
+    // Calcula hora fim padrão (30 minutos depois do início)
+    const [horaI, minI] = novoInicio.split(":").map(Number);
+    let novaHora = horaI;
+    let novoMin = minI + 30;
+    if (novoMin >= 60) {
+      novoMin -= 60;
+      novaHora += 1;
+    }
+    if (novaHora > 23) novaHora = 23;
+    const horaFim = String(novaHora).padStart(2, "0") + ":" + String(novoMin).padStart(2, "0");
+    
     try {
       await createEscala.mutateAsync({
         profissional_id: profissionalId,
         dia_semana: diaSemana,
         hora_inicio: novoInicio,
-        hora_fim: novoInicio, // Mesmo horário para forçar edição
+        hora_fim: horaFim,
         ativo: true
       });
       toast({
         title: "Horário adicionado",
-        description: "Clique no lápis para ajustar o horário de término"
+        description: "Clique no lápis para ajustar"
       });
     } catch (error) {
       toast({
