@@ -37,8 +37,8 @@ export const ALL_COLUMNS: ColumnConfig[] = [
   { key: "cpc", label: "CPC", align: "right" },
   { key: "cpm", label: "CPM", align: "right" },
   { key: "reach", label: "Alcance", align: "right" },
-  { key: "results", label: "Resultados", align: "right" },
-  { key: "cost_per_result", label: "Custo/Resultado", align: "right" },
+  { key: "results", label: "Conversas", align: "right" },
+  { key: "cost_per_result", label: "Custo/Conversa", align: "right" },
   { key: "spend", label: "Gasto", align: "right" },
 ];
 

@@ -1204,11 +1204,11 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     if (report.topPerformersByMetric) {
       addSection("Melhores Desempenhos por Métrica");
       const metricLabels: Record<string, string> = {
-        results: "Mais Resultados",
+        results: "Mais Conversas",
         ctr: "Melhor CTR",
         cpc: "Menor CPC",
         cpm: "Menor CPM",
-        cost_per_result: "Menor Custo/Resultado",
+        cost_per_result: "Menor Custo/Conversa",
       };
       
       Object.entries(report.topPerformersByMetric as TopPerformersByMetric).forEach(([key, data]) => {
@@ -1672,11 +1672,11 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
                 <div className="space-y-8">
                   {report.topPerformersByMetric && Object.entries(report.topPerformersByMetric as TopPerformersByMetric).map(([metricKey, data]) => {
                     const metricLabels: Record<string, { title: string; description: string }> = {
-                      results: { title: 'Mais Resultados', description: 'Campanhas, conjuntos e anúncios com mais conversões' },
+                      results: { title: 'Mais Conversas', description: 'Campanhas, conjuntos e anúncios com mais conversas iniciadas' },
                       ctr: { title: 'Melhor CTR', description: 'Maior taxa de cliques (engajamento)' },
                       cpc: { title: 'Menor CPC', description: 'Custo por clique mais eficiente' },
                       cpm: { title: 'Menor CPM', description: 'Custo por mil impressões mais baixo' },
-                      cost_per_result: { title: 'Menor Custo/Resultado', description: 'Melhor eficiência de conversão' },
+                      cost_per_result: { title: 'Menor Custo/Conversa', description: 'Custo mais baixo por conversa iniciada' },
                     };
 
                     const metricInfo = metricLabels[metricKey] || { title: metricKey, description: '' };
