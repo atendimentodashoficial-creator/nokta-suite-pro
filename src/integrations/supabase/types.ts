@@ -2695,6 +2695,7 @@ export type Database = {
           duracao_minutos: number | null
           id: string
           nome: string
+          ordem: number | null
           tempo_atendimento_minutos: number | null
           updated_at: string | null
           user_id: string
@@ -2708,6 +2709,7 @@ export type Database = {
           duracao_minutos?: number | null
           id?: string
           nome: string
+          ordem?: number | null
           tempo_atendimento_minutos?: number | null
           updated_at?: string | null
           user_id: string
@@ -2721,6 +2723,7 @@ export type Database = {
           duracao_minutos?: number | null
           id?: string
           nome?: string
+          ordem?: number | null
           tempo_atendimento_minutos?: number | null
           updated_at?: string | null
           user_id?: string
@@ -2793,6 +2796,7 @@ export type Database = {
           especialidade: string | null
           id: string
           nome: string
+          ordem: number | null
           telefone: string | null
           updated_at: string | null
           user_id: string
@@ -2804,6 +2808,7 @@ export type Database = {
           especialidade?: string | null
           id?: string
           nome: string
+          ordem?: number | null
           telefone?: string | null
           updated_at?: string | null
           user_id: string
@@ -2815,6 +2820,7 @@ export type Database = {
           especialidade?: string | null
           id?: string
           nome?: string
+          ordem?: number | null
           telefone?: string | null
           updated_at?: string | null
           user_id?: string

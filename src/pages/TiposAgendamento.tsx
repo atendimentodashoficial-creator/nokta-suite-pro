@@ -24,8 +24,88 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useTiposAgendamento, TipoAgendamento } from "@/hooks/useTiposAgendamento";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
-const defaultColors = ["#10b981"];
+interface SortableTipoItemProps {
+  tipo: TipoAgendamento;
+  onEdit: (tipo: TipoAgendamento) => void;
+  onDelete: (id: string) => void;
+  onToggleAtivo: (tipo: TipoAgendamento) => void;
+}
+
+function SortableTipoItem({ tipo, onEdit, onDelete, onToggleAtivo }: SortableTipoItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tipo.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center justify-between p-3 rounded-lg border ${
+        tipo.ativo === false ? "opacity-50 bg-muted/50" : "bg-card"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing touch-none"
+        >
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <span className="font-medium">{tipo.nome}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={tipo.ativo !== false}
+          onCheckedChange={() => onToggleAtivo(tipo)}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onEdit(tipo)}
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDelete(tipo.id)}
+        >
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function TiposAgendamento() {
   const { tipos, isLoading, createTipo, updateTipo, deleteTipo } = useTiposAgendamento();
@@ -33,6 +113,13 @@ export default function TiposAgendamento() {
   const [editingTipo, setEditingTipo] = useState<TipoAgendamento | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ nome: "" });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleOpenCreate = () => {
     setEditingTipo(null);
@@ -77,6 +164,27 @@ export default function TiposAgendamento() {
     });
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = tipos.findIndex((t) => t.id === active.id);
+      const newIndex = tipos.findIndex((t) => t.id === over.id);
+      
+      const newOrder = arrayMove(tipos, oldIndex, newIndex);
+      
+      // Update order in database for all affected items
+      for (let i = 0; i < newOrder.length; i++) {
+        if (newOrder[i].ordem !== i + 1) {
+          await updateTipo.mutateAsync({
+            id: newOrder[i].id,
+            ordem: i + 1,
+          });
+        }
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -109,41 +217,25 @@ export default function TiposAgendamento() {
               <p className="text-sm mt-1">Crie tipos personalizados para seus agendamentos.</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {tipos.map((tipo) => (
-                <div
-                  key={tipo.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border ${
-                    tipo.ativo === false ? "opacity-50 bg-muted/50" : "bg-card"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
-                    <span className="font-medium">{tipo.nome}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={tipo.ativo !== false}
-                      onCheckedChange={() => handleToggleAtivo(tipo)}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={tipos.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {tipos.map((tipo) => (
+                    <SortableTipoItem
+                      key={tipo.id}
+                      tipo={tipo}
+                      onEdit={handleOpenEdit}
+                      onDelete={setDeleteId}
+                      onToggleAtivo={handleToggleAtivo}
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleOpenEdit(tipo)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteId(tipo.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           )}
         </CardContent>
       </Card>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useProcedimentos, useCreateProcedimento, useUpdateProcedimento, useDeleteProcedimento } from "@/hooks/useProcedimentos";
+import { useProcedimentos, useCreateProcedimento, useUpdateProcedimento, useDeleteProcedimento, Procedimento } from "@/hooks/useProcedimentos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,12 +7,105 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
-import { Procedimento } from "@/hooks/useProcedimentos";
+import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+interface SortableProcedimentoItemProps {
+  procedimento: Procedimento;
+  onEdit: (proc: Procedimento) => void;
+  onDelete: (proc: Procedimento) => void;
+  onToggleAtivo: (proc: Procedimento) => void;
+}
+
+function SortableProcedimentoItem({ procedimento, onEdit, onDelete, onToggleAtivo }: SortableProcedimentoItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: procedimento.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center justify-between p-3 rounded-lg border ${
+        !procedimento.ativo ? "opacity-50 bg-muted/50" : "bg-card"
+      }`}
+    >
+      <div className="flex items-center gap-3 flex-1">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing touch-none"
+        >
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{procedimento.nome}</span>
+            {procedimento.categoria && (
+              <Badge variant="outline" className="text-xs">{procedimento.categoria}</Badge>
+            )}
+          </div>
+          <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+            <span>Valor: {procedimento.valor_medio ? `R$ ${procedimento.valor_medio.toFixed(2)}` : 'N/D'}</span>
+            <span>Duração: {procedimento.tempo_atendimento_minutos || procedimento.duracao_minutos || 60}min</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={procedimento.ativo}
+          onCheckedChange={() => onToggleAtivo(procedimento)}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onEdit(procedimento)}
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDelete(procedimento)}
+        >
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Procedimentos() {
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Procedimento | null>(null);
@@ -23,35 +116,24 @@ export default function Procedimentos() {
   const [valorMedio, setValorMedio] = useState("");
   const [duracaoMinutos, setDuracaoMinutos] = useState("60");
 
-  // Estados de filtro
-  const [filtroNome, setFiltroNome] = useState("");
-  const [filtroCategoria, setFiltroCategoria] = useState("todas");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
-  const {
-    data: procedimentos,
-    isLoading
-  } = useProcedimentos();
+  const { data: procedimentos, isLoading } = useProcedimentos();
   const createProcedimento = useCreateProcedimento();
   const updateProcedimento = useUpdateProcedimento();
   const deleteProcedimento = useDeleteProcedimento();
 
-  // Obter categorias únicas
-  const categorias = useMemo(() => {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Sort by ordem
+  const sortedProcedimentos = useMemo(() => {
     if (!procedimentos) return [];
-    const cats = procedimentos.map(p => p.categoria).filter((c): c is string => !!c);
-    return Array.from(new Set(cats)).sort();
+    return [...procedimentos].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
   }, [procedimentos]);
 
-  // Filtrar procedimentos
-  const procedimentosFiltrados = useMemo(() => {
-    if (!procedimentos) return [];
-    return procedimentos.filter(proc => {
-      const matchNome = proc.nome.toLowerCase().includes(filtroNome.toLowerCase());
-      const matchCategoria = filtroCategoria === "todas" || proc.categoria === filtroCategoria;
-      const matchStatus = filtroStatus === "todos" || filtroStatus === "ativos" && proc.ativo || filtroStatus === "inativos" && !proc.ativo;
-      return matchNome && matchCategoria && matchStatus;
-    });
-  }, [procedimentos, filtroNome, filtroCategoria, filtroStatus]);
   const handleEditar = (proc: Procedimento) => {
     setEditando(proc);
     setNome(proc.nome);
@@ -61,6 +143,7 @@ export default function Procedimentos() {
     setDuracaoMinutos((proc.tempo_atendimento_minutos || proc.duracao_minutos || 60).toString());
     setOpen(true);
   };
+
   const limparFormulario = () => {
     setEditando(null);
     setNome("");
@@ -69,6 +152,7 @@ export default function Procedimentos() {
     setValorMedio("");
     setDuracaoMinutos("60");
   };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) {
@@ -99,7 +183,10 @@ export default function Procedimentos() {
         }
       });
     } else {
-      createProcedimento.mutate(dados, {
+      createProcedimento.mutate({
+        ...dados,
+        ordem: (procedimentos?.length || 0) + 1
+      }, {
         onSuccess: () => {
           toast.success("Procedimento cadastrado com sucesso!");
           setOpen(false);
@@ -111,6 +198,7 @@ export default function Procedimentos() {
       });
     }
   };
+
   const handleExcluir = () => {
     if (!excluindo) return;
     deleteProcedimento.mutate(excluindo.id, {
@@ -123,159 +211,138 @@ export default function Procedimentos() {
       }
     });
   };
-  return <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div />
 
-        <Dialog open={open} onOpenChange={o => {
-        setOpen(o);
-        if (!o) limparFormulario();
-      }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>{editando ? "Editar Procedimento" : "Cadastrar Novo Procedimento"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nome">Nome *</Label>
-                <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do procedimento" required />
-              </div>
+  const handleToggleAtivo = (proc: Procedimento) => {
+    updateProcedimento.mutate({
+      id: proc.id,
+      ativo: !proc.ativo
+    });
+  };
 
-              <div className="space-y-2">
-                <Label htmlFor="categoria">Categoria</Label>
-                <Input id="categoria" value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ex: Estética, Preventivo..." />
-              </div>
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
 
-              <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
-                <Textarea id="descricao" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descrição do procedimento" rows={3} />
-              </div>
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedProcedimentos.findIndex((p) => p.id === active.id);
+      const newIndex = sortedProcedimentos.findIndex((p) => p.id === over.id);
+      
+      const newOrder = arrayMove(sortedProcedimentos, oldIndex, newIndex);
+      
+      // Update order in database for all affected items
+      for (let i = 0; i < newOrder.length; i++) {
+        if ((newOrder[i].ordem || 0) !== i + 1) {
+          updateProcedimento.mutate({
+            id: newOrder[i].id,
+            ordem: i + 1,
+          });
+        }
+      }
+    }
+  };
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="valor">Valor Médio (R$)</Label>
-                  <Input id="valor" type="number" step="0.01" value={valorMedio} onChange={e => setValorMedio(e.target.value)} placeholder="0,00" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="duracao">Duração (minutos) *</Label>
-                  <Input id="duracao" type="number" value={duracaoMinutos} onChange={e => setDuracaoMinutos(e.target.value)} placeholder="60" required />
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={createProcedimento.isPending || updateProcedimento.isPending}>
-                  {createProcedimento.isPending || updateProcedimento.isPending ? "Salvando..." : editando ? "Atualizar" : "Cadastrar"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filtros */}
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Buscar:</span>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={filtroNome} onChange={e => setFiltroNome(e.target.value)} placeholder="Nome..." className="pl-9 w-[180px]" />
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Categoria:</span>
-            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-              <SelectTrigger className="w-[140px] bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="todas">Todas</SelectItem>
-                {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Status:</span>
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-[120px] bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="ativos">Ativos</SelectItem>
-                <SelectItem value="inativos">Inativos</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <span className="text-sm text-muted-foreground ml-auto">
-            {procedimentosFiltrados.length} de {procedimentos?.length || 0}
-          </span>
-        </div>
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg font-semibold">Procedimentos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </CardContent>
       </Card>
+    );
+  }
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {isLoading ? <>
-            {[1, 2, 3].map(i => <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-4 w-2/3" />
-                </CardContent>
-              </Card>)}
-          </> : procedimentosFiltrados && procedimentosFiltrados.length > 0 ? procedimentosFiltrados.map(proc => <Card key={proc.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{proc.nome}</CardTitle>
-                  <Badge variant={proc.ativo ? "default" : "secondary"}>
-                    {proc.ativo ? "Ativo" : "Inativo"}
-                  </Badge>
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg font-semibold">Procedimentos</CardTitle>
+          <Dialog open={open} onOpenChange={o => {
+            setOpen(o);
+            if (!o) limparFormulario();
+          }}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>{editando ? "Editar Procedimento" : "Novo Procedimento"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome *</Label>
+                  <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do procedimento" required />
                 </div>
-                {proc.categoria && <Badge variant="outline" className="w-fit">
-                    {proc.categoria}
-                  </Badge>}
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {proc.descricao && <p className="text-sm text-muted-foreground">{proc.descricao}</p>}
-                <div className="flex gap-4 text-sm">
-                  <span>
-                    <strong>Valor:</strong> {proc.valor_medio ? `R$ ${proc.valor_medio.toFixed(2)}` : 'Não definido'}
-                  </span>
-                  <span>
-                    <strong>Duração:</strong> {proc.tempo_atendimento_minutos || proc.duracao_minutos || 60}min
-                  </span>
+
+                <div className="space-y-2">
+                  <Label htmlFor="categoria">Categoria</Label>
+                  <Input id="categoria" value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ex: Estética, Preventivo..." />
                 </div>
-                <div className="flex gap-2 pt-2 border-t border-border">
-                  <Button size="sm" variant="outline" onClick={() => handleEditar(proc)} className="flex-1">
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Editar
+
+                <div className="space-y-2">
+                  <Label htmlFor="descricao">Descrição</Label>
+                  <Textarea id="descricao" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descrição do procedimento" rows={3} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="valor">Valor Médio (R$)</Label>
+                    <Input id="valor" type="number" step="0.01" value={valorMedio} onChange={e => setValorMedio(e.target.value)} placeholder="0,00" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="duracao">Duração (minutos) *</Label>
+                    <Input id="duracao" type="number" value={duracaoMinutos} onChange={e => setDuracaoMinutos(e.target.value)} placeholder="60" required />
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    Cancelar
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => setExcluindo(proc)} className="flex-1">
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Excluir
+                  <Button type="submit" disabled={createProcedimento.isPending || updateProcedimento.isPending}>
+                    {createProcedimento.isPending || updateProcedimento.isPending ? "Salvando..." : editando ? "Atualizar" : "Cadastrar"}
                   </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          {sortedProcedimentos.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhum procedimento cadastrado.</p>
+              <p className="text-sm mt-1">Adicione procedimentos para usar nos agendamentos.</p>
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={sortedProcedimentos.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {sortedProcedimentos.map((proc) => (
+                    <SortableProcedimentoItem
+                      key={proc.id}
+                      procedimento={proc}
+                      onEdit={handleEditar}
+                      onDelete={setExcluindo}
+                      onToggleAtivo={handleToggleAtivo}
+                    />
+                  ))}
                 </div>
-              </CardContent>
-            </Card>) : <Card className="col-span-full">
-            <CardContent className="py-8 text-center text-muted-foreground">
-              {procedimentos && procedimentos.length > 0 ? "Nenhum procedimento encontrado com os filtros aplicados" : "Nenhum procedimento cadastrado"}
-            </CardContent>
-          </Card>}
-      </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </CardContent>
+      </Card>
 
       <AlertDialog open={!!excluindo} onOpenChange={open => !open && setExcluindo(null)}>
         <AlertDialogContent>
@@ -294,5 +361,6 @@ export default function Procedimentos() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>;
+    </>
+  );
 }
