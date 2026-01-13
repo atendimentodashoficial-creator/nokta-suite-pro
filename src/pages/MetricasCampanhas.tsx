@@ -687,11 +687,7 @@ export default function MetricasCampanhas() {
             </>
           )}
 
-          <div className="text-sm text-muted-foreground">
-            {format(dateStart, "dd/MM/yyyy", { locale: ptBR })} - {format(dateEnd, "dd/MM/yyyy", { locale: ptBR })}
-          </div>
-
-          <Button 
+          <Button
             variant="outline" 
             onClick={fetchCampaignMetrics}
             disabled={loadingMetrics}
