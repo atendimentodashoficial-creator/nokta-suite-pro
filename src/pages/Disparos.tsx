@@ -1124,19 +1124,6 @@ export default function Disparos() {
                   <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 </Button>
 
-                {/* Instance Manager button */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setShowInstanceManager(true);
-                    // Only check connection status when user opens the manager
-                    fullInstancias.forEach(inst => checkConnectionStatus(inst));
-                  }}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-
                 {viewMode === "list" && (
                   isSelectionMode ? (
                     <Button size="sm" variant="ghost" onClick={toggleSelectionMode}>
@@ -1148,6 +1135,19 @@ export default function Disparos() {
                     </Button>
                   )
                 )}
+
+                {/* Instance Manager button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowInstanceManager(true);
+                    // Only check connection status when user opens the manager
+                    fullInstancias.forEach(inst => checkConnectionStatus(inst));
+                  }}
+                >
+                  <QrCode className="h-4 w-4" />
+                </Button>
               </div>
 
               {/* Search bar - full width on mobile, second row */}
