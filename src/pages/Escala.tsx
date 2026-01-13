@@ -687,6 +687,9 @@ export default function Escala() {
                     })}>
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeletarAusencia(ausencia.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>)}
             </div> : <p className="text-center text-muted-foreground py-8">Nenhuma ausência registrada</p>}
@@ -695,128 +698,93 @@ export default function Escala() {
 
       {/* Dialog Editar Ausência */}
       <Dialog open={dialogEditarAusencia} onOpenChange={setDialogEditarAusencia}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Ausência</DialogTitle>
+            <DialogTitle>Editar Ausência - {datasAusenciaEditando.length > 0 ? format(datasAusenciaEditando[0], "dd/MM/yyyy", { locale: ptBR }) : ""}</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col sm:flex-row gap-6">
-            {/* Calendário */}
-            <div className="w-full sm:w-auto sm:flex-shrink-0">
-              <Calendar 
-                mode="multiple" 
-                selected={datasAusenciaEditando} 
-                onSelect={(dates) => setDatasAusenciaEditando(dates || [])} 
-                locale={ptBR} 
-                className="pointer-events-auto rounded-md border w-full"
-                classNames={{
-                  months: "flex flex-col w-full",
-                  month: "space-y-4 w-full",
-                  table: "w-full border-collapse space-y-1",
-                  head_row: "flex w-full justify-between",
-                  head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] text-center",
-                  row: "flex w-full mt-2 justify-between",
-                  cell: "flex-1 h-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                  day: "h-9 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-muted rounded-md",
-                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                  day_today: "bg-accent text-accent-foreground font-semibold",
-                }}
-              />
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Que horas você está livre?</Label>
             </div>
             
-            {/* Horários */}
-            <div className="flex-1 space-y-4">
-              <div>
-                <Label className="text-sm font-medium">Que horas você está livre?</Label>
+            {!diaInteiroEditando && (
+              <div className="space-y-2">
+                {horariosAusenciaEditando.map((horario, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input 
+                      type="time" 
+                      value={horario.inicio} 
+                      onChange={e => handleAtualizarHorarioAusenciaEditando(index, 'inicio', e.target.value)}
+                      className="w-24 h-9 text-sm"
+                    />
+                    <span className="text-muted-foreground">-</span>
+                    <Input 
+                      type="time" 
+                      value={horario.fim} 
+                      onChange={e => handleAtualizarHorarioAusenciaEditando(index, 'fim', e.target.value)}
+                      className="w-24 h-9 text-sm"
+                    />
+                    {horariosAusenciaEditando.length > 1 ? (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8" 
+                        onClick={() => handleRemoverHorarioAusenciaEditando(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8" 
+                        onClick={handleAdicionarHorarioAusenciaEditando}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {horariosAusenciaEditando.length > 1 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 text-xs" 
+                    onClick={handleAdicionarHorarioAusenciaEditando}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Adicionar horário
+                  </Button>
+                )}
               </div>
-              
-              {!diaInteiroEditando && (
-                <div className="space-y-2">
-                  {horariosAusenciaEditando.map((horario, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Input 
-                        type="time" 
-                        value={horario.inicio} 
-                        onChange={e => handleAtualizarHorarioAusenciaEditando(index, 'inicio', e.target.value)}
-                        className="w-24 h-9 text-sm"
-                      />
-                      <span className="text-muted-foreground">-</span>
-                      <Input 
-                        type="time" 
-                        value={horario.fim} 
-                        onChange={e => handleAtualizarHorarioAusenciaEditando(index, 'fim', e.target.value)}
-                        className="w-24 h-9 text-sm"
-                      />
-                      {horariosAusenciaEditando.length > 1 ? (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8" 
-                          onClick={() => handleRemoverHorarioAusenciaEditando(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8" 
-                          onClick={handleAdicionarHorarioAusenciaEditando}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  {horariosAusenciaEditando.length > 1 && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 text-xs" 
-                      onClick={handleAdicionarHorarioAusenciaEditando}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Adicionar horário
-                    </Button>
-                  )}
-                </div>
-              )}
-              
-              <div className="flex items-center gap-2 pt-2">
-                <Switch 
-                  checked={diaInteiroEditando} 
-                  onCheckedChange={setDiaInteiroEditando}
-                />
-                <Label className="text-sm">Marcar indisponível (o dia todo)</Label>
-              </div>
-              
-              <div>
-                <Label className="text-xs text-muted-foreground">Motivo (opcional)</Label>
-                <Textarea 
-                  value={motivoEditando} 
-                  onChange={e => setMotivoEditando(e.target.value)} 
-                  placeholder="Ex: Férias, Licença médica..."
-                  className="h-16 text-sm"
-                />
-              </div>
+            )}
+            
+            <div className="flex items-center gap-2 pt-2">
+              <Switch 
+                checked={diaInteiroEditando} 
+                onCheckedChange={setDiaInteiroEditando}
+              />
+              <Label className="text-sm">Marcar indisponível (o dia todo)</Label>
+            </div>
+            
+            <div>
+              <Label className="text-xs text-muted-foreground">Motivo (opcional)</Label>
+              <Textarea 
+                value={motivoEditando} 
+                onChange={e => setMotivoEditando(e.target.value)} 
+                placeholder="Ex: Férias, Licença médica..."
+                className="h-16 text-sm"
+              />
             </div>
           </div>
           
-          <div className="flex justify-between gap-2 pt-4 border-t">
-            <Button variant="destructive" onClick={() => ausenciaEditando && handleDeletarAusencia(ausenciaEditando.id)}>
-              <Trash2 className="h-4 w-4 mr-1" />
-              Excluir
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setDialogEditarAusencia(false)}>
+              Cancelar
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setDialogEditarAusencia(false)}>
-                Fechar
-              </Button>
-              <Button 
-                onClick={handleSalvarEdicaoAusencia}
-                disabled={datasAusenciaEditando.length === 0}
-              >
-                Salvar
-              </Button>
-            </div>
+            <Button onClick={handleSalvarEdicaoAusencia}>
+              Salvar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
