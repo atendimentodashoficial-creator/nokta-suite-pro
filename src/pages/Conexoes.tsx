@@ -1029,19 +1029,18 @@ export default function Conexoes() {
           <CardContent className="space-y-4">
             {/* Formulário para adicionar conta */}
             <div className="flex flex-wrap gap-2 items-end">
-              <div className="flex-1 min-w-[200px]">
-                <Label className="text-xs text-muted-foreground">Ad Account ID</Label>
+              <div className="flex-1 min-w-[200px] space-y-2">
+                <Label>Ad Account ID</Label>
                 <Input
                   placeholder="ex: act_1234567890"
                   value={newAccountId}
                   onChange={(e) => setNewAccountId(e.target.value)}
-                  className="mt-1"
                 />
               </div>
-              <div className="w-[140px]">
-                <Label className="text-xs text-muted-foreground">Tipo de Conta</Label>
+              <div className="w-[140px] space-y-2">
+                <Label>Tipo de Conta</Label>
                 <Select value={newAccountType} onValueChange={setNewAccountType}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
