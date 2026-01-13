@@ -52,7 +52,7 @@ export function PeriodFilter({
           <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
           <SelectItem value="this_week">Esta semana</SelectItem>
           <SelectItem value="last_week">Semana passada</SelectItem>
-          <SelectItem value="this_month">Este mês</SelectItem>
+          <SelectItem value="this_month">Mês Atual</SelectItem>
           <SelectItem value="last_month">Mês passado</SelectItem>
           <SelectItem value="max">Máximo</SelectItem>
           <SelectItem value="custom">Personalizado</SelectItem>
