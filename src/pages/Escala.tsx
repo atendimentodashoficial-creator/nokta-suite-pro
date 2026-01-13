@@ -621,12 +621,7 @@ export default function Escala() {
                         {getNomeProfissional(ausencia.profissional_id)}
                       </p>}
                     <p className="font-medium text-sm">
-                      {format(parseISO(ausencia.data_inicio), "dd/MM/yyyy", {
-                  locale: ptBR
-                })} -{" "}
-                      {format(parseISO(ausencia.data_fim), "dd/MM/yyyy", {
-                  locale: ptBR
-                })}
+                      {format(parseISO(ausencia.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
                       {(ausencia.hora_inicio || ausencia.hora_fim) && (
                         <span className="text-xs text-primary ml-2">
                           ({ausencia.hora_inicio || "00:00"} - {ausencia.hora_fim || "23:59"})
@@ -658,47 +653,29 @@ export default function Escala() {
             <DialogTitle>Editar Ausência</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Data Início</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {ausenciaEditando?.data_inicio ? format(parseISO(ausenciaEditando.data_inicio), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar 
-                      mode="single" 
-                      selected={ausenciaEditando?.data_inicio ? parseISO(ausenciaEditando.data_inicio) : undefined} 
-                      onSelect={(date) => date && setAusenciaEditando(prev => prev ? { ...prev, data_inicio: format(date, "yyyy-MM-dd") } : null)} 
-                      locale={ptBR} 
-                      className="pointer-events-auto" 
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label>Data Fim</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {ausenciaEditando?.data_fim ? format(parseISO(ausenciaEditando.data_fim), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar 
-                      mode="single" 
-                      selected={ausenciaEditando?.data_fim ? parseISO(ausenciaEditando.data_fim) : undefined} 
-                      onSelect={(date) => date && setAusenciaEditando(prev => prev ? { ...prev, data_fim: format(date, "yyyy-MM-dd") } : null)} 
-                      locale={ptBR} 
-                      className="pointer-events-auto" 
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+            <div>
+              <Label>Data</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {ausenciaEditando?.data_inicio ? format(parseISO(ausenciaEditando.data_inicio), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar 
+                    mode="single" 
+                    selected={ausenciaEditando?.data_inicio ? parseISO(ausenciaEditando.data_inicio) : undefined} 
+                    onSelect={(date) => date && setAusenciaEditando(prev => prev ? { 
+                      ...prev, 
+                      data_inicio: format(date, "yyyy-MM-dd"),
+                      data_fim: format(date, "yyyy-MM-dd")
+                    } : null)} 
+                    locale={ptBR} 
+                    className="pointer-events-auto" 
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
