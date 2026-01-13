@@ -2,7 +2,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone, RefreshCw, Pencil, Save, X } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -46,6 +49,9 @@ export function PixelStatusBadge({
   const [sendingEvent, setSendingEvent] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [leadData, setLeadData] = useState<LeadData | null>(null);
+  const [editData, setEditData] = useState<LeadData | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [faturaValor, setFaturaValor] = useState<number | null>(null);
   const [loadingLeadData, setLoadingLeadData] = useState(false);
   const queryClient = useQueryClient();
@@ -138,6 +144,50 @@ export function PixelStatusBadge({
       toast.error("Erro ao carregar dados do cliente");
     } finally {
       setLoadingLeadData(false);
+    }
+  };
+
+  const startEditing = () => {
+    setEditData({ ...leadData });
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setEditData(null);
+    setIsEditing(false);
+  };
+
+  const saveEdit = async () => {
+    if (!editData) return;
+    
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          nome: editData.nome,
+          email: editData.email,
+          genero: editData.genero,
+          data_nascimento: editData.data_nascimento,
+          cep: editData.cep,
+          cidade: editData.cidade,
+          estado: editData.estado,
+          endereco: editData.endereco,
+        })
+        .eq("id", clienteId);
+
+      if (error) throw error;
+
+      setLeadData(editData);
+      setIsEditing(false);
+      setEditData(null);
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Dados atualizados!");
+    } catch (error: any) {
+      console.error("Error saving lead data:", error);
+      toast.error("Erro ao salvar dados");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -336,19 +386,119 @@ export function PixelStatusBadge({
       </div>
 
       {/* Review Dialog */}
-      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+      <Dialog open={reviewDialogOpen} onOpenChange={(open) => {
+        setReviewDialogOpen(open);
+        if (!open) {
+          setIsEditing(false);
+          setEditData(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Megaphone className="h-5 w-5 text-primary" />
-              Conferir dados antes de enviar
+              {isEditing ? "Editar dados" : "Conferir dados antes de enviar"}
             </DialogTitle>
             <DialogDescription>
-              Estes dados serão enviados para o Meta Pixel como evento de compra (Purchase).
+              {isEditing 
+                ? "Edite os dados do cliente que serão enviados ao Pixel."
+                : "Estes dados serão enviados para o Meta Pixel como evento de compra (Purchase)."
+              }
             </DialogDescription>
           </DialogHeader>
 
-          {leadData && (
+          {isEditing && editData ? (
+            <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-2">
+                <Label htmlFor="edit-nome">Nome</Label>
+                <Input
+                  id="edit-nome"
+                  value={editData.nome || ""}
+                  onChange={(e) => setEditData({ ...editData, nome: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">E-mail</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editData.email || ""}
+                  onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-genero">Gênero</Label>
+                  <Select
+                    value={editData.genero || ""}
+                    onValueChange={(value) => setEditData({ ...editData, genero: value })}
+                  >
+                    <SelectTrigger id="edit-genero">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="masculino">Masculino</SelectItem>
+                      <SelectItem value="feminino">Feminino</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-nascimento">Nascimento</Label>
+                  <Input
+                    id="edit-nascimento"
+                    type="date"
+                    value={editData.data_nascimento || ""}
+                    onChange={(e) => setEditData({ ...editData, data_nascimento: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-endereco">Endereço</Label>
+                <Input
+                  id="edit-endereco"
+                  value={editData.endereco || ""}
+                  onChange={(e) => setEditData({ ...editData, endereco: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-cidade">Cidade</Label>
+                  <Input
+                    id="edit-cidade"
+                    value={editData.cidade || ""}
+                    onChange={(e) => setEditData({ ...editData, cidade: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-estado">Estado</Label>
+                  <Input
+                    id="edit-estado"
+                    value={editData.estado || ""}
+                    onChange={(e) => setEditData({ ...editData, estado: e.target.value })}
+                    maxLength={2}
+                    placeholder="UF"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-cep">CEP</Label>
+                <Input
+                  id="edit-cep"
+                  value={editData.cep || ""}
+                  onChange={(e) => setEditData({ ...editData, cep: e.target.value })}
+                  placeholder="00000-000"
+                />
+              </div>
+            </div>
+          ) : leadData && (
             <div className="space-y-3 py-2">
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                 <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -423,34 +573,71 @@ export function PixelStatusBadge({
           )}
 
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setReviewDialogOpen(false);
-                openChatWithFormMessage();
-              }}
-              className="w-full sm:w-auto order-1 sm:order-none"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Reenviar formulário
-            </Button>
-            <div className="flex gap-2 w-full sm:w-auto order-2 sm:order-none">
-              <Button variant="ghost" onClick={() => setReviewDialogOpen(false)} className="flex-1 sm:flex-none">
-                Cancelar
-              </Button>
-              <Button
-                onClick={sendPixelEvent}
-                disabled={sendingEvent}
-                className="flex-1 sm:flex-none"
-              >
-                {sendingEvent ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Megaphone className="h-4 w-4 mr-2" />
-                )}
-                Enviar ao Pixel
-              </Button>
-            </div>
+            {isEditing ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={cancelEditing}
+                  className="w-full sm:w-auto"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={saveEdit}
+                  disabled={savingEdit}
+                  className="w-full sm:w-auto"
+                >
+                  {savingEdit ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  Salvar
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="flex gap-2 w-full sm:w-auto order-1 sm:order-none">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setReviewDialogOpen(false);
+                      openChatWithFormMessage();
+                    }}
+                    className="flex-1 sm:flex-none"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Reenviar
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={startEditing}
+                    className="flex-1 sm:flex-none"
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto order-2 sm:order-none">
+                  <Button variant="ghost" onClick={() => setReviewDialogOpen(false)} className="flex-1 sm:flex-none">
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={sendPixelEvent}
+                    disabled={sendingEvent}
+                    className="flex-1 sm:flex-none"
+                  >
+                    {sendingEvent ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Megaphone className="h-4 w-4 mr-2" />
+                    )}
+                    Enviar ao Pixel
+                  </Button>
+                </div>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
