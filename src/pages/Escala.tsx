@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Calendar as CalendarIcon, Trash2, Plus, Clock, Copy, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, Trash2, Plus, Clock, Copy, Pencil, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -83,6 +83,15 @@ export default function Escala() {
   const [horariosAusenciaEditando, setHorariosAusenciaEditando] = useState<Array<{ inicio: string; fim: string }>>([{ inicio: "", fim: "" }]);
   const [diaInteiroEditando, setDiaInteiroEditando] = useState(false);
   const [motivoEditando, setMotivoEditando] = useState("");
+  
+  // Estado para visualizar ausência
+  const [dialogVisualizarAusencia, setDialogVisualizarAusencia] = useState(false);
+  const [ausenciaVisualizando, setAusenciaVisualizando] = useState<{
+    data: string;
+    profissional_id: string;
+    horarios: Array<{ id: string; inicio: string | null; fim: string | null }>;
+    motivo: string | null;
+  } | null>(null);
   const {
     data: profissionais
   } = useProfissionais(true);
@@ -105,6 +114,28 @@ export default function Escala() {
     if (profissionalSelecionado === "todos") return todasAusencias;
     return todasAusencias.filter(a => a.profissional_id === profissionalSelecionado);
   }, [todasAusencias, profissionalSelecionado]);
+
+  // Agrupa ausências por data (1 card por data)
+  const ausenciasAgrupadas = useMemo(() => {
+    if (!ausencias || ausencias.length === 0) return [];
+    
+    const grouped: { [key: string]: { data: string; profissional_id: string; ausencias: typeof ausencias; motivo: string | null } } = {};
+    
+    ausencias.forEach(ausencia => {
+      const key = `${ausencia.profissional_id}-${ausencia.data_inicio}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          data: ausencia.data_inicio,
+          profissional_id: ausencia.profissional_id,
+          ausencias: [],
+          motivo: ausencia.motivo
+        };
+      }
+      grouped[key].ausencias.push(ausencia);
+    });
+    
+    return Object.values(grouped).sort((a, b) => a.data.localeCompare(b.data));
+  }, [ausencias]);
 
   // Agrupa escalas por profissional e dia
   const escalasPorProfissional = useMemo(() => {
@@ -917,34 +948,48 @@ export default function Escala() {
           {profissionalSelecionado === "todos" && <p className="text-sm text-muted-foreground mb-4">
               Selecione um profissional específico para gerenciar ausências
             </p>}
-          {ausencias && ausencias.length > 0 ? <div className="space-y-2">
-              {ausencias.map(ausencia => <div key={ausencia.id} className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-card">
+          {ausenciasAgrupadas && ausenciasAgrupadas.length > 0 ? <div className="space-y-2">
+              {ausenciasAgrupadas.map(grupo => <div key={`${grupo.profissional_id}-${grupo.data}`} className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-card">
                   <div className="min-w-0 flex-1">
                     {profissionalSelecionado === "todos" && <p className="text-xs text-muted-foreground mb-1">
-                        {getNomeProfissional(ausencia.profissional_id)}
+                        {getNomeProfissional(grupo.profissional_id)}
                       </p>}
                     <p className="font-medium text-sm">
-                      {format(parseISO(ausencia.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
-                      {(ausencia.hora_inicio || ausencia.hora_fim) && (
-                        <span className="text-xs text-primary ml-2">
-                          ({ausencia.hora_inicio || "00:00"} - {ausencia.hora_fim || "23:59"})
-                        </span>
-                      )}
+                      {format(parseISO(grupo.data), "dd/MM/yyyy", { locale: ptBR })}
                     </p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditarAusencia({
-                      id: ausencia.id,
-                      profissional_id: ausencia.profissional_id,
-                      data_inicio: ausencia.data_inicio,
-                      data_fim: ausencia.data_fim,
-                      hora_inicio: ausencia.hora_inicio,
-                      hora_fim: ausencia.hora_fim,
-                      motivo: ausencia.motivo
-                    })}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                      setAusenciaVisualizando({
+                        data: grupo.data,
+                        profissional_id: grupo.profissional_id,
+                        horarios: grupo.ausencias.map(a => ({ id: a.id, inicio: a.hora_inicio, fim: a.hora_fim })),
+                        motivo: grupo.motivo
+                      });
+                      setDialogVisualizarAusencia(true);
+                    }}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                      const primeiraAusencia = grupo.ausencias[0];
+                      handleEditarAusencia({
+                        id: primeiraAusencia.id,
+                        profissional_id: primeiraAusencia.profissional_id,
+                        data_inicio: primeiraAusencia.data_inicio,
+                        data_fim: primeiraAusencia.data_fim,
+                        hora_inicio: primeiraAusencia.hora_inicio,
+                        hora_fim: primeiraAusencia.hora_fim,
+                        motivo: primeiraAusencia.motivo
+                      });
+                    }}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeletarAusencia(ausencia.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={async () => {
+                      // Deleta todas as ausências do grupo
+                      for (const ausencia of grupo.ausencias) {
+                        await handleDeletarAusencia(ausencia.id);
+                      }
+                    }}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1053,8 +1098,52 @@ export default function Escala() {
       </Dialog>
 
 
+      {/* Dialog Visualizar Ausência */}
+      <Dialog open={dialogVisualizarAusencia} onOpenChange={setDialogVisualizarAusencia}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Disponibilidade - {ausenciaVisualizando ? format(parseISO(ausenciaVisualizando.data), "dd/MM/yyyy", { locale: ptBR }) : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {ausenciaVisualizando && (
+              <>
+                <div>
+                  <Label className="text-sm font-medium">Horários disponíveis:</Label>
+                </div>
+                <div className="space-y-2">
+                  {ausenciaVisualizando.horarios.length > 0 && ausenciaVisualizando.horarios.some(h => h.inicio || h.fim) ? (
+                    ausenciaVisualizando.horarios.map((horario, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">
+                          {horario.inicio?.slice(0, 5) || "00:00"} - {horario.fim?.slice(0, 5) || "23:59"}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Dia inteiro indisponível</p>
+                  )}
+                </div>
+                {ausenciaVisualizando.motivo && (
+                  <div>
+                    <Label className="text-sm font-medium">Motivo:</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{ausenciaVisualizando.motivo}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setDialogVisualizarAusencia(false)}>
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Dialog Copiar Dia */}
+
       <Dialog open={dialogCopiarDia} onOpenChange={setDialogCopiarDia}>
         <DialogContent>
           <DialogHeader>
