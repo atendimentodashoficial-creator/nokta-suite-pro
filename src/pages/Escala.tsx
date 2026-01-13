@@ -69,7 +69,7 @@ export default function Escala() {
 
   // Form states - Ausência
   const [datasAusenciaSelecionadas, setDatasAusenciaSelecionadas] = useState<Date[]>([]);
-  const [horariosAusencia, setHorariosAusencia] = useState<Array<{ inicio: string; fim: string }>>([{ inicio: "07:00", fim: "08:30" }]);
+  const [horariosAusencia, setHorariosAusencia] = useState<Array<{ inicio: string; fim: string }>>([{ inicio: "", fim: "" }]);
   const [diaInteiro, setDiaInteiro] = useState(false);
   const [motivo, setMotivo] = useState("");
   
@@ -80,7 +80,7 @@ export default function Escala() {
     profissional_id: string;
   } | null>(null);
   const [datasAusenciaEditando, setDatasAusenciaEditando] = useState<Date[]>([]);
-  const [horariosAusenciaEditando, setHorariosAusenciaEditando] = useState<Array<{ inicio: string; fim: string }>>([{ inicio: "07:00", fim: "08:30" }]);
+  const [horariosAusenciaEditando, setHorariosAusenciaEditando] = useState<Array<{ inicio: string; fim: string }>>([{ inicio: "", fim: "" }]);
   const [diaInteiroEditando, setDiaInteiroEditando] = useState(false);
   const [motivoEditando, setMotivoEditando] = useState("");
   const {
@@ -477,7 +477,7 @@ export default function Escala() {
       });
       setDialogAusenciaAberto(false);
       setDatasAusenciaSelecionadas([]);
-      setHorariosAusencia([{ inicio: "07:00", fim: "08:30" }]);
+      setHorariosAusencia([{ inicio: "", fim: "" }]);
       setDiaInteiro(false);
       setMotivo("");
     } catch (error) {
@@ -502,8 +502,8 @@ export default function Escala() {
     setDiaInteiroEditando(!ausencia.hora_inicio && !ausencia.hora_fim);
     setHorariosAusenciaEditando(
       ausencia.hora_inicio && ausencia.hora_fim 
-        ? [{ inicio: ausencia.hora_inicio, fim: ausencia.hora_fim }] 
-        : [{ inicio: "07:00", fim: "08:30" }]
+        ? [{ inicio: ausencia.hora_inicio.slice(0, 5), fim: ausencia.hora_fim.slice(0, 5) }] 
+        : [{ inicio: "", fim: "" }]
     );
     setMotivoEditando(ausencia.motivo || "");
     setDialogEditarAusencia(true);
@@ -882,6 +882,12 @@ export default function Escala() {
                     <Input 
                       type="time" 
                       value={horario.fim} 
+                      min={horario.inicio || undefined}
+                      onFocus={e => {
+                        if (!e.target.value && horario.inicio) {
+                          handleAtualizarHorarioAusenciaEditando(index, 'fim', horario.inicio);
+                        }
+                      }}
                       onChange={e => handleAtualizarHorarioAusenciaEditando(index, 'fim', e.target.value)}
                       className="w-24 h-9 text-sm"
                     />
@@ -1047,6 +1053,12 @@ export default function Escala() {
                       <Input 
                         type="time" 
                         value={horario.fim} 
+                        min={horario.inicio || undefined}
+                        onFocus={e => {
+                          if (!e.target.value && horario.inicio) {
+                            handleAtualizarHorarioAusencia(index, 'fim', horario.inicio);
+                          }
+                        }}
                         onChange={e => handleAtualizarHorarioAusencia(index, 'fim', e.target.value)}
                         className="w-24 h-9 text-sm"
                       />
