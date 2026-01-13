@@ -233,7 +233,11 @@ export function PixelStatusBadge({
   const formatDate = (date?: string | null) => {
     if (!date) return "—";
     try {
-      return new Date(date).toLocaleDateString("pt-BR");
+      const d = new Date(date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = String(d.getFullYear()).slice(-2);
+      return `${day}/${month}/${year}`;
     } catch {
       return date;
     }
@@ -351,7 +355,7 @@ export function PixelStatusBadge({
                       value={editData.genero || ""}
                       onValueChange={(value) => setEditData({ ...editData, genero: value })}
                     >
-                      <SelectTrigger id="edit-genero">
+                      <SelectTrigger id="edit-genero" className="h-10">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
@@ -367,6 +371,7 @@ export function PixelStatusBadge({
                     <Input
                       id="edit-nascimento"
                       type="date"
+                      className="h-10"
                       value={editData.data_nascimento || ""}
                       onChange={(e) => setEditData({ ...editData, data_nascimento: e.target.value })}
                     />
