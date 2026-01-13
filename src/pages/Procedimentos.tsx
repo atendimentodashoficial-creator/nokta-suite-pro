@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useProcedimentos, useCreateProcedimento, useUpdateProcedimento, useDeleteProcedimento, Procedimento } from "@/hooks/useProcedimentos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +111,6 @@ export default function Procedimentos() {
   const [excluindo, setExcluindo] = useState<Procedimento | null>(null);
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [descricao, setDescricao] = useState("");
   const [valorMedio, setValorMedio] = useState("");
   const [duracaoMinutos, setDuracaoMinutos] = useState("60");
 
@@ -138,7 +136,6 @@ export default function Procedimentos() {
     setEditando(proc);
     setNome(proc.nome);
     setCategoria(proc.categoria || "");
-    setDescricao(proc.descricao || "");
     setValorMedio(proc.valor_medio?.toString() || "");
     setDuracaoMinutos((proc.tempo_atendimento_minutos || proc.duracao_minutos || 60).toString());
     setOpen(true);
@@ -148,7 +145,6 @@ export default function Procedimentos() {
     setEditando(null);
     setNome("");
     setCategoria("");
-    setDescricao("");
     setValorMedio("");
     setDuracaoMinutos("60");
   };
@@ -162,7 +158,6 @@ export default function Procedimentos() {
     const dados = {
       nome,
       categoria: categoria || null,
-      descricao: descricao || null,
       valor_medio: valorMedio ? parseFloat(valorMedio) : null,
       duracao_minutos: duracaoMinutos ? parseInt(duracaoMinutos) : 60,
       tempo_atendimento_minutos: duracaoMinutos ? parseInt(duracaoMinutos) : 60,
@@ -283,11 +278,6 @@ export default function Procedimentos() {
                 <div className="space-y-2">
                   <Label htmlFor="categoria">Categoria</Label>
                   <Input id="categoria" value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ex: Estética, Preventivo..." />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="descricao">Descrição</Label>
-                  <Textarea id="descricao" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descrição do procedimento" rows={3} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

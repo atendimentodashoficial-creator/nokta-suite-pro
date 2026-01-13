@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -8,14 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useVinculos, useCreateVinculo, useDeleteVinculo } from "@/hooks/useProcedimentoProfissional";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
@@ -41,6 +34,30 @@ export default function VinculosProcedimentos() {
   const { data: profissionais } = useProfissionais(true);
   const createVinculo = useCreateVinculo();
   const deleteVinculo = useDeleteVinculo();
+
+  // Group vinculos by procedimento
+  const vinculosPorProcedimento = useMemo(() => {
+    if (!vinculos || !procedimentos) return [];
+    
+    return procedimentos.map((proc) => {
+      const profissionaisVinculados = vinculos
+        .filter((v: any) => v.procedimento_id === proc.id)
+        .map((v: any) => ({
+          vinculoId: v.id,
+          profissional: v.profissionais,
+        }));
+      
+      return {
+        procedimento: proc,
+        profissionais: profissionaisVinculados,
+      };
+    }).filter((item) => item.profissionais.length > 0 || procedimentos.length > 0);
+  }, [vinculos, procedimentos]);
+
+  // Procedimentos that have at least one vinculo
+  const procedimentosComVinculos = useMemo(() => {
+    return vinculosPorProcedimento.filter((item) => item.profissionais.length > 0);
+  }, [vinculosPorProcedimento]);
 
   const handleCreate = () => {
     if (!procedimentoId || !profissionalId) return;
@@ -128,7 +145,7 @@ export default function VinculosProcedimentos() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Vínculos Existentes</CardTitle>
+          <CardTitle className="text-lg font-semibold">Vínculos por Procedimento</CardTitle>
           <CardDescription>
             {vinculos?.length || 0} vínculo(s) cadastrado(s)
           </CardDescription>
@@ -136,40 +153,41 @@ export default function VinculosProcedimentos() {
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : vinculos?.length === 0 ? (
+          ) : procedimentosComVinculos.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               Nenhum vínculo cadastrado ainda
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Procedimento</TableHead>
-                    <TableHead>Profissional</TableHead>
-                    <TableHead className="w-20"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {vinculos?.map((vinculo: any) => (
-                    <TableRow key={vinculo.id}>
-                      <TableCell className="font-medium">
-                        {vinculo.procedimentos?.nome}
-                      </TableCell>
-                      <TableCell>{vinculo.profissionais?.nome}</TableCell>
-                      <TableCell>
+            <div className="space-y-4">
+              {procedimentosComVinculos.map((item) => (
+                <div key={item.procedimento.id} className="rounded-lg border p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="font-semibold text-base">{item.procedimento.nome}</h3>
+                    <Badge variant="secondary" className="text-xs">
+                      <Users className="w-3 h-3 mr-1" />
+                      {item.profissionais.length}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {item.profissionais.map((prof) => (
+                      <div
+                        key={prof.vinculoId}
+                        className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5 text-sm"
+                      >
+                        <span>{prof.profissional?.nome}</span>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setDeleteId(vinculo.id)}
+                          className="h-5 w-5 hover:bg-destructive/20"
+                          onClick={() => setDeleteId(prof.vinculoId)}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-3 w-3 text-destructive" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
