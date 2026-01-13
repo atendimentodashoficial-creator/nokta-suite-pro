@@ -334,7 +334,7 @@ export default function Clientes() {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-lg font-semibold text-foreground truncate">{cliente.nome}</h3>
+                      <h3 className="text-lg font-semibold text-foreground break-words">{cliente.nome}</h3>
                       <Badge variant="outline" className="mt-1 bg-blue-500/10 text-blue-700 border-blue-500/20">
                         <Tag className="h-3 w-3 mr-1" />
                         Origem: {(cliente as any).origem || (cliente as any).origem_tipo || "Manual"}
