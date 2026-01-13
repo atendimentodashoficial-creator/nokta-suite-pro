@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { History, Search, CheckCircle2, XCircle, Calendar, Clock, User, MessageSquare, RefreshCw, Loader2, Trash2, MessageCircle } from "lucide-react";
+import { History, Search, CheckCircle2, XCircle, Calendar, Clock, User, MessageSquare, RefreshCw, Loader2, Trash2, MessageCircle, CheckSquare, X } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ export function HistoricoAvisosTab() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const handleDeleteLog = async () => {
     if (!logToDelete) return;
@@ -121,6 +122,11 @@ export function HistoricoAvisosTab() {
       }
       return newSet;
     });
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
   };
 
   const loadLogs = async () => {
@@ -342,16 +348,41 @@ export function HistoricoAvisosTab() {
             <CardTitle className="text-base">
               Registros ({filteredLogs.length})
             </CardTitle>
-            {selectedIds.size > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowBulkDeleteDialog(true)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir {selectedIds.size} selecionado(s)
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {isSelectionMode ? (
+                <>
+                  {selectedIds.size > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowBulkDeleteDialog(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir {selectedIds.size}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exitSelectionMode}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancelar
+                  </Button>
+                </>
+              ) : (
+                filteredLogs.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSelectionMode(true)}
+                  >
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    Selecionar
+                  </Button>
+                )
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -363,16 +394,18 @@ export function HistoricoAvisosTab() {
             </div>
           ) : (
             <>
-              {/* Select All Header */}
-              <div className="flex items-center gap-3 pb-3 mb-2 border-b">
-                <Checkbox
-                  checked={selectedIds.size === filteredLogs.length && filteredLogs.length > 0}
-                  onCheckedChange={toggleSelectAll}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {selectedIds.size === filteredLogs.length ? "Desmarcar todos" : "Selecionar todos"}
-                </span>
-              </div>
+              {/* Select All Header - Only visible in selection mode */}
+              {isSelectionMode && (
+                <div className="flex items-center gap-3 pb-3 mb-2 border-b">
+                  <Checkbox
+                    checked={selectedIds.size === filteredLogs.length && filteredLogs.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {selectedIds.size === filteredLogs.length ? "Desmarcar todos" : "Selecionar todos"}
+                  </span>
+                </div>
+              )}
               <ScrollArea className="h-[500px]">
                 <div className="space-y-2">
                   {filteredLogs.map((log) => (
@@ -381,18 +414,20 @@ export function HistoricoAvisosTab() {
                       className={`p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer group ${
                         selectedIds.has(log.id) ? 'ring-2 ring-primary bg-accent/30' : ''
                       }`}
-                      onClick={() => setSelectedLog(log)}
+                      onClick={() => isSelectionMode ? toggleSelectOne(log.id) : setSelectedLog(log)}
                     >
                       {/* Mobile: Stack layout, Desktop: Row layout */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        {/* Left side: Checkbox + Status icon + Info */}
+                        {/* Left side: Checkbox (if selection mode) + Status icon + Info */}
                         <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-                          <Checkbox
-                            checked={selectedIds.has(log.id)}
-                            onCheckedChange={() => toggleSelectOne(log.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex-shrink-0 mt-1 sm:mt-0"
-                          />
+                          {isSelectionMode && (
+                            <Checkbox
+                              checked={selectedIds.has(log.id)}
+                              onCheckedChange={() => toggleSelectOne(log.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex-shrink-0 mt-1 sm:mt-0"
+                            />
+                          )}
                           <div className={`h-10 w-10 rounded-full flex-shrink-0 flex items-center justify-center ${
                             log.status === 'enviado' 
                               ? 'bg-green-100 dark:bg-green-900/30' 
