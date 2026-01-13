@@ -300,7 +300,7 @@ export function EditarClienteDialog({
                       <FormLabel>Gênero</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-10">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                         </FormControl>
@@ -319,9 +319,9 @@ export function EditarClienteDialog({
                   name="data_nascimento"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Data de Nascimento</FormLabel>
+                      <FormLabel>Nascimento</FormLabel>
                       <FormControl>
-                        <Input {...field} type="date" />
+                        <Input {...field} type="date" className="h-10" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
