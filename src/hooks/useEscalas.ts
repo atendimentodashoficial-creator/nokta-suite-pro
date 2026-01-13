@@ -153,6 +153,27 @@ export const useCreateAusencia = () => {
   });
 };
 
+export const useUpdateAusencia = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, ...ausencia }: Partial<Ausencia> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("ausencias_profissionais")
+        .update(ausencia)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ausencias"] });
+    },
+  });
+};
+
 export const useDeleteAusencia = () => {
   const queryClient = useQueryClient();
   
