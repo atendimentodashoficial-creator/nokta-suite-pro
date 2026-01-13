@@ -1060,19 +1060,19 @@ export default function Conexoes() {
             <div className="grid gap-3">
               <div>
                 <Label>Developer Token</Label>
-                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsDeveloperToken} onChange={e => setGoogleAdsDeveloperToken(e.target.value)} placeholder="Obtenha no Google Ads API Center" className="font-mono text-sm mt-1" />
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsDeveloperToken} onChange={e => setGoogleAdsDeveloperToken(e.target.value)} placeholder="Cole o Developer Token aqui" className="font-mono text-sm mt-1" />
               </div>
               <div>
                 <Label>Client ID (OAuth)</Label>
-                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientId} onChange={e => setGoogleAdsClientId(e.target.value)} placeholder="Ex: 123456789-abc.apps.googleusercontent.com" className="font-mono text-sm mt-1" />
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientId} onChange={e => setGoogleAdsClientId(e.target.value)} placeholder="Cole o Client ID aqui" className="font-mono text-sm mt-1" />
               </div>
               <div>
                 <Label>Client Secret (OAuth)</Label>
-                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientSecret} onChange={e => setGoogleAdsClientSecret(e.target.value)} placeholder="Obtenha no Google Cloud Console" className="font-mono text-sm mt-1" />
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientSecret} onChange={e => setGoogleAdsClientSecret(e.target.value)} placeholder="Cole o Client Secret aqui" className="font-mono text-sm mt-1" />
               </div>
               <div>
                 <Label>Refresh Token</Label>
-                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsRefreshToken} onChange={e => setGoogleAdsRefreshToken(e.target.value)} placeholder="Gerado via fluxo OAuth" className="font-mono text-sm mt-1" />
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsRefreshToken} onChange={e => setGoogleAdsRefreshToken(e.target.value)} placeholder="Cole o Refresh Token aqui" className="font-mono text-sm mt-1" />
               </div>
             </div>
 
@@ -1184,12 +1184,6 @@ export default function Conexoes() {
                   {showOpenAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Obtenha sua API Key em{" "}
-                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  platform.openai.com/api-keys
-                </a>
-              </p>
             </div>
 
             <div className="flex gap-2">
@@ -1239,12 +1233,6 @@ export default function Conexoes() {
                   {showApifyKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Obtenha sua API Key em{" "}
-                <a href="https://console.apify.com/account/integrations" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  console.apify.com/account/integrations
-                </a>
-              </p>
             </div>
 
             <div className="flex gap-2">
