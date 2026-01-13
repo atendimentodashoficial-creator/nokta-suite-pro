@@ -90,42 +90,14 @@ export function MetaPixelConfig() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
-              <MetaIcon className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">Meta Pixel (Conversions API)</CardTitle>
-              <CardDescription>
-                Configure a integração com o Meta Pixel para rastrear conversões
-              </CardDescription>
-            </div>
-          </div>
-          <Badge variant={config ? "default" : "secondary"} className="gap-1">
-            {config ? (
-              <>
-                <CheckCircle2 className="h-3 w-3" />
-                Configurado
-              </>
-            ) : (
-              "Não configurado"
-            )}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-6">
         {/* Configuração básica */}
         <div className="space-y-4">
           <div className="space-y-2">
@@ -580,7 +552,6 @@ export function MetaPixelConfig() {
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
