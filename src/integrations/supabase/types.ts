@@ -363,6 +363,8 @@ export type Database = {
           created_at: string | null
           data_fim: string
           data_inicio: string
+          hora_fim: string | null
+          hora_inicio: string | null
           id: string
           motivo: string | null
           profissional_id: string
@@ -373,6 +375,8 @@ export type Database = {
           created_at?: string | null
           data_fim: string
           data_inicio: string
+          hora_fim?: string | null
+          hora_inicio?: string | null
           id?: string
           motivo?: string | null
           profissional_id: string
@@ -383,6 +387,8 @@ export type Database = {
           created_at?: string | null
           data_fim?: string
           data_inicio?: string
+          hora_fim?: string | null
+          hora_inicio?: string | null
           id?: string
           motivo?: string | null
           profissional_id?: string

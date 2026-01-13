@@ -64,6 +64,8 @@ export default function Escala() {
   // Form states - Ausência
   const [dataInicioAusencia, setDataInicioAusencia] = useState<Date | undefined>();
   const [dataFimAusencia, setDataFimAusencia] = useState<Date | undefined>();
+  const [horaInicioAusencia, setHoraInicioAusencia] = useState<string>("");
+  const [horaFimAusencia, setHoraFimAusencia] = useState<string>("");
   const [motivo, setMotivo] = useState("");
   const {
     data: profissionais
@@ -301,6 +303,8 @@ export default function Escala() {
         profissional_id: profissionalSelecionado,
         data_inicio: format(dataInicioAusencia, "yyyy-MM-dd"),
         data_fim: format(dataFimAusencia, "yyyy-MM-dd"),
+        hora_inicio: horaInicioAusencia || null,
+        hora_fim: horaFimAusencia || null,
         motivo: motivo || null
       });
       toast({
@@ -309,6 +313,8 @@ export default function Escala() {
       setDialogAusenciaAberto(false);
       setDataInicioAusencia(undefined);
       setDataFimAusencia(undefined);
+      setHoraInicioAusencia("");
+      setHoraFimAusencia("");
       setMotivo("");
     } catch (error) {
       toast({
@@ -506,6 +512,11 @@ export default function Escala() {
                   locale: ptBR
                 })}
                     </p>
+                    {(ausencia.hora_inicio || ausencia.hora_fim) && (
+                      <p className="text-xs text-primary">
+                        Horário: {ausencia.hora_inicio || "00:00"} - {ausencia.hora_fim || "23:59"}
+                      </p>
+                    )}
                     {ausencia.motivo && <p className="text-xs text-muted-foreground truncate">{ausencia.motivo}</p>}
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDeletarAusencia(ausencia.id)}>
@@ -603,6 +614,30 @@ export default function Escala() {
             <div>
               <Label>Motivo (opcional)</Label>
               <Textarea value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ex: Férias, Licença médica..." />
+            </div>
+            <div className="border-t pt-4">
+              <Label className="text-sm font-medium">Horário específico (opcional)</Label>
+              <p className="text-xs text-muted-foreground mb-2">Deixe vazio para ausência do dia inteiro</p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs">Início</Label>
+                  <Input 
+                    type="time" 
+                    value={horaInicioAusencia} 
+                    onChange={e => setHoraInicioAusencia(e.target.value)}
+                    placeholder="08:00"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-xs">Fim</Label>
+                  <Input 
+                    type="time" 
+                    value={horaFimAusencia} 
+                    onChange={e => setHoraFimAusencia(e.target.value)}
+                    placeholder="18:00"
+                  />
+                </div>
+              </div>
             </div>
             <Button onClick={handleCriarAusencia} className="w-full">
               Registrar
