@@ -937,14 +937,11 @@ export default function Conexoes() {
             <div>
               <Label>Access Token</Label>
               <div className="flex gap-2 mt-1">
-                <Input type={showMetaToken ? "text" : "password"} value={metaAccessToken} onChange={e => setMetaAccessToken(e.target.value)} placeholder="Cole o Access Token do Facebook" className="font-mono text-sm" />
+                <Input type={showMetaToken ? "text" : "password"} value={metaAccessToken} onChange={e => setMetaAccessToken(e.target.value)} placeholder="Cole o Access Token aqui" className="font-mono text-sm" />
                 <Button variant="outline" size="icon" onClick={() => setShowMetaToken(!showMetaToken)}>
                   {showMetaToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Obtenha o token em developers.facebook.com
-              </p>
             </div>
             
             <div className="flex gap-2">
