@@ -41,8 +41,8 @@ export interface MetricCardConfig {
 export const ALL_METRIC_CARDS: MetricCardConfig[] = [
   { key: "impressions", label: "Impressões", icon: Eye, format: "number" },
   { key: "clicks", label: "Cliques", icon: MousePointerClick, format: "number" },
-  { key: "results", label: "Resultados", subtitle: "Conversas Iniciadas", icon: Target, format: "number" },
-  { key: "cost_per_result", label: "Custo / Resultado", subtitle: "Por Conversa Iniciada", icon: Target, format: "currency" },
+  { key: "results", label: "Conversas", icon: Target, format: "number" },
+  { key: "cost_per_result", label: "Custo / Conversa", icon: Target, format: "currency" },
   { key: "spend", label: "Gasto Total", icon: DollarSign, format: "currency", highlight: true },
   { key: "active_budget", label: "Orçamento Ativo", subtitle: "CBO + ABO Ativos", icon: Wallet, format: "currency" },
   { key: "reach", label: "Alcance", icon: Users, format: "number" },

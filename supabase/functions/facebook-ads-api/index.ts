@@ -388,173 +388,38 @@ serve(async (req) => {
               cost_per_result: 0,
             };
 
-            // Mapear objetivo da campanha para o action_type correspondente (Resultados)
-            // IMPORTANTE: Para OUTCOME_ENGAGEMENT, não usar post_engagement como resultado
-            // pois isso conta curtidas/comentários, não conversões reais
-            const objectiveToActionType: Record<string, string[]> = {
-              "OUTCOME_LEADS": ["lead", "onsite_conversion.lead_grouped", "offsite_conversion.fb_pixel_lead"],
-              "LEAD_GENERATION": ["lead", "onsite_conversion.lead_grouped", "offsite_conversion.fb_pixel_lead"],
-              "OUTCOME_TRAFFIC": ["link_click", "landing_page_view"],
-              "LINK_CLICKS": ["link_click", "landing_page_view"],
-              "OUTCOME_AWARENESS": ["reach", "impressions"],
-              "BRAND_AWARENESS": ["reach"],
-              "REACH": ["reach"],
-              "OUTCOME_SALES": ["purchase", "omni_purchase", "offsite_conversion.fb_pixel_purchase"],
-              "CONVERSIONS": ["offsite_conversion.fb_pixel_purchase", "offsite_conversion.fb_pixel_lead", "offsite_conversion.fb_pixel_complete_registration"],
-              "MESSAGES": ["onsite_conversion.messaging_conversation_started_7d", "onsite_conversion.messaging_first_reply"],
-              "OUTCOME_APP_PROMOTION": ["app_install", "mobile_app_install"],
-              "VIDEO_VIEWS": ["video_view"],
-            };
-
-            // Buscar resultados baseado no objetivo da campanha
+            // CONVERSAS INICIADAS: usar APENAS métricas de messaging para todas as campanhas
+            // Isso garante que só mostramos custo por conversa iniciada, sem misturar com outros objetivos
+            const messagingActions = [
+              "onsite_conversion.messaging_conversation_started_7d",
+              "onsite_conversion.messaging_first_reply",
+              "onsite_conversion.total_messaging_connection"
+            ];
+            
+            // Buscar conversas iniciadas
             if (insight.actions && Array.isArray(insight.actions)) {
-              const objective = campaign.objective || "";
-              
-              // Verificar se é uma campanha de mensagens (detectar por nome)
-              const campaignNameLower = (campaign.name || "").toLowerCase();
-              const isMessagingCampaign = campaignNameLower.includes("whatsapp") || 
-                campaignNameLower.includes("messenger") ||
-                campaignNameLower.includes("mensag") ||
-                campaignNameLower.includes("zap");
-              
-              // Se for campanha de mensagens, priorizar métricas de conversa
-              const messagingActions = [
-                "onsite_conversion.messaging_conversation_started_7d",
-                "onsite_conversion.messaging_first_reply",
-                "onsite_conversion.total_messaging_connection"
-              ];
-              
-              let foundResult = false;
-              
-              // Se for campanha de mensagens, usar métricas de messaging primeiro
-              if (isMessagingCampaign) {
-                for (const actionType of messagingActions) {
-                  const action = insight.actions.find((a: { action_type: string; value: string }) => 
-                    a.action_type === actionType
-                  );
-                  if (action) {
-                    metrics.results = parseInt(action.value || 0);
-                    console.log("Found messaging result:", actionType, action.value);
-                    foundResult = true;
-                    break;
-                  }
-                }
-              }
-              
-              // Se não encontrou ou não é campanha de mensagens, usar objetivo
-              if (!foundResult) {
-                const targetActionTypes = objectiveToActionType[objective] || [];
-                console.log("Looking for action types:", targetActionTypes);
-                
-                for (const actionType of targetActionTypes) {
-                  const action = insight.actions.find((a: { action_type: string; value: string }) => 
-                    a.action_type === actionType
-                  );
-                  if (action) {
-                    metrics.results = parseInt(action.value || 0);
-                    console.log("Found result by objective:", actionType, action.value);
-                    foundResult = true;
-                    break;
-                  }
-                }
-              }
-
-              // Fallback: usar prioridade geral APENAS para conversões reais
-              // Não incluir link_click/landing_page_view pois não são resultados de conversão
-              if (!foundResult) {
-                const priorityActions = [
-                  "lead", 
-                  "onsite_conversion.lead_grouped",
-                  "offsite_conversion.fb_pixel_lead",
-                  "onsite_conversion.messaging_conversation_started_7d",
-                  "onsite_conversion.messaging_first_reply",
-                  "onsite_conversion.total_messaging_connection"
-                ];
-                
-                for (const actionType of priorityActions) {
-                  const action = insight.actions.find((a: { action_type: string; value: string }) => 
-                    a.action_type === actionType
-                  );
-                  if (action) {
-                    metrics.results = parseInt(action.value || 0);
-                    console.log("Found result by priority:", actionType, action.value);
-                    break;
-                  }
+              for (const actionType of messagingActions) {
+                const action = insight.actions.find((a: { action_type: string; value: string }) => 
+                  a.action_type === actionType
+                );
+                if (action) {
+                  metrics.results = parseInt(action.value || 0);
+                  console.log("Found messaging conversation:", actionType, action.value);
+                  break;
                 }
               }
             }
 
-            // Buscar custo por resultado
+            // Buscar custo por conversa iniciada
             if (insight.cost_per_action_type && Array.isArray(insight.cost_per_action_type)) {
-              const objective = campaign.objective || "";
-              
-              // Verificar se é uma campanha de mensagens
-              const campaignNameLowerCost = (campaign.name || "").toLowerCase();
-              const isMessagingCampaignCost = campaignNameLowerCost.includes("whatsapp") || 
-                campaignNameLowerCost.includes("messenger") ||
-                campaignNameLowerCost.includes("mensag") ||
-                campaignNameLowerCost.includes("zap");
-              
-              const messagingActions = [
-                "onsite_conversion.messaging_conversation_started_7d",
-                "onsite_conversion.messaging_first_reply",
-                "onsite_conversion.total_messaging_connection"
-              ];
-              
-              let foundCost = false;
-              
-              // Se for campanha de mensagens, usar custo de messaging primeiro
-              if (isMessagingCampaignCost) {
-                for (const actionType of messagingActions) {
-                  const cost = insight.cost_per_action_type.find((c: { action_type: string; value: string }) => 
-                    c.action_type === actionType
-                  );
-                  if (cost) {
-                    metrics.cost_per_result = parseFloat(cost.value || 0);
-                    console.log("Found messaging cost per result:", actionType, cost.value);
-                    foundCost = true;
-                    break;
-                  }
-                }
-              }
-              
-              // Se não encontrou ou não é campanha de mensagens, usar objetivo
-              if (!foundCost) {
-                const targetActionTypes = objectiveToActionType[objective] || [];
-                
-                for (const actionType of targetActionTypes) {
-                  const cost = insight.cost_per_action_type.find((c: { action_type: string; value: string }) => 
-                    c.action_type === actionType
-                  );
-                  if (cost) {
-                    metrics.cost_per_result = parseFloat(cost.value || 0);
-                    console.log("Found cost per result by objective:", actionType, cost.value);
-                    foundCost = true;
-                    break;
-                  }
-                }
-              }
-
-              // Fallback: usar prioridade geral APENAS para conversões reais
-              if (!foundCost) {
-                const priorityActions = [
-                  "lead", 
-                  "onsite_conversion.lead_grouped",
-                  "offsite_conversion.fb_pixel_lead",
-                  "onsite_conversion.messaging_conversation_started_7d",
-                  "onsite_conversion.messaging_first_reply",
-                  "onsite_conversion.total_messaging_connection"
-                ];
-                
-                for (const actionType of priorityActions) {
-                  const cost = insight.cost_per_action_type.find((c: { action_type: string; value: string }) => 
-                    c.action_type === actionType
-                  );
-                  if (cost) {
-                    metrics.cost_per_result = parseFloat(cost.value || 0);
-                    console.log("Found cost per result by priority:", actionType, cost.value);
-                    break;
-                  }
+              for (const actionType of messagingActions) {
+                const cost = insight.cost_per_action_type.find((c: { action_type: string; value: string }) => 
+                  c.action_type === actionType
+                );
+                if (cost) {
+                  metrics.cost_per_result = parseFloat(cost.value || 0);
+                  console.log("Found messaging cost per conversation:", actionType, cost.value);
+                  break;
                 }
               }
             }
@@ -740,12 +605,12 @@ serve(async (req) => {
               cost_per_result: 0,
             };
 
-            // Buscar resultados de mensagens se disponível
+            // Buscar conversas iniciadas
             if (insight.actions && Array.isArray(insight.actions)) {
               const messagingActions = [
                 "onsite_conversion.messaging_conversation_started_7d",
                 "onsite_conversion.messaging_first_reply",
-                "lead", "link_click"
+                "onsite_conversion.total_messaging_connection"
               ];
               for (const actionType of messagingActions) {
                 const action = insight.actions.find((a: { action_type: string; value: string }) => a.action_type === actionType);
@@ -756,11 +621,12 @@ serve(async (req) => {
               }
             }
 
+            // Buscar custo por conversa iniciada
             if (insight.cost_per_action_type && Array.isArray(insight.cost_per_action_type)) {
               const messagingActions = [
                 "onsite_conversion.messaging_conversation_started_7d",
                 "onsite_conversion.messaging_first_reply",
-                "lead", "link_click"
+                "onsite_conversion.total_messaging_connection"
               ];
               for (const actionType of messagingActions) {
                 const cost = insight.cost_per_action_type.find((c: { action_type: string; value: string }) => c.action_type === actionType);
@@ -899,11 +765,12 @@ serve(async (req) => {
               cost_per_result: 0,
             };
 
+            // Buscar conversas iniciadas
             if (insight.actions && Array.isArray(insight.actions)) {
               const messagingActions = [
                 "onsite_conversion.messaging_conversation_started_7d",
                 "onsite_conversion.messaging_first_reply",
-                "lead", "link_click"
+                "onsite_conversion.total_messaging_connection"
               ];
               for (const actionType of messagingActions) {
                 const action = insight.actions.find((a: { action_type: string; value: string }) => a.action_type === actionType);
@@ -914,11 +781,12 @@ serve(async (req) => {
               }
             }
 
+            // Buscar custo por conversa iniciada
             if (insight.cost_per_action_type && Array.isArray(insight.cost_per_action_type)) {
               const messagingActions = [
                 "onsite_conversion.messaging_conversation_started_7d",
                 "onsite_conversion.messaging_first_reply",
-                "lead", "link_click"
+                "onsite_conversion.total_messaging_connection"
               ];
               for (const actionType of messagingActions) {
                 const cost = insight.cost_per_action_type.find((c: { action_type: string; value: string }) => c.action_type === actionType);
