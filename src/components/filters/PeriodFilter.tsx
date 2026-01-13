@@ -61,11 +61,10 @@ export function PeriodFilter({
 
       {value === "custom" && (
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                {format(dateStart, "dd/MM/yyyy", { locale: ptBR })}
+              <Button variant="outline" size="sm" className="min-w-[90px]">
+                {format(dateStart, "dd/MM/yy", { locale: ptBR })}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -74,14 +73,15 @@ export function PeriodFilter({
                 selected={dateStart}
                 onSelect={(date) => date && onDateStartChange(date)}
                 locale={ptBR}
+                className="pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
           <span className="text-muted-foreground text-sm">até</span>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                {format(dateEnd, "dd/MM/yyyy", { locale: ptBR })}
+              <Button variant="outline" size="sm" className="min-w-[90px]">
+                {format(dateEnd, "dd/MM/yy", { locale: ptBR })}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -90,6 +90,7 @@ export function PeriodFilter({
                 selected={dateEnd}
                 onSelect={(date) => date && onDateEndChange(date)}
                 locale={ptBR}
+                className="pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
