@@ -144,8 +144,9 @@ export default function Conexoes() {
       setLoadingOpenAI(false);
     }
   };
-  const validateAndSaveOpenAIKey = async () => {
-    if (!newOpenAIKey.trim()) {
+  const validateAndSaveOpenAIKey = async (keyOverride?: string) => {
+    const keyToSave = keyOverride?.trim() || openAIKey.trim();
+    if (!keyToSave) {
       toast({
         title: "Erro",
         description: "Por favor, insira a API Key",
@@ -163,7 +164,7 @@ export default function Conexoes() {
       const response = await supabase.functions.invoke("save-openai-key", {
         body: {
           action: "save",
-          api_key: newOpenAIKey.trim()
+          api_key: keyToSave
         },
         headers: {
           Authorization: `Bearer ${session.session?.access_token}`
@@ -360,8 +361,9 @@ export default function Conexoes() {
       setLoadingMetaConfig(false);
     }
   };
-  const saveMetaToken = async () => {
-    if (!newMetaToken.trim()) {
+  const saveMetaToken = async (tokenOverride?: string) => {
+    const tokenToSave = tokenOverride?.trim() || metaAccessToken.trim();
+    if (!tokenToSave) {
       toast({
         title: "Erro",
         description: "Por favor, insira o Access Token",
@@ -375,7 +377,7 @@ export default function Conexoes() {
         error
       } = await supabase.from("facebook_config").upsert({
         user_id: user?.id,
-        access_token: newMetaToken.trim(),
+        access_token: tokenToSave,
         updated_at: new Date().toISOString()
       }, {
         onConflict: "user_id"
@@ -398,7 +400,7 @@ export default function Conexoes() {
         throw new Error(response.data?.error || "Token inválido");
       }
       setHasMetaToken(true);
-      setMetaAccessToken(newMetaToken.trim());
+      setMetaAccessToken(tokenToSave);
       setNewMetaToken("");
       setMetaTestResult({
         success: true,
@@ -885,67 +887,43 @@ export default function Conexoes() {
                 </CardDescription>
               </div>
             </div>
-            <Badge variant={hasMetaToken ? "default" : "secondary"} className="gap-1">
-              {hasMetaToken ? <>
-                  <CheckCircle2 className="h-3 w-3" />
-                  Conectado
-                </> : "Não configurado"}
-            </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {hasMetaToken ? <div className="space-y-4">
-              <div>
-                <Label>Access Token Atual</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input type={showMetaToken ? "text" : "password"} value={metaAccessToken} readOnly className="font-mono text-sm" />
-                  <Button variant="outline" size="icon" onClick={() => setShowMetaToken(!showMetaToken)}>
-                    {showMetaToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={testMetaConnection} disabled={testingMeta}>
-                  {testingMeta ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  Testar Conexão
+          <div className="space-y-4">
+            <div>
+              <Label>Access Token</Label>
+              <div className="flex gap-2 mt-1">
+                <Input type={showMetaToken ? "text" : "password"} value={metaAccessToken} onChange={e => setMetaAccessToken(e.target.value)} placeholder="Cole o Access Token do Facebook" className="font-mono text-sm" />
+                <Button variant="outline" size="icon" onClick={() => setShowMetaToken(!showMetaToken)}>
+                  {showMetaToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-
-              {metaTestResult && <div className={`p-3 rounded-lg border ${metaTestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
-                  <div className="flex items-center gap-2">
-                    {metaTestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                    <span className={`text-sm ${metaTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                      {metaTestResult.message}
-                      {metaTestResult.userName && ` - ${metaTestResult.userName}`}
-                    </span>
-                  </div>
-                </div>}
-
-              <div className="border-t pt-4">
-                <Label>Atualizar Token</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input type="password" value={newMetaToken} onChange={e => setNewMetaToken(e.target.value)} placeholder="Cole o novo Access Token aqui" />
-                  <Button onClick={saveMetaToken} disabled={savingMetaToken || !newMetaToken}>
-                    {savingMetaToken ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-                  </Button>
-                </div>
-              </div>
-            </div> : <div className="space-y-4">
-              <div>
-                <Label>Access Token</Label>
-                <Input type="password" value={newMetaToken} onChange={e => setNewMetaToken(e.target.value)} placeholder="Cole o Access Token do Facebook" className="mt-1" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Obtenha o token em developers.facebook.com
-                </p>
-              </div>
-              <Button onClick={saveMetaToken} disabled={savingMetaToken || !newMetaToken}>
-                {savingMetaToken ? <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
-                  </> : "Salvar e Conectar"}
+              <p className="text-xs text-muted-foreground mt-1">
+                Obtenha o token em developers.facebook.com
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={testMetaConnection} disabled={testingMeta || !metaAccessToken}>
+                {testingMeta ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Testar Conexão
               </Button>
-            </div>}
+              <Button onClick={() => saveMetaToken(metaAccessToken)} disabled={savingMetaToken || !metaAccessToken}>
+                {savingMetaToken ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+              </Button>
+            </div>
+
+            {metaTestResult && <div className={`p-3 rounded-lg border ${metaTestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
+                <div className="flex items-center gap-2">
+                  {metaTestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                  <span className={`text-sm ${metaTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
+                    {metaTestResult.message}
+                    {metaTestResult.userName && ` - ${metaTestResult.userName}`}
+                  </span>
+                </div>
+              </div>}
+          </div>
         </CardContent>
       </Card>
 
@@ -1035,108 +1013,53 @@ export default function Conexoes() {
         <CardHeader>
           <div className="flex items-center justify-between">
             
-            <Badge variant={hasGoogleAdsConfig ? "default" : "secondary"} className="gap-1">
-              {hasGoogleAdsConfig ? <>
-                  <CheckCircle2 className="h-3 w-3" />
-                  Conectado
-                </> : "Não configurado"}
-            </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {hasGoogleAdsConfig ? <div className="space-y-4">
-              <div className="grid gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Developer Token</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsDeveloperToken} readOnly className="font-mono text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Client ID</Label>
-                  <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientId} readOnly className="font-mono text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Client Secret</Label>
-                  <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientSecret} readOnly className="font-mono text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Refresh Token</Label>
-                  <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsRefreshToken} readOnly className="font-mono text-sm" />
-                </div>
+          <div className="space-y-4">
+            <div className="grid gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Developer Token</Label>
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsDeveloperToken} onChange={e => setGoogleAdsDeveloperToken(e.target.value)} placeholder="Obtenha no Google Ads API Center" className="font-mono text-sm mt-1" />
               </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Client ID (OAuth)</Label>
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientId} onChange={e => setGoogleAdsClientId(e.target.value)} placeholder="Ex: 123456789-abc.apps.googleusercontent.com" className="font-mono text-sm mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Client Secret (OAuth)</Label>
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsClientSecret} onChange={e => setGoogleAdsClientSecret(e.target.value)} placeholder="Obtenha no Google Cloud Console" className="font-mono text-sm mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Refresh Token</Label>
+                <Input type={showGoogleAdsCredentials ? "text" : "password"} value={googleAdsRefreshToken} onChange={e => setGoogleAdsRefreshToken(e.target.value)} placeholder="Gerado via fluxo OAuth" className="font-mono text-sm mt-1" />
+              </div>
+            </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setShowGoogleAdsCredentials(!showGoogleAdsCredentials)}>
-                  {showGoogleAdsCredentials ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                  {showGoogleAdsCredentials ? "Ocultar" : "Mostrar"}
-                </Button>
-                <Button variant="outline" onClick={testGoogleAdsConnection} disabled={testingGoogleAds}>
-                  {testingGoogleAds ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  Testar Conexão
-                </Button>
-              </div>
-
-              {googleAdsTestResult && <div className={`p-3 rounded-lg border ${googleAdsTestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
-                  <div className="flex items-center gap-2">
-                    {googleAdsTestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                    <span className={`text-sm ${googleAdsTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                      {googleAdsTestResult.message}
-                      {googleAdsTestResult.email && ` - ${googleAdsTestResult.email}`}
-                    </span>
-                  </div>
-                </div>}
-
-              <div className="border-t pt-4">
-                <Label className="text-sm font-medium">Atualizar Credenciais</Label>
-                <div className="grid gap-3 mt-2">
-                  <Input type="password" value={newGoogleAdsDeveloperToken} onChange={e => setNewGoogleAdsDeveloperToken(e.target.value)} placeholder="Novo Developer Token" />
-                  <Input type="password" value={newGoogleAdsClientId} onChange={e => setNewGoogleAdsClientId(e.target.value)} placeholder="Novo Client ID" />
-                  <Input type="password" value={newGoogleAdsClientSecret} onChange={e => setNewGoogleAdsClientSecret(e.target.value)} placeholder="Novo Client Secret" />
-                  <Input type="password" value={newGoogleAdsRefreshToken} onChange={e => setNewGoogleAdsRefreshToken(e.target.value)} placeholder="Novo Refresh Token" />
-                  <Button onClick={saveGoogleAdsConfig} disabled={savingGoogleAds || !newGoogleAdsDeveloperToken && !newGoogleAdsClientId && !newGoogleAdsClientSecret && !newGoogleAdsRefreshToken}>
-                    {savingGoogleAds ? <Loader2 className="h-4 w-4 animate-spin" /> : "Atualizar"}
-                  </Button>
-                </div>
-              </div>
-            </div> : <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Para conectar o Google Ads, você precisa de 4 credenciais:
-              </p>
-              <div className="grid gap-3">
-                <div>
-                  <Label>Developer Token</Label>
-                  <Input type="password" value={newGoogleAdsDeveloperToken} onChange={e => setNewGoogleAdsDeveloperToken(e.target.value)} placeholder="Obtenha no Google Ads API Center" className="mt-1" />
-                </div>
-                <div>
-                  <Label>Client ID (OAuth)</Label>
-                  <Input type="password" value={newGoogleAdsClientId} onChange={e => setNewGoogleAdsClientId(e.target.value)} placeholder="Ex: 123456789-abc.apps.googleusercontent.com" className="mt-1" />
-                </div>
-                <div>
-                  <Label>Client Secret (OAuth)</Label>
-                  <Input type="password" value={newGoogleAdsClientSecret} onChange={e => setNewGoogleAdsClientSecret(e.target.value)} placeholder="Obtenha no Google Cloud Console" className="mt-1" />
-                </div>
-                <div>
-                  <Label>Refresh Token</Label>
-                  <Input type="password" value={newGoogleAdsRefreshToken} onChange={e => setNewGoogleAdsRefreshToken(e.target.value)} placeholder="Gerado via fluxo OAuth" className="mt-1" />
-                </div>
-              </div>
-              <Button onClick={saveGoogleAdsConfig} disabled={savingGoogleAds || !newGoogleAdsDeveloperToken || !newGoogleAdsClientId || !newGoogleAdsClientSecret || !newGoogleAdsRefreshToken}>
-                {savingGoogleAds ? <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
-                  </> : "Salvar e Conectar"}
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => setShowGoogleAdsCredentials(!showGoogleAdsCredentials)}>
+                {showGoogleAdsCredentials ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                {showGoogleAdsCredentials ? "Ocultar" : "Mostrar"}
               </Button>
+              <Button variant="outline" onClick={testGoogleAdsConnection} disabled={testingGoogleAds || !googleAdsDeveloperToken || !googleAdsClientId || !googleAdsClientSecret || !googleAdsRefreshToken}>
+                {testingGoogleAds ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Testar Conexão
+              </Button>
+              <Button onClick={() => saveGoogleAdsConfig()} disabled={savingGoogleAds || !googleAdsDeveloperToken || !googleAdsClientId || !googleAdsClientSecret || !googleAdsRefreshToken}>
+                {savingGoogleAds ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+              </Button>
+            </div>
 
-              {googleAdsTestResult && <div className={`p-3 rounded-lg border ${googleAdsTestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
-                  <div className="flex items-center gap-2">
-                    {googleAdsTestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                    <span className={`text-sm ${googleAdsTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                      {googleAdsTestResult.message}
-                    </span>
-                  </div>
-                </div>}
-            </div>}
+            {googleAdsTestResult && <div className={`p-3 rounded-lg border ${googleAdsTestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
+                <div className="flex items-center gap-2">
+                  {googleAdsTestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                  <span className={`text-sm ${googleAdsTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
+                    {googleAdsTestResult.message}
+                    {googleAdsTestResult.email && ` - ${googleAdsTestResult.email}`}
+                  </span>
+                </div>
+              </div>}
+          </div>
         </CardContent>
       </Card>
 
@@ -1213,150 +1136,87 @@ export default function Conexoes() {
                 </CardDescription>
               </div>
             </div>
-            <Badge variant={hasOpenAIKey ? "default" : "secondary"} className="gap-1">
-              {hasOpenAIKey ? <>
-                  <CheckCircle2 className="h-3 w-3" />
-                  Conectado
-                </> : "Não configurado"}
-            </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {hasOpenAIKey ? <div className="space-y-4">
-              <div>
-                <Label>API Key Atual</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input type={showOpenAIKey ? "text" : "password"} value={openAIKey} readOnly className="font-mono text-sm" />
-                  <Button variant="outline" size="icon" onClick={() => setShowOpenAIKey(!showOpenAIKey)}>
-                    {showOpenAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={testOpenAIConnection} disabled={testingOpenAI}>
-                  {testingOpenAI ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  Testar Conexão
-                </Button>
-                <Button variant="destructive" onClick={removeOpenAIKey} disabled={removingOpenAI}>
-                  {removingOpenAI ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
-                  Remover Chave
+          <div className="space-y-4">
+            <div>
+              <Label>API Key</Label>
+              <div className="flex gap-2 mt-1">
+                <Input type={showOpenAIKey ? "text" : "password"} value={openAIKey} onChange={e => setOpenAIKey(e.target.value)} placeholder="Cole a API Key aqui (sk-...)" className="font-mono text-sm" />
+                <Button variant="outline" size="icon" onClick={() => setShowOpenAIKey(!showOpenAIKey)}>
+                  {showOpenAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Obtenha sua API Key em{" "}
+                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  platform.openai.com/api-keys
+                </a>
+              </p>
+            </div>
 
-              {openAITestResult && <div className={`p-3 rounded-lg border ${openAITestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
-                  <div className="flex items-center gap-2">
-                    {openAITestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                    <span className={`text-sm ${openAITestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                      {openAITestResult.message}
-                    </span>
-                  </div>
-                </div>}
-
-              <div className="border-t pt-4">
-                <Label>Atualizar API Key</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input type="password" value={newOpenAIKey} onChange={e => setNewOpenAIKey(e.target.value)} placeholder="Cole a nova API Key aqui (sk-...)" />
-                  <Button onClick={validateAndSaveOpenAIKey} disabled={savingOpenAI || !newOpenAIKey}>
-                    {savingOpenAI ? <Loader2 className="h-4 w-4 animate-spin" /> : "Validar"}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Obtenha sua API Key em{" "}
-                  <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    platform.openai.com/api-keys
-                  </a>
-                </p>
-              </div>
-            </div> : <div className="space-y-4">
-              
-              <Button onClick={validateAndSaveOpenAIKey} disabled={savingOpenAI || !newOpenAIKey}>
-                {savingOpenAI ? <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Validando...
-                  </> : "Validar e Conectar"}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={testOpenAIConnection} disabled={testingOpenAI || !openAIKey}>
+                {testingOpenAI ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Testar Conexão
               </Button>
+              <Button onClick={() => validateAndSaveOpenAIKey(openAIKey)} disabled={savingOpenAI || !openAIKey}>
+                {savingOpenAI ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+              </Button>
+            </div>
 
-              {openAITestResult && <div className={`p-3 rounded-lg border ${openAITestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
-                  <div className="flex items-center gap-2">
-                    {openAITestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                    <span className={`text-sm ${openAITestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                      {openAITestResult.message}
-                    </span>
-                  </div>
-                </div>}
-            </div>}
+            {openAITestResult && <div className={`p-3 rounded-lg border ${openAITestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
+                <div className="flex items-center gap-2">
+                  {openAITestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                  <span className={`text-sm ${openAITestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
+                    {openAITestResult.message}
+                  </span>
+                </div>
+              </div>}
+          </div>
         </CardContent>
       </Card>
 
       {/* Apify Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-cyan-100 dark:bg-cyan-950 rounded-lg">
-                <Database className="h-5 w-5 text-cyan-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Apify</CardTitle>
-                <CardDescription>
-                  Configure a API Key do Apify para web scraping e extração de dados
-                </CardDescription>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-cyan-100 dark:bg-cyan-950 rounded-lg">
+              <Database className="h-5 w-5 text-cyan-600" />
             </div>
-            <Badge variant={hasApifyKey ? "default" : "secondary"} className="gap-1">
-              {hasApifyKey ? <>
-                  <CheckCircle2 className="h-3 w-3" />
-                  Conectado
-                </> : "Não configurado"}
-            </Badge>
+            <div>
+              <CardTitle className="text-lg">Apify</CardTitle>
+              <CardDescription>
+                Configure a API Key do Apify para web scraping e extração de dados
+              </CardDescription>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {hasApifyKey ? <div className="space-y-4">
-              <div>
-                <Label>API Key Atual</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input type={showApifyKey ? "text" : "password"} value={apifyApiKey} readOnly className="font-mono text-sm" />
-                  <Button variant="outline" size="icon" onClick={() => setShowApifyKey(!showApifyKey)}>
-                    {showApifyKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
+          <div className="space-y-4">
+            <div>
+              <Label>API Key</Label>
+              <div className="flex gap-2 mt-1">
+                <Input type={showApifyKey ? "text" : "password"} value={apifyApiKey} onChange={e => setApifyApiKey(e.target.value)} placeholder="Cole sua API Key aqui" className="font-mono text-sm" />
+                <Button variant="outline" size="icon" onClick={() => setShowApifyKey(!showApifyKey)}>
+                  {showApifyKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Obtenha sua API Key em{" "}
+                <a href="https://console.apify.com/account/integrations" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  console.apify.com/account/integrations
+                </a>
+              </p>
+            </div>
 
-              <div className="border-t pt-4">
-                <Label>Atualizar API Key</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input type="password" value={newApifyKey} onChange={e => setNewApifyKey(e.target.value)} placeholder="Cole a nova API Key aqui" />
-                  <Button onClick={saveApifyConfig} disabled={savingApify || !newApifyKey}>
-                    {savingApify ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Obtenha sua API Key em{" "}
-                  <a href="https://console.apify.com/account/integrations" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    console.apify.com/account/integrations
-                  </a>
-                </p>
-              </div>
-            </div> : <div className="space-y-4">
-              <div>
-                <Label>API Key do Apify</Label>
-                <Input type="password" value={newApifyKey} onChange={e => setNewApifyKey(e.target.value)} placeholder="Cole sua API Key aqui" className="mt-1" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Obtenha sua API Key em{" "}
-                  <a href="https://console.apify.com/account/integrations" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    console.apify.com/account/integrations
-                  </a>
-                </p>
-              </div>
-              <Button onClick={saveApifyConfig} disabled={savingApify || !newApifyKey}>
-                {savingApify ? <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
-                  </> : "Salvar e Conectar"}
+            <div className="flex gap-2">
+              <Button onClick={saveApifyConfig} disabled={savingApify || !apifyApiKey}>
+                {savingApify ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </Button>
-            </div>}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>;
