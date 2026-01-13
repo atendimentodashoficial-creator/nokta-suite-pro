@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Zap, BarChart3, FileText } from "lucide-react";
+import { Settings, Zap, BarChart3, FileText, Instagram as InstagramIcon } from "lucide-react";
 import { InstagramConfigTab } from "@/components/instagram/InstagramConfigTab";
 import { InstagramGatilhosTab } from "@/components/instagram/InstagramGatilhosTab";
 import { InstagramHistoricoTab } from "@/components/instagram/InstagramHistoricoTab";
@@ -10,14 +10,12 @@ export default function Instagram() {
   const [activeTab, setActiveTab] = useState("config");
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="p-4 md:p-6">
-        <div className="mb-6">
-          <h1 className="text-xl md:text-2xl font-bold">Automação Instagram</h1>
-          <p className="text-sm text-muted-foreground">
-            Configure respostas automáticas para DMs e comentários
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <InstagramIcon className="w-6 h-6" />
+        <h1 className="text-2xl font-bold">Instagram</h1>
+      </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="w-full flex overflow-x-auto gap-1 bg-muted/50 p-1 rounded-lg">
@@ -58,7 +56,6 @@ export default function Instagram() {
             <InstagramHistoricoTab />
           </TabsContent>
         </Tabs>
-      </div>
     </div>
   );
 }
