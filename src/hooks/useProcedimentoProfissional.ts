@@ -8,6 +8,7 @@ interface VinculoProcedimentoProfissional {
   procedimento_id: string;
   profissional_id: string;
   user_id: string;
+  ordem: number | null;
   created_at: string;
 }
 
@@ -27,6 +28,7 @@ export function useVinculos() {
           profissionais (id, nome)
         `)
         .eq('user_id', user.id)
+        .order('ordem', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -41,7 +43,7 @@ export function useCreateVinculo() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (vinculo: { procedimento_id: string; profissional_id: string }) => {
+    mutationFn: async (vinculo: { procedimento_id: string; profissional_id: string; ordem?: number }) => {
       if (!user) throw new Error('Usuário não autenticado');
 
       const { data, error } = await supabase
@@ -62,6 +64,27 @@ export function useCreateVinculo() {
     },
     onError: (error: any) => {
       toast.error('Erro ao criar vínculo: ' + error.message);
+    },
+  });
+}
+
+export function useUpdateVinculoOrdem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ordem }: { id: string; ordem: number }) => {
+      const { error } = await supabase
+        .from('procedimento_profissional')
+        .update({ ordem })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['procedimento-profissional'] });
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao reordenar: ' + error.message);
     },
   });
 }
