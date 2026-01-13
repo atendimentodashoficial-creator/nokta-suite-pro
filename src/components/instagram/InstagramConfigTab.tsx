@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Eye, EyeOff, Save, Loader2, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { IceBreakersConfig } from "./IceBreakersConfig";
+
 interface ConfigFormData {
   app_id: string;
   app_secret: string;
@@ -212,7 +212,5 @@ export function InstagramConfigTab() {
         </Button>
       </form>
 
-      {/* Ice Breakers Configuration */}
-      {config?.id && <IceBreakersConfig configId={config.id} iceBreakers={(config as any).ice_breakers || []} pageAccessToken={config.page_access_token} instagramAccountId={config.instagram_account_id} />}
     </div>;
 }
