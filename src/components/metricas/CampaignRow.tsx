@@ -152,7 +152,7 @@ export function CampaignRow({
 
   // Renderiza célula combinada Total/Média seguindo o padrão de campanhas
   const renderCombinedSummaryCell = (columnKey: ColumnKey, totals: BaseMetrics, averages: BaseMetrics) => {
-    // Métricas que mostram média (em azul): CTR, CPC, CPM, Custo/Resultado
+    // Métricas que mostram média (em azul): CTR, CPC, CPM, Custo/Conversa
     const isAverageMetric = ["ctr", "cpc", "cpm", "cost_per_result"].includes(columnKey);
     const data = isAverageMetric ? averages : totals;
     const textClass = isAverageMetric ? "text-center font-bold text-primary" : "text-center font-bold";
