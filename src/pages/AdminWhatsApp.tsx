@@ -1366,31 +1366,7 @@ export default function AdminWhatsApp() {
                     <Loader2 className="h-3 w-3 animate-spin" />
                     Verificando...
                   </Badge>
-                ) : (
-                  <Button 
-                    variant="default" 
-                    size="sm" 
-                    className="gap-1 h-8 px-3"
-                    onClick={() => {
-                      if (!mainInstance) {
-                        // No instance - open create dialog to set name first
-                        setNewInstanceName("");
-                        setCreateInstanceDialogOpen(true);
-                      } else {
-                        // Has instance but disconnected - open manage dialog
-                        setManageDialogOpen(true);
-                      }
-                    }}
-                    disabled={isCreatingInstance}
-                  >
-                    {isCreatingInstance ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <QrCode className="h-4 w-4" />
-                    )}
-                    Conectar
-                  </Button>
-                )
+                ) : null
               )}
             </div>
           </div>
@@ -1485,6 +1461,29 @@ export default function AdminWhatsApp() {
                   <CheckSquare className="h-4 w-4" />
                 </Button>
               )
+            )}
+
+            {/* Instance Manager / Connect button */}
+            {connectionStatus !== 'connected' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (!mainInstance) {
+                    setNewInstanceName("");
+                    setCreateInstanceDialogOpen(true);
+                  } else {
+                    setManageDialogOpen(true);
+                  }
+                }}
+                disabled={isCreatingInstance}
+              >
+                {isCreatingInstance ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <QrCode className="h-4 w-4" />
+                )}
+              </Button>
             )}
           </div>
 
