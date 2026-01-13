@@ -200,19 +200,32 @@ export default function Escala() {
       }
     }
   };
-  const handleAdicionarHorario = (profissionalId: string, diaSemana: number, horariosExistentes?: Array<{ hora_inicio: string; hora_fim: string }>) => {
+  const handleAdicionarHorario = async (profissionalId: string, diaSemana: number, horariosExistentes?: Array<{ hora_inicio: string; hora_fim: string }>) => {
     const ultimoHorario = horariosExistentes?.[horariosExistentes.length - 1];
-    const novoInicio = ultimoHorario?.hora_fim || "";
+    const novoInicio = ultimoHorario?.hora_fim || "08:00";
     
-    setEditandoHorario({
-      id: null,
-      hora_inicio: novoInicio,
-      hora_fim: "",
-      profissional_id: profissionalId,
-      dia_semana: diaSemana,
-      isNew: true
-    });
-    setDialogEditarHorario(true);
+    // Calcula hora fim padrão (1 hora depois do início)
+    const [horaI, minI] = novoInicio.split(":").map(Number);
+    const horaFim = String(Math.min(horaI + 1, 23)).padStart(2, "0") + ":" + String(minI).padStart(2, "0");
+    
+    try {
+      await createEscala.mutateAsync({
+        profissional_id: profissionalId,
+        dia_semana: diaSemana,
+        hora_inicio: novoInicio,
+        hora_fim: horaFim,
+        ativo: true
+      });
+      toast({
+        title: "Horário adicionado"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar o horário",
+        variant: "destructive"
+      });
+    }
   };
   const handleDeletarHorario = async (id: string) => {
     try {
