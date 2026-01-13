@@ -2747,6 +2747,7 @@ export type Database = {
           descricao: string | null
           id: string
           nome: string
+          ordem: number | null
           updated_at: string
           user_id: string
           valor: number
@@ -2757,6 +2758,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome: string
+          ordem?: number | null
           updated_at?: string
           user_id: string
           valor?: number
@@ -2767,6 +2769,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome?: string
+          ordem?: number | null
           updated_at?: string
           user_id?: string
           valor?: number

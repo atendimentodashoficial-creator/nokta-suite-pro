@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput, parseCurrencyToNumber } from "@/components/ui/currency-input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -308,15 +309,9 @@ export function NovaFaturaDialog({
                     <FormItem>
                       <FormLabel>Valor Base</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="text"
-                          placeholder="R$ 0,00"
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            const formatted = value.replace(/[^\d,.-]/g, '');
-                            field.onChange(formatted);
-                          }}
+                        <CurrencyInput
+                          value={field.value}
+                          onChange={field.onChange}
                         />
                       </FormControl>
                       <FormMessage />
@@ -424,15 +419,9 @@ export function NovaFaturaDialog({
                         <FormItem>
                           <FormLabel>Valor da Entrada</FormLabel>
                           <FormControl>
-                            <Input
-                              {...field}
-                              type="text"
-                              placeholder="R$ 0,00"
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                const formatted = value.replace(/[^\d,.-]/g, '');
-                                field.onChange(formatted);
-                              }}
+                            <CurrencyInput
+                              value={field.value || ""}
+                              onChange={field.onChange}
                             />
                           </FormControl>
                           <FormMessage />
@@ -772,16 +761,10 @@ export function NovaFaturaDialog({
                             <FormItem>
                               <FormLabel className="text-xs">Valor</FormLabel>
                               <FormControl>
-                                <Input
-                                  {...valorField}
-                                  type="text"
-                                  placeholder="0,00"
+                                <CurrencyInput
+                                  value={valorField.value}
+                                  onChange={valorField.onChange}
                                   className="h-9"
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    const formatted = value.replace(/[^\d,.-]/g, '');
-                                    valorField.onChange(formatted);
-                                  }}
                                 />
                               </FormControl>
                               <FormMessage />

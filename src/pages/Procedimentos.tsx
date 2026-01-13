@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, GripVertical, Clock } from "lucide-react";
+import { CurrencyInput, parseCurrencyToNumber } from "@/components/ui/currency-input";
 import {
   DndContext,
   closestCenter,
@@ -194,7 +195,7 @@ export default function Procedimentos() {
     setEditando(proc);
     setNome(proc.nome);
     setCategoria(proc.categoria || "");
-    setValorMedio(proc.valor_medio?.toString() || "");
+    setValorMedio(proc.valor_medio ? proc.valor_medio.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
     setDuracaoMinutos((proc.tempo_atendimento_minutos || proc.duracao_minutos || 60).toString());
     setOpen(true);
   };
@@ -216,7 +217,7 @@ export default function Procedimentos() {
     const dados = {
       nome,
       categoria: categoria || null,
-      valor_medio: valorMedio ? parseFloat(valorMedio) : null,
+      valor_medio: valorMedio ? parseCurrencyToNumber(valorMedio) : null,
       duracao_minutos: duracaoMinutos ? parseInt(duracaoMinutos) : 60,
       tempo_atendimento_minutos: duracaoMinutos ? parseInt(duracaoMinutos) : 60,
       ativo: true
@@ -340,8 +341,8 @@ export default function Procedimentos() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="valor">Valor Médio (R$)</Label>
-                    <Input id="valor" type="number" step="0.01" value={valorMedio} onChange={e => setValorMedio(e.target.value)} placeholder="0,00" />
+                    <Label htmlFor="valor">Valor Médio</Label>
+                    <CurrencyInput id="valor" value={valorMedio} onChange={setValorMedio} />
                   </div>
 
                   <div className="space-y-2">

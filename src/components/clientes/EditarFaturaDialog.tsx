@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput, parseCurrencyToNumber } from "@/components/ui/currency-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -366,11 +367,9 @@ export function EditarFaturaDialog({
                     <FormItem>
                       <FormLabel>Valor Base</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
+                        <CurrencyInput
+                          value={field.value}
+                          onChange={field.onChange}
                         />
                       </FormControl>
                       <FormMessage />
@@ -558,11 +557,9 @@ export function EditarFaturaDialog({
                       <FormItem>
                         <FormLabel>Valor da Entrada</FormLabel>
                         <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            {...field}
+                          <CurrencyInput
+                            value={field.value || ""}
+                            onChange={field.onChange}
                           />
                         </FormControl>
                         <FormMessage />
@@ -790,14 +787,12 @@ export function EditarFaturaDialog({
                         control={form.control}
                         name={`upsells.${index}.valor`}
                         render={({ field }) => (
-                          <FormItem className="w-28">
+                          <FormItem className="w-32">
                             <FormLabel>Valor</FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                {...field}
+                              <CurrencyInput
+                                value={field.value}
+                                onChange={field.onChange}
                               />
                             </FormControl>
                           </FormItem>
