@@ -82,7 +82,7 @@ export function EditarLeadDialog({ lead, open, onOpenChange }: EditarLeadDialogP
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="dataFollowUp">Data do Follow-up *</Label>
+            <Label htmlFor="dataFollowUp">Data do Follow-up</Label>
             <Input
               id="dataFollowUp"
               type="date"

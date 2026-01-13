@@ -341,7 +341,7 @@ export default function Profissionais() {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nome">Nome *</Label>
+                  <Label htmlFor="nome">Nome</Label>
                   <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome completo" required />
                 </div>
 

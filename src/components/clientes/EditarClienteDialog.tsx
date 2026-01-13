@@ -239,7 +239,7 @@ export function EditarClienteDialog({
                 name="nome"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome *</FormLabel>
+                    <FormLabel>Nome</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="Nome do cliente" />
                     </FormControl>
@@ -253,7 +253,7 @@ export function EditarClienteDialog({
                 name="telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone *</FormLabel>
+                    <FormLabel>Telefone</FormLabel>
                     <FormControl>
                       <CountryCodeSelect 
                         value={countryCode} 

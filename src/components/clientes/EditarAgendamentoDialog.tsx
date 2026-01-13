@@ -376,7 +376,7 @@ export function EditarAgendamentoDialog({
               name="procedimento_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Procedimento *</FormLabel>
+                  <FormLabel>Procedimento</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -401,7 +401,7 @@ export function EditarAgendamentoDialog({
               name="data_agendamento"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data *</FormLabel>
+                  <FormLabel>Data</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -441,7 +441,7 @@ export function EditarAgendamentoDialog({
             {dataWatch && procedimentoWatch && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <FormLabel>Selecione Profissional e Horário *</FormLabel>
+                  <FormLabel>Selecione Profissional e Horário</FormLabel>
                   {profissionalWatch && form.watch("hora") && (
                     <span className="text-xs text-primary font-medium">
                       ✓ {profissionais?.find(p => p.id === profissionalWatch)?.nome} às {form.watch("hora")}

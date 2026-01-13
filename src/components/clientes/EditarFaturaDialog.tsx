@@ -364,7 +364,7 @@ export function EditarFaturaDialog({
                   name="valor_base"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valor Base *</FormLabel>
+                      <FormLabel>Valor Base</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -383,7 +383,7 @@ export function EditarFaturaDialog({
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status *</FormLabel>
+                      <FormLabel>Status</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
