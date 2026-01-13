@@ -22,6 +22,10 @@ import {
   Wallet
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
 
 export type MetricCardKey = "impressions" | "clicks" | "results" | "cost_per_result" | "spend" | "reach" | "ctr" | "cpc" | "cpm" | "active_budget";
 
@@ -49,6 +53,56 @@ export const ALL_METRIC_CARDS: MetricCardConfig[] = [
 
 export const DEFAULT_VISIBLE_CARDS: MetricCardKey[] = ["impressions", "clicks", "results", "cost_per_result", "spend"];
 
+interface SortableMetricItemProps {
+  id: MetricCardKey;
+  index: number;
+}
+
+function SortableMetricItem({ id, index }: SortableMetricItemProps) {
+  const card = ALL_METRIC_CARDS.find((c) => c.key === id);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  if (!card) return null;
+  const IconComponent = card.icon;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 p-2 rounded-md bg-muted/50 border transition-colors",
+        isDragging && "opacity-50 shadow-lg z-50 bg-primary/10 border-primary"
+      )}
+    >
+      <button
+        type="button"
+        className="cursor-grab active:cursor-grabbing touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </button>
+      <IconComponent className="h-4 w-4 text-muted-foreground" />
+      <span className="text-sm flex-1">{card.label}</span>
+      <span className="text-xs text-muted-foreground">
+        #{index + 1}
+      </span>
+    </div>
+  );
+}
+
 interface MetricCardSelectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -63,13 +117,19 @@ export function MetricCardSelectorDialog({
   onVisibleCardsChange,
 }: MetricCardSelectorDialogProps) {
   const [selectedCards, setSelectedCards] = useState<MetricCardKey[]>(visibleCards);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
       setSelectedCards(visibleCards);
     }
   }, [open, visibleCards]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleToggleCard = (cardKey: MetricCardKey) => {
     if (selectedCards.includes(cardKey)) {
@@ -81,24 +141,16 @@ export function MetricCardSelectorDialog({
     }
   };
 
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index);
-  };
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    const newCards = [...selectedCards];
-    const draggedCard = newCards[draggedIndex];
-    newCards.splice(draggedIndex, 1);
-    newCards.splice(index, 0, draggedCard);
-    setSelectedCards(newCards);
-    setDraggedIndex(index);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
+    if (over && active.id !== over.id) {
+      setSelectedCards((items) => {
+        const oldIndex = items.indexOf(active.id as MetricCardKey);
+        const newIndex = items.indexOf(over.id as MetricCardKey);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   };
 
   const handleSave = () => {
@@ -152,33 +204,23 @@ export function MetricCardSelectorDialog({
           <div className="space-y-2">
             <p className="text-sm font-medium">Ordem de exibição (arraste para reordenar)</p>
             <ScrollArea className="h-[180px] border rounded-md p-2">
-              <div className="space-y-1">
-                {selectedCards.map((cardKey, index) => {
-                  const card = ALL_METRIC_CARDS.find((c) => c.key === cardKey);
-                  if (!card) return null;
-                  const IconComponent = card.icon;
-
-                  return (
-                    <div
-                      key={cardKey}
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-2 p-2 rounded-md bg-muted/50 border cursor-move transition-colors ${
-                        draggedIndex === index ? "bg-primary/10 border-primary" : "hover:bg-muted"
-                      }`}
-                    >
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                      <IconComponent className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm flex-1">{card.label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        #{index + 1}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={selectedCards} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-1">
+                    {selectedCards.map((cardKey, index) => (
+                      <SortableMetricItem
+                        key={cardKey}
+                        id={cardKey}
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </ScrollArea>
           </div>
         </div>
