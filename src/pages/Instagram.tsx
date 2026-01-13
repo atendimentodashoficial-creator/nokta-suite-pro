@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Zap, BarChart3, FileText, Instagram as InstagramIcon } from "lucide-react";
-import { InstagramConfigTab } from "@/components/instagram/InstagramConfigTab";
+import { Zap, BarChart3, FileText, Instagram as InstagramIcon } from "lucide-react";
 import { InstagramGatilhosTab } from "@/components/instagram/InstagramGatilhosTab";
 import { InstagramHistoricoTab } from "@/components/instagram/InstagramHistoricoTab";
 import { InstagramFormulariosTab } from "@/components/instagram/InstagramFormulariosTab";
 
 export default function Instagram() {
-  const [activeTab, setActiveTab] = useState("config");
+  const [activeTab, setActiveTab] = useState("gatilhos");
 
   return (
     <div className="space-y-6">
@@ -21,11 +20,6 @@ export default function Instagram() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="w-full flex overflow-x-auto gap-1 bg-muted/50 p-1 rounded-lg">
-            <TabsTrigger value="config" className="flex-1 min-w-fit flex items-center justify-center gap-1.5 text-xs md:text-sm px-2 md:px-4">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Configuração</span>
-              <span className="sm:hidden">Config</span>
-            </TabsTrigger>
             <TabsTrigger value="gatilhos" className="flex-1 min-w-fit flex items-center justify-center gap-1.5 text-xs md:text-sm px-2 md:px-4">
               <Zap className="h-4 w-4" />
               <span>Gatilhos</span>
@@ -41,10 +35,6 @@ export default function Instagram() {
               <span className="sm:hidden">Hist.</span>
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="config">
-            <InstagramConfigTab />
-          </TabsContent>
 
           <TabsContent value="gatilhos">
             <InstagramGatilhosTab />
