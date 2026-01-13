@@ -1121,9 +1121,9 @@ export default function Escala() {
                   head_row: "flex w-full justify-between",
                   head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] text-center",
                   row: "flex w-full mt-2 justify-between",
-                  cell: "flex-1 h-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                  cell: "flex-1 h-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
                   day: "h-9 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-muted rounded-md",
-                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-md",
                   day_today: "bg-muted text-muted-foreground",
                 }}
               />
