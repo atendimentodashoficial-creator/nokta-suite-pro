@@ -4,11 +4,10 @@ import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePersonalizacaoContext } from "@/contexts/PersonalizacaoContext";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import noktaLogoDefault from "@/assets/nokta-logo.png";
-import { useState, createContext, useContext } from "react";
+import { createContext, useContext } from "react";
 
 export const navigation = [
   { name: "Calendário", href: "/", icon: Calendar },
@@ -46,8 +45,6 @@ interface SidebarContentProps {
 
 export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse }: SidebarContentProps) => {
   const { user, signOut } = useAuth();
-  const { logoUrl, config } = usePersonalizacaoContext();
-  const isCustomLogo = config?.logo_url;
 
   const handleLogout = async () => {
     await signOut();
@@ -80,12 +77,9 @@ export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse
             </Tooltip>
           ) : (
             <img 
-              src={logoUrl} 
+              src={noktaLogoDefault} 
               alt="Logo" 
-              className={cn(
-                "h-8 w-auto object-contain transition-all",
-                !isCustomLogo && "brightness-0 invert"
-              )}
+              className="h-8 w-auto object-contain transition-all brightness-0 invert"
             />
           )}
         </div>
