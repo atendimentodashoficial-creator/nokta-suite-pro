@@ -34,11 +34,13 @@ import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { useProdutos } from "@/hooks/useProdutos";
 
-import { format } from "date-fns";
-import { Plus, Trash2, Package, Stethoscope } from "lucide-react";
+import { format, parse } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Plus, Trash2, Package, Stethoscope, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 const upsellSchema = z.object({
   tipo: z.enum(["produto", "procedimento"]),
   item_id: z.string().min(1, "Selecione um item"),
@@ -307,11 +309,33 @@ export function NovaFaturaDialog({
                   control={form.control}
                   name="data_fatura"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Data</FormLabel>
-                      <FormControl>
-                        <Input type="date" className="w-full" {...field} />
-                      </FormControl>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal h-10",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? format(parse(field.value, "yyyy-MM-dd", new Date()), "dd/MM/yy") : "Selecione"}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? parse(field.value, "yyyy-MM-dd", new Date()) : undefined}
+                            onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                            locale={ptBR}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
