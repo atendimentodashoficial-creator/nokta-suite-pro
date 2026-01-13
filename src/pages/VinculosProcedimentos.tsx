@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Stethoscope, ChevronDown, ChevronRight } from "lucide-react";
+import { User, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -142,7 +142,7 @@ export default function VinculosProcedimentos() {
                     ) : (
                       <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                     )}
-                    <Stethoscope className="h-5 w-5 flex-shrink-0" />
+                    <User className="h-5 w-5 flex-shrink-0" />
                     <div className="flex-1 min-w-0 flex items-center gap-2">
                       <CardTitle className="text-base font-semibold truncate">
                         {profissional.nome}
