@@ -106,7 +106,7 @@ export function MetaPixelConfig() {
             <MetaIcon className="h-6 w-6 text-blue-600" />
           </div>
           <div>
-            <CardTitle>Meta Pixel (Conversions API)</CardTitle>
+            <CardTitle className="text-lg font-semibold">Meta Pixel (Conversions API)</CardTitle>
             <CardDescription>
               Configure a integração com o Meta Pixel para rastrear conversões
             </CardDescription>
