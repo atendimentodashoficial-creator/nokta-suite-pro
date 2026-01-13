@@ -61,6 +61,7 @@ export function PeriodFilter({
 
       {value === "custom" && (
         <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm">
