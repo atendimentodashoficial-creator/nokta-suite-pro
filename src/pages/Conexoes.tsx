@@ -1019,19 +1019,19 @@ export default function Conexoes() {
             {linkedAdAccounts.length > 0 ? <div className="space-y-2 mt-4">
                 {linkedAdAccounts.map(account => {
                   const accountType = account.account_type || (account.is_prepay_account ? "prepaid" : "postpaid");
-                  return <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{account.account_name || "Conta sem nome"}</p>
-                          <Badge variant="outline" className="text-xs">
+                  return <div key={account.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg bg-muted/50 gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium truncate">{account.account_name || "Conta sem nome"}</p>
+                          <Badge variant="outline" className="text-xs shrink-0">
                             {accountType === "prepaid" ? "Pré-pago" : "Pós-pago"}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground font-mono">{account.ad_account_id}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{account.ad_account_id}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <Select value={accountType} onValueChange={value => updateAccountType(account.id, account.ad_account_id, value)}>
-                          <SelectTrigger className="w-[120px] h-8 text-xs">
+                          <SelectTrigger className="w-[100px] h-8 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
