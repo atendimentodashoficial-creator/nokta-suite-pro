@@ -945,11 +945,11 @@ export default function Conexoes() {
             </div>
             
             <div className="flex gap-2">
-              <Button variant="outline" onClick={testMetaConnection} disabled={testingMeta || !metaAccessToken}>
+              <Button variant="outline" onClick={testMetaConnection} disabled={testingMeta}>
                 {testingMeta ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 Testar Conexão
               </Button>
-              <Button onClick={() => saveMetaToken(metaAccessToken)} disabled={savingMetaToken || !metaAccessToken}>
+              <Button onClick={() => saveMetaToken(metaAccessToken)} disabled={savingMetaToken}>
                 {savingMetaToken ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </Button>
             </div>
@@ -1074,11 +1074,11 @@ export default function Conexoes() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" onClick={testGoogleAdsConnection} disabled={testingGoogleAds || !googleAdsDeveloperToken || !googleAdsClientId || !googleAdsClientSecret || !googleAdsRefreshToken}>
+              <Button variant="outline" onClick={testGoogleAdsConnection} disabled={testingGoogleAds}>
                 {testingGoogleAds ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 Testar Conexão
               </Button>
-              <Button onClick={() => saveGoogleAdsConfig()} disabled={savingGoogleAds || !googleAdsDeveloperToken || !googleAdsClientId || !googleAdsClientSecret || !googleAdsRefreshToken}>
+              <Button onClick={() => saveGoogleAdsConfig()} disabled={savingGoogleAds}>
                 {savingGoogleAds ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </Button>
             </div>
@@ -1184,11 +1184,11 @@ export default function Conexoes() {
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={testOpenAIConnection} disabled={testingOpenAI || !openAIKey}>
+              <Button variant="outline" onClick={testOpenAIConnection} disabled={testingOpenAI}>
                 {testingOpenAI ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 Testar Conexão
               </Button>
-              <Button onClick={() => validateAndSaveOpenAIKey(openAIKey)} disabled={savingOpenAI || !openAIKey}>
+              <Button onClick={() => validateAndSaveOpenAIKey(openAIKey)} disabled={savingOpenAI}>
                 {savingOpenAI ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </Button>
             </div>
@@ -1233,11 +1233,11 @@ export default function Conexoes() {
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={testApifyConnection} disabled={testingApify || !apifyApiKey}>
+              <Button variant="outline" onClick={testApifyConnection} disabled={testingApify}>
                 {testingApify ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 Testar Conexão
               </Button>
-              <Button onClick={saveApifyConfig} disabled={savingApify || !apifyApiKey}>
+              <Button onClick={saveApifyConfig} disabled={savingApify}>
                 {savingApify ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
               </Button>
             </div>
