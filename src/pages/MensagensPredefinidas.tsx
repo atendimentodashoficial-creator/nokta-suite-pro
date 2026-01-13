@@ -60,28 +60,28 @@ function SortableMensagemCard({ mensagem, onEdit, onDelete }: SortableMensagemCa
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+      className="flex items-center justify-between gap-2 p-3 rounded-lg border bg-card"
     >
-      <div className="flex items-center gap-3 flex-1">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none"
+          className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
         <div className="flex-1 min-w-0">
-          <span className="font-medium">{mensagem.titulo}</span>
+          <span className="font-medium text-sm truncate block">{mensagem.titulo}</span>
           <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words line-clamp-2">
             {mensagem.conteudo}
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => onEdit(mensagem)}>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(mensagem)}>
           <Edit className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => onDelete(mensagem.id)}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(mensagem.id)}>
           <Trash2 className="w-4 h-4 text-destructive" />
         </Button>
       </div>
@@ -118,13 +118,13 @@ function SortableAudioCard({ audio, playingAudioId, onPlay, onEdit, onDelete, fo
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+      className="flex items-center justify-between gap-2 p-3 rounded-lg border bg-card"
     >
-      <div className="flex items-center gap-3 flex-1">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none"
+          className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -141,17 +141,17 @@ function SortableAudioCard({ audio, playingAudioId, onPlay, onEdit, onDelete, fo
           )}
         </Button>
         <div className="flex-1 min-w-0">
-          <span className="font-medium">{audio.titulo}</span>
+          <span className="font-medium text-sm truncate block">{audio.titulo}</span>
           <p className="text-xs text-muted-foreground mt-1">
             Duração: {formatDuration(audio.duracao_segundos)}
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => onEdit(audio)}>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(audio)}>
           <Edit className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => onDelete(audio.id)}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(audio.id)}>
           <Trash2 className="w-4 h-4 text-destructive" />
         </Button>
       </div>
@@ -201,31 +201,31 @@ function SortableBlocoMensagemCard({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <div ref={setNodeRef} style={style} className="rounded-lg border p-4">
+      <div ref={setNodeRef} style={style} className="rounded-lg border p-3 sm:p-4">
         <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 cursor-pointer">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <button
                 {...attributes}
                 {...listeners}
-                className="cursor-grab active:cursor-grabbing touch-none"
+                className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <GripVertical className="w-4 h-4 text-muted-foreground" />
               </button>
-              <h3 className="font-semibold text-base">{bloco.titulo}</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              <h3 className="font-semibold text-sm sm:text-base truncate">{bloco.titulo}</h3>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex-shrink-0">
                 {mensagens.length}
               </span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(bloco); }} className="h-8 w-8">
                 <Edit className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(bloco.id); }} className="h-8 w-8">
                 <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
             </div>
           </div>
         </CollapsibleTrigger>
@@ -311,31 +311,31 @@ function SortableBlocoAudioCard({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <div ref={setNodeRef} style={style} className="rounded-lg border p-4">
+      <div ref={setNodeRef} style={style} className="rounded-lg border p-3 sm:p-4">
         <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 cursor-pointer">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <button
                 {...attributes}
                 {...listeners}
-                className="cursor-grab active:cursor-grabbing touch-none"
+                className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <GripVertical className="w-4 h-4 text-muted-foreground" />
               </button>
-              <h3 className="font-semibold text-base">{bloco.titulo}</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              <h3 className="font-semibold text-sm sm:text-base truncate">{bloco.titulo}</h3>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex-shrink-0">
                 {audios.length}
               </span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(bloco); }} className="h-8 w-8">
                 <Edit className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(bloco.id); }} className="h-8 w-8">
                 <Trash2 className="w-4 h-4 text-destructive" />
               </Button>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
             </div>
           </div>
         </CollapsibleTrigger>

@@ -23,14 +23,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -138,16 +130,16 @@ export default function Produtos() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          Produtos
+          <Package className="h-5 w-5 flex-shrink-0" />
+          <span>Produtos</span>
         </CardTitle>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreateDialog} className="gap-2">
+            <Button onClick={openCreateDialog} size="sm" className="gap-2 flex-shrink-0">
               <Plus className="h-4 w-4" />
-              Novo Produto
+              <span className="hidden sm:inline">Novo</span> Produto
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
@@ -264,70 +256,65 @@ export default function Produtos() {
             <p className="text-sm">Clique em "Novo Produto" para adicionar.</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {produtos?.map((produto) => (
-                <TableRow key={produto.id}>
-                  <TableCell className="font-medium">{produto.nome}</TableCell>
-                  <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                    {produto.descricao || "-"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    R$ {produto.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={produto.ativo ? "default" : "secondary"}>
+          <div className="space-y-2">
+            {produtos?.map((produto) => (
+              <div
+                key={produto.id}
+                className={`flex items-center justify-between gap-2 p-3 rounded-lg border ${
+                  !produto.ativo ? "opacity-50 bg-muted/50" : "bg-card"
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm truncate">{produto.nome}</span>
+                    <Badge variant={produto.ativo ? "default" : "secondary"} className="text-xs flex-shrink-0">
                       {produto.ativo ? "Ativo" : "Inativo"}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(produto)}
-                      >
-                        <Pencil className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+                    <span>R$ {produto.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    {produto.descricao && (
+                      <span className="truncate hidden sm:inline">{produto.descricao}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => openEditDialog(produto)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir produto?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja excluir "{produto.nome}"? Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(produto.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir produto?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir "{produto.nome}"? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(produto.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>

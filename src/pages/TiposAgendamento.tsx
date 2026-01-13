@@ -69,21 +69,21 @@ function SortableTipoItem({ tipo, onEdit, onDelete, onToggleAtivo }: SortableTip
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between p-3 rounded-lg border ${
+      className={`flex items-center justify-between gap-2 p-3 rounded-lg border ${
         tipo.ativo === false ? "opacity-50 bg-muted/50" : "bg-card"
       }`}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none"
+          className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
-        <span className="font-medium">{tipo.nome}</span>
+        <span className="font-medium text-sm truncate">{tipo.nome}</span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 flex-shrink-0">
         <Switch
           checked={tipo.ativo !== false}
           onCheckedChange={() => onToggleAtivo(tipo)}
@@ -91,6 +91,7 @@ function SortableTipoItem({ tipo, onEdit, onDelete, onToggleAtivo }: SortableTip
         <Button
           variant="ghost"
           size="icon"
+          className="h-8 w-8"
           onClick={() => onEdit(tipo)}
         >
           <Pencil className="w-4 h-4" />
@@ -98,6 +99,7 @@ function SortableTipoItem({ tipo, onEdit, onDelete, onToggleAtivo }: SortableTip
         <Button
           variant="ghost"
           size="icon"
+          className="h-8 w-8"
           onClick={() => onDelete(tipo.id)}
         >
           <Trash2 className="w-4 h-4 text-destructive" />
@@ -203,9 +205,9 @@ export default function TiposAgendamento() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-lg font-semibold">Tipos de Agendamento</CardTitle>
-          <Button onClick={handleOpenCreate} size="sm">
+          <Button onClick={handleOpenCreate} size="sm" className="flex-shrink-0">
             <Plus className="w-4 h-4 mr-2" />
             Novo Tipo
           </Button>
