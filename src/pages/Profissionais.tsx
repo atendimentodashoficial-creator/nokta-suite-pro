@@ -118,13 +118,12 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
       </div>
 
       {/* Mobile layout */}
-      <div className="sm:hidden">
-        {/* Top row: drag handle, content, edit/delete icons */}
-        <div className="flex items-start gap-2">
+      <div className="sm:hidden flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0 mt-1"
+            className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
           >
             <GripVertical className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -144,32 +143,28 @@ function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtiv
               )}
             </div>
           </div>
-          {/* Edit/Delete icons - top right */}
-          <div className="flex items-center gap-0.5 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onEdit(profissional)}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => onDelete(profissional)}
-            >
-              <Trash2 className="w-3.5 h-3.5 text-destructive" />
-            </Button>
-          </div>
         </div>
-        {/* Bottom row: toggle - bottom right */}
-        <div className="flex justify-end mt-2">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <Switch
             checked={profissional.ativo}
             onCheckedChange={() => onToggleAtivo(profissional)}
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onEdit(profissional)}
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onDelete(profissional)}
+          >
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
         </div>
       </div>
     </div>
