@@ -205,53 +205,39 @@ export default function Agenda() {
   };
   return <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4">
-        {/* Título + Botão (mobile: botão à direita) */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-6 h-6" />
-            <h1 className="text-2xl font-bold">Calendário</h1>
-          </div>
-          
-          {/* Botão - visível apenas em mobile nesta posição */}
-          {activeTab === "agendamentos" && (
-            <Button onClick={() => setNovoAgendamentoOpen(true)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground md:hidden">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Agendamento
-            </Button>
-          )}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-6 h-6" />
+          <h1 className="text-2xl font-bold">Calendário</h1>
         </div>
         
-        {/* Tabs + Botão desktop */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="h-8">
-              <TabsTrigger value="agendamentos" className="gap-1.5 text-xs px-3 h-7">
-                <CalendarIcon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Agendamentos</span>
-                <span className="sm:hidden">Agenda</span>
-              </TabsTrigger>
-              <TabsTrigger value="avisos" className="gap-1.5 text-xs px-3 h-7">
-                <Bell className="h-3.5 w-3.5" />
-                Avisos
-              </TabsTrigger>
-              <TabsTrigger value="historico" className="gap-1.5 text-xs px-3 h-7">
-                <History className="h-3.5 w-3.5" />
-                Histórico
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          {/* Botão - visível apenas em desktop nesta posição */}
-          {activeTab === "agendamentos" && (
-            <Button onClick={() => setNovoAgendamentoOpen(true)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground hidden md:flex">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Agendamento
-            </Button>
-          )}
-        </div>
+        {/* Botão Novo Agendamento */}
+        {activeTab === "agendamentos" && (
+          <Button onClick={() => setNovoAgendamentoOpen(true)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Agendamento
+          </Button>
+        )}
       </div>
-
+        
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="h-8">
+          <TabsTrigger value="agendamentos" className="gap-1.5 text-xs px-3 h-7">
+            <CalendarIcon className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Agendamentos</span>
+            <span className="sm:hidden">Agenda</span>
+          </TabsTrigger>
+          <TabsTrigger value="avisos" className="gap-1.5 text-xs px-3 h-7">
+            <Bell className="h-3.5 w-3.5" />
+            Avisos
+          </TabsTrigger>
+          <TabsTrigger value="historico" className="gap-1.5 text-xs px-3 h-7">
+            <History className="h-3.5 w-3.5" />
+            Histórico
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
       {activeTab === "agendamentos" ? (
         <>
         {/* Filtros */}
