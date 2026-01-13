@@ -14,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Calendar as CalendarIcon, Trash2, Plus, Clock, Copy, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 const DIAS_SEMANA = [{
@@ -417,6 +417,45 @@ export default function Escala() {
       });
     }
   };
+  // Função para carregar horários de escala do profissional para as datas selecionadas
+  const carregarHorariosEscalaParaAusencia = (datas: Date[]) => {
+    if (profissionalSelecionado === "todos" || datas.length === 0) {
+      setHorariosAusencia([{ inicio: "", fim: "" }]);
+      return;
+    }
+
+    // Pega o dia da semana da primeira data selecionada (0=domingo, 6=sábado)
+    const diaSemana = getDay(datas[0]);
+    
+    // Busca os horários de escala do profissional para esse dia
+    const escalaDoDia = todasEscalas?.filter(
+      e => e.profissional_id === profissionalSelecionado && e.dia_semana === diaSemana
+    ) || [];
+
+    if (escalaDoDia.length > 0) {
+      // Carrega os horários de escala do profissional
+      const horariosCarregados = escalaDoDia.map(e => ({
+        inicio: e.hora_inicio.slice(0, 5),
+        fim: e.hora_fim.slice(0, 5)
+      }));
+      setHorariosAusencia(horariosCarregados);
+    } else {
+      // Se não tem escala para esse dia, deixa vazio
+      setHorariosAusencia([{ inicio: "", fim: "" }]);
+    }
+  };
+
+  // Handler para quando as datas de ausência são selecionadas
+  const handleSelecionarDatasAusencia = (dates: Date[] | undefined) => {
+    const novasDatas = dates || [];
+    setDatasAusenciaSelecionadas(novasDatas);
+    
+    // Se selecionou novas datas, carrega os horários de escala
+    if (novasDatas.length > 0 && (datasAusenciaSelecionadas.length === 0 || novasDatas.length === 1)) {
+      carregarHorariosEscalaParaAusencia(novasDatas);
+    }
+  };
+
   const handleAdicionarHorarioAusencia = () => {
     setHorariosAusencia(prev => {
       const lastHorario = prev[prev.length - 1];
@@ -498,15 +537,72 @@ export default function Escala() {
     motivo: string | null;
   }) => {
     setAusenciaEditando({ id: ausencia.id, profissional_id: ausencia.profissional_id });
-    setDatasAusenciaEditando([parseISO(ausencia.data_inicio)]);
-    setDiaInteiroEditando(!ausencia.hora_inicio && !ausencia.hora_fim);
-    setHorariosAusenciaEditando(
-      ausencia.hora_inicio && ausencia.hora_fim 
-        ? [{ inicio: ausencia.hora_inicio.slice(0, 5), fim: ausencia.hora_fim.slice(0, 5) }] 
-        : [{ inicio: "", fim: "" }]
-    );
+    const dataAusencia = parseISO(ausencia.data_inicio);
+    setDatasAusenciaEditando([dataAusencia]);
+    const isDiaInteiro = !ausencia.hora_inicio && !ausencia.hora_fim;
+    setDiaInteiroEditando(isDiaInteiro);
+    
+    if (ausencia.hora_inicio && ausencia.hora_fim) {
+      // Carrega os horários salvos da ausência
+      setHorariosAusenciaEditando([{ inicio: ausencia.hora_inicio.slice(0, 5), fim: ausencia.hora_fim.slice(0, 5) }]);
+    } else {
+      // Se é dia inteiro, busca os horários de escala do profissional para esse dia
+      const diaSemana = getDay(dataAusencia);
+      const escalaDoDia = todasEscalas?.filter(
+        e => e.profissional_id === ausencia.profissional_id && e.dia_semana === diaSemana
+      ) || [];
+
+      if (escalaDoDia.length > 0) {
+        const horariosCarregados = escalaDoDia.map(e => ({
+          inicio: e.hora_inicio.slice(0, 5),
+          fim: e.hora_fim.slice(0, 5)
+        }));
+        setHorariosAusenciaEditando(horariosCarregados);
+      } else {
+        setHorariosAusenciaEditando([{ inicio: "", fim: "" }]);
+      }
+    }
+    
     setMotivoEditando(ausencia.motivo || "");
     setDialogEditarAusencia(true);
+  };
+
+  // Função para carregar horários de escala do profissional para as datas selecionadas na edição
+  const carregarHorariosEscalaParaAusenciaEditando = (datas: Date[], profissionalId: string) => {
+    if (!profissionalId || datas.length === 0) {
+      return;
+    }
+
+    // Pega o dia da semana da primeira data selecionada (0=domingo, 6=sábado)
+    const diaSemana = getDay(datas[0]);
+    
+    // Busca os horários de escala do profissional para esse dia
+    const escalaDoDia = todasEscalas?.filter(
+      e => e.profissional_id === profissionalId && e.dia_semana === diaSemana
+    ) || [];
+
+    if (escalaDoDia.length > 0) {
+      // Carrega os horários de escala do profissional
+      const horariosCarregados = escalaDoDia.map(e => ({
+        inicio: e.hora_inicio.slice(0, 5),
+        fim: e.hora_fim.slice(0, 5)
+      }));
+      setHorariosAusenciaEditando(horariosCarregados);
+    } else {
+      // Se não tem escala para esse dia, deixa vazio
+      setHorariosAusenciaEditando([{ inicio: "", fim: "" }]);
+    }
+  };
+
+  // Handler para quando as datas de ausência são selecionadas na edição
+  const handleSelecionarDatasAusenciaEditando = (dates: Date[] | undefined) => {
+    const novasDatas = dates || [];
+    setDatasAusenciaEditando(novasDatas);
+    
+    // Se selecionou novas datas e é uma única data, carrega os horários de escala
+    if (novasDatas.length > 0 && ausenciaEditando && (datasAusenciaEditando.length === 0 || novasDatas.length === 1)) {
+      carregarHorariosEscalaParaAusenciaEditando(novasDatas, ausenciaEditando.profissional_id);
+    }
   };
 
   const handleAdicionarHorarioAusenciaEditando = () => {
@@ -1015,7 +1111,7 @@ export default function Escala() {
               <Calendar 
                 mode="multiple" 
                 selected={datasAusenciaSelecionadas} 
-                onSelect={(dates) => setDatasAusenciaSelecionadas(dates || [])} 
+                onSelect={handleSelecionarDatasAusencia} 
                 locale={ptBR} 
                 className="pointer-events-auto rounded-md border w-full"
                 classNames={{
