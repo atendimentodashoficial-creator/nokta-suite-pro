@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { Link2, CheckCircle2, XCircle, Eye, EyeOff, Loader2, RefreshCw, Plus, Trash2, Bot, Database, ChevronDown, ChevronRight, Crosshair } from "lucide-react";
+import { Link2, CheckCircle2, XCircle, Eye, EyeOff, Loader2, RefreshCw, Plus, Trash2, Bot, Database, ChevronDown, ChevronRight, Crosshair, Instagram } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MetaPixelConfig } from "@/components/configuracoes/MetaPixelConfig";
+import { InstagramConfigTab } from "@/components/instagram/InstagramConfigTab";
 interface LinkedAdAccount {
   id: string;
   ad_account_id: string;
@@ -121,6 +122,7 @@ export default function Conexoes() {
   const [openAIOpen, setOpenAIOpen] = useState(false);
   const [apifyOpen, setApifyOpen] = useState(false);
   const [metaPixelOpen, setMetaPixelOpen] = useState(false);
+  const [instagramOpen, setInstagramOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -1322,6 +1324,35 @@ export default function Conexoes() {
           <CollapsibleContent>
             <CardContent>
               <MetaPixelConfig />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Instagram Card */}
+      <Collapsible open={instagramOpen} onOpenChange={setInstagramOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-950 dark:to-pink-950 rounded-lg">
+                    <Instagram className="h-5 w-5 text-pink-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Instagram</CardTitle>
+                    <CardDescription>
+                      Configure a integração com a API do Instagram
+                    </CardDescription>
+                  </div>
+                </div>
+                {instagramOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <InstagramConfigTab />
             </CardContent>
           </CollapsibleContent>
         </Card>
