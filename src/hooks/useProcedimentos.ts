@@ -41,7 +41,7 @@ export const useCreateProcedimento = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (procedimento: Omit<Procedimento, "id" | "created_at" | "updated_at" | "user_id">) => {
+    mutationFn: async (procedimento: Partial<Omit<Procedimento, "id" | "created_at" | "updated_at" | "user_id">> & { nome: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
