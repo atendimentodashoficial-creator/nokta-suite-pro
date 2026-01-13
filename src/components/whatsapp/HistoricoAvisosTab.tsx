@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -46,6 +47,8 @@ export function HistoricoAvisosTab() {
   const [selectedLog, setSelectedLog] = useState<AvisoEnviadoLog | null>(null);
   const [logToDelete, setLogToDelete] = useState<AvisoEnviadoLog | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const handleDeleteLog = async () => {
     if (!logToDelete) return;
@@ -60,6 +63,11 @@ export function HistoricoAvisosTab() {
       if (error) throw error;
 
       setLogs(prev => prev.filter(l => l.id !== logToDelete.id));
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(logToDelete.id);
+        return newSet;
+      });
       toast.success('Registro excluído com sucesso');
       setLogToDelete(null);
     } catch (error) {
@@ -68,6 +76,51 @@ export function HistoricoAvisosTab() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('avisos_enviados_log')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (error) throw error;
+
+      setLogs(prev => prev.filter(l => !selectedIds.has(l.id)));
+      toast.success(`${idsToDelete.length} registro(s) excluído(s) com sucesso`);
+      setSelectedIds(new Set());
+      setShowBulkDeleteDialog(false);
+    } catch (error) {
+      console.error('Error bulk deleting logs:', error);
+      toast.error('Erro ao excluir registros');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredLogs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredLogs.map(l => l.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
   };
 
   const loadLogs = async () => {
@@ -285,9 +338,21 @@ export function HistoricoAvisosTab() {
       {/* Logs List */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Registros ({filteredLogs.length})
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">
+              Registros ({filteredLogs.length})
+            </CardTitle>
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Excluir {selectedIds.size} selecionado(s)
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {filteredLogs.length === 0 ? (
@@ -297,52 +362,71 @@ export function HistoricoAvisosTab() {
               <p className="text-sm mt-1">Os avisos enviados aparecerão aqui</p>
             </div>
           ) : (
-            <ScrollArea className="h-[500px]">
-              <div className="space-y-2">
-                {filteredLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer group"
-                    onClick={() => setSelectedLog(log)}
-                  >
-                    {/* Mobile: Stack layout, Desktop: Row layout */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      {/* Left side: Status icon + Info */}
-                      <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-                        <div className={`h-10 w-10 rounded-full flex-shrink-0 flex items-center justify-center ${
-                          log.status === 'enviado' 
-                            ? 'bg-green-100 dark:bg-green-900/30' 
-                            : 'bg-red-100 dark:bg-red-900/30'
-                        }`}>
-                          {log.status === 'enviado' ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-medium truncate">{log.cliente_nome}</p>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="hidden sm:inline-flex h-7 w-7 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigateToChat(navigate, log.cliente_telefone, log.cliente_origem);
-                              }}
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                            </Button>
-                            <Badge variant="outline" className="text-xs flex-shrink-0 hidden sm:inline-flex">
-                              {log.aviso_nome}
-                            </Badge>
+            <>
+              {/* Select All Header */}
+              <div className="flex items-center gap-3 pb-3 mb-2 border-b">
+                <Checkbox
+                  checked={selectedIds.size === filteredLogs.length && filteredLogs.length > 0}
+                  onCheckedChange={toggleSelectAll}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {selectedIds.size === filteredLogs.length ? "Desmarcar todos" : "Selecionar todos"}
+                </span>
+              </div>
+              <ScrollArea className="h-[500px]">
+                <div className="space-y-2">
+                  {filteredLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className={`p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer group ${
+                        selectedIds.has(log.id) ? 'ring-2 ring-primary bg-accent/30' : ''
+                      }`}
+                      onClick={() => setSelectedLog(log)}
+                    >
+                      {/* Mobile: Stack layout, Desktop: Row layout */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        {/* Left side: Checkbox + Status icon + Info */}
+                        <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                          <Checkbox
+                            checked={selectedIds.has(log.id)}
+                            onCheckedChange={() => toggleSelectOne(log.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-shrink-0 mt-1 sm:mt-0"
+                          />
+                          <div className={`h-10 w-10 rounded-full flex-shrink-0 flex items-center justify-center ${
+                            log.status === 'enviado' 
+                              ? 'bg-green-100 dark:bg-green-900/30' 
+                              : 'bg-red-100 dark:bg-red-900/30'
+                          }`}>
+                            {log.status === 'enviado' ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {formatPhoneDisplay(log.cliente_telefone)}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium truncate">{log.cliente_nome}</p>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="hidden sm:inline-flex h-7 w-7 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateToChat(navigate, log.cliente_telefone, log.cliente_origem);
+                                }}
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </Button>
+                              <Badge variant="outline" className="text-xs flex-shrink-0 hidden sm:inline-flex">
+                                {log.aviso_nome}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {formatPhoneDisplay(log.cliente_telefone)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
                       
                       {/* Right side: Date/Time + Delete button */}
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between sm:justify-end gap-2 sm:gap-3 pl-13 sm:pl-0">
@@ -390,9 +474,10 @@ export function HistoricoAvisosTab() {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
+                  ))}
+                </div>
+              </ScrollArea>
+            </>
           )}
         </CardContent>
       </Card>
@@ -481,6 +566,33 @@ export function HistoricoAvisosTab() {
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir registros selecionados</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir {selectedIds.size} registro(s)? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Excluir {selectedIds.size}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
