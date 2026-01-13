@@ -1,17 +1,120 @@
 import { useState, useMemo } from "react";
-import { useProfissionais, useCreateProfissional, useUpdateProfissional, useDeleteProfissional } from "@/hooks/useProfissionais";
+import { useProfissionais, useCreateProfissional, useUpdateProfissional, useDeleteProfissional, Profissional } from "@/hooks/useProfissionais";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Mail, Phone, Pencil, Trash2, Search } from "lucide-react";
-import { Profissional } from "@/hooks/useProfissionais";
+import { Plus, Pencil, Trash2, GripVertical, Phone, Mail } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+interface SortableProfissionalItemProps {
+  profissional: Profissional;
+  onEdit: (prof: Profissional) => void;
+  onDelete: (prof: Profissional) => void;
+  onToggleAtivo: (prof: Profissional) => void;
+}
+
+function SortableProfissionalItem({ profissional, onEdit, onDelete, onToggleAtivo }: SortableProfissionalItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: profissional.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center justify-between p-3 rounded-lg border ${
+        !profissional.ativo ? "opacity-50 bg-muted/50" : "bg-card"
+      }`}
+    >
+      <div className="flex items-center gap-3 flex-1">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing touch-none"
+        >
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{profissional.nome}</span>
+            {profissional.especialidade && (
+              <Badge variant="outline" className="text-xs">{profissional.especialidade}</Badge>
+            )}
+          </div>
+          <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+            {profissional.telefone && (
+              <span className="flex items-center gap-1">
+                <Phone className="w-3 h-3" />
+                {profissional.telefone}
+              </span>
+            )}
+            {profissional.email && (
+              <span className="flex items-center gap-1">
+                <Mail className="w-3 h-3" />
+                {profissional.email}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={profissional.ativo}
+          onCheckedChange={() => onToggleAtivo(profissional)}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onEdit(profissional)}
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDelete(profissional)}
+        >
+          <Trash2 className="w-4 h-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Profissionais() {
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Profissional | null>(null);
@@ -21,35 +124,24 @@ export default function Profissionais() {
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
 
-  // Estados de filtro
-  const [filtroNome, setFiltroNome] = useState("");
-  const [filtroEspecialidade, setFiltroEspecialidade] = useState("todas");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
-  const {
-    data: profissionais,
-    isLoading
-  } = useProfissionais();
+  const { data: profissionais, isLoading } = useProfissionais();
   const createProfissional = useCreateProfissional();
   const updateProfissional = useUpdateProfissional();
   const deleteProfissional = useDeleteProfissional();
 
-  // Obter especialidades únicas
-  const especialidades = useMemo(() => {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Sort by ordem
+  const sortedProfissionais = useMemo(() => {
     if (!profissionais) return [];
-    const specs = profissionais.map(p => p.especialidade).filter((s): s is string => !!s);
-    return Array.from(new Set(specs)).sort();
+    return [...profissionais].sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
   }, [profissionais]);
 
-  // Filtrar profissionais
-  const profissionaisFiltrados = useMemo(() => {
-    if (!profissionais) return [];
-    return profissionais.filter(prof => {
-      const matchNome = prof.nome.toLowerCase().includes(filtroNome.toLowerCase());
-      const matchEspecialidade = filtroEspecialidade === "todas" || prof.especialidade === filtroEspecialidade;
-      const matchStatus = filtroStatus === "todos" || filtroStatus === "ativos" && prof.ativo || filtroStatus === "inativos" && !prof.ativo;
-      return matchNome && matchEspecialidade && matchStatus;
-    });
-  }, [profissionais, filtroNome, filtroEspecialidade, filtroStatus]);
   const handleEditar = (prof: Profissional) => {
     setEditando(prof);
     setNome(prof.nome);
@@ -58,6 +150,7 @@ export default function Profissionais() {
     setEmail(prof.email || "");
     setOpen(true);
   };
+
   const limparFormulario = () => {
     setEditando(null);
     setNome("");
@@ -65,6 +158,7 @@ export default function Profissionais() {
     setTelefone("");
     setEmail("");
   };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) {
@@ -93,7 +187,10 @@ export default function Profissionais() {
         }
       });
     } else {
-      createProfissional.mutate(dados, {
+      createProfissional.mutate({
+        ...dados,
+        ordem: (profissionais?.length || 0) + 1
+      }, {
         onSuccess: () => {
           toast.success("Profissional cadastrado com sucesso!");
           setOpen(false);
@@ -105,6 +202,7 @@ export default function Profissionais() {
       });
     }
   };
+
   const handleExcluir = () => {
     if (!excluindo) return;
     deleteProfissional.mutate(excluindo.id, {
@@ -117,151 +215,131 @@ export default function Profissionais() {
       }
     });
   };
-  return <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div />
 
-        <Dialog open={open} onOpenChange={o => {
-        setOpen(o);
-        if (!o) limparFormulario();
-      }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>{editando ? "Editar Profissional" : "Cadastrar Novo Profissional"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nome">Nome *</Label>
-                <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome completo" required />
-              </div>
+  const handleToggleAtivo = (prof: Profissional) => {
+    updateProfissional.mutate({
+      id: prof.id,
+      ativo: !prof.ativo
+    });
+  };
 
-              <div className="space-y-2">
-                <Label htmlFor="especialidade">Especialidade</Label>
-                <Input id="especialidade" value={especialidade} onChange={e => setEspecialidade(e.target.value)} placeholder="Ex: Dentista, Ortodontista..." />
-              </div>
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
 
-              <div className="space-y-2">
-                <Label htmlFor="telefone">Telefone</Label>
-                <Input id="telefone" value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
-              </div>
+    if (over && active.id !== over.id) {
+      const oldIndex = sortedProfissionais.findIndex((p) => p.id === active.id);
+      const newIndex = sortedProfissionais.findIndex((p) => p.id === over.id);
+      
+      const newOrder = arrayMove(sortedProfissionais, oldIndex, newIndex);
+      
+      // Update order in database for all affected items
+      for (let i = 0; i < newOrder.length; i++) {
+        if ((newOrder[i].ordem || 0) !== i + 1) {
+          updateProfissional.mutate({
+            id: newOrder[i].id,
+            ordem: i + 1,
+          });
+        }
+      }
+    }
+  };
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com" />
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={createProfissional.isPending || updateProfissional.isPending}>
-                  {createProfissional.isPending || updateProfissional.isPending ? "Salvando..." : editando ? "Atualizar" : "Cadastrar"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filtros */}
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Buscar:</span>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={filtroNome} onChange={e => setFiltroNome(e.target.value)} placeholder="Nome..." className="pl-9 w-[180px]" />
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Especialidade:</span>
-            <Select value={filtroEspecialidade} onValueChange={setFiltroEspecialidade}>
-              <SelectTrigger className="w-[140px] bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="todas">Todas</SelectItem>
-                {especialidades.map(esp => <SelectItem key={esp} value={esp}>{esp}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Status:</span>
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-[120px] bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="ativos">Ativos</SelectItem>
-                <SelectItem value="inativos">Inativos</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <span className="text-sm text-muted-foreground ml-auto">
-            {profissionaisFiltrados.length} de {profissionais?.length || 0}
-          </span>
-        </div>
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg font-semibold">Profissionais</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </CardContent>
       </Card>
+    );
+  }
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {isLoading ? <>
-            {[1, 2, 3].map(i => <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-4 w-2/3" />
-                </CardContent>
-              </Card>)}
-          </> : profissionaisFiltrados && profissionaisFiltrados.length > 0 ? profissionaisFiltrados.map(prof => <Card key={prof.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{prof.nome}</CardTitle>
-                  <Badge variant={prof.ativo ? "default" : "secondary"}>
-                    {prof.ativo ? "Ativo" : "Inativo"}
-                  </Badge>
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg font-semibold">Profissionais</CardTitle>
+          <Dialog open={open} onOpenChange={o => {
+            setOpen(o);
+            if (!o) limparFormulario();
+          }}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>{editando ? "Editar Profissional" : "Novo Profissional"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome *</Label>
+                  <Input id="nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome completo" required />
                 </div>
-                {prof.especialidade && <Badge variant="outline" className="w-fit">
-                    {prof.especialidade}
-                  </Badge>}
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {prof.telefone && <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="h-4 w-4" />
-                    {prof.telefone}
-                  </div>}
-                {prof.email && <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    {prof.email}
-                  </div>}
-                <div className="flex gap-2 pt-2 border-t border-border">
-                  <Button size="sm" variant="outline" onClick={() => handleEditar(prof)} className="flex-1">
-                    <Pencil className="h-4 w-4 mr-1" />
-                    Editar
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => setExcluindo(prof)} className="flex-1">
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Excluir
-                  </Button>
+
+                <div className="space-y-2">
+                  <Label htmlFor="especialidade">Especialidade</Label>
+                  <Input id="especialidade" value={especialidade} onChange={e => setEspecialidade(e.target.value)} placeholder="Ex: Dentista, Ortodontista..." />
                 </div>
-              </CardContent>
-            </Card>) : <Card className="col-span-full">
-            <CardContent className="py-8 text-center text-muted-foreground">
-              {profissionais && profissionais.length > 0 ? "Nenhum profissional encontrado com os filtros aplicados" : "Nenhum profissional cadastrado"}
-            </CardContent>
-          </Card>}
-      </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="telefone">Telefone</Label>
+                  <Input id="telefone" value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com" />
+                </div>
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={createProfissional.isPending || updateProfissional.isPending}>
+                    {createProfissional.isPending || updateProfissional.isPending ? "Salvando..." : editando ? "Atualizar" : "Cadastrar"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          {sortedProfissionais.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhum profissional cadastrado.</p>
+              <p className="text-sm mt-1">Adicione profissionais para usar nos agendamentos.</p>
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={sortedProfissionais.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {sortedProfissionais.map((prof) => (
+                    <SortableProfissionalItem
+                      key={prof.id}
+                      profissional={prof}
+                      onEdit={handleEditar}
+                      onDelete={setExcluindo}
+                      onToggleAtivo={handleToggleAtivo}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </CardContent>
+      </Card>
 
       <AlertDialog open={!!excluindo} onOpenChange={open => !open && setExcluindo(null)}>
         <AlertDialogContent>
@@ -280,5 +358,6 @@ export default function Profissionais() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>;
+    </>
+  );
 }

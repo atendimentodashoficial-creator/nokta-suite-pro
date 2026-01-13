@@ -9,6 +9,7 @@ export interface Profissional {
   telefone: string | null;
   email: string | null;
   ativo: boolean;
+  ordem: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +21,7 @@ export const useProfissionais = (apenasAtivos = false) => {
       let query = supabase
         .from("profissionais")
         .select("*")
+        .order("ordem", { ascending: true, nullsFirst: false })
         .order("nome", { ascending: true });
 
       if (apenasAtivos) {

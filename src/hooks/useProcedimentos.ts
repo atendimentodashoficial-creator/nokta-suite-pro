@@ -11,6 +11,7 @@ export interface Procedimento {
   duracao_minutos: number | null;
   tempo_atendimento_minutos: number | null;
   ativo: boolean;
+  ordem: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -22,6 +23,7 @@ export const useProcedimentos = (apenasAtivos = false) => {
       let query = supabase
         .from("procedimentos")
         .select("*")
+        .order("ordem", { ascending: true, nullsFirst: false })
         .order("nome", { ascending: true });
 
       if (apenasAtivos) {
