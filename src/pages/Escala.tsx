@@ -55,6 +55,11 @@ export default function Escala() {
   // Estados para controlar expansão
   const [profissionaisExpandidos, setProfissionaisExpandidos] = useState<Set<string>>(new Set());
   const [diasExpandidos, setDiasExpandidos] = useState<Set<string>>(new Set());
+  
+  // Estado para copiar escala do dia
+  const [dialogCopiarDia, setDialogCopiarDia] = useState(false);
+  const [diaOrigem, setDiaOrigem] = useState<{ profissionalId: string; diaSemana: number; horarios: Array<{ hora_inicio: string; hora_fim: string }> } | null>(null);
+  const [diasDestinoSelecionados, setDiasDestinoSelecionados] = useState<number[]>([]);
 
   // Form states - Ausência
   const [dataInicioAusencia, setDataInicioAusencia] = useState<Date | undefined>();
@@ -229,27 +234,55 @@ export default function Escala() {
       });
     }
   };
-  const handleDuplicarHorario = async (horario: {
-    profissional_id: string;
-    dia_semana: number;
-    hora_inicio: string;
-    hora_fim: string;
-  }) => {
+  const handleAbrirCopiarDia = (profissionalId: string, diaSemana: number, horarios: Array<{ hora_inicio: string; hora_fim: string }>) => {
+    setDiaOrigem({ profissionalId, diaSemana, horarios });
+    setDiasDestinoSelecionados([]);
+    setDialogCopiarDia(true);
+  };
+
+  const toggleDiaDestino = (dia: number) => {
+    setDiasDestinoSelecionados(prev => 
+      prev.includes(dia) ? prev.filter(d => d !== dia) : [...prev, dia]
+    );
+  };
+
+  const handleCopiarParaDias = async () => {
+    if (!diaOrigem || diasDestinoSelecionados.length === 0) return;
+    
     try {
-      await createEscala.mutateAsync({
-        profissional_id: horario.profissional_id,
-        dia_semana: horario.dia_semana,
-        hora_inicio: horario.hora_inicio,
-        hora_fim: horario.hora_fim,
-        ativo: true
-      });
+      for (const diaDestino of diasDestinoSelecionados) {
+        // Remove horários existentes do dia destino
+        const horariosExistentes = todasEscalas?.filter(
+          e => e.profissional_id === diaOrigem.profissionalId && e.dia_semana === diaDestino
+        ) || [];
+        
+        for (const horario of horariosExistentes) {
+          await deleteEscala.mutateAsync(horario.id);
+        }
+        
+        // Copia os horários do dia origem para o dia destino
+        for (const horario of diaOrigem.horarios) {
+          await createEscala.mutateAsync({
+            profissional_id: diaOrigem.profissionalId,
+            dia_semana: diaDestino,
+            hora_inicio: horario.hora_inicio,
+            hora_fim: horario.hora_fim,
+            ativo: true
+          });
+        }
+      }
+      
       toast({
-        title: "Horário duplicado"
+        title: "Escala copiada",
+        description: `Horários copiados para ${diasDestinoSelecionados.length} dia(s)`
       });
+      setDialogCopiarDia(false);
+      setDiaOrigem(null);
+      setDiasDestinoSelecionados([]);
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível duplicar o horário",
+        description: "Não foi possível copiar a escala",
         variant: "destructive"
       });
     }
@@ -360,9 +393,22 @@ export default function Escala() {
                               <span className={cn("font-medium text-sm", !dia.ativo && "text-muted-foreground")}>
                                 {dia.label}
                               </span>
-                              {dia.ativo && !isDiaExpandido}
                             </div>
                           </CollapsibleTrigger>
+                          {dia.ativo && dia.horarios.length > 0 && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 flex-shrink-0" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAbrirCopiarDia(profissional.id, dia.value, dia.horarios.map(h => ({ hora_inicio: h.hora_inicio, hora_fim: h.hora_fim })));
+                              }}
+                              title="Copiar para outros dias"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
 
                         <CollapsibleContent>
@@ -381,14 +427,6 @@ export default function Escala() {
                               hora_fim: horario.hora_fim
                             })}>
                                         <Pencil className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDuplicarHorario({
-                              profissional_id: profissional.id,
-                              dia_semana: dia.value,
-                              hora_inicio: horario.hora_inicio,
-                              hora_fim: horario.hora_fim
-                            })}>
-                                        <Copy className="h-3.5 w-3.5" />
                                       </Button>
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeletarHorario(horario.id)}>
                                         <Trash2 className="h-3.5 w-3.5" />
@@ -477,6 +515,51 @@ export default function Escala() {
             </div> : <p className="text-center text-muted-foreground py-8">Nenhuma ausência registrada</p>}
         </CardContent>
       </Card>
+
+      {/* Dialog Copiar Dia */}
+      <Dialog open={dialogCopiarDia} onOpenChange={setDialogCopiarDia}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Copiar Escala para Outros Dias</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Copiando de: <span className="font-medium text-foreground">{diaOrigem ? DIAS_SEMANA.find(d => d.value === diaOrigem.diaSemana)?.label : ''}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Horários: {diaOrigem?.horarios.map(h => `${h.hora_inicio} - ${h.hora_fim}`).join(', ')}
+            </p>
+            <div>
+              <Label className="mb-2 block">Selecione os dias de destino:</Label>
+              <div className="space-y-2">
+                {DIAS_SEMANA.filter(d => d.value !== diaOrigem?.diaSemana).map(dia => (
+                  <div 
+                    key={dia.value} 
+                    className={cn(
+                      "flex items-center gap-2 p-2 border rounded-lg cursor-pointer transition-colors",
+                      diasDestinoSelecionados.includes(dia.value) ? "bg-primary/10 border-primary" : "hover:bg-muted/50"
+                    )}
+                    onClick={() => toggleDiaDestino(dia.value)}
+                  >
+                    <Switch 
+                      checked={diasDestinoSelecionados.includes(dia.value)} 
+                      onCheckedChange={() => toggleDiaDestino(dia.value)}
+                    />
+                    <span className="text-sm font-medium">{dia.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Button 
+              onClick={handleCopiarParaDias} 
+              className="w-full"
+              disabled={diasDestinoSelecionados.length === 0}
+            >
+              Copiar para {diasDestinoSelecionados.length} dia(s)
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Registrar Ausência */}
       <Dialog open={dialogAusenciaAberto} onOpenChange={setDialogAusenciaAberto}>
