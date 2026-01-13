@@ -7,8 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Save, ExternalLink, TestTube, Send, CheckCircle2, XCircle, Clock, RefreshCw } from "lucide-react";
-import { useMetaPixelConfig, useSaveMetaPixelConfig, useSendConversionEvent, useConversionEvents } from "@/hooks/useMetaPixel";
+import { Loader2, Save, ExternalLink, TestTube, Send, CheckCircle2, XCircle, Clock, RefreshCw, Trash2 } from "lucide-react";
+import { useMetaPixelConfig, useSaveMetaPixelConfig, useSendConversionEvent, useConversionEvents, useDeleteConversionEvent } from "@/hooks/useMetaPixel";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -17,6 +17,7 @@ export function MetaPixelConfig() {
   const { data: config, isLoading } = useMetaPixelConfig();
   const saveConfig = useSaveMetaPixelConfig();
   const sendEvent = useSendConversionEvent();
+  const deleteEvent = useDeleteConversionEvent();
   const { data: conversionEvents, isLoading: eventsLoading, refetch: refetchEvents } = useConversionEvents();
 
   const [pixelId, setPixelId] = useState("");
@@ -336,11 +337,21 @@ export function MetaPixelConfig() {
                                 <Clock className="h-4 w-4 text-yellow-500 shrink-0" />
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(event.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(event.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive hover:text-destructive"
+                                onClick={() => deleteEvent.mutate(event.id)}
+                                disabled={deleteEvent.isPending}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </div>
-                          
                           {/* Dados enviados */}
                           <div className="p-2 bg-background rounded border overflow-hidden">
                             <p className="text-xs font-medium text-muted-foreground mb-1">Dados do Evento:</p>

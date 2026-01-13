@@ -180,6 +180,29 @@ export const useConversionEvents = () => {
   });
 };
 
+export const useDeleteConversionEvent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (eventId: string) => {
+      const { error } = await supabase
+        .from("meta_conversion_events")
+        .delete()
+        .eq("id", eventId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meta-conversion-events"] });
+      toast.success("Evento excluído com sucesso!");
+    },
+    onError: (error) => {
+      console.error("Error deleting event:", error);
+      toast.error("Erro ao excluir evento");
+    },
+  });
+};
+
 // Hook to capture UTM parameters from URL
 export const useUtmCapture = () => {
   const captureUtmParams = () => {
