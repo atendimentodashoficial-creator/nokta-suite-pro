@@ -464,13 +464,13 @@ export default function Escala() {
                         <CollapsibleContent>
                           {dia.ativo && <div className="px-3 pb-3 pt-0 ml-8 space-y-2 border-t">
                               <div className="pt-2 space-y-2">
-                                {dia.horarios.map(horario => <div key={horario.id} className="flex items-center gap-2 flex-wrap">
-                                    <div className="flex items-center gap-1">
-                                      <Input type="time" value={horario.hora_inicio} className="w-24 h-8 text-xs" readOnly />
+                                {dia.horarios.map(horario => <div key={horario.id} className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                      <Input type="time" value={horario.hora_inicio} className="w-20 sm:w-24 h-8 text-xs pointer-events-none" readOnly tabIndex={-1} />
                                       <span className="text-muted-foreground">-</span>
-                                      <Input type="time" value={horario.hora_fim} className="w-24 h-8 text-xs" readOnly />
+                                      <Input type="time" value={horario.hora_fim} className="w-20 sm:w-24 h-8 text-xs pointer-events-none" readOnly tabIndex={-1} />
                                     </div>
-                                    <div className="flex gap-1">
+                                    <div className="flex gap-1 flex-shrink-0">
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditarHorario({
                               id: horario.id,
                               hora_inicio: horario.hora_inicio,
