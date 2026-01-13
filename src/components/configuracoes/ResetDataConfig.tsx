@@ -337,7 +337,7 @@ export function ResetDataConfig() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Trash2 className="w-5 h-5" />
             Limpeza de Dados
           </CardTitle>

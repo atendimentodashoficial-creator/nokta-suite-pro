@@ -179,7 +179,7 @@ export default function Personalizacao() {
       {/* Logo Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <ImageIcon className="h-5 w-5" />
             Logo do Sistema
           </CardTitle>
@@ -225,7 +225,7 @@ export default function Personalizacao() {
       {/* Colors Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Palette className="h-5 w-5" />
             Cores do Sistema
           </CardTitle>

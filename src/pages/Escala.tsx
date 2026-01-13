@@ -158,7 +158,7 @@ export default function Escala() {
       {/* Seletor de Profissional */}
       <Card>
         <CardHeader>
-          <CardTitle>Selecione o Profissional</CardTitle>
+          <CardTitle className="text-lg font-semibold">Selecione o Profissional</CardTitle>
         </CardHeader>
         <CardContent>
           <Select value={profissionalSelecionado} onValueChange={setProfissionalSelecionado}>
@@ -181,7 +181,7 @@ export default function Escala() {
           {/* Escala Semanal */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <Clock className="h-5 w-5" />
                 Escala Semanal
               </CardTitle>
@@ -253,7 +253,7 @@ export default function Escala() {
           {/* Ausências */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
                 Ausências / Férias
               </CardTitle>

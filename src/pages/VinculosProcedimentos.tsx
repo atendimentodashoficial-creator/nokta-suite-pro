@@ -77,7 +77,7 @@ export default function VinculosProcedimentos() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Vincular Profissional a Procedimento</CardTitle>
+          <CardTitle className="text-lg font-semibold">Vincular Profissional a Procedimento</CardTitle>
           <CardDescription>
             Defina quais procedimentos cada profissional pode realizar
           </CardDescription>
@@ -128,7 +128,7 @@ export default function VinculosProcedimentos() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Vínculos Existentes</CardTitle>
+          <CardTitle className="text-lg font-semibold">Vínculos Existentes</CardTitle>
           <CardDescription>
             {vinculos?.length || 0} vínculo(s) cadastrado(s)
           </CardDescription>

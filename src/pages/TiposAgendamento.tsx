@@ -81,7 +81,7 @@ export default function TiposAgendamento() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Tipos de Agendamento</CardTitle>
+          <CardTitle className="text-lg font-semibold">Tipos de Agendamento</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -96,7 +96,7 @@ export default function TiposAgendamento() {
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Tipos de Agendamento</CardTitle>
+          <CardTitle className="text-lg font-semibold">Tipos de Agendamento</CardTitle>
           <Button onClick={handleOpenCreate} size="sm">
             <Plus className="w-4 h-4 mr-2" />
             Novo Tipo
