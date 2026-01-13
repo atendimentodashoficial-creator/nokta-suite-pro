@@ -48,6 +48,7 @@ export function PixelStatusBadge({
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [editData, setEditData] = useState<LeadData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [dobText, setDobText] = useState<string>("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [faturaValor, setFaturaValor] = useState<number | null>(null);
   const [loadingLeadData, setLoadingLeadData] = useState(false);
@@ -85,26 +86,57 @@ export function PixelStatusBadge({
 
   const startEditing = () => {
     setEditData({ ...leadData });
+    setDobText(leadData?.data_nascimento ? formatDate(leadData.data_nascimento) : "");
     setIsEditing(true);
   };
 
   const cancelEditing = () => {
     setEditData(null);
+    setDobText("");
     setIsEditing(false);
+  };
+
+  const parseDobToIso = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const parts = trimmed.split("/");
+    if (parts.length !== 3) return null;
+
+    const [ddRaw, mmRaw, yyRaw] = parts;
+    const dd = ddRaw?.padStart(2, "0");
+    const mm = mmRaw?.padStart(2, "0");
+    if (!dd || !mm || !yyRaw) return null;
+
+    const day = Number(dd);
+    const month = Number(mm);
+    if (!Number.isFinite(day) || !Number.isFinite(month) || day < 1 || day > 31 || month < 1 || month > 12) return null;
+
+    let year = yyRaw;
+    if (year.length === 2) {
+      const yy = Number(year);
+      if (!Number.isFinite(yy)) return null;
+      year = yy >= 30 ? `19${year}` : `20${year}`;
+    }
+
+    if (year.length !== 4) return null;
+    return `${year}-${mm}-${dd}`;
   };
 
   const saveEdit = async () => {
     if (!editData) return;
-    
+
     setSavingEdit(true);
     try {
+      const isoDob = parseDobToIso(dobText);
+
       const { error } = await supabase
         .from("leads")
         .update({
           nome: editData.nome,
           email: editData.email,
           genero: editData.genero,
-          data_nascimento: editData.data_nascimento,
+          data_nascimento: isoDob,
           cep: editData.cep,
           cidade: editData.cidade,
           estado: editData.estado,
@@ -114,9 +146,10 @@ export function PixelStatusBadge({
 
       if (error) throw error;
 
-      setLeadData(editData);
+      setLeadData({ ...editData, data_nascimento: isoDob });
       setIsEditing(false);
       setEditData(null);
+      setDobText("");
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       toast.success("Dados atualizados!");
     } catch (error: any) {
@@ -370,10 +403,12 @@ export function PixelStatusBadge({
                     <Label htmlFor="edit-nascimento">Nascimento</Label>
                     <Input
                       id="edit-nascimento"
-                      type="date"
+                      inputMode="numeric"
+                      placeholder="dd/mm/aa"
                       className="h-10"
-                      value={editData.data_nascimento || ""}
-                      onChange={(e) => setEditData({ ...editData, data_nascimento: e.target.value })}
+                      value={dobText}
+                      onChange={(e) => setDobText(e.target.value)}
+                      maxLength={8}
                     />
                   </div>
                 </div>
