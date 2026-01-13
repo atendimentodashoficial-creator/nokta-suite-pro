@@ -262,27 +262,19 @@ export default function Agenda() {
             </Select>
           </div>
 
-          {/* Data Início */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
-            <Input type="date" value={dataInicio} onChange={e => {
-              setDataInicio(e.target.value);
-              if (filtroPeriodo !== "personalizado") {
-                setFiltroPeriodo("personalizado");
-              }
-            }} className="w-[150px]" />
-          </div>
-
-          {/* Data Fim */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data fim:</span>
-            <Input type="date" value={dataFim} onChange={e => {
-              setDataFim(e.target.value);
-              if (filtroPeriodo !== "personalizado") {
-                setFiltroPeriodo("personalizado");
-              }
-            }} className="w-[150px]" />
-          </div>
+          {/* Data Início e Fim - apenas quando personalizado */}
+          {filtroPeriodo === "personalizado" && (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Data início:</span>
+                <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="w-[150px]" />
+              </div>
+              <span className="text-muted-foreground text-sm">até</span>
+              <div className="flex items-center gap-2">
+                <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="w-[150px]" />
+              </div>
+            </>
+          )}
 
           {/* Filtro de Profissional */}
           <div className="flex items-center gap-2">
