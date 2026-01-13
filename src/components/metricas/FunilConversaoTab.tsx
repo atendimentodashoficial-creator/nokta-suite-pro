@@ -2443,7 +2443,7 @@ export function FunilConversaoTab() {
               className="gap-2"
             >
               <Settings2 className="h-4 w-4" />
-              Ordenar Colunas
+              <span className="hidden sm:inline">Ordenar Colunas</span>
             </Button>
           </div>
         </CardHeader>
