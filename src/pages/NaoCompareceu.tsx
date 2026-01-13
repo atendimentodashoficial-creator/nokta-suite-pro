@@ -244,14 +244,17 @@ export default function NaoCompareceu() {
       {/* Period Filter and Search */}
       <Card className="p-4 shadow-card">
         <div className="flex flex-col gap-4">
-          <PeriodFilter
-            value={periodFilter}
-            onChange={setPeriodFilter}
-            dateStart={dateStart}
-            dateEnd={dateEnd}
-            onDateStartChange={setDateStart}
-            onDateEndChange={setDateEnd}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
+            <PeriodFilter
+              value={periodFilter}
+              onChange={setPeriodFilter}
+              dateStart={dateStart}
+              dateEnd={dateEnd}
+              onDateStartChange={setDateStart}
+              onDateEndChange={setDateEnd}
+            />
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

@@ -244,6 +244,7 @@ export default function Agenda() {
         <div className="flex flex-wrap items-center gap-4">
           {/* Filtro de Período */}
           <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Período:</span>
             <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
               <SelectTrigger className="w-[180px] bg-background">
                 <Calendar className="h-4 w-4 mr-2" />
