@@ -340,34 +340,36 @@ export function EditarAgendamentoDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
-            <FormField
-              control={form.control}
-              name="tipo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo</FormLabel>
-                  <Select 
-                    onValueChange={(val) => field.onChange(val === "_none" ? "" : val)} 
-                    value={field.value || "_none"}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo (opcional)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="_none">Nenhum</SelectItem>
-                      {tiposAtivos.map((tipo) => (
-                        <SelectItem key={tipo.id} value={tipo.nome}>
-                          {tipo.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {tiposAtivos.length > 0 && (
+              <FormField
+                control={form.control}
+                name="tipo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo</FormLabel>
+                    <Select 
+                      onValueChange={(val) => field.onChange(val === "_none" ? "" : val)} 
+                      value={field.value || "_none"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tipo (opcional)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="_none">Nenhum</SelectItem>
+                        {tiposAtivos.map((tipo) => (
+                          <SelectItem key={tipo.id} value={tipo.nome}>
+                            {tipo.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
