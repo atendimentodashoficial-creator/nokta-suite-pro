@@ -283,6 +283,17 @@ export function HistoricoAvisosTab() {
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium truncate">{log.cliente_nome}</p>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="hidden sm:inline-flex h-7 w-7 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigateToChat(navigate, log.cliente_telefone, log.cliente_origem);
+                              }}
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
                             <Badge variant="outline" className="text-xs flex-shrink-0">
                               {log.aviso_nome}
                             </Badge>
@@ -309,7 +320,7 @@ export function HistoricoAvisosTab() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            className="sm:hidden h-8 w-8 flex-shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigateToChat(navigate, log.cliente_telefone, log.cliente_origem);
