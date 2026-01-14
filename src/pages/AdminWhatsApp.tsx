@@ -266,14 +266,20 @@ export default function AdminWhatsApp() {
         const apiKey = manualApiKey.trim();
 
         // First test if the connection works
+        console.log("Testing connection for manual instance:", { baseUrl, apiKey: apiKey.substring(0, 10) + "..." });
         const testResponse = await supabase.functions.invoke("uazapi-test-connection", {
           headers: { Authorization: `Bearer ${session.session?.access_token}` },
           body: { base_url: baseUrl, api_key: apiKey },
         });
 
-        if (!testResponse.data?.success && !testResponse.data?.details) {
+        console.log("Test connection response:", testResponse.data);
+
+        // Accept connection if success is true OR if we got details (even if success is false)
+        const connectionOk = testResponse.data?.success || testResponse.data?.details;
+        if (!connectionOk) {
           toast.error("Não foi possível conectar com a instância. Verifique a URL e API Key.");
           setQrCodeDialogOpen(false);
+          setIsCreatingInstance(false);
           return;
         }
 
