@@ -10,6 +10,11 @@ export interface Despesa {
   categoria_id?: string | null;
   data_despesa?: string | null;
   recorrente?: boolean | null;
+  parcelada?: boolean | null;
+  numero_parcelas?: number | null;
+  parcela_atual?: number | null;
+  data_inicio?: string | null;
+  data_fim?: string | null;
   observacoes?: string | null;
   created_at?: string | null;
   updated_at?: string | null;

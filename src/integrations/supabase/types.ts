@@ -633,9 +633,14 @@ export type Database = {
           categoria_id: string | null
           created_at: string | null
           data_despesa: string | null
+          data_fim: string | null
+          data_inicio: string | null
           descricao: string
           id: string
+          numero_parcelas: number | null
           observacoes: string | null
+          parcela_atual: number | null
+          parcelada: boolean | null
           recorrente: boolean | null
           updated_at: string | null
           user_id: string
@@ -645,9 +650,14 @@ export type Database = {
           categoria_id?: string | null
           created_at?: string | null
           data_despesa?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
           descricao: string
           id?: string
+          numero_parcelas?: number | null
           observacoes?: string | null
+          parcela_atual?: number | null
+          parcelada?: boolean | null
           recorrente?: boolean | null
           updated_at?: string | null
           user_id: string
@@ -657,9 +667,14 @@ export type Database = {
           categoria_id?: string | null
           created_at?: string | null
           data_despesa?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
           descricao?: string
           id?: string
+          numero_parcelas?: number | null
           observacoes?: string | null
+          parcela_atual?: number | null
+          parcelada?: boolean | null
           recorrente?: boolean | null
           updated_at?: string | null
           user_id?: string
