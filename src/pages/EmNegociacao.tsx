@@ -78,11 +78,12 @@ export default function EmNegociacao() {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Handshake className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-          <h1 className="text-lg sm:text-2xl font-bold truncate">Em Negociação</h1>
+          <h1 className="text-xl sm:text-2xl font-bold truncate">Em Negociação</h1>
         </div>
         <Button size="sm" onClick={() => setSelecionarClienteOpen(true)} className="flex-shrink-0">
-          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-          <span className="text-xs sm:text-sm whitespace-nowrap">Nova Negociação</span>
+          <Plus className="h-4 w-4 mr-1" />
+          <span className="text-xs sm:text-sm">Nova</span>
+          <span className="hidden sm:inline text-xs sm:text-sm ml-1">Negociação</span>
         </Button>
       </div>
 
