@@ -78,6 +78,126 @@ function calculateNextCheckAt(horarioEnvio: string): string {
   return todayScheduled.toISOString();
 }
 
+// Ensure WhatsApp chat and lead exist when sending via default WhatsApp instance
+async function ensureWhatsAppChatAndLead(
+  supabase: any,
+  userId: string,
+  formattedPhone: string,
+  contactName: string,
+  mensagem: string,
+  messageId: string
+): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const last8 = formattedPhone.slice(-8);
+
+  try {
+    // Check if WhatsApp chat exists for this phone
+    const { data: existingChats } = await supabase
+      .from("whatsapp_chats")
+      .select("id, normalized_number")
+      .eq("user_id", userId)
+      .is("deleted_at", null);
+
+    const matchingChat = existingChats?.find((c: any) =>
+      String(c.normalized_number || "").slice(-8) === last8
+    );
+
+    let chatDbId: string | null = null;
+
+    if (matchingChat) {
+      // Update existing chat with last message
+      chatDbId = matchingChat.id;
+      await supabase
+        .from("whatsapp_chats")
+        .update({
+          last_message: mensagem,
+          last_message_time: nowIso,
+          updated_at: nowIso,
+        })
+        .eq("id", chatDbId);
+      console.log(`Updated existing WhatsApp chat ${chatDbId} for ${formattedPhone}`);
+    } else {
+      // Create new WhatsApp chat
+      const { data: newChat, error: chatError } = await supabase
+        .from("whatsapp_chats")
+        .insert({
+          user_id: userId,
+          chat_id: `aviso_${formattedPhone}_${Date.now()}`,
+          contact_name: contactName || "Contato",
+          contact_number: formattedPhone,
+          normalized_number: formattedPhone,
+          last_message: mensagem,
+          last_message_time: nowIso,
+        })
+        .select("id")
+        .single();
+
+      if (chatError) {
+        console.error("Error creating WhatsApp chat:", chatError);
+      } else if (newChat) {
+        chatDbId = newChat.id;
+        console.log(`Created new WhatsApp chat ${chatDbId} for ${formattedPhone}`);
+      }
+    }
+
+    // Save the message to whatsapp_messages
+    if (chatDbId) {
+      const { error: msgError } = await supabase.from("whatsapp_messages").insert({
+        chat_id: chatDbId,
+        message_id: messageId,
+        sender_type: "agent",
+        content: mensagem,
+        media_type: "text",
+        timestamp: nowIso,
+        status: "sent",
+      });
+      if (msgError) {
+        console.error("Error saving message to whatsapp_messages:", msgError);
+      } else {
+        console.log(`Saved aviso message to whatsapp_messages for chat ${chatDbId}`);
+      }
+    }
+
+    // Ensure a WhatsApp lead exists for this phone
+    const { data: existingLeads } = await supabase
+      .from("leads")
+      .select("id, telefone")
+      .eq("user_id", userId)
+      .eq("origem", "WhatsApp")
+      .is("deleted_at", null);
+
+    const matchingLead = existingLeads?.find((l: any) => {
+      const leadPhone = String(l.telefone || "").replace(/\D/g, "");
+      return leadPhone.slice(-8) === last8;
+    });
+
+    if (!matchingLead) {
+      // Create WhatsApp lead
+      const today = new Date().toISOString().split("T")[0];
+      const { error: leadError } = await supabase.from("leads").insert({
+        user_id: userId,
+        nome: contactName || `Contato ${formattedPhone}`,
+        telefone: formattedPhone,
+        procedimento_nome: "Contato via WhatsApp",
+        origem: "WhatsApp",
+        status: "lead",
+        origem_lead: true,
+        data_contato: today,
+      });
+
+      if (leadError) {
+        console.error("Error creating WhatsApp lead:", leadError);
+      } else {
+        console.log(`Created WhatsApp lead for ${formattedPhone}`);
+      }
+    } else {
+      console.log(`WhatsApp lead already exists for ${formattedPhone}`);
+    }
+  } catch (error: any) {
+    console.error("Error in ensureWhatsAppChatAndLead:", error.message);
+  }
+}
+
 // Process a single aviso message
 async function processAviso(
   supabase: any,
@@ -170,6 +290,19 @@ async function processAviso(
         status: "enviado",
         enviado_em: new Date().toISOString(),
       });
+
+      // If sent via default WhatsApp instance, create/update chat, message, and lead
+      if (instanceUsed === "WhatsApp (default)") {
+        const messageId = responseData.id || `aviso_${Date.now()}`;
+        await ensureWhatsAppChatAndLead(
+          supabase,
+          aviso.userId,
+          formattedPhone,
+          aviso.clienteNome,
+          mensagem,
+          messageId
+        );
+      }
 
       return {
         success: true,
