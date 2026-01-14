@@ -138,10 +138,15 @@ export function LeadForm() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Cadastrar
-        </Button>
+        <>
+          <Button size="icon" className="sm:hidden">
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button className="hidden sm:flex">
+            <Plus className="mr-2 h-4 w-4" />
+            Cadastrar
+          </Button>
+        </>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>

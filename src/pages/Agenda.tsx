@@ -227,10 +227,15 @@ export default function Agenda() {
         
         {/* Botão Novo Agendamento */}
         {activeTab === "agendamentos" && (
-          <Button onClick={() => setNovoAgendamentoOpen(true)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Agendamento
-          </Button>
+          <>
+            <Button onClick={() => setNovoAgendamentoOpen(true)} size="icon" className="sm:hidden bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button onClick={() => setNovoAgendamentoOpen(true)} size="sm" className="hidden sm:flex bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Agendamento
+            </Button>
+          </>
         )}
       </div>
         
