@@ -247,8 +247,8 @@ export default function Clientes() {
                 onClick={toggleSelectionMode}
                 title="Selecionar clientes"
               >
-                <CheckSquare className="w-4 h-4 mr-1 sm:mr-2" />
-                <span className="text-xs sm:text-sm">Selecionar</span>
+                <CheckSquare className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline text-sm">Selecionar</span>
               </Button>
               <NovoClienteDialog />
             </>
