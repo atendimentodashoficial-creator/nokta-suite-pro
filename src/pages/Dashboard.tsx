@@ -829,7 +829,7 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground">{cat.quantidade} despesas</p>
                         </div>
                       </div>
-                      <p className="font-bold text-destructive">
+                      <p className="font-bold text-destructive text-sm sm:text-base whitespace-nowrap">
                         R$ {cat.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </p>
                     </div>
