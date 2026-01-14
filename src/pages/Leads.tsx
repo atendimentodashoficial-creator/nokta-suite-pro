@@ -223,11 +223,12 @@ export default function Leads() {
             <>
               <Button
                 variant="outline"
+                size="sm"
                 onClick={toggleSelectionMode}
                 title="Selecionar leads"
               >
-                <CheckSquare className="w-4 h-4" />
-                <span className="ml-2 hidden md:inline">Selecionar</span>
+                <CheckSquare className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="text-xs sm:text-sm">Selecionar</span>
               </Button>
               <LeadForm />
             </>
