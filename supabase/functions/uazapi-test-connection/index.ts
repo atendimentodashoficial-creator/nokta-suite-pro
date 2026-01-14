@@ -207,79 +207,10 @@ Deno.serve(async (req) => {
       }
 
       if (isReallyConnected) {
-        // Double-check with a lightweight authenticated endpoint.
-        // Some servers momentarily report loggedIn/jid but the session still isn't usable.
-        const chatEndpoint = `${normalizedBaseUrl}/chat/find`;
-        try {
-          const chatResp = await fetch(chatEndpoint, {
-            method: "POST",
-            headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/json",
-              "token": api_key,
-            },
-            body: JSON.stringify({ limit: 1, offset: 0 }),
-          });
-
-          if (!chatResp.ok) {
-            const text = await chatResp.text().catch(() => "");
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error:
-                  "A instância aparenta estar conectada, mas o WhatsApp ainda não aceitou a sessão (falha ao validar). Gere um novo QR Code e tente novamente.",
-                details: {
-                  url_testada: statusEndpoint,
-                  status: state || "connected",
-                  whatsapp_status: "session_not_ready",
-                  loggedIn: true,
-                  jid: String(jid),
-                  connected: true,
-                  instance_status: instanceStatus,
-                  raw_state: state,
-                  validation: {
-                    endpoint: chatEndpoint,
-                    status: chatResp.status,
-                    body: text?.substring(0, 300) || null,
-                  },
-                  tipo_erro: "session_validation_failed",
-                },
-              }),
-              {
-                status: 200,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              }
-            );
-          }
-        } catch (e: any) {
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error:
-                "A instância aparenta estar conectada, mas não conseguimos validar a sessão agora. Gere um novo QR Code e tente novamente.",
-              details: {
-                url_testada: statusEndpoint,
-                status: state || "connected",
-                whatsapp_status: "session_not_ready",
-                loggedIn: true,
-                jid: String(jid),
-                connected: true,
-                instance_status: instanceStatus,
-                raw_state: state,
-                validation: {
-                  endpoint: chatEndpoint,
-                  error: e?.message || String(e),
-                },
-                tipo_erro: "session_validation_error",
-              },
-            }),
-            {
-              status: 200,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
-        }
-
+        // IMPORTANT: Do NOT call /chat/find here as a "double-check"
+        // Calling heavy endpoints during connection validation can interfere with the 
+        // WhatsApp pairing process and cause "connection attempt canceled by API" errors.
+        // The /instance/status check with loggedIn=true and valid jid is sufficient.
         return new Response(JSON.stringify({
           success: true,
           message: "WhatsApp conectado e funcionando!",
@@ -292,7 +223,6 @@ Deno.serve(async (req) => {
             connected: true,
             instance_status: instanceStatus,
             raw_state: state,
-            validation: { endpoint: chatEndpoint, ok: true },
           },
         }), {
           status: 200,
@@ -321,30 +251,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fallback: Test with /chat/find endpoint
+    // Fallback: /instance/status returned 404, API might be using a different structure
+    // Just verify that the base URL and API key are valid by making a simple authenticated request
+    // IMPORTANT: Do NOT use /chat/find as it can interfere with WhatsApp connection
     let response;
-    const chatEndpoint = `${normalizedBaseUrl}/chat/find`;
+    const infoEndpoint = `${normalizedBaseUrl}/instance/info`;
     
     try {
-      response = await fetch(chatEndpoint, {
-        method: "POST",
+      response = await fetch(infoEndpoint, {
+        method: "GET",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
           "token": api_key,
         },
-        body: JSON.stringify({
-          limit: 1,
-          offset: 0,
-        }),
       });
     } catch (fetchError: any) {
-      console.error("Chat fetch error:", fetchError.message);
+      console.error("Info fetch error:", fetchError.message);
       return new Response(JSON.stringify({ 
         success: false, 
         error: `Erro de conexão: ${fetchError.message}. Verifique se a URL está correta e acessível.`,
         details: {
-          url_testada: chatEndpoint,
+          url_testada: infoEndpoint,
           tipo_erro: "connection_error"
         }
       }), {
@@ -353,14 +281,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log("Chat response status:", response.status);
+    console.log("Info response status:", response.status);
 
     if (response.status === 401 || response.status === 403) {
       return new Response(JSON.stringify({ 
         success: false, 
         error: "API Key inválida ou sem permissão. Verifique sua chave.",
         details: {
-          url_testada: chatEndpoint,
+          url_testada: infoEndpoint,
           status: response.status,
           tipo_erro: "auth_error"
         }
@@ -376,7 +304,7 @@ Deno.serve(async (req) => {
         success: false, 
         error: `Erro na API (${response.status}): ${text || response.statusText}`,
         details: {
-          url_testada: chatEndpoint,
+          url_testada: infoEndpoint,
           status: response.status,
           resposta: text.substring(0, 500),
           tipo_erro: "api_error"
@@ -387,13 +315,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // API is responding, but we couldn't verify WhatsApp as logged in.
-    // For UI/polling, treat as NOT connected.
+    // API is responding, credentials are valid
+    // We couldn't determine WhatsApp status from /instance/status, so report as needing QR
     return new Response(JSON.stringify({
       success: false,
-      error: "API respondendo, mas o WhatsApp ainda não está autenticado. Escaneie o QR Code.",
+      error: "Credenciais válidas, mas não foi possível verificar o status do WhatsApp. Escaneie o QR Code.",
       details: {
-        url_testada: chatEndpoint,
+        url_testada: infoEndpoint,
         status: response.status,
         whatsapp_status: "unknown",
         tipo_erro: "waiting_qr_scan",
