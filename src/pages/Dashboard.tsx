@@ -742,8 +742,8 @@ export default function Dashboard() {
               {hasGoogleAdsConfig ? (
                 <Card className="p-6 shadow-card">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary">
-                      <GoogleAdsIcon className="h-6 w-6 text-primary-foreground" />
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary text-primary-foreground">
+                      <GoogleAdsIcon size={24} />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm text-muted-foreground">Gasto Google Ads</p>
@@ -764,8 +764,8 @@ export default function Dashboard() {
               ) : (
                 <Card className="p-6 shadow-card">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-muted">
-                      <GoogleAdsIcon className="h-6 w-6 text-muted-foreground" />
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-muted text-muted-foreground">
+                      <GoogleAdsIcon size={24} />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium">Gasto Google Ads</p>
