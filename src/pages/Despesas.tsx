@@ -278,7 +278,7 @@ export default function Despesas() {
         </div>
       </div>
 
-      {/* Period Filter */}
+      {/* Filtros */}
       <Card className="p-4 shadow-card">
         <div className="flex flex-wrap gap-4 items-center">
           <PeriodFilter
@@ -290,6 +290,45 @@ export default function Despesas() {
             onDateStartChange={setDateStart}
             onDateEndChange={setDateEnd}
           />
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Categoria:</span>
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                {categorias?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Tipo:</span>
+            <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todos</SelectItem>
+                <SelectItem value="recorrente">Recorrente</SelectItem>
+                <SelectItem value="variavel">Variável</SelectItem>
+                <SelectItem value="parcelada">Parcelada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(filtroCategoria !== "todas" || filtroTipo !== "todas") && (
+            <Button variant="outline" size="sm" onClick={() => {
+              setFiltroCategoria("todas");
+              setFiltroTipo("todas");
+            }}>
+              Limpar Filtros
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -311,40 +350,16 @@ export default function Despesas() {
         </CardContent>
       </Card>
 
-      {/* Filters */}
+      {/* Search */}
       <Card className="p-4 shadow-card">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar despesa..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas categorias</SelectItem>
-              {categorias?.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-            <SelectTrigger className="w-full sm:w-[150px]">
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todos tipos</SelectItem>
-              <SelectItem value="recorrente">Recorrente</SelectItem>
-              <SelectItem value="variavel">Variável</SelectItem>
-              <SelectItem value="parcelada">Parcelada</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por descrição ou categoria..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-9"
+          />
         </div>
       </Card>
 
