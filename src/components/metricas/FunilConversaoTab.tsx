@@ -1143,8 +1143,10 @@ export function FunilConversaoTab() {
 
           let key: string;
           if (viewLevel === "campaign") key = campaignId ? campaignId : campaign;
-          else if (viewLevel === "adset") key = adsetId ? `${campaignId || campaign}|||${adsetId}` : `${campaign}|||${adset}`;
-          else key = adId ? `${campaignId || campaign}|||${adsetId || adset}|||${adId}` : `${campaign}|||${adsetId || adset}|||${ad}`;
+          // Use ONLY adsetId when available (IDs are globally unique)
+          else if (viewLevel === "adset") key = adsetId ? adsetId : `${campaign}|||${adset}`;
+          // Use ONLY adId when available (IDs are globally unique)
+          else key = adId ? adId : `${campaign}|||${adset}|||${ad}`;
 
           return { key, campaignId, campaign, adsetId, adset, adId, ad };
         }
@@ -1168,10 +1170,10 @@ export function FunilConversaoTab() {
         let key: string;
         // Use campaignId when available for unique identification, fallback to name
         if (viewLevel === "campaign") key = campaignId ? campaignId : campaign;
-        // Use adsetId when available for unique identification, fallback to name
-        else if (viewLevel === "adset") key = adsetId ? `${campaignId || campaign}|||${adsetId}` : `${campaign}|||${adset}`;
-        // Use adId when available for unique identification, fallback to name
-        else key = adId ? `${campaignId || campaign}|||${adsetId || adset}|||${adId}` : `${campaign}|||${adsetId || adset}|||${ad}`;
+        // Use ONLY adsetId when available (IDs are globally unique)
+        else if (viewLevel === "adset") key = adsetId ? adsetId : `${campaign}|||${adset}`;
+        // Use ONLY adId when available (IDs are globally unique)
+        else key = adId ? adId : `${campaign}|||${adset}|||${ad}`;
 
         return { key, campaignId, campaign, adsetId, adset, adId, ad };
       };
@@ -1213,8 +1215,9 @@ export function FunilConversaoTab() {
           ad_name: null,
         });
 
-        // Adset - use adsetId for unique key when available
-        const adsetKey = attr.adsetId ? `${attr.campaignId || attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
+        // Adset - use ONLY adsetId when available (IDs are globally unique)
+        // This prevents duplicates when the same adset appears with different campaign references
+        const adsetKey = attr.adsetId ? attr.adsetId : `${attr.campaign}|||${attr.adset}`;
         ensureGroup(groupedAdset, adsetKey, {
           campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
@@ -1224,10 +1227,8 @@ export function FunilConversaoTab() {
           ad_name: null,
         });
 
-        // Ad - use adId for unique key when available
-        const adKey = attr.adId 
-          ? `${attr.campaignId || attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.adId}` 
-          : `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
+        // Ad - use ONLY adId when available (IDs are globally unique)
+        const adKey = attr.adId ? attr.adId : `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
         ensureGroup(groupedAd, adKey, {
           campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
@@ -1244,12 +1245,12 @@ export function FunilConversaoTab() {
         const campaignKey = attr.campaignId ? attr.campaignId : attr.campaign;
         groupedCampaign[campaignKey][field] += amount;
 
-        const adsetKey = attr.adsetId ? `${attr.campaignId || attr.campaign}|||${attr.adsetId}` : `${attr.campaign}|||${attr.adset}`;
+        // Use ONLY adsetId when available (matches bumpAllLevels logic)
+        const adsetKey = attr.adsetId ? attr.adsetId : `${attr.campaign}|||${attr.adset}`;
         groupedAdset[adsetKey][field] += amount;
 
-        const adKey = attr.adId 
-          ? `${attr.campaignId || attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.adId}` 
-          : `${attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
+        // Use ONLY adId when available (matches bumpAllLevels logic)
+        const adKey = attr.adId ? attr.adId : `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
         groupedAd[adKey][field] += amount;
       };
       // Contadores para eventos de leads que vieram originalmente de "Disparos"

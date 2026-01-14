@@ -1015,6 +1015,26 @@ serve(async (req) => {
         ? ad_account_id 
         : `act_${ad_account_id}`;
 
+      // Buscar currency_type e spread da conta para converter valores se necessário
+      const { data: accountSettings } = await adminClient
+        .from("facebook_ad_accounts")
+        .select("currency_type, currency_spread")
+        .eq("user_id", user.id)
+        .eq("ad_account_id", normalizedAccountId)
+        .single();
+
+      const currencyType = accountSettings?.currency_type || "BRL";
+      const currencySpread = accountSettings?.currency_spread || 0;
+      
+      // Buscar cotação se necessário
+      let exchangeRate = 1;
+      if (currencyType === "USD") {
+        exchangeRate = await fetchUSDToBRL();
+        const spreadMultiplier = 1 + (currencySpread / 100);
+        exchangeRate = exchangeRate * spreadMultiplier;
+        console.log("[SPEND_BREAKDOWN] Converting USD to BRL with rate:", exchangeRate);
+      }
+
       const timeRange = date_start && date_end
         ? `&time_range=${encodeURIComponent(JSON.stringify({ since: date_start, until: date_end }))}`
         : "";
@@ -1041,7 +1061,8 @@ serve(async (req) => {
           if (!spendByAdset[key]) {
             spendByAdset[key] = { spend: 0, campaign: campaignName, campaign_id: campaignId, adset: adsetName, adset_id: adsetId };
           }
-          spendByAdset[key].spend += parseFloat(item.spend || 0);
+          // Aplicar conversão de moeda
+          spendByAdset[key].spend += parseFloat(item.spend || 0) * exchangeRate;
         }
       }
 
@@ -1074,7 +1095,8 @@ serve(async (req) => {
               ad_name: adName
             };
           }
-          spendByAd[key].spend += parseFloat(item.spend || 0);
+          // Aplicar conversão de moeda
+          spendByAd[key].spend += parseFloat(item.spend || 0) * exchangeRate;
         }
       }
 
