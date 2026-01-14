@@ -709,45 +709,109 @@ Deno.serve(async (req) => {
             // Save message to whatsapp_messages for realtime updates
             const anyMsg = normalizedPayload.message as any;
             const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
-            const msgTime = new Date(
-              messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000
-            ).toISOString();
-
-            // Include UTM data directly in the insert (extracted earlier)
-            // Use insert instead of upsert to catch actual errors (not silenced by ignoreDuplicates)
-            const { error: msgInsertError } = await supabase
+            const msgTimeMs = messageTimestamp > 9999999999 ? messageTimestamp : messageTimestamp * 1000;
+            const msgTime = new Date(msgTimeMs).toISOString();
+            const currentSenderType = isFromMe ? 'agent' : 'customer';
+            const currentContent = messageText || '';
+            
+            // Check for edited messages: same sender, very similar content, within 2 minutes
+            // WhatsApp sends edited messages as new messages with different IDs
+            let isEditedMessage = false;
+            const TWO_MINUTES_MS = 2 * 60 * 1000;
+            const msgTimeDate = new Date(msgTimeMs);
+            const twoMinAgo = new Date(msgTimeDate.getTime() - TWO_MINUTES_MS).toISOString();
+            
+            // Look for similar recent messages from same sender
+            const { data: recentMessages } = await supabase
               .from('whatsapp_messages')
-              .insert({
-                chat_id: matchingChat.id,
-                message_id: messageId,
-                content: messageText || '',
-                sender_type: isFromMe ? 'agent' : 'customer',
-                media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
-                timestamp: msgTime,
-                // Include UTM attribution directly
-                utm_source: earlyUtmData.utm_source,
-                utm_campaign: earlyUtmData.utm_campaign,
-                utm_medium: earlyUtmData.utm_medium,
-                utm_content: earlyUtmData.utm_content,
-                utm_term: earlyUtmData.utm_term,
-                fbclid: earlyUtmData.fbclid,
-                ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
-                // Include real Facebook campaign names
-                fb_ad_id: earlyUtmData.fb_ad_id,
-                fb_campaign_name: fbCampaignInfo.campaign_name,
-                fb_adset_name: fbCampaignInfo.adset_name,
-                fb_ad_name: fbCampaignInfo.ad_name,
-              });
-
-            if (msgInsertError) {
-              // If it's a duplicate, that's ok - just log it
-              if ((msgInsertError as any).code === '23505') {
-                console.log('Message already exists (duplicate):', messageId);
-              } else {
-                console.error('Error saving WhatsApp message:', msgInsertError, 'chat_id:', matchingChat.id, 'message_id:', messageId);
+              .select('id, message_id, content, timestamp')
+              .eq('chat_id', matchingChat.id)
+              .eq('sender_type', currentSenderType)
+              .gte('timestamp', twoMinAgo)
+              .order('timestamp', { ascending: false })
+              .limit(5);
+            
+            // Helper to check if two strings are similar (edit distance-like check)
+            const isSimilarContent = (a: string, b: string): boolean => {
+              if (!a || !b) return false;
+              const aNorm = a.toLowerCase().replace(/\s+/g, ' ').trim();
+              const bNorm = b.toLowerCase().replace(/\s+/g, ' ').trim();
+              if (aNorm === bNorm) return true;
+              // Check if one is a slight variation of the other (typo fix)
+              const lenDiff = Math.abs(aNorm.length - bNorm.length);
+              if (lenDiff > 3) return false; // Too different in length
+              // Simple character overlap check
+              const shorter = aNorm.length <= bNorm.length ? aNorm : bNorm;
+              const longer = aNorm.length > bNorm.length ? aNorm : bNorm;
+              let matches = 0;
+              for (let i = 0; i < shorter.length; i++) {
+                if (longer.includes(shorter[i])) matches++;
               }
-            } else {
-              console.log('Saved WhatsApp message:', messageId, 'to chat:', matchingChat.id);
+              return matches >= shorter.length * 0.8; // 80% character overlap
+            };
+            
+            // Check if this is an edited message
+            if (recentMessages && recentMessages.length > 0) {
+              for (const recent of recentMessages) {
+                if (recent.message_id === messageId) continue; // Same message ID, skip
+                if (isSimilarContent(recent.content, currentContent)) {
+                  // This looks like an edit - update the existing message instead
+                  console.log('[WhatsApp] Detected edited message, updating existing:', recent.id);
+                  const { error: updateError } = await supabase
+                    .from('whatsapp_messages')
+                    .update({ 
+                      content: currentContent, 
+                      message_id: messageId, // Update to new message ID
+                      timestamp: msgTime 
+                    })
+                    .eq('id', recent.id);
+                  
+                  if (updateError) {
+                    console.error('Error updating edited message:', updateError);
+                  } else {
+                    isEditedMessage = true;
+                  }
+                  break;
+                }
+              }
+            }
+
+            // Only insert if this is not an edited message
+            if (!isEditedMessage) {
+              const { error: msgInsertError } = await supabase
+                .from('whatsapp_messages')
+                .insert({
+                  chat_id: matchingChat.id,
+                  message_id: messageId,
+                  content: currentContent,
+                  sender_type: currentSenderType,
+                  media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                  timestamp: msgTime,
+                  // Include UTM attribution directly
+                  utm_source: earlyUtmData.utm_source,
+                  utm_campaign: earlyUtmData.utm_campaign,
+                  utm_medium: earlyUtmData.utm_medium,
+                  utm_content: earlyUtmData.utm_content,
+                  utm_term: earlyUtmData.utm_term,
+                  fbclid: earlyUtmData.fbclid,
+                  ad_thumbnail_url: earlyUtmData.ad_thumbnail_url,
+                  // Include real Facebook campaign names
+                  fb_ad_id: earlyUtmData.fb_ad_id,
+                  fb_campaign_name: fbCampaignInfo.campaign_name,
+                  fb_adset_name: fbCampaignInfo.adset_name,
+                  fb_ad_name: fbCampaignInfo.ad_name,
+                });
+
+              if (msgInsertError) {
+                // If it's a duplicate, that's ok - just log it
+                if ((msgInsertError as any).code === '23505') {
+                  console.log('Message already exists (duplicate):', messageId);
+                } else {
+                  console.error('Error saving WhatsApp message:', msgInsertError, 'chat_id:', matchingChat.id, 'message_id:', messageId);
+                }
+              } else {
+                console.log('Saved WhatsApp message:', messageId, 'to chat:', matchingChat.id);
+              }
             }
           } else {
             // Chat doesn't exist yet. If the user deleted it recently, do NOT recreate it from old history.
