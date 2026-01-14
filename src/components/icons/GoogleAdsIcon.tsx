@@ -10,17 +10,17 @@ interface GoogleAdsIconProps {
  * Renders a monochrome icon that follows the same color behavior as lucide icons
  * (inherits currentColor from its container) using CSS masking.
  */
-const GoogleAdsIcon: React.FC<GoogleAdsIconProps> = ({ className = "", size = 24 }) => {
+const GoogleAdsIcon: React.FC<GoogleAdsIconProps> = ({ className = "", size }) => {
+  // If size prop is provided, use it; otherwise let Tailwind classes control dimensions
+  const sizeStyles = size ? { width: size, height: size } : {};
+
   return (
     <span
       aria-label="Google Ads"
       role="img"
       className={`inline-block shrink-0 ${className}`}
       style={{
-        width: size,
-        height: size,
-        minWidth: size,
-        minHeight: size,
+        ...sizeStyles,
         backgroundColor: "currentColor",
         WebkitMaskImage: `url(${googleAdsMark})`,
         WebkitMaskRepeat: "no-repeat",
