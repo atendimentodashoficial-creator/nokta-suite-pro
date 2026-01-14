@@ -140,16 +140,18 @@ serve(async (req) => {
     // Get existing messages to avoid duplicates
     const { data: existingMessages } = await supabase
       .from("disparos_messages")
-      .select("message_id, content, timestamp, sender_type")
+      .select("message_id, content, timestamp, sender_type, media_type")
       .eq("chat_id", db_chat_id);
 
     const existingIds = new Set(existingMessages?.map((m) => m.message_id) || []);
     
-    // Build a map of existing messages by content+sender for duplicate detection
+    // Build a map of existing messages by content+sender+mediaType for duplicate detection
     const existingContentMap = new Map<string, number[]>();
     existingMessages?.forEach((m) => {
       const contentStr = typeof m.content === "string" ? m.content : m.content == null ? "" : JSON.stringify(m.content);
-      const key = `${m.sender_type}|${contentStr.substring(0, 50).trim()}`;
+      const mediaType = m.media_type || "text";
+      // Use first 100 chars for better matching, include media_type in key
+      const key = `${m.sender_type}|${mediaType}|${contentStr.substring(0, 100).trim().toLowerCase()}`;
       const ts = new Date(m.timestamp).getTime();
       if (!existingContentMap.has(key)) {
         existingContentMap.set(key, []);
@@ -157,14 +159,15 @@ serve(async (req) => {
       existingContentMap.get(key)!.push(ts);
     });
     
-    const isDuplicateContent = (senderType: string, content: any, timestamp: number): boolean => {
+    const isDuplicateContent = (senderType: string, mediaType: string, content: any, timestamp: number): boolean => {
       const contentStr = typeof content === "string" ? content : "";
-      const key = `${senderType}|${contentStr.substring(0, 50).trim()}`;
+      const key = `${senderType}|${mediaType}|${contentStr.substring(0, 100).trim().toLowerCase()}`;
       const existingTimestamps = existingContentMap.get(key);
       if (!existingTimestamps || existingTimestamps.length === 0) return false;
       
-      const TWO_MINUTES_MS = 120 * 1000;
-      return existingTimestamps.some(existingTs => Math.abs(timestamp - existingTs) <= TWO_MINUTES_MS);
+      // 5 minute window to catch duplicates
+      const FIVE_MINUTES_MS = 300 * 1000;
+      return existingTimestamps.some(existingTs => Math.abs(timestamp - existingTs) <= FIVE_MINUTES_MS);
     };
 
     const newMessages: any[] = [];
@@ -195,16 +198,7 @@ serve(async (req) => {
         continue;
       }
       
-      let rawContent = msg.text || msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.body || "";
-      if (!rawContent && typeof msg.content === "string") {
-        rawContent = msg.content;
-      }
-      
-      const senderType = isFromMe ? "agent" : "customer";
-      if (isDuplicateContent(senderType, rawContent, msgDate.getTime())) {
-        continue;
-      }
-
+      // Determine media type first (needed for duplicate detection)
       let mediaType = "text";
       let mediaUrl: string | null = null;
 
@@ -232,6 +226,18 @@ serve(async (req) => {
       } else if (msg.message?.documentMessage) {
         mediaType = "document";
         mediaUrl = msg.message.documentMessage.url || null;
+      }
+      
+      let rawContent = msg.text || msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.body || "";
+      if (!rawContent && typeof msg.content === "string") {
+        rawContent = msg.content;
+      }
+      
+      const senderType = isFromMe ? "agent" : "customer";
+      
+      // Check for duplicates using sender, media type, content, and timestamp
+      if (isDuplicateContent(senderType, mediaType, rawContent, msgDate.getTime())) {
+        continue;
       }
 
       const isDeleted = msg.status === "Deleted" || msg.deleted === true;
