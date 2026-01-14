@@ -1330,6 +1330,7 @@ export type Database = {
           account_type: string | null
           ad_account_id: string
           created_at: string
+          currency_spread: number | null
           currency_type: string | null
           id: string
           is_prepay_account: boolean | null
@@ -1344,6 +1345,7 @@ export type Database = {
           account_type?: string | null
           ad_account_id: string
           created_at?: string
+          currency_spread?: number | null
           currency_type?: string | null
           id?: string
           is_prepay_account?: boolean | null
@@ -1358,6 +1360,7 @@ export type Database = {
           account_type?: string | null
           ad_account_id?: string
           created_at?: string
+          currency_spread?: number | null
           currency_type?: string | null
           id?: string
           is_prepay_account?: boolean | null

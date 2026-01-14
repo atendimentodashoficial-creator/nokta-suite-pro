@@ -263,13 +263,14 @@ serve(async (req) => {
           onConflict: "user_id,ad_account_id"
         });
 
-      // Buscar account_type e currency_type do banco se não foi passado
+      // Buscar account_type, currency_type e spread do banco se não foi passado
       let effectiveAccountType = account_type;
       let effectiveCurrencyType = "BRL";
+      let currencySpread = 0;
       
       const { data: accountData } = await adminClient
         .from("facebook_ad_accounts")
-        .select("account_type, currency_type")
+        .select("account_type, currency_type, currency_spread")
         .eq("user_id", user.id)
         .eq("ad_account_id", normalizedAccountId)
         .single();
@@ -278,6 +279,7 @@ serve(async (req) => {
         effectiveAccountType = accountData?.account_type;
       }
       effectiveCurrencyType = accountData?.currency_type || "BRL";
+      currencySpread = accountData?.currency_spread || 0;
 
       // Determinar se é pré-pago baseado no tipo definido pelo usuário ou detecção do Facebook
       const isPrepaid = effectiveAccountType === "prepaid" ||
@@ -297,14 +299,23 @@ serve(async (req) => {
       let exchangeRate = 1;
 
       // Se a conta está configurada como USD, converter todos os valores para BRL
+      // e aplicar o spread do cartão
       if (effectiveCurrencyType === "USD") {
         exchangeRate = await fetchUSDToBRL();
-        amountDue = amountDue * exchangeRate;
-        spendCap = spendCap * exchangeRate;
-        amountSpent = amountSpent * exchangeRate;
-        convertedSpendInPeriod = spendInPeriod * exchangeRate;
-        convertedDailyBudget = totalDailyBudget * exchangeRate;
-        console.log("[CONVERSION] Converted USD values to BRL with rate:", exchangeRate);
+        // Aplicar spread: taxa_efetiva = taxa_comercial * (1 + spread/100)
+        const spreadMultiplier = 1 + (currencySpread / 100);
+        const effectiveRate = exchangeRate * spreadMultiplier;
+        console.log("[CONVERSION] Commercial rate:", exchangeRate, "Spread:", currencySpread, "% Effective rate:", effectiveRate);
+        
+        amountDue = amountDue * effectiveRate;
+        spendCap = spendCap * effectiveRate;
+        amountSpent = amountSpent * effectiveRate;
+        convertedSpendInPeriod = spendInPeriod * effectiveRate;
+        convertedDailyBudget = totalDailyBudget * effectiveRate;
+        
+        // Retornar a taxa efetiva para exibição
+        exchangeRate = effectiveRate;
+        console.log("[CONVERSION] Converted USD values to BRL with effective rate:", effectiveRate);
       }
 
       // Regra:
@@ -316,7 +327,7 @@ serve(async (req) => {
       console.log("[BALANCE] fb.spend_cap(raw):", fbData.spend_cap, "cents:", spendCapCents);
       console.log("[BALANCE] fb.amount_spent(raw):", fbData.amount_spent, "cents:", amountSpentCents);
       console.log("[BALANCE] isPrepaid:", isPrepaid, "effectiveType:", effectiveAccountType, "display:", displayBalance);
-      console.log("[BALANCE] currencyType:", effectiveCurrencyType, "exchangeRate:", exchangeRate);
+      console.log("[BALANCE] currencyType:", effectiveCurrencyType, "spread:", currencySpread, "% exchangeRate:", exchangeRate);
 
       return new Response(
         JSON.stringify({
@@ -335,7 +346,8 @@ serve(async (req) => {
             amount_due: amountDue,
             spend_in_period: convertedSpendInPeriod,
             daily_budget: convertedDailyBudget,
-            exchange_rate: effectiveCurrencyType === "USD" ? exchangeRate : null
+            exchange_rate: effectiveCurrencyType === "USD" ? exchangeRate : null,
+            currency_spread: currencySpread
           }
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -354,19 +366,22 @@ serve(async (req) => {
         ? ad_account_id 
         : `act_${ad_account_id}`;
 
-      // Buscar currency_type da conta para converter valores se necessário
+      // Buscar currency_type e spread da conta para converter valores se necessário
       const { data: accountSettings } = await adminClient
         .from("facebook_ad_accounts")
-        .select("currency_type")
+        .select("currency_type, currency_spread")
         .eq("user_id", user.id)
         .eq("ad_account_id", normalizedAccountId)
         .single();
       
       const currencyType = accountSettings?.currency_type || "BRL";
+      const currencySpread = accountSettings?.currency_spread || 0;
       let exchangeRate = 1;
       if (currencyType === "USD") {
-        exchangeRate = await fetchUSDToBRL();
-        console.log("[CAMPAIGN_METRICS] Converting USD to BRL with rate:", exchangeRate);
+        const commercialRate = await fetchUSDToBRL();
+        const spreadMultiplier = 1 + (currencySpread / 100);
+        exchangeRate = commercialRate * spreadMultiplier;
+        console.log("[CAMPAIGN_METRICS] Converting USD to BRL with commercial rate:", commercialRate, "spread:", currencySpread, "% effective rate:", exchangeRate);
       }
 
       // Buscar campanhas com métricas

@@ -21,6 +21,7 @@ interface LinkedAdAccount {
   account_name: string | null;
   account_type: string | null;
   currency_type: string | null;
+  currency_spread: number | null;
   is_prepay_account: boolean | null;
 }
 interface LinkedGoogleAdsAccount {
@@ -59,6 +60,7 @@ export default function Conexoes() {
   const [newAccountId, setNewAccountId] = useState("");
   const [newAccountType, setNewAccountType] = useState<string>("prepaid");
   const [newAccountCurrency, setNewAccountCurrency] = useState<string>("BRL");
+  const [newAccountSpread, setNewAccountSpread] = useState<string>("");
   const [addingAccount, setAddingAccount] = useState(false);
 
   // ===== Google Ads State =====
@@ -532,7 +534,7 @@ export default function Conexoes() {
       const {
         data,
         error
-      } = await supabase.from("facebook_ad_accounts").select("id, ad_account_id, account_name, account_type, currency_type, is_prepay_account").eq("user_id", user?.id).order("created_at", {
+      } = await supabase.from("facebook_ad_accounts").select("id, ad_account_id, account_name, account_type, currency_type, currency_spread, is_prepay_account").eq("user_id", user?.id).order("created_at", {
         ascending: false
       });
       if (!error && data) {
@@ -584,18 +586,21 @@ export default function Conexoes() {
         throw new Error(response.data?.error || "Erro ao buscar conta");
       }
 
-      // Atualizar o tipo de conta e moeda no banco
+      // Atualizar o tipo de conta, moeda e spread no banco
+      const spreadValue = newAccountSpread ? parseFloat(newAccountSpread.replace(",", ".")) : 0;
       await supabase.from("facebook_ad_accounts").update({
         account_type: newAccountType,
-        currency_type: newAccountCurrency
+        currency_type: newAccountCurrency,
+        currency_spread: spreadValue
       }).eq("ad_account_id", normalizedId).eq("user_id", user?.id);
       setNewAccountId("");
       setNewAccountType("prepaid");
       setNewAccountCurrency("BRL");
+      setNewAccountSpread("");
       loadLinkedAdAccounts();
       toast({
         title: "Conta vinculada com sucesso!",
-        description: `${response.data.data.name} foi adicionada como ${newAccountType === "prepaid" ? "Pré-pago" : "Pós-pago"} em ${newAccountCurrency}`
+        description: `${response.data.data.name} foi adicionada como ${newAccountType === "prepaid" ? "Pré-pago" : "Pós-pago"} em ${newAccountCurrency}${spreadValue > 0 ? ` (+${spreadValue}% spread)` : ""}`
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erro ao adicionar conta";
@@ -652,6 +657,30 @@ export default function Conexoes() {
       toast({
         title: "Erro ao atualizar",
         description: "Não foi possível atualizar a moeda",
+        variant: "destructive"
+      });
+    }
+  };
+  const updateAccountSpread = async (accountId: string, spread: number) => {
+    try {
+      const {
+        error
+      } = await supabase.from("facebook_ad_accounts").update({
+        currency_spread: spread
+      }).eq("id", accountId).eq("user_id", user?.id);
+      if (error) throw error;
+      setLinkedAdAccounts(prev => prev.map(acc => acc.id === accountId ? {
+        ...acc,
+        currency_spread: spread
+      } : acc));
+      toast({
+        title: "Spread atualizado",
+        description: `Spread definido como ${spread}%`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar o spread",
         variant: "destructive"
       });
     }
@@ -1051,6 +1080,17 @@ export default function Conexoes() {
                   </SelectContent>
                 </Select>
               </div>
+              {newAccountCurrency === "USD" && (
+                <div className="w-[90px]">
+                  <Label>Spread %</Label>
+                  <Input
+                    placeholder="0"
+                    value={newAccountSpread}
+                    onChange={(e) => setNewAccountSpread(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              )}
               <Button onClick={addAdAccount} disabled={addingAccount}>
                 {addingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <>
                     <Plus className="h-4 w-4 mr-2" />
@@ -1064,6 +1104,7 @@ export default function Conexoes() {
                 {linkedAdAccounts.map(account => {
                   const accountType = account.account_type || (account.is_prepay_account ? "prepaid" : "postpaid");
                   const currencyType = account.currency_type || "BRL";
+                  const currencySpread = account.currency_spread || 0;
                   return <div key={account.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg bg-muted/50 gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -1074,6 +1115,11 @@ export default function Conexoes() {
                           <Badge variant={currencyType === "USD" ? "secondary" : "outline"} className="text-xs shrink-0">
                             {currencyType === "USD" ? "$ USD" : "R$ BRL"}
                           </Badge>
+                          {currencyType === "USD" && currencySpread > 0 && (
+                            <Badge variant="secondary" className="text-xs shrink-0">
+                              +{currencySpread}% spread
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground font-mono truncate">{account.ad_account_id}</p>
                       </div>
@@ -1096,6 +1142,22 @@ export default function Conexoes() {
                             <SelectItem value="USD">$ USD</SelectItem>
                           </SelectContent>
                         </Select>
+                        {currencyType === "USD" && (
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="50"
+                            value={currencySpread}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              updateAccountSpread(account.id, val);
+                            }}
+                            className="w-[70px] h-8 text-xs"
+                            placeholder="%"
+                            title="Spread do cartão em %"
+                          />
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => removeAdAccount(account.id)} className="text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
