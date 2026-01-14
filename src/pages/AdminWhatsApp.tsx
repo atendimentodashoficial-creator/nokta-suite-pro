@@ -299,6 +299,24 @@ export default function AdminWhatsApp() {
           api_key: apiKey,
         };
 
+        // Configure webhook for manual instance
+        const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${createdInstance.id}`;
+        const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: {
+            base_url: baseUrl,
+            api_key: apiKey,
+            webhook_url: webhookUrl,
+            instancia_id: createdInstance.id,
+          },
+        });
+
+        if (webhookResponse.data?.success) {
+          console.log("Webhook configured for manual instance");
+        } else {
+          console.error("Webhook config failed for manual instance:", webhookResponse.data);
+        }
+
         // Reset config state
         setManualBaseUrl("");
         setManualApiKey("");
@@ -352,6 +370,24 @@ export default function AdminWhatsApp() {
         toast.success("WhatsApp já está conectado!");
         setQrCodeDialogOpen(false);
         setConnectionStatus('connected');
+        
+        // Configure webhook even if already connected
+        const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${newInstance.id}`;
+        const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: {
+            base_url: newInstance.base_url,
+            api_key: newInstance.api_key,
+            webhook_url: webhookUrl,
+            instancia_id: newInstance.id,
+          },
+        });
+
+        if (webhookResponse.data?.success) {
+          toast.success("Webhook configurado!");
+        } else {
+          console.error("Webhook config failed:", webhookResponse.data);
+        }
         return;
       }
 
