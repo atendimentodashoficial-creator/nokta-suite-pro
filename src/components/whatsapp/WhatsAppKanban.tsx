@@ -182,15 +182,23 @@ export function WhatsAppKanban({
       // Visible in app:
       // - "agendado" / "confirmado" -> visible in Agenda
       // - "cancelado" -> visible in "Não Compareceu"
-      // - "realizado" -> NOT visible unless there's a fatura (handled separately)
+      // - "realizado" -> visible in Faturas/Fechamento (consulta realizada)
       const {
         data: agendamentos
-      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado", "cancelado"]).order("data_agendamento", {
-        ascending: true
+      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("data_agendamento", {
+        ascending: false // Most recent first for realizado
       });
 
-      // Best agendamento per lead - prioritize pending (agendado/confirmado) over cancelado
+      // Best agendamento per lead - priority: pending > realizado > cancelado
       const leadIdToAgendamento: Record<string, ChatAgendamento> = {};
+      
+      const getPriority = (status: string) => {
+        if (status === "agendado" || status === "confirmado") return 3; // Highest - pending
+        if (status === "realizado") return 2; // Medium - completed
+        if (status === "cancelado") return 1; // Lowest - cancelled
+        return 0;
+      };
+      
       agendamentos?.forEach(ag => {
         const existing = leadIdToAgendamento[ag.cliente_id];
         
@@ -204,19 +212,18 @@ export function WhatsAppKanban({
           return;
         }
         
-        // Prioritize pending (agendado/confirmado) over cancelado
-        const isPending = ag.status === "agendado" || ag.status === "confirmado";
-        const existingIsPending = existing.status === "agendado" || existing.status === "confirmado";
+        const agPriority = getPriority(ag.status);
+        const existingPriority = getPriority(existing.status);
         
-        if (isPending && !existingIsPending) {
-          // Replace cancelado with pending
+        if (agPriority > existingPriority) {
+          // Higher priority status wins
           leadIdToAgendamento[ag.cliente_id] = {
             id: ag.id,
             data_agendamento: ag.data_agendamento,
             status: ag.status
           };
-        } else if (isPending && existingIsPending) {
-          // Both pending - keep earliest
+        } else if (agPriority === existingPriority && agPriority === 3) {
+          // Both pending - keep earliest future one
           if (new Date(ag.data_agendamento) < new Date(existing.data_agendamento)) {
             leadIdToAgendamento[ag.cliente_id] = {
               id: ag.id,
@@ -224,8 +231,16 @@ export function WhatsAppKanban({
               status: ag.status
             };
           }
+        } else if (agPriority === existingPriority && agPriority === 2) {
+          // Both realizado - keep most recent
+          if (new Date(ag.data_agendamento) > new Date(existing.data_agendamento)) {
+            leadIdToAgendamento[ag.cliente_id] = {
+              id: ag.id,
+              data_agendamento: ag.data_agendamento,
+              status: ag.status
+            };
+          }
         }
-        // If existing is pending and new is cancelado, keep existing
       });
 
       // Map chat -> agendamento using last8 match
@@ -599,26 +614,34 @@ export function WhatsAppKanban({
     const hoje = isToday(dataAgendamento);
     const amanha = isTomorrow(dataAgendamento);
     const passado = dataAgendamento < now && !hoje;
+    const isRealizado = agendamento.status === "realizado";
     const isCancelado = agendamento.status === "cancelado";
     
     let bgColor = "bg-muted";
     let textColor = "text-muted-foreground";
     let statusLabel = "";
     
-    if (isCancelado) {
+    if (isRealizado) {
+      // Realizado (consulta já aconteceu) - blue color
+      bgColor = "bg-blue-100 dark:bg-blue-950";
+      textColor = "text-blue-700 dark:text-blue-400";
+      statusLabel = " (Realizado)";
+    } else if (isCancelado) {
       // Cancelado (Não Compareceu) - gray/muted color
       bgColor = "bg-slate-200 dark:bg-slate-800";
       textColor = "text-slate-600 dark:text-slate-400";
       statusLabel = " (Não compareceu)";
     } else if (passado) {
-      // Past pending appointments - red/warning color (shouldn't happen normally)
+      // Past pending appointments - red/warning color
       bgColor = "bg-red-100 dark:bg-red-950";
       textColor = "text-red-700 dark:text-red-400";
       statusLabel = " (Atrasado)";
     } else if (hoje) {
+      // Today - green
       bgColor = "bg-green-100 dark:bg-green-950";
       textColor = "text-green-700 dark:text-green-400";
     } else if (amanha) {
+      // Tomorrow - orange
       bgColor = "bg-orange-100 dark:bg-orange-950";
       textColor = "text-orange-700 dark:text-orange-400";
     }
