@@ -178,10 +178,10 @@ export function WhatsAppKanban({
       const leadIds = Array.from(new Set(Object.values(last8ToLeadId)));
       if (leadIds.length === 0) return;
 
-      // Get agendamentos for these leads
+      // Get agendamentos for these leads (only pending ones - agendado or confirmado)
       const {
         data: agendamentos
-      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado", "realizado"]).order("data_agendamento", {
+      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado"]).order("data_agendamento", {
         ascending: true
       });
 
