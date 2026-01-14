@@ -1,9 +1,9 @@
-import { Users, Calendar, CheckCircle, DollarSign, TrendingUp, Target, CalendarCheck, UserCheck, UserX, Award, ShoppingBag, Package, Receipt, Loader2 } from "lucide-react";
+import { Users, Calendar, CheckCircle, DollarSign, TrendingUp, Target, CalendarCheck, UserCheck, UserX, Award, ShoppingBag, Package, Receipt, Loader2, Wallet, RefreshCcw, CreditCard } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLeads, useLeadStats } from "@/hooks/useLeads";
-import { useDespesasTotal } from "@/hooks/useDespesas";
+import { useDespesasTotal, useDespesasRelatorio } from "@/hooks/useDespesas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo, useEffect } from "react";
 import { format, subDays, subMonths } from "date-fns";
@@ -26,7 +26,8 @@ export default function Dashboard() {
   const { data: allLeads, isLoading: allLeadsLoading } = useLeads();
   const { data: clientes, isLoading: clientesLoading } = useLeads("cliente");
   const { data: stats, isLoading: statsLoading } = useLeadStats();
-  const { data: despesasTotal, isLoading: despesasLoading } = useDespesasTotal();
+  const { data: despesasTotal, isLoading: despesasTotalLoading } = useDespesasTotal();
+  const { data: despesas, isLoading: despesasLoading } = useDespesasRelatorio();
   const { data: agendamentos, isLoading: agendamentosLoading } = useAgendamentos();
   const { data: faturas, isLoading: faturasLoading } = useFaturas();
 
@@ -121,8 +122,34 @@ export default function Dashboard() {
       return true;
     }) || [];
 
-    return { leads, clientes: clientesFiltrados, agendamentos: agendsRegistrados, agendamentosRealizados: agendsRealizados, faturas: fats };
-  }, [allLeads, clientes, agendamentos, faturas, dateStart, dateEnd]);
+    // Filtrar despesas por período
+    const despesasFiltradas = despesas?.filter(d => {
+      // Usar data_despesa ou data_inicio (para parceladas)
+      const despesaDateStr = d.data_despesa || d.data_inicio || d.created_at;
+      if (!despesaDateStr) return false;
+      
+      let despesaDate: Date;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(despesaDateStr)) {
+        const [year, month, day] = despesaDateStr.split('-').map(Number);
+        despesaDate = new Date(year, month - 1, day, 12, 0, 0, 0);
+      } else {
+        despesaDate = new Date(despesaDateStr);
+      }
+      
+      if (despesaDate < dateStart) return false;
+      if (despesaDate > dateEnd) return false;
+      return true;
+    }) || [];
+
+    return { 
+      leads, 
+      clientes: clientesFiltrados, 
+      agendamentos: agendsRegistrados, 
+      agendamentosRealizados: agendsRealizados, 
+      faturas: fats,
+      despesas: despesasFiltradas
+    };
+  }, [allLeads, clientes, agendamentos, faturas, despesas, dateStart, dateEnd]);
 
   // Buscar gasto de anúncios do período
   useEffect(() => {
@@ -266,7 +293,7 @@ export default function Dashboard() {
   const numeroAgendamentos = numeroAgendamentosRegistrados;
   const agendamentosRealizados = agendamentosRegistradosCompareceu;
   const agendamentosNaoCompareceu = agendamentosRegistradosNaoCompareceu;
-  // RECEITAS
+  
   // RECEITAS
   const receitaAtual = dadosFiltrados.faturas.filter(f => f.status === "fechado").reduce((sum, f) => sum + Number(f.valor), 0);
   const faturasFechadas = dadosFiltrados.faturas.filter(f => f.status === "fechado").length;
@@ -274,6 +301,38 @@ export default function Dashboard() {
   const receitaEmNegociacao = faturasEmNegociacao.reduce((sum, f) => sum + Number(f.valor), 0);
   // Receita prevista = Fechadas + Em Negociação
   const receitaPrevista = receitaAtual + receitaEmNegociacao;
+
+  // DESPESAS
+  const despesasRecorrentes = dadosFiltrados.despesas.filter(d => d.recorrente);
+  const despesasParceladas = dadosFiltrados.despesas.filter(d => d.parcelada);
+  const despesasVariaveis = dadosFiltrados.despesas.filter(d => !d.recorrente && !d.parcelada);
+  
+  const totalDespesasPeriodo = dadosFiltrados.despesas.reduce((sum, d) => sum + Number(d.valor), 0);
+  const totalRecorrentes = despesasRecorrentes.reduce((sum, d) => sum + Number(d.valor), 0);
+  const totalParceladas = despesasParceladas.reduce((sum, d) => sum + Number(d.valor), 0);
+  const totalVariaveis = despesasVariaveis.reduce((sum, d) => sum + Number(d.valor), 0);
+
+  // Despesas por categoria
+  const despesasPorCategoria = useMemo(() => {
+    const catMap: Record<string, { nome: string; cor: string | null; total: number; quantidade: number }> = {};
+    
+    dadosFiltrados.despesas.forEach(d => {
+      const catId = d.categoria_id || "sem-categoria";
+      const catNome = d.categorias_despesas?.nome || "Sem Categoria";
+      const catCor = d.categorias_despesas?.cor || null;
+      
+      if (!catMap[catId]) {
+        catMap[catId] = { nome: catNome, cor: catCor, total: 0, quantidade: 0 };
+      }
+      catMap[catId].total += Number(d.valor);
+      catMap[catId].quantidade++;
+    });
+    
+    return Object.values(catMap).sort((a, b) => b.total - a.total);
+  }, [dadosFiltrados.despesas]);
+
+  // Lucro líquido do período
+  const lucroLiquidoPeriodo = receitaAtual - totalDespesasPeriodo - adsSpend;
 
   // Desempenho por profissional
   const desempenhoProfissionais = useMemo(() => {
@@ -520,9 +579,42 @@ export default function Dashboard() {
           {/* DESPESAS */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Receipt className="w-5 h-5" />
+              <Wallet className="w-5 h-5" />
               Despesas
             </h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <StatsCard
+                title="Total Despesas"
+                value={`R$ ${totalDespesasPeriodo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                change={`${dadosFiltrados.despesas.length} despesas no período`}
+                changeType="negative"
+                icon={Wallet}
+                gradient
+              />
+              <StatsCard
+                title="Recorrentes"
+                value={`R$ ${totalRecorrentes.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                change={`${despesasRecorrentes.length} despesas`}
+                changeType="negative"
+                icon={RefreshCcw}
+              />
+              <StatsCard
+                title="Parceladas"
+                value={`R$ ${totalParceladas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                change={`${despesasParceladas.length} despesas`}
+                changeType="negative"
+                icon={CreditCard}
+              />
+              <StatsCard
+                title="Variáveis"
+                value={`R$ ${totalVariaveis.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                change={`${despesasVariaveis.length} despesas`}
+                changeType="negative"
+                icon={Receipt}
+              />
+            </div>
+
+            {/* Meta Ads */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {hasAdsConfig ? (
                 <Card className="p-6 shadow-card">
@@ -559,7 +651,65 @@ export default function Dashboard() {
                   </div>
                 </Card>
               )}
+
+              {/* Lucro Líquido */}
+              <Card className={cn(
+                "p-6 shadow-card",
+                lucroLiquidoPeriodo >= 0 ? "bg-green-500/10 border-green-500/20" : "bg-destructive/10 border-destructive/20"
+              )}>
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "h-12 w-12 rounded-xl flex items-center justify-center",
+                    lucroLiquidoPeriodo >= 0 ? "bg-green-500/20" : "bg-destructive/20"
+                  )}>
+                    <TrendingUp className={cn(
+                      "h-6 w-6",
+                      lucroLiquidoPeriodo >= 0 ? "text-green-600" : "text-destructive"
+                    )} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Lucro Líquido</p>
+                    <p className={cn(
+                      "text-2xl font-bold",
+                      lucroLiquidoPeriodo >= 0 ? "text-green-600" : "text-destructive"
+                    )}>
+                      R$ {lucroLiquidoPeriodo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Receita - Despesas - Anúncios
+                    </p>
+                  </div>
+                </div>
+              </Card>
             </div>
+
+            {/* Despesas por Categoria */}
+            {despesasPorCategoria.length > 0 && (
+              <Card className="p-6 shadow-card">
+                <h3 className="text-lg font-semibold mb-4">Por Categoria</h3>
+                <div className="space-y-3">
+                  {despesasPorCategoria.map((cat, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        {cat.cor && (
+                          <div 
+                            className="h-4 w-4 rounded-full" 
+                            style={{ backgroundColor: cat.cor }}
+                          />
+                        )}
+                        <div>
+                          <p className="font-medium text-foreground">{cat.nome}</p>
+                          <p className="text-xs text-muted-foreground">{cat.quantidade} despesas</p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-destructive">
+                        R$ {cat.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       )}
