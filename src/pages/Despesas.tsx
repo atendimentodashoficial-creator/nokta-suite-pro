@@ -409,7 +409,8 @@ export default function Despesas() {
             return (
               <Card key={despesa.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
+                  {/* Desktop layout */}
+                  <div className="hidden sm:flex items-center gap-4">
                     {/* Ícone de tipo à esquerda */}
                     <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", tipoConfig.color)}>
                       <TipoIcon className="h-5 w-5" />
@@ -468,6 +469,67 @@ export default function Despesas() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                    </div>
+                  </div>
+
+                  {/* Mobile layout */}
+                  <div className="sm:hidden space-y-3">
+                    {/* Linha 1: Ícone + Descrição + Ações */}
+                    <div className="flex items-start gap-3">
+                      <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", tipoConfig.color)}>
+                        <TipoIcon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-foreground leading-tight">{despesa.descricao}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{tipoConfig.label}</p>
+                      </div>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground"
+                          onClick={() => handleOpenDialog(despesa)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground"
+                          onClick={() => {
+                            setDespesaParaExcluir(despesa.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Linha 2: Data, Categoria e Valor */}
+                    <div className="flex items-center justify-between pl-12">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {despesa.parcelada ? (
+                          despesa.data_inicio && (
+                            <span>{format(new Date(despesa.data_inicio), "dd/MM/yy")} - {despesa.data_fim && format(new Date(despesa.data_fim), "dd/MM/yy")}</span>
+                          )
+                        ) : (
+                          despesa.data_despesa && (
+                            <span>{format(new Date(despesa.data_despesa), "dd/MM/yy")}</span>
+                          )
+                        )}
+                        {despesa.categorias_despesas && (
+                          <>
+                            <span>•</span>
+                            <span style={{ color: despesa.categorias_despesas.cor || undefined }}>
+                              {despesa.categorias_despesas.nome}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-base font-bold text-destructive">
+                        {formatCurrency(Number(despesa.valor))}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
