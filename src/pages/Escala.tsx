@@ -1007,7 +1007,10 @@ export default function Escala() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-sm font-medium">Que horas você está livre?</Label>
+              <Label className="text-sm font-medium">Horários de ausência:</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Defina os horários em que o profissional estará ausente
+              </p>
             </div>
             
             {!diaInteiroEditando && (
@@ -1111,7 +1114,7 @@ export default function Escala() {
             {ausenciaVisualizando && (
               <>
                 <div>
-                  <Label className="text-sm font-medium">Horários disponíveis:</Label>
+                  <Label className="text-sm font-medium">Horários de ausência registrados:</Label>
                 </div>
                 <div className="space-y-2">
                   {ausenciaVisualizando.horarios.length > 0 && ausenciaVisualizando.horarios.some(h => h.inicio || h.fim) ? (
@@ -1223,7 +1226,10 @@ export default function Escala() {
             {/* Horários */}
             <div className="flex-1 space-y-4">
               <div>
-                <Label className="text-sm font-medium">Que horas você está livre?</Label>
+                <Label className="text-sm font-medium">Horários de ausência:</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Os horários abaixo correspondem à escala do profissional neste dia. Ajuste conforme necessário.
+                </p>
               </div>
               
               {!diaInteiro && (
