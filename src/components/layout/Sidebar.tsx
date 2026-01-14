@@ -1,7 +1,6 @@
-import { Calendar, DollarSign, Activity, Settings, UserCog, FileText, LogOut, MessageSquare, UserX, Handshake, UserPlus, Users, ChevronLeft, ChevronRight, Send, Database, Instagram } from "lucide-react";
+import { Calendar, DollarSign, Activity, Settings, UserCog, FileText, LogOut, MessageSquare, UserX, Handshake, UserPlus, Users, ChevronLeft, ChevronRight, Send, Database, Instagram, Wallet } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
-import DespesasIcon from "@/components/icons/DespesasIcon";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,7 +16,7 @@ export const navigation = [
   { name: "Clientes", href: "/clientes", icon: Users },
   { name: "Em Negociação", href: "/em-negociacao", icon: Handshake },
   { name: "Faturas", href: "/faturas", icon: FileText },
-  { name: "Despesas", href: "/despesas", icon: DespesasIcon },
+  { name: "Despesas", href: "/despesas", icon: Wallet },
   { name: "Relatórios", href: "/relatorios", icon: Activity },
   { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, separator: true },
   { name: "Disparos", href: "/disparos", icon: Send },
