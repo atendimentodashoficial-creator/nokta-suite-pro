@@ -557,18 +557,26 @@ Deno.serve(async (req) => {
     
     // For fromMe messages, we need the RECIPIENT's number (from chat.wa_chatid or chat.phone)
     // For incoming messages, we need the SENDER's number (from message.sender_pn or chat.phone)
+    // IMPORTANT: Extract the full number from wa_chatid for consistency with uazapi-get-chats
+    const extractNumberFromChatId = (chatId: string): string => {
+      if (!chatId) return '';
+      // Remove @s.whatsapp.net and any non-digits
+      return chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+    };
+    
+    // Get the contact number - prefer wa_chatid as it contains the full international number
+    const chatIdNumber = extractNumberFromChatId(chatId);
+    
     let phone: string;
     if (isFromMe) {
-      // For outgoing messages, extract the contact's number from the chat ID or chat.phone
-      phone = normalizedPayload.chat?.phone?.trim() ||
-        (chatId ? chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '') : '') ||
-        '';
+      // For outgoing messages, use the wa_chatid number (recipient)
+      phone = normalizedPayload.chat?.phone?.trim() || chatIdNumber || '';
     } else {
-      // For incoming messages, use sender_pn or fallback to chat info
+      // For incoming messages, prefer wa_chatid, then sender_pn, then chat.phone
       phone = normalizedPayload.chat?.phone?.trim() ||
-        (normalizedPayload.message as any)?.sender_pn?.replace('@s.whatsapp.net', '') ||
+        extractNumberFromChatId((normalizedPayload.message as any)?.sender_pn || '') ||
         String((normalizedPayload.message as any)?.sender || '').replace(/\D/g, '') ||
-        (chatId ? chatId.replace('@s.whatsapp.net', '').replace(/\D/g, '') : '') ||
+        chatIdNumber ||
         '';
     }
 
@@ -593,9 +601,11 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Use the wa_chatid number for normalized_number if it starts with 55 (has country code)
+    // Otherwise use the normalizePhone function
+    const normalizedIncoming = chatIdNumber.startsWith('55') ? chatIdNumber : normalizePhone(phone);
     console.log('Contact info - Phone:', phone, 'Name:', name);
-    const normalizedIncoming = normalizePhone(phone);
-    console.log('Normalized incoming phone:', normalizedIncoming);
+    console.log('Normalized incoming phone:', normalizedIncoming, '(from chatId:', chatIdNumber, ')');
     await logEvent(effectiveUserId, 'info', `Contato identificado - Telefone: ${phone} (normalizado: ${normalizedIncoming}), Nome: ${name}`);
 
     // === Deduplicate webhook events to prevent double-counting unread messages ===
@@ -664,11 +674,17 @@ Deno.serve(async (req) => {
             .eq('user_id', effectiveUserId)
             .is('deleted_at', null);
 
-          const matchingChat = existingChats?.find(c =>
-            getLast8Digits(c.contact_number) === last8Incoming ||
-            getLast8Digits(c.normalized_number) === last8Incoming ||
-            getLast8Digits(c.chat_id) === last8Incoming
-          );
+          // First try exact match by normalized_number (most reliable)
+          let matchingChat = existingChats?.find(c => c.normalized_number === normalizedIncoming);
+          
+          // If no exact match, try by last 8 digits (handles format variations)
+          if (!matchingChat) {
+            matchingChat = existingChats?.find(c =>
+              getLast8Digits(c.contact_number) === last8Incoming ||
+              getLast8Digits(c.normalized_number) === last8Incoming ||
+              getLast8Digits(c.chat_id) === last8Incoming
+            );
+          }
 
           if (matchingChat) {
             const lastMessageTimeIso = new Date(
