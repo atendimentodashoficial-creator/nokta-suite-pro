@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,9 @@ const DEFAULT_COLORS = [
 ];
 
 export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDeleted }: DisparosKanbanProps) {
+  const kanbanScrollRef = useRef<HTMLDivElement>(null);
+  useHorizontalScroll(kanbanScrollRef);
+  
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
   const [chatColumnMap, setChatColumnMap] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -774,7 +778,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-1 flex gap-4 p-4 overflow-x-auto">
+      <div ref={kanbanScrollRef} className="flex-1 flex gap-4 p-4 overflow-x-auto">
         {columns.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
