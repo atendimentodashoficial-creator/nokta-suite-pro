@@ -267,6 +267,7 @@ export default function Faturas() {
                       faturaId={fatura.id}
                       clienteId={(fatura.leads as any)?.id}
                       clienteTelefone={(fatura.leads as any)?.telefone || ""}
+                      clienteNome={(fatura.leads as any)?.nome}
                       clienteOrigem={(fatura.leads as any)?.origem}
                       pixelStatus={fatura.pixel_status as any}
                     />

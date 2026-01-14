@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone, Pencil, Save, X, MessageSquare, Copy, ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ interface PixelStatusBadgeProps {
   faturaId: string;
   clienteId: string;
   clienteTelefone: string;
+  clienteNome?: string | null;
   clienteOrigem?: string | null;
   pixelStatus?: PixelStatus | null;
   compact?: boolean;
@@ -39,10 +41,12 @@ export function PixelStatusBadge({
   faturaId,
   clienteId,
   clienteTelefone,
+  clienteNome,
   clienteOrigem,
   pixelStatus,
   compact = false,
 }: PixelStatusBadgeProps) {
+  const navigate = useNavigate();
   const [sendingEvent, setSendingEvent] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [leadData, setLeadData] = useState<LeadData | null>(null);
@@ -64,7 +68,7 @@ export function PixelStatusBadge({
     return `${baseUrl}/conversao/${faturaId}`;
   };
 
-  // Open WhatsApp with form link
+  // Open internal WhatsApp chat with form link
   const openWhatsAppWithForm = async () => {
     setSendingForm(true);
     try {
@@ -83,10 +87,6 @@ export function PixelStatusBadge({
         ? `${pixelConfig.mensagem_formulario}\n\n${formUrl}`
         : `Olá! Para finalizar seu cadastro, preencha o formulário:\n\n${formUrl}`;
       
-      // Format phone for WhatsApp
-      const phoneClean = clienteTelefone.replace(/\D/g, "");
-      const whatsappUrl = `https://wa.me/${phoneClean}?text=${encodeURIComponent(message)}`;
-      
       // Update fatura status to formulario_enviado
       await supabase
         .from("faturas")
@@ -98,10 +98,18 @@ export function PixelStatusBadge({
 
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
       
-      // Open WhatsApp
-      window.open(whatsappUrl, "_blank");
+      // Navigate to internal WhatsApp chat with prefilled message
+      const phoneClean = clienteTelefone.replace(/\D/g, "");
+      const params = new URLSearchParams({
+        chat: phoneClean,
+        prefill: message,
+      });
+      if (clienteNome) {
+        params.set("name", clienteNome);
+      }
+      
       setSendFormDialogOpen(false);
-      toast.success("Formulário enviado!");
+      navigate(`/whatsapp?${params.toString()}`);
     } catch (error) {
       console.error("Error sending form:", error);
       toast.error("Erro ao enviar formulário");
