@@ -90,11 +90,35 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
   const [isLoadingMedia, setIsLoadingMedia] = useState(false);
   const [mediaRequested, setMediaRequested] = useState(false);
 
-  const merged = { ...fallbackAttribution, ...message };
+  // Merge attribution without letting null/undefined fields from the message overwrite the fallback
+  const mergeAttribution = (base: any, incoming: any) => {
+    const merged = { ...incoming };
+    const keys = [
+      'utm_source',
+      'utm_campaign',
+      'utm_medium',
+      'utm_content',
+      'utm_term',
+      'fbclid',
+      'ad_thumbnail_url',
+      'fb_ad_id',
+      'fb_campaign_name',
+      'fb_adset_name',
+      'fb_ad_name',
+    ];
+
+    for (const k of keys) {
+      if (merged[k] == null && base?.[k] != null) merged[k] = base[k];
+    }
+
+    return merged;
+  };
+
+  const merged = mergeAttribution(fallbackAttribution, message);
 
   // Check if this message has campaign attribution
   const hasAttribution = Boolean(
-    merged.utm_source || merged.utm_campaign || merged.fbclid || merged.fb_campaign_name
+    merged.utm_source || merged.utm_campaign || merged.fbclid || merged.fb_campaign_name || merged.fb_ad_id
   );
 
   const loadMedia = async () => {
