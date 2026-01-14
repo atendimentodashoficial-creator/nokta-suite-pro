@@ -211,8 +211,8 @@ export default function NaoCompareceu() {
               onClick={toggleSelectionMode}
               title="Selecionar agendamentos"
             >
-              <CheckSquare className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="text-xs sm:text-sm">Selecionar</span>
+              <CheckSquare className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline text-sm">Selecionar</span>
             </Button>
           )}
         </div>
