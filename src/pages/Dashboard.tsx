@@ -703,36 +703,37 @@ export default function Dashboard() {
 
               {/* Meta Ads */}
               {hasAdsConfig ? (
-                <Card className="p-6 shadow-card">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary">
-                      <MetaIcon className="h-6 w-6 text-primary-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-muted-foreground">Gasto Meta Ads</p>
+                <Card className="p-6 shadow-card transition-all hover:shadow-elegant animate-fade-in">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <p className="text-sm font-medium text-muted-foreground">Gasto Meta Ads</p>
                       {adsSpendLoading ? (
                         <div className="flex items-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           <span className="text-sm text-muted-foreground">Carregando...</span>
                         </div>
                       ) : (
-                        <p className="text-2xl font-bold text-red-600">
+                        <p className="text-3xl font-bold text-foreground">
                           R$ {adsSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">Meta Ads no período</p>
+                      <p className="text-sm font-medium text-destructive">No período</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary">
+                      <MetaIcon className="h-6 w-6 text-primary-foreground" />
                     </div>
                   </div>
                 </Card>
               ) : (
-                <Card className="p-6 shadow-card">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-muted">
-                      <MetaIcon className="h-6 w-6 text-muted-foreground" />
+                <Card className="p-6 shadow-card transition-all hover:shadow-elegant animate-fade-in">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <p className="text-sm font-medium text-muted-foreground">Gasto Meta Ads</p>
+                      <p className="text-3xl font-bold text-foreground">--</p>
+                      <p className="text-sm font-medium text-muted-foreground">Configure em Métricas</p>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Gasto Meta Ads</p>
-                      <p className="text-sm text-muted-foreground">Configure o Meta Ads em Métricas</p>
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary">
+                      <MetaIcon className="h-6 w-6 text-primary-foreground" />
                     </div>
                   </div>
                 </Card>
@@ -740,36 +741,37 @@ export default function Dashboard() {
 
               {/* Google Ads */}
               {hasGoogleAdsConfig ? (
-                <Card className="p-6 shadow-card">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary text-primary-foreground">
-                      <GoogleAdsIcon size={24} className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-muted-foreground">Gasto Google Ads</p>
+                <Card className="p-6 shadow-card transition-all hover:shadow-elegant animate-fade-in">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <p className="text-sm font-medium text-muted-foreground">Gasto Google Ads</p>
                       {googleAdsSpendLoading ? (
                         <div className="flex items-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           <span className="text-sm text-muted-foreground">Carregando...</span>
                         </div>
                       ) : (
-                        <p className="text-2xl font-bold text-red-600">
+                        <p className="text-3xl font-bold text-foreground">
                           R$ {googleAdsSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">Google Ads no período</p>
+                      <p className="text-sm font-medium text-destructive">No período</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary text-primary-foreground">
+                      <GoogleAdsIcon size={24} />
                     </div>
                   </div>
                 </Card>
               ) : (
-                <Card className="p-6 shadow-card">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-muted text-muted-foreground">
-                      <GoogleAdsIcon size={24} className="h-6 w-6" />
+                <Card className="p-6 shadow-card transition-all hover:shadow-elegant animate-fade-in">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <p className="text-sm font-medium text-muted-foreground">Gasto Google Ads</p>
+                      <p className="text-3xl font-bold text-foreground">--</p>
+                      <p className="text-sm font-medium text-muted-foreground">Configure em Métricas</p>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Gasto Google Ads</p>
-                      <p className="text-sm text-muted-foreground">Configure o Google Ads em Métricas</p>
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary text-primary-foreground">
+                      <GoogleAdsIcon size={24} />
                     </div>
                   </div>
                 </Card>
