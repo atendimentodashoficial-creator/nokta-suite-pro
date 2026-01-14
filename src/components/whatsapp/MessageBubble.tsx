@@ -258,15 +258,21 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
     );
   };
 
+  // Check if detected by AI
+  const isDetectedByAI = merged.utm_campaign === "Detectado por I.A" || merged.utm_campaign === "Detectado por IA";
+
   // Get source info for badge
   const getSourceInfo = () => {
+    if (isDetectedByAI) {
+      return { label: 'Anúncios (I.A)', color: 'bg-purple-500', textColor: 'text-purple-700', bgLight: 'bg-purple-100' };
+    }
     if (merged.utm_source === 'facebook' || merged.fbclid) {
-      return { label: 'Meta Ads', color: 'bg-blue-500' };
+      return { label: 'Meta Ads', color: 'bg-blue-500', textColor: 'text-blue-700', bgLight: 'bg-blue-100' };
     }
     if (merged.utm_source) {
-      return { label: merged.utm_source, color: 'bg-purple-500' };
+      return { label: merged.utm_source, color: 'bg-purple-500', textColor: 'text-purple-700', bgLight: 'bg-purple-100' };
     }
-    return { label: 'Campanha', color: 'bg-gray-500' };
+    return { label: 'Campanha', color: 'bg-gray-500', textColor: 'text-gray-700', bgLight: 'bg-gray-100' };
   };
 
   const renderCampaignBadge = () => {
@@ -278,11 +284,11 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
       <Dialog>
         <DialogTrigger asChild>
           <button 
-            className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mb-2 hover:bg-blue-200 transition-colors cursor-pointer"
+            className={`inline-flex items-center gap-1 text-xs ${sourceInfo.bgLight} ${sourceInfo.textColor} px-2 py-0.5 rounded-full mb-2 hover:opacity-80 transition-colors cursor-pointer`}
             onClick={(e) => e.stopPropagation()}
           >
             <Megaphone className="w-3 h-3" />
-            <span>via {sourceInfo.label}</span>
+            <span>Via {sourceInfo.label}</span>
           </button>
         </DialogTrigger>
 
