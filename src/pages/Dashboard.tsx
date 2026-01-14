@@ -1,4 +1,4 @@
-import { Users, Calendar, CheckCircle, DollarSign, TrendingUp, Target, CalendarCheck, UserCheck, UserX, Award, ShoppingBag, Package, Receipt, Loader2, Wallet, RefreshCcw, CreditCard } from "lucide-react";
+import { Users, Calendar, CheckCircle, DollarSign, TrendingUp, Target, CalendarCheck, UserCheck, UserX, Award, ShoppingBag, Package, Receipt, Loader2, Wallet, RefreshCcw, CreditCard, Megaphone } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { useFaturas } from "@/hooks/useFaturas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MetaIcon } from "@/components/icons/MetaIcon";
+import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import {
   toZonedBrasilia
 } from "@/utils/timezone";
@@ -31,10 +32,15 @@ export default function Dashboard() {
   const { data: agendamentos, isLoading: agendamentosLoading } = useAgendamentos();
   const { data: faturas, isLoading: faturasLoading } = useFaturas();
 
-  // Estado para despesas de anúncios
+  // Estado para despesas de anúncios Meta
   const [adsSpend, setAdsSpend] = useState<number>(0);
   const [adsSpendLoading, setAdsSpendLoading] = useState(false);
   const [hasAdsConfig, setHasAdsConfig] = useState(false);
+
+  // Estado para despesas de anúncios Google Ads
+  const [googleAdsSpend, setGoogleAdsSpend] = useState<number>(0);
+  const [googleAdsSpendLoading, setGoogleAdsSpendLoading] = useState(false);
+  const [hasGoogleAdsConfig, setHasGoogleAdsConfig] = useState(false);
 
   // O usePeriodFilter já gerencia as datas automaticamente
 
@@ -227,6 +233,82 @@ export default function Dashboard() {
     fetchAdsSpend();
   }, [user, dateStart, dateEnd]);
 
+  // Buscar gasto de anúncios Google Ads do período
+  useEffect(() => {
+    const fetchGoogleAdsSpend = async () => {
+      if (!user) return;
+
+      try {
+        // Verificar se tem configuração Google Ads
+        const { data: configData } = await supabase
+          .from("google_ads_config")
+          .select("id, is_active")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!configData?.is_active) {
+          setHasGoogleAdsConfig(false);
+          return;
+        }
+
+        // Verificar se tem contas vinculadas
+        const { data: accountsData } = await supabase
+          .from("google_ads_accounts")
+          .select("customer_id")
+          .eq("user_id", user.id);
+
+        if (!accountsData || accountsData.length === 0) {
+          setHasGoogleAdsConfig(false);
+          return;
+        }
+
+        setHasGoogleAdsConfig(true);
+        setGoogleAdsSpendLoading(true);
+
+        // Buscar gasto de todas as contas
+        const dateStartStr = format(dateStart, "yyyy-MM-dd");
+        const dateEndStr = format(dateEnd, "yyyy-MM-dd");
+
+        let totalSpend = 0;
+
+        for (const account of accountsData) {
+          try {
+            const { data: session } = await supabase.auth.getSession();
+            const response = await supabase.functions.invoke("google-ads-api", {
+              body: {
+                action: "get_campaign_metrics",
+                customer_id: account.customer_id,
+                date_start: dateStartStr,
+                date_end: dateEndStr,
+              },
+              headers: {
+                Authorization: `Bearer ${session.session?.access_token}`,
+              },
+            });
+
+            if (response.data?.success && response.data?.campaigns) {
+              const accountSpend = response.data.campaigns.reduce(
+                (sum: number, c: { spend: number }) => sum + (c.spend || 0),
+                0
+              );
+              totalSpend += accountSpend;
+            }
+          } catch (err) {
+            console.error("Error fetching Google Ads spend for account:", account.customer_id, err);
+          }
+        }
+
+        setGoogleAdsSpend(totalSpend);
+      } catch (error) {
+        console.error("Error fetching Google Ads config:", error);
+      } finally {
+        setGoogleAdsSpendLoading(false);
+      }
+    };
+
+    fetchGoogleAdsSpend();
+  }, [user, dateStart, dateEnd]);
+
   // Calcular métricas
   // LEADS (igual à aba Leads): contar leads gerados no período, deduplicados (useLeads já vem deduplicado)
 
@@ -331,8 +413,9 @@ export default function Dashboard() {
     return Object.values(catMap).sort((a, b) => b.total - a.total);
   }, [dadosFiltrados.despesas]);
 
-  // Lucro líquido do período
-  const lucroLiquidoPeriodo = receitaAtual - totalDespesasPeriodo - adsSpend;
+  // Lucro líquido do período (considera Meta + Google Ads)
+  const totalAdsSpend = adsSpend + googleAdsSpend;
+  const lucroLiquidoPeriodo = receitaAtual - totalDespesasPeriodo - totalAdsSpend;
 
   // Desempenho por profissional
   const desempenhoProfissionais = useMemo(() => {
@@ -582,7 +665,8 @@ export default function Dashboard() {
               <Wallet className="w-5 h-5" />
               Despesas
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Primeira linha: 3 cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatsCard
                 title="Total Despesas"
                 value={`R$ ${totalDespesasPeriodo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
@@ -605,6 +689,10 @@ export default function Dashboard() {
                 changeType="negative"
                 icon={CreditCard}
               />
+            </div>
+
+            {/* Segunda linha: Variáveis + Anúncios */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatsCard
                 title="Variáveis"
                 value={`R$ ${totalVariaveis.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
@@ -612,10 +700,8 @@ export default function Dashboard() {
                 changeType="negative"
                 icon={Receipt}
               />
-            </div>
 
-            {/* Meta Ads */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Meta Ads */}
               {hasAdsConfig ? (
                 <Card className="p-6 shadow-card">
                   <div className="flex items-center gap-4">
@@ -623,7 +709,7 @@ export default function Dashboard() {
                       <MetaIcon className="h-6 w-6 text-primary-foreground" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-muted-foreground">Gasto em Anúncios</p>
+                      <p className="text-sm text-muted-foreground">Gasto Meta Ads</p>
                       {adsSpendLoading ? (
                         <div className="flex items-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -645,14 +731,53 @@ export default function Dashboard() {
                       <MetaIcon className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium">Gasto em Anúncios</p>
-                      <p className="text-sm text-muted-foreground">Configure o Meta Ads em Métricas para visualizar</p>
+                      <p className="text-sm font-medium">Gasto Meta Ads</p>
+                      <p className="text-sm text-muted-foreground">Configure o Meta Ads em Métricas</p>
                     </div>
                   </div>
                 </Card>
               )}
 
-              {/* Lucro Líquido */}
+              {/* Google Ads */}
+              {hasGoogleAdsConfig ? (
+                <Card className="p-6 shadow-card">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-gradient-primary">
+                      <GoogleAdsIcon className="h-6 w-6 text-primary-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">Gasto Google Ads</p>
+                      {googleAdsSpendLoading ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm text-muted-foreground">Carregando...</span>
+                        </div>
+                      ) : (
+                        <p className="text-2xl font-bold text-red-600">
+                          R$ {googleAdsSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">Google Ads no período</p>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-6 shadow-card">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-muted">
+                      <GoogleAdsIcon className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Gasto Google Ads</p>
+                      <p className="text-sm text-muted-foreground">Configure o Google Ads em Métricas</p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            {/* Lucro Líquido */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className={cn(
                 "p-6 shadow-card",
                 lucroLiquidoPeriodo >= 0 ? "bg-green-500/10 border-green-500/20" : "bg-destructive/10 border-destructive/20"
