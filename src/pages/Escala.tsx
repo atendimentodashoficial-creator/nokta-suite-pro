@@ -932,21 +932,21 @@ export default function Escala() {
         </DialogContent>
       </Dialog>
 
-      {/* Ausências */}
+      {/* Substituições de Escala */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 flex-shrink-0" />
-            <span>Ausências / Férias</span>
+            <span>Substituição de Escala</span>
           </CardTitle>
           <Button size="sm" className="flex-shrink-0" onClick={() => setDialogAusenciaAberto(true)} disabled={profissionalSelecionado === "todos"}>
             <Plus className="h-4 w-4 mr-1" />
-            <span className="hidden sm:inline">Registrar</span> Ausência
+            <span className="hidden sm:inline">Nova</span> Substituição
           </Button>
         </CardHeader>
         <CardContent>
           {profissionalSelecionado === "todos" && <p className="text-sm text-muted-foreground mb-4">
-              Selecione um profissional específico para gerenciar ausências
+              Selecione um profissional específico para gerenciar substituições
             </p>}
           {ausenciasAgrupadas && ausenciasAgrupadas.length > 0 ? <div className="space-y-2">
               {ausenciasAgrupadas.map(grupo => <div key={`${grupo.profissional_id}-${grupo.data}`} className="flex items-center justify-between gap-2 p-3 border rounded-lg bg-card">
@@ -995,21 +995,21 @@ export default function Escala() {
                     </Button>
                   </div>
                 </div>)}
-            </div> : <p className="text-center text-muted-foreground py-8">Nenhuma ausência registrada</p>}
+            </div> : <p className="text-center text-muted-foreground py-8">Nenhuma substituição registrada</p>}
         </CardContent>
       </Card>
 
-      {/* Dialog Editar Ausência */}
+      {/* Dialog Editar Substituição */}
       <Dialog open={dialogEditarAusencia} onOpenChange={setDialogEditarAusencia}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Ausência - {datasAusenciaEditando.length > 0 ? format(datasAusenciaEditando[0], "dd/MM/yyyy", { locale: ptBR }) : ""}</DialogTitle>
+            <DialogTitle>Editar Substituição - {datasAusenciaEditando.length > 0 ? format(datasAusenciaEditando[0], "dd/MM/yyyy", { locale: ptBR }) : ""}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-sm font-medium">Horários de ausência:</Label>
+              <Label className="text-sm font-medium">Horários substitutos:</Label>
               <p className="text-xs text-muted-foreground mt-1">
-                Defina os horários em que o profissional estará ausente
+                Estes horários substituirão a escala regular neste dia
               </p>
             </div>
             
@@ -1076,7 +1076,7 @@ export default function Escala() {
                 checked={diaInteiroEditando} 
                 onCheckedChange={setDiaInteiroEditando}
               />
-              <Label className="text-sm">Marcar indisponível (o dia todo)</Label>
+              <Label className="text-sm">Sem disponibilidade (o dia todo)</Label>
             </div>
             
             <div>
@@ -1102,19 +1102,19 @@ export default function Escala() {
       </Dialog>
 
 
-      {/* Dialog Visualizar Ausência */}
+      {/* Dialog Visualizar Substituição */}
       <Dialog open={dialogVisualizarAusencia} onOpenChange={setDialogVisualizarAusencia}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Disponibilidade - {ausenciaVisualizando ? format(parseISO(ausenciaVisualizando.data), "dd/MM/yyyy", { locale: ptBR }) : ""}
+              Substituição - {ausenciaVisualizando ? format(parseISO(ausenciaVisualizando.data), "dd/MM/yyyy", { locale: ptBR }) : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {ausenciaVisualizando && (
               <>
                 <div>
-                  <Label className="text-sm font-medium">Horários de ausência registrados:</Label>
+                  <Label className="text-sm font-medium">Horários substitutos registrados:</Label>
                 </div>
                 <div className="space-y-2">
                   {ausenciaVisualizando.horarios.length > 0 && ausenciaVisualizando.horarios.some(h => h.inicio || h.fim) ? (
@@ -1193,11 +1193,11 @@ export default function Escala() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Registrar Ausência */}
+      {/* Dialog Nova Substituição */}
       <Dialog open={dialogAusenciaAberto} onOpenChange={setDialogAusenciaAberto}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Selecione as datas para substituir</DialogTitle>
+            <DialogTitle>Nova Substituição de Escala</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col sm:flex-row gap-6">
             {/* Calendário */}
@@ -1226,9 +1226,9 @@ export default function Escala() {
             {/* Horários */}
             <div className="flex-1 space-y-4">
               <div>
-                <Label className="text-sm font-medium">Horários de ausência:</Label>
+                <Label className="text-sm font-medium">Horários substitutos:</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Os horários abaixo correspondem à escala do profissional neste dia. Ajuste conforme necessário.
+                  Estes horários substituirão a escala regular nas datas selecionadas.
                 </p>
               </div>
               
@@ -1295,7 +1295,7 @@ export default function Escala() {
                   checked={diaInteiro} 
                   onCheckedChange={setDiaInteiro}
                 />
-                <Label className="text-sm">Marcar indisponível (o dia todo)</Label>
+                <Label className="text-sm">Sem disponibilidade (o dia todo)</Label>
               </div>
               
               <div>
@@ -1318,7 +1318,7 @@ export default function Escala() {
               onClick={handleCriarAusencia}
               disabled={datasAusenciaSelecionadas.length === 0}
             >
-              Atualizar substituição
+              Salvar Substituição
             </Button>
           </div>
         </DialogContent>
