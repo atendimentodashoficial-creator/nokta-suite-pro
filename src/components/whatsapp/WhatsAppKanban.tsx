@@ -213,38 +213,23 @@ export function WhatsAppKanban({
         last8AgendamentoCount[phoneKey] = (last8AgendamentoCount[phoneKey] || 0) + 1;
       });
       
-      // Second pass: find best agendamento per phone (last8) - most recently updated wins
+      // Second pass: pick the most recently UPDATED agendamento per phone (last8)
+      // Because query is ordered by updated_at desc, the first record we see for a phoneKey is the one we want.
       agendamentos?.forEach(ag => {
         const phoneKey = leadIdToLast8[ag.cliente_id];
         if (!phoneKey) return;
-        
-        const existing = last8ToAgendamento[phoneKey];
+
+        // already picked the most recent for this phone
+        if (last8ToAgendamento[phoneKey]) return;
+
         const totalCount = last8AgendamentoCount[phoneKey] || 1;
-        
-        // If no existing, set this one (first one is already the most recent due to order)
-        if (!existing) {
-          last8ToAgendamento[phoneKey] = {
-            id: ag.id,
-            data_agendamento: ag.data_agendamento,
-            status: ag.status,
-            totalAgendamentos: totalCount
-          };
-          return;
-        }
-        
-        // Compare updated_at - most recent wins
-        const agUpdatedAt = new Date(ag.updated_at);
-        const existingUpdatedAt = existing.updated_at ? new Date(existing.updated_at) : new Date(0);
-        
-        if (agUpdatedAt > existingUpdatedAt) {
-          last8ToAgendamento[phoneKey] = {
-            id: ag.id,
-            data_agendamento: ag.data_agendamento,
-            status: ag.status,
-            totalAgendamentos: totalCount,
-            updated_at: ag.updated_at
-          };
-        }
+        last8ToAgendamento[phoneKey] = {
+          id: ag.id,
+          data_agendamento: ag.data_agendamento,
+          status: ag.status,
+          totalAgendamentos: totalCount,
+          updated_at: ag.updated_at
+        };
       });
 
       // Map chat -> agendamento using last8 match
