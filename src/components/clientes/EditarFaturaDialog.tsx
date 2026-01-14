@@ -176,22 +176,22 @@ export function EditarFaturaDialog({
 
   const statusAtual = form.watch("status");
   const upsellsWatch = form.watch("upsells") || [];
-  const valorBaseWatch = parseFloat(form.watch("valor_base") || "0") || 0;
-  const valorUpsells = upsellsWatch.reduce((sum, u) => sum + (parseFloat(u?.valor || "0") || 0), 0);
+  const valorBaseWatch = parseCurrencyToNumber(form.watch("valor_base") || "0");
+  const valorUpsells = upsellsWatch.reduce((sum, u) => sum + parseCurrencyToNumber(u?.valor || "0"), 0);
   const valorTotal = valorBaseWatch + valorUpsells;
 
   const updateFatura = useMutation({
     mutationFn: async (data: FaturaFormData) => {
-      const valorBase = parseFloat(data.valor_base) + (data.upsells?.reduce((sum, u) => sum + parseFloat(u.valor), 0) || 0);
+      const valorBase = parseCurrencyToNumber(data.valor_base) + (data.upsells?.reduce((sum, u) => sum + parseCurrencyToNumber(u.valor), 0) || 0);
 
       const valorEntrada = data.forma_pagamento !== "a_vista" && data.valor_entrada 
-        ? parseFloat(data.valor_entrada) 
+        ? parseCurrencyToNumber(data.valor_entrada)
         : 0;
       const numeroParcelas = data.forma_pagamento !== "a_vista" && data.numero_parcelas
         ? parseInt(data.numero_parcelas)
         : 1;
       const taxaParcelamento = data.forma_pagamento !== "a_vista" && data.taxa_parcelamento
-        ? parseFloat(data.taxa_parcelamento)
+        ? parseCurrencyToNumber(data.taxa_parcelamento)
         : 0;
       
       // Calcular valor com taxa baseado em quem paga
@@ -248,7 +248,7 @@ export function EditarFaturaDialog({
           fatura_id: fatura.id,
           tipo: upsell.tipo,
           descricao: upsell.descricao,
-          valor: parseFloat(upsell.valor),
+          valor: parseCurrencyToNumber(upsell.valor),
           produto_id: upsell.tipo === "produto" ? upsell.item_id : null,
           procedimento_id: upsell.tipo === "procedimento" ? upsell.item_id : null,
         }));
