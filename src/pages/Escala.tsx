@@ -1172,6 +1172,7 @@ export default function Escala() {
                     <Switch 
                       checked={diasDestinoSelecionados.includes(dia.value)} 
                       onCheckedChange={() => toggleDiaDestino(dia.value)}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <span className="text-sm font-medium">{dia.label}</span>
                   </div>
