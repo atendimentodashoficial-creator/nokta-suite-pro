@@ -135,6 +135,8 @@ serve(async (req) => {
       console.log(`Fetching chats from instance ${config.nome}:`, endpoint);
 
       try {
+        // Use a reasonable limit to prevent timeouts (UAZapi may have many old chats)
+        // Sync focuses on recent conversations - old chats arrive via webhook when they have new messages
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {
@@ -144,7 +146,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             sort: "-wa_lastMsgTimestamp",
-            limit: 1000000,
+            limit: 500,
             offset: 0,
           }),
         });
