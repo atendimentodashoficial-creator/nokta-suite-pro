@@ -49,41 +49,73 @@ serve(async (req) => {
     const { action, ad_account_id, campaign_id, adset_id, date_start, date_end, account_type } = await req.json();
     console.log("Action:", action, "Ad Account ID:", ad_account_id, "Campaign ID:", campaign_id, "Adset ID:", adset_id, "Date range:", date_start, "-", date_end, "Account Type:", account_type);
 
-    // Função para buscar cotação do dólar
+    // Função para buscar cotação do dólar usando múltiplas APIs como fallback
     const fetchUSDToBRL = async (): Promise<number> => {
+      // API 1: Banco Central do Brasil (PTAX - cotação oficial)
       try {
-        // Usar API AwesomeAPI para cotação comercial
-        console.log("[EXCHANGE] Fetching USD to BRL rate...");
-        const response = await fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL", {
-          headers: {
-            "Accept": "application/json",
-            "User-Agent": "Lovable/1.0"
-          }
+        console.log("[EXCHANGE] Trying BCB API (PTAX)...");
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const dateStr = yesterday.toISOString().split('T')[0].replace(/-/g, '');
+        
+        const bcbUrl = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='${yesterday.toISOString().split('T')[0]}'&$format=json`;
+        
+        const bcbResponse = await fetch(bcbUrl, {
+          headers: { "Accept": "application/json" }
         });
         
-        if (!response.ok) {
-          console.error("[EXCHANGE] API response not ok:", response.status, response.statusText);
-          return 5.0;
+        if (bcbResponse.ok) {
+          const bcbData = await bcbResponse.json();
+          if (bcbData?.value?.[0]?.cotacaoVenda) {
+            const rate = parseFloat(bcbData.value[0].cotacaoVenda);
+            console.log("[EXCHANGE] BCB PTAX rate (venda):", rate);
+            return rate;
+          }
         }
-        
-        const text = await response.text();
-        console.log("[EXCHANGE] Raw response:", text.substring(0, 200));
-        
-        const data = JSON.parse(text);
-        
-        if (data?.USDBRL?.bid) {
-          const rate = parseFloat(data.USDBRL.bid);
-          console.log("[EXCHANGE] USD to BRL commercial rate:", rate);
-          return rate;
-        }
-        
-        // Fallback
-        console.log("[EXCHANGE] No bid found in response, using fallback rate");
-        return 5.0;
       } catch (error) {
-        console.error("[EXCHANGE] Error fetching exchange rate:", error);
-        return 5.0; // Fallback
+        console.error("[EXCHANGE] BCB API error:", error);
       }
+
+      // API 2: ExchangeRate-API (gratuita, sem limite severo)
+      try {
+        console.log("[EXCHANGE] Trying ExchangeRate-API...");
+        const erResponse = await fetch("https://open.er-api.com/v6/latest/USD", {
+          headers: { "Accept": "application/json" }
+        });
+        
+        if (erResponse.ok) {
+          const erData = await erResponse.json();
+          if (erData?.rates?.BRL) {
+            const rate = parseFloat(erData.rates.BRL);
+            console.log("[EXCHANGE] ExchangeRate-API rate:", rate);
+            return rate;
+          }
+        }
+      } catch (error) {
+        console.error("[EXCHANGE] ExchangeRate-API error:", error);
+      }
+
+      // API 3: AwesomeAPI (última tentativa)
+      try {
+        console.log("[EXCHANGE] Trying AwesomeAPI...");
+        const awesomeResponse = await fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL");
+        
+        if (awesomeResponse.ok) {
+          const awesomeData = await awesomeResponse.json();
+          if (awesomeData?.USDBRL?.bid) {
+            const rate = parseFloat(awesomeData.USDBRL.bid);
+            console.log("[EXCHANGE] AwesomeAPI rate:", rate);
+            return rate;
+          }
+        }
+      } catch (error) {
+        console.error("[EXCHANGE] AwesomeAPI error:", error);
+      }
+
+      // Fallback: cotação aproximada atual (jan/2026)
+      console.log("[EXCHANGE] All APIs failed, using fallback rate of 5.37");
+      return 5.37;
     };
 
     // Use service role client to query database
