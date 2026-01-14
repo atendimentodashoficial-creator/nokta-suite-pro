@@ -31,16 +31,19 @@ export const ChatAvatar = ({ chat, size = "md" }: ChatAvatarProps) => {
         .select('id, status, telefone')
         .is('deleted_at', null);
       
-      // Encontrar lead pelos últimos 8 dígitos
-      const lead = allLeads?.find(l => getLast8Digits(l.telefone) === last8Digits);
+      // Encontrar TODOS os leads com os mesmos últimos 8 dígitos
+      const matchingLeads = allLeads?.filter(l => getLast8Digits(l.telefone) === last8Digits) || [];
       
-      if (lead) {
-        setLeadId(lead.id);
+      if (matchingLeads.length > 0) {
+        // Priorizar o lead com status "cliente" se existir
+        const clienteLead = matchingLeads.find(l => l.status === 'cliente');
+        const bestLead = clienteLead || matchingLeads[0];
         
-        // Use the lead's actual status from the database
-        // Only mark as "cliente" if the lead status is actually "cliente"
+        setLeadId(bestLead.id);
+        
+        // Use the best lead's status (prioritize "cliente")
         // This ensures consistency with what's visible in the Clientes page
-        setLeadStatus(lead.status);
+        setLeadStatus(bestLead.status);
       } else {
         setLeadId(null);
         setLeadStatus(null);
