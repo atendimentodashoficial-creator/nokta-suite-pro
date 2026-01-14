@@ -1177,7 +1177,7 @@ export default function Conexoes() {
                         </div>
                         <p className="text-xs text-muted-foreground font-mono truncate">{account.ad_account_id}</p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0 flex-wrap sm:border-0 border-t pt-3 sm:pt-0">
+                      <div className="flex items-center gap-2 shrink-0 sm:border-0 border-t pt-3 sm:pt-0">
                         <Select value={accountType} onValueChange={value => updateAccountType(account.id, account.ad_account_id, value)}>
                           <SelectTrigger className="w-[100px] h-8 text-xs">
                             <SelectValue />
