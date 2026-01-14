@@ -778,7 +778,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       </div>
 
       {/* Kanban Board */}
-      <div ref={kanbanScrollRef} className="flex-1 flex gap-4 p-4 overflow-x-auto">
+      <div ref={kanbanScrollRef} className="flex-1 min-w-0 flex gap-4 p-4 overflow-x-auto">
         {columns.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
