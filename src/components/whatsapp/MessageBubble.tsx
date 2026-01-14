@@ -36,6 +36,10 @@ interface MessageBubbleProps {
     fb_campaign_name?: string | null;
     fb_adset_name?: string | null;
     fb_ad_name?: string | null;
+    // Quoted message fields
+    quoted_message_id?: string | null;
+    quoted_content?: string | null;
+    quoted_sender_type?: string | null;
   };
   // Fallback attribution (ex.: do lead do contato) para quando a mensagem vem da API sem campos UTM
   fallbackAttribution?: {
@@ -86,6 +90,7 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
   const isAgent = message.sender_type === 'agent';
   const isMedia = message.media_type && message.media_type !== 'text';
   const isDeleted = message.deleted || false;
+  const hasQuotedMessage = Boolean(message.quoted_content);
   const [mediaData, setMediaData] = useState<{ fileURL: string; mimetype: string } | null>(null);
   const [isLoadingMedia, setIsLoadingMedia] = useState(false);
   const [mediaRequested, setMediaRequested] = useState(false);
@@ -120,6 +125,37 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
   const hasAttribution = Boolean(
     merged.utm_source || merged.utm_campaign || merged.fbclid || merged.fb_campaign_name || merged.fb_ad_id
   );
+
+  // Render quoted message block
+  const renderQuotedMessage = () => {
+    if (!hasQuotedMessage || isDeleted) return null;
+    
+    const isQuotedFromAgent = message.quoted_sender_type === 'agent';
+    const quotedContent = message.quoted_content || '';
+    
+    // Truncate long quoted messages
+    const maxLength = 150;
+    const displayContent = quotedContent.length > maxLength 
+      ? quotedContent.substring(0, maxLength) + '...' 
+      : quotedContent;
+    
+    return (
+      <div 
+        className={`border-l-4 pl-2 py-1 mb-2 rounded-r text-xs ${
+          isQuotedFromAgent 
+            ? 'border-primary bg-primary/10 text-primary-foreground/80' 
+            : 'border-muted-foreground/50 bg-muted-foreground/10'
+        }`}
+      >
+        <div className={`font-medium text-[10px] mb-0.5 ${isQuotedFromAgent ? 'text-primary' : 'text-muted-foreground'}`}>
+          {isQuotedFromAgent ? 'Você' : 'Cliente'}
+        </div>
+        <div className="text-muted-foreground line-clamp-2 whitespace-pre-wrap break-words">
+          {displayContent}
+        </div>
+      </div>
+    );
+  };
 
   const loadMedia = async () => {
     setMediaRequested(true);
@@ -428,6 +464,9 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
               : 'bg-muted text-foreground'
           }`}
         >
+          {/* Quoted message */}
+          {renderQuotedMessage()}
+
           {/* Media content - hide if deleted */}
           {!isDeleted && isMedia && message.media_url && renderMedia()}
 
@@ -463,6 +502,9 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
           : 'bg-muted text-foreground'
       }`}
     >
+      {/* Quoted message */}
+      {renderQuotedMessage()}
+
       {/* Media content - hide if deleted */}
       {!isDeleted && isMedia && message.media_url && renderMedia()}
 

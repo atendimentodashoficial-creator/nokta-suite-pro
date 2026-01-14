@@ -621,6 +621,31 @@ Deno.serve(async (req) => {
     const mediaPlaceholder = getMediaPlaceholder(normalizedPayload.message);
     const messageText = rawText || mediaPlaceholder || '';
 
+    // === Extract quoted message info (for reply messages) ===
+    const msgForQuote = normalizedPayload.message as any;
+    const ctxForQuote = msgForQuote?.content?.contextInfo || msgForQuote?.contextInfo;
+    const quotedMessage = ctxForQuote?.quotedMessage;
+    let quotedMessageId: string | null = null;
+    let quotedContent: string | null = null;
+    let quotedSenderType: string | null = null;
+
+    if (quotedMessage || ctxForQuote?.stanzaId) {
+      quotedMessageId = ctxForQuote?.stanzaId || null;
+      
+      // Extract quoted text from various possible locations
+      quotedContent = quotedMessage?.conversation || 
+        quotedMessage?.extendedTextMessage?.text ||
+        quotedMessage?.text ||
+        ctxForQuote?.quotedMessageText ||
+        null;
+      
+      // Determine if quoted message was from the user (fromMe) or the contact
+      const quotedFromMe = ctxForQuote?.participant === undefined || ctxForQuote?.fromMe === true;
+      quotedSenderType = quotedFromMe ? 'agent' : 'customer';
+      
+      console.log('Quoted message detected:', { quotedMessageId, quotedContent: quotedContent?.substring(0, 50), quotedSenderType });
+    }
+
     if (!phone) {
       console.error('Missing phone number in payload');
       await logEvent(effectiveUserId, 'error', 'Número de telefone não encontrado no payload', payload);
@@ -845,6 +870,10 @@ Deno.serve(async (req) => {
                   fb_campaign_name: fbCampaignInfo.campaign_name,
                   fb_adset_name: fbCampaignInfo.adset_name,
                   fb_ad_name: fbCampaignInfo.ad_name,
+                  // Include quoted message info
+                  quoted_message_id: quotedMessageId,
+                  quoted_content: quotedContent,
+                  quoted_sender_type: quotedSenderType,
                 });
 
               if (msgInsertError) {
@@ -1161,6 +1190,10 @@ Deno.serve(async (req) => {
                 fb_campaign_name: fbCampaignInfo.campaign_name,
                 fb_adset_name: fbCampaignInfo.adset_name,
                 fb_ad_name: fbCampaignInfo.ad_name,
+                // Include quoted message info
+                quoted_message_id: quotedMessageId,
+                quoted_content: quotedContent,
+                quoted_sender_type: quotedSenderType,
               }, { onConflict: 'chat_id,message_id', ignoreDuplicates: true });
 
             if (msgInsertError) {

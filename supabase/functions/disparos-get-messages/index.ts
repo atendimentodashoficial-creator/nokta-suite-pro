@@ -262,6 +262,24 @@ serve(async (req) => {
         ? msg.status === "Read" ? "read" : msg.status === "Delivered" ? "delivered" : "sent"
         : null;
 
+      // Extract quoted message info
+      const contextInfo = msg.content?.contextInfo || msg.message?.extendedTextMessage?.contextInfo || msg.contextInfo;
+      let quotedMessageId: string | null = null;
+      let quotedContent: string | null = null;
+      let quotedSenderType: string | null = null;
+
+      if (contextInfo?.stanzaId || contextInfo?.quotedMessage) {
+        quotedMessageId = contextInfo.stanzaId || null;
+        quotedContent = contextInfo.quotedMessage?.conversation || 
+          contextInfo.quotedMessage?.extendedTextMessage?.text ||
+          contextInfo.quotedMessage?.text ||
+          contextInfo.quotedMessageText ||
+          null;
+        // Determine if quoted message was from the user (fromMe) or the contact
+        const quotedFromMe = contextInfo.participant === undefined || contextInfo.fromMe === true;
+        quotedSenderType = quotedFromMe ? 'agent' : 'customer';
+      }
+
       newMessages.push({
         chat_id: db_chat_id,
         message_id: messageId,
@@ -272,6 +290,9 @@ serve(async (req) => {
         status,
         deleted: isDeleted,
         timestamp: msgTimestamp,
+        quoted_message_id: quotedMessageId,
+        quoted_content: quotedContent,
+        quoted_sender_type: quotedSenderType,
       });
     }
 
