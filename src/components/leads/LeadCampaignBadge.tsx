@@ -36,8 +36,8 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
 
   const hasAttribution = Boolean(localLead.utm_source || localLead.utm_campaign || localLead.fbclid || localLead.gclid);
 
-  // Check if detected by AI (utm_campaign = "Detectado por IA")
-  const isDetectedByAI = localLead.utm_campaign === "Detectado por IA";
+  // Check if detected by AI (utm_campaign = "Detectado por I.A" or "Detectado por IA")
+  const isDetectedByAI = localLead.utm_campaign === "Detectado por I.A" || localLead.utm_campaign === "Detectado por IA";
 
   const sourceInfo = useMemo(() => {
     // AI detected - show purple with (I.A) suffix

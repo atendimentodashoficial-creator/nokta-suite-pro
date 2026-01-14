@@ -224,10 +224,12 @@ export function HeaderAttributionBadge({ contactNumber, chatId }: HeaderAttribut
   const hasAttribution = attributions.length > 0;
   const current = attributions[currentIndex];
 
+  const isDetectedByAI = (campaign: string | null) => 
+    campaign === "Detectado por I.A" || campaign === "Detectado por IA";
+
   const getSourceInfo = (attr: AttributionEntry) => {
     // Check if detected by AI
-    const isDetectedByAI = attr.utm_campaign === "Detectado por IA";
-    if (isDetectedByAI) {
+    if (isDetectedByAI(attr.utm_campaign)) {
       return { label: "Meta Ads (I.A)", className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300", isAI: true };
     }
     if (attr.source === "meta") return { label: "Meta Ads", className: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300", isAI: false };
@@ -237,7 +239,7 @@ export function HeaderAttributionBadge({ contactNumber, chatId }: HeaderAttribut
   };
 
   // Check if any attribution was detected by AI
-  const hasAIDetection = attributions.some(attr => attr.utm_campaign === "Detectado por IA");
+  const hasAIDetection = attributions.some(attr => isDetectedByAI(attr.utm_campaign));
   const iconColorClass = hasAIDetection ? "text-purple-500" : "text-blue-500";
 
   const formatDate = (timestamp: string) => {
@@ -342,12 +344,12 @@ export function HeaderAttributionBadge({ contactNumber, chatId }: HeaderAttribut
                   </Badge>
                 </div>
 
-                {/* Campanha */}
+                {/* Campanha / Rastreamento */}
                 {(current.fb_campaign_name || current.utm_campaign) && (
                   <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Campanha (Gerenciador):</span>
-                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-2">
-                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 break-words">
+                    <span className="text-xs text-muted-foreground">Rastreamento:</span>
+                    <div className={`${isDetectedByAI(current.utm_campaign) ? 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800' : 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'} border rounded-md p-2`}>
+                      <span className={`text-xs font-semibold break-words ${isDetectedByAI(current.utm_campaign) ? 'text-purple-700 dark:text-purple-300' : 'text-blue-700 dark:text-blue-300'}`}>
                         {current.fb_campaign_name || current.utm_campaign}
                       </span>
                     </div>

@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
         .update({
           utm_source: result.source || "facebook",
           utm_medium: "cpc",
-          utm_campaign: "Detectado por IA",
+          utm_campaign: "Detectado por I.A",
           observacoes: `[Auto-detectado: Lead mencionou anúncio na primeira mensagem]`,
         })
         .eq("id", lead_id)
