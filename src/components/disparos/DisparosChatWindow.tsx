@@ -32,6 +32,24 @@ const normalizeMessageContentForDedup = (content: string | null | undefined) =>
     .replace(/\s+/g, " ")
     .trim();
 
+// Extract base message ID (remove prefix like "553498024865:")
+const extractBaseMessageId = (messageId: string | null | undefined): string => {
+  if (!messageId) return "";
+  // UAZapi sometimes prefixes message IDs with the phone number
+  const parts = messageId.split(":");
+  return parts.length > 1 ? parts[parts.length - 1] : messageId;
+};
+
+// Check if content is a media placeholder
+const isMediaPlaceholder = (content: string | null | undefined): boolean => {
+  if (!content) return false;
+  const trimmed = content.trim().toLowerCase();
+  return (
+    /^\[(audio|image|video|document|imagem|áudio|vídeo|documento)\]$/i.test(trimmed) ||
+    /^(🎵\s*áudio|📷\s*imagem|🎥\s*vídeo|📄\s*documento|🏷️\s*figurinha|📍\s*localização|👤\s*contato)$/i.test(trimmed)
+  );
+};
+
 const dedupeChatMessages = (list: any[]) => {
   const sorted = [...(list || [])].sort((a, b) => {
     const ta = new Date(a.timestamp || a.created_at || 0).getTime();
@@ -47,10 +65,30 @@ const dedupeChatMessages = (list: any[]) => {
     return Math.abs(tb - ta) <= seconds * 1000;
   };
 
+  // Track seen base message IDs to detect duplicates with different prefixes
+  const seenBaseIds = new Map<string, number>(); // baseId -> index in out array
+
   const out: any[] = [];
   for (const msg of sorted) {
+    const baseId = extractBaseMessageId(msg.message_id);
     const prev = out[out.length - 1];
 
+    // Check for exact duplicate by base message ID
+    if (baseId && seenBaseIds.has(baseId)) {
+      const existingIdx = seenBaseIds.get(baseId)!;
+      const existing = out[existingIdx];
+      
+      // Prefer the one with richer content (not a placeholder)
+      const existingIsPlaceholder = isMediaPlaceholder(existing.content);
+      const currentIsPlaceholder = isMediaPlaceholder(msg.content);
+      
+      if (existingIsPlaceholder && !currentIsPlaceholder) {
+        out[existingIdx] = msg;
+      }
+      continue;
+    }
+
+    // Check for content-based duplicates (existing logic)
     if (
       prev &&
       prev.sender_type === msg.sender_type &&
@@ -64,11 +102,27 @@ const dedupeChatMessages = (list: any[]) => {
 
       if (prevIsCamp && !currIsCamp) {
         out[out.length - 1] = msg;
+        if (baseId) seenBaseIds.set(baseId, out.length - 1);
       }
       continue;
     }
 
+    // Also check for media messages with different placeholder texts but same base ID pattern
+    if (
+      prev &&
+      prev.sender_type === msg.sender_type &&
+      prev.media_type && msg.media_type &&
+      prev.media_type === msg.media_type &&
+      isMediaPlaceholder(prev.content) &&
+      isMediaPlaceholder(msg.content) &&
+      withinSeconds(prev, msg, 10)
+    ) {
+      // Both are media placeholders of the same type within 10 seconds - likely duplicates
+      continue;
+    }
+
     out.push(msg);
+    if (baseId) seenBaseIds.set(baseId, out.length - 1);
   }
 
   return out;
