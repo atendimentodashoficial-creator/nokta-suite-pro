@@ -180,6 +180,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       message: "Instância criada com sucesso!",
+      // Return instance data in a format the frontend expects
       instance: {
         id: savedInstance.id,
         nome: savedInstance.nome,
@@ -187,8 +188,15 @@ Deno.serve(async (req) => {
         api_key: savedInstance.api_key,
         instance_name: savedInstance.instance_name,
       },
+      // Also return at root level for backwards compatibility
+      id: savedInstance.id,
+      base_url: savedInstance.base_url,
+      api_key: savedInstance.api_key,
+      instance_id: savedInstance.id,
       qrcode: qrCode,
       raw_response: createData,
+      // Flag that instance was already saved - frontend should NOT insert again
+      already_saved: true,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
