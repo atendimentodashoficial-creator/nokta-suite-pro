@@ -69,6 +69,7 @@ export function CompararListasDialog({
   const [duplicados, setDuplicados] = useState<ContatoDuplicado[]>([]);
   const [activeResultTab, setActiveResultTab] = useState("nao_enviados");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [apenasEnviados, setApenasEnviados] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -79,6 +80,7 @@ export function CompararListasDialog({
       setSelectedCampanhas(new Set());
       setResultado([]);
       setDuplicados([]);
+      setApenasEnviados(false);
     }
   }, [open]);
 
@@ -170,36 +172,42 @@ export function CompararListasDialog({
     try {
       const contatosLista = parseListaContatos(listaInput);
       
-      const { data: contatosEnviados, error } = await supabase
+      // Build query - optionally filter by sent status
+      let query = supabase
         .from("disparos_campanha_contatos")
-        .select("numero, campanha_id")
-        .in("campanha_id", Array.from(selectedCampanhas))
-        .eq("status", "sent");
+        .select("numero, campanha_id, status")
+        .in("campanha_id", Array.from(selectedCampanhas));
+      
+      if (apenasEnviados) {
+        query = query.eq("status", "sent");
+      }
+
+      const { data: contatosCampanha, error } = await query;
 
       if (error) throw error;
 
-      const enviadosLast8Map = new Map<string, string[]>();
+      const contatosLast8Map = new Map<string, string[]>();
       
-      for (const contato of contatosEnviados || []) {
+      for (const contato of contatosCampanha || []) {
         const last8 = getLast8Digits(contato.numero);
         
-        if (!enviadosLast8Map.has(last8)) {
-          enviadosLast8Map.set(last8, []);
+        if (!contatosLast8Map.has(last8)) {
+          contatosLast8Map.set(last8, []);
         }
         const campanha = campanhas.find(c => c.id === contato.campanha_id);
-        if (campanha && !enviadosLast8Map.get(last8)!.includes(campanha.nome)) {
-          enviadosLast8Map.get(last8)!.push(campanha.nome);
+        if (campanha && !contatosLast8Map.get(last8)!.includes(campanha.nome)) {
+          contatosLast8Map.get(last8)!.push(campanha.nome);
         }
       }
 
       const resultado: ContatoComparacao[] = contatosLista.map(contato => {
         const last8 = getLast8Digits(contato.numero);
-        const campanhasEnviadas = enviadosLast8Map.get(last8) || [];
+        const campanhasEncontradas = contatosLast8Map.get(last8) || [];
         return {
           numero: contato.numero,
           nome: contato.nome,
-          enviado: campanhasEnviadas.length > 0,
-          campanhasEnviadas
+          enviado: campanhasEncontradas.length > 0,
+          campanhasEnviadas: campanhasEncontradas
         };
       });
 
@@ -221,17 +229,23 @@ export function CompararListasDialog({
 
     setIsLoading(true);
     try {
-      const { data: contatosEnviados, error } = await supabase
+      // Build query - optionally filter by sent status
+      let query = supabase
         .from("disparos_campanha_contatos")
-        .select("numero, nome, campanha_id")
-        .in("campanha_id", Array.from(selectedCampanhas))
-        .eq("status", "sent");
+        .select("numero, nome, campanha_id, status")
+        .in("campanha_id", Array.from(selectedCampanhas));
+      
+      if (apenasEnviados) {
+        query = query.eq("status", "sent");
+      }
+
+      const { data: contatosCampanha, error } = await query;
 
       if (error) throw error;
 
       const contatosMap = new Map<string, { numero: string; nome?: string; campanhas: Set<string> }>();
       
-      for (const contato of contatosEnviados || []) {
+      for (const contato of contatosCampanha || []) {
         const last8 = getLast8Digits(contato.numero);
         const campanha = campanhas.find(c => c.id === contato.campanha_id);
         
@@ -517,6 +531,17 @@ export function CompararListasDialog({
                   )}
                 </div>
               </ScrollArea>
+
+              <div className="flex items-center gap-2 px-1">
+                <Checkbox
+                  id="apenas-enviados"
+                  checked={apenasEnviados}
+                  onCheckedChange={(checked) => setApenasEnviados(checked === true)}
+                />
+                <Label htmlFor="apenas-enviados" className="text-sm cursor-pointer">
+                  Considerar apenas contatos já enviados
+                </Label>
+              </div>
 
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => setStep(modo === "lista" ? "input" : "mode")}>
