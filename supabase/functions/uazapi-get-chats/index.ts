@@ -118,6 +118,7 @@ serve(async (req) => {
     console.log("Full endpoint:", endpoint);
 
     // Fetch chats from UAZapi with correct parameters
+    // Use a reasonable limit to prevent timeouts - old chats arrive via webhook when they have new messages
     let response;
     try {
       response = await fetch(endpoint, {
@@ -129,7 +130,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           sort: "-wa_lastMsgTimestamp",
-          limit: 1000000,
+          limit: 500,
           offset: 0,
         }),
       });
