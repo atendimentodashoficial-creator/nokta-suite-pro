@@ -267,17 +267,11 @@ export default function Despesas() {
           <h1 className="text-2xl font-bold text-foreground">Despesas</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCategoriaDialogOpen(true)}>
-            <Tag className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" className="hidden sm:flex" onClick={() => setCategoriaDialogOpen(true)}>
+          <Button variant="outline" onClick={() => setCategoriaDialogOpen(true)}>
             <Tag className="h-4 w-4 mr-2" />
             Categorias
           </Button>
-          <Button size="icon" className="sm:hidden" onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button className="hidden sm:flex" onClick={() => handleOpenDialog()}>
+          <Button onClick={() => handleOpenDialog()}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Despesa
           </Button>
