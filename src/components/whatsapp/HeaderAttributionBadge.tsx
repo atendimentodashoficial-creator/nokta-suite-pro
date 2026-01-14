@@ -225,11 +225,20 @@ export function HeaderAttributionBadge({ contactNumber, chatId }: HeaderAttribut
   const current = attributions[currentIndex];
 
   const getSourceInfo = (attr: AttributionEntry) => {
-    if (attr.source === "meta") return { label: "Meta Ads", className: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" };
-    if (attr.source === "google") return { label: "Google Ads", className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" };
-    if (attr.utm_source) return { label: attr.utm_source, className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" };
-    return { label: "Campanha", className: "bg-muted text-foreground" };
+    // Check if detected by AI
+    const isDetectedByAI = attr.utm_campaign === "Detectado por IA";
+    if (isDetectedByAI) {
+      return { label: "Meta Ads (I.A)", className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300", isAI: true };
+    }
+    if (attr.source === "meta") return { label: "Meta Ads", className: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300", isAI: false };
+    if (attr.source === "google") return { label: "Google Ads", className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300", isAI: false };
+    if (attr.utm_source) return { label: attr.utm_source, className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300", isAI: false };
+    return { label: "Campanha", className: "bg-muted text-foreground", isAI: false };
   };
+
+  // Check if any attribution was detected by AI
+  const hasAIDetection = attributions.some(attr => attr.utm_campaign === "Detectado por IA");
+  const iconColorClass = hasAIDetection ? "text-purple-500" : "text-blue-500";
 
   const formatDate = (timestamp: string) => {
     try {
@@ -252,9 +261,9 @@ export function HeaderAttributionBadge({ contactNumber, chatId }: HeaderAttribut
             className="h-8 w-8 relative"
             title={hasAttribution ? "Ver origem do anúncio" : "Sem dados de campanha"}
           >
-            <Megaphone className={hasAttribution ? "w-4 h-4 text-blue-500" : "w-4 h-4 text-muted-foreground"} />
+            <Megaphone className={hasAttribution ? `w-4 h-4 ${iconColorClass}` : "w-4 h-4 text-muted-foreground"} />
             {attributions.length > 1 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+              <span className={`absolute -top-0.5 -right-0.5 ${hasAIDetection ? 'bg-purple-500' : 'bg-blue-500'} text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center`}>
                 {attributions.length}
               </span>
             )}
@@ -265,7 +274,7 @@ export function HeaderAttributionBadge({ contactNumber, chatId }: HeaderAttribut
             {/* Header com navegação */}
             <div className="flex items-center justify-between gap-2 p-3 border-b bg-background">
               <div className="flex items-center gap-2">
-                <Megaphone className="w-4 h-4 text-blue-500" />
+                <Megaphone className={`w-4 h-4 ${iconColorClass}`} />
                 <span className="font-semibold text-sm">Origem do Anúncio</span>
               </div>
               {attributions.length > 1 && (
@@ -420,7 +429,7 @@ export function HeaderAttributionBadge({ contactNumber, chatId }: HeaderAttribut
         <DialogContent className="max-w-3xl p-0 overflow-hidden">
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-blue-500" />
+              <Megaphone className={`w-5 h-5 ${iconColorClass}`} />
               Imagem do Anúncio
             </DialogTitle>
           </DialogHeader>
