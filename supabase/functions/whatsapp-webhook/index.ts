@@ -1719,14 +1719,14 @@ Deno.serve(async (req) => {
         console.log('Ad mention detected in message text:', adDetection.source);
         finalUtmData.utm_source = adDetection.source || 'facebook';
         finalUtmData.utm_medium = 'cpc';
-        finalUtmData.utm_campaign = 'Detectado automaticamente';
+        finalUtmData.utm_campaign = 'Detectado por IA';
         adDetectedFromText = true;
         await logEvent(effectiveUserId, 'info', `Anúncio detectado no texto: "${messageText.substring(0, 50)}..."`);
       }
     }
 
     const observacoes = messageText 
-      ? `Primeira mensagem: ${messageText}${adDetectedFromText ? ' [Anúncio detectado automaticamente]' : ''}`
+      ? `Primeira mensagem: ${messageText}${adDetectedFromText ? ' [Anúncio detectado por IA]' : ''}`
       : `Contato recebido via ${leadOrigem}`;
 
     const { data: newLead, error: insertError } = await supabase
