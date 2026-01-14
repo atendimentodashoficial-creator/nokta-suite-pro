@@ -227,9 +227,9 @@ export default function Agenda() {
         
         {/* Botão Novo Agendamento */}
         {activeTab === "agendamentos" && (
-          <Button onClick={() => setNovoAgendamentoOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Agendamento
+          <Button onClick={() => setNovoAgendamentoOpen(true)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="text-xs sm:text-sm">Novo Agendamento</span>
           </Button>
         )}
       </div>

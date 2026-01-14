@@ -95,9 +95,9 @@ export default function Faturas() {
           <FileText className="w-6 h-6" />
           <h1 className="text-2xl font-bold">Faturas</h1>
         </div>
-        <Button onClick={() => setSelecionarClienteOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Fatura
+        <Button size="sm" onClick={() => setSelecionarClienteOpen(true)}>
+          <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="text-xs sm:text-sm">Nova Fatura</span>
         </Button>
       </div>
 

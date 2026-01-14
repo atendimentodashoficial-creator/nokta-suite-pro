@@ -138,9 +138,9 @@ export function LeadForm() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Lead
+        <Button size="sm">
+          <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="text-xs sm:text-sm">Novo Lead</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
