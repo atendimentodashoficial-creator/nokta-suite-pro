@@ -52,16 +52,33 @@ serve(async (req) => {
     // Função para buscar cotação do dólar
     const fetchUSDToBRL = async (): Promise<number> => {
       try {
-        // Usar API do Banco Central do Brasil
-        const response = await fetch("https://economia.awesomeapi.com.br/last/USD-BRL");
-        const data = await response.json();
+        // Usar API AwesomeAPI para cotação comercial
+        console.log("[EXCHANGE] Fetching USD to BRL rate...");
+        const response = await fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL", {
+          headers: {
+            "Accept": "application/json",
+            "User-Agent": "Lovable/1.0"
+          }
+        });
+        
+        if (!response.ok) {
+          console.error("[EXCHANGE] API response not ok:", response.status, response.statusText);
+          return 5.0;
+        }
+        
+        const text = await response.text();
+        console.log("[EXCHANGE] Raw response:", text.substring(0, 200));
+        
+        const data = JSON.parse(text);
+        
         if (data?.USDBRL?.bid) {
           const rate = parseFloat(data.USDBRL.bid);
-          console.log("[EXCHANGE] USD to BRL rate:", rate);
+          console.log("[EXCHANGE] USD to BRL commercial rate:", rate);
           return rate;
         }
+        
         // Fallback
-        console.log("[EXCHANGE] Using fallback rate");
+        console.log("[EXCHANGE] No bid found in response, using fallback rate");
         return 5.0;
       } catch (error) {
         console.error("[EXCHANGE] Error fetching exchange rate:", error);
