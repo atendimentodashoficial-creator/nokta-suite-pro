@@ -285,25 +285,25 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
       leadsByPhone[phoneKey] = lead;
     }
 
-    // Helper: check if lead is from WhatsApp (same logic as FunilConversaoTab)
+    // Helper: check if lead is from WhatsApp (same logic as aba Leads)
+    // Usa APENAS o campo 'origem' (não origem_tipo) para manter consistência
     const isWhatsAppLead = (origem: string | null) => {
       const o = (origem || "").toLowerCase();
-      return o === "whatsapp" || o === "";
+      return o !== "disparos"; // Qualquer coisa que não seja "disparos" é WhatsApp
     };
 
-    const isDisparosLead = (origem: string | null, origemTipo?: string | null) => {
+    const isDisparosLead = (origem: string | null) => {
       const o = (origem || "").toLowerCase();
-      const ot = (origemTipo || "").toLowerCase();
-      return o === "disparos" || ot === "disparos";
+      return o === "disparos"; // Usa APENAS 'origem', não 'origem_tipo'
     };
 
     // USAR filterByPeriod idêntico à aba Leads (mesma lógica exata)
     // allLeads já vem DEDUPLICADO pelo hook useLeads (pelos últimos 8 dígitos do telefone)
     const leadsInPeriod = filterByPeriod(allLeads);
 
-    // Separar leads por origem (igual à aba Leads)
+    // Separar leads por origem (igual à aba Leads - usa APENAS 'origem')
     const leadsWhatsApp = leadsInPeriod.filter(l => isWhatsAppLead(l.origem));
-    const leadsDisparos = leadsInPeriod.filter(l => isDisparosLead(l.origem, (l as any).origem_tipo));
+    const leadsDisparos = leadsInPeriod.filter(l => isDisparosLead(l.origem));
 
     // Contagem direta (igual à aba Leads)
     const phonesInPeriod = new Set<string>();
@@ -351,8 +351,8 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         leadsByPhoneAll[phoneKey] = lead;
       } else {
         // Verificar se o novo lead tem atribuição melhor que o existente
-        const existingHasAttribution = isDisparosLead(existing.origem, (existing as any).origem_tipo) || existing.utm_campaign || existing.fbclid || existing.utm_source || existing.fb_campaign_name;
-        const newHasAttribution = isDisparosLead(lead.origem, (lead as any).origem_tipo) || lead.utm_campaign || lead.fbclid || lead.utm_source || lead.fb_campaign_name;
+        const existingHasAttribution = isDisparosLead(existing.origem) || existing.utm_campaign || existing.fbclid || existing.utm_source || existing.fb_campaign_name;
+        const newHasAttribution = isDisparosLead(lead.origem) || lead.utm_campaign || lead.fbclid || lead.utm_source || lead.fb_campaign_name;
         
         // Se o novo tem atribuição e o existente não, usar o novo
         if (newHasAttribution && !existingHasAttribution) {
@@ -422,7 +422,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
 
       // Attribution check - usar leadsByPhoneAll para incluir clientes
       const lead = leadsByPhoneAll[phone];
-      const isDisparos = isDisparosLead(lead?.origem, (lead as any)?.origem_tipo);
+      const isDisparos = isDisparosLead(lead?.origem);
       const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
 
       // AGENDAMENTOS REGISTRADOS: usar created_at (data de criação)
@@ -485,7 +485,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
         : periodTs(f.created_at);
 
       const lead = leadsByPhoneAll[phone];
-      const isDisparos = isDisparosLead(lead?.origem, (lead as any)?.origem_tipo);
+      const isDisparos = isDisparosLead(lead?.origem);
       const isTracked = !isDisparos && (lead?.utm_campaign || lead?.fbclid || lead?.utm_source || lead?.fb_campaign_name);
 
       // Negociação e Fechado usam data_fatura
