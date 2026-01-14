@@ -116,17 +116,19 @@ serve(async (req) => {
       // Process Instagram messaging events
       if (body.object === 'instagram') {
         for (const entry of body.entry || []) {
+          const instagramAccountId = entry.id; // The Instagram Business Account ID
+          
           // Handle messages
           if (entry.messaging) {
             for (const event of entry.messaging) {
-              await processMessage(supabase, event);
+              await processMessage(supabase, event, instagramAccountId);
             }
           }
           // Handle comments
           if (entry.changes) {
             for (const change of entry.changes) {
               if (change.field === 'comments') {
-                await processComment(supabase, change.value);
+                await processComment(supabase, change.value, instagramAccountId);
               }
             }
           }
@@ -150,9 +152,10 @@ serve(async (req) => {
   }
 });
 
-async function processMessage(supabase: any, event: any) {
+async function processMessage(supabase: any, event: any, webhookAccountId?: string) {
   const senderId = event.sender?.id;
   const message = event.message;
+  const recipientId = event.recipient?.id;
 
   if (!senderId || !message) return;
 
@@ -162,10 +165,14 @@ async function processMessage(supabase: any, event: any) {
     return;
   }
 
-  console.log('Processing message from:', senderId, 'Content:', message.text, 'Quick Reply:', message.quick_reply);
+  console.log('Processing message from:', senderId, 'Content:', message.text, 'Quick Reply:', message.quick_reply, 'Account:', webhookAccountId || recipientId);
 
-  // Find active config
-  const { data: configs } = await supabase
+  // Find the correct config by matching the Instagram account ID from the webhook
+  // The webhook provides entry.id which is the Instagram Business Account ID
+  const accountIdToMatch = webhookAccountId || recipientId;
+  
+  // First try to find config by instagram_account_id
+  let { data: configs } = await supabase
     .from('instagram_config')
     .select('*')
     .eq('is_active', true);
@@ -175,7 +182,20 @@ async function processMessage(supabase: any, event: any) {
     return;
   }
 
-  const config = configs[0];
+  // If we have an account ID from the webhook, try to find the matching config
+  let config = configs[0]; // Default fallback
+  
+  if (accountIdToMatch && configs.length > 1) {
+    // Try to match by instagram_account_id first
+    const matchedConfig = configs.find((c: any) => c.instagram_account_id === accountIdToMatch);
+    if (matchedConfig) {
+      config = matchedConfig;
+      console.log('Config matched by instagram_account_id:', config.user_id);
+    } else {
+      // If no match, use the first config but log a warning
+      console.log('No config matched account ID:', accountIdToMatch, '- using first active config');
+    }
+  }
 
   // Check if this is a quick reply from the "release content" button
   if (message.quick_reply?.payload?.startsWith('release_content_')) {
@@ -700,8 +720,8 @@ async function checkIceBreakerPayload(supabase: any, config: any, senderId: stri
   }
 }
 
-async function processComment(supabase: any, comment: any) {
-  console.log('Processing comment:', comment);
+async function processComment(supabase: any, comment: any, webhookAccountId?: string) {
+  console.log('Processing comment:', comment, 'Account:', webhookAccountId);
 
   // Find active config
   const { data: configs } = await supabase
@@ -711,7 +731,18 @@ async function processComment(supabase: any, comment: any) {
 
   if (!configs || configs.length === 0) return;
 
-  const config = configs[0];
+  // If we have an account ID from the webhook, try to find the matching config
+  let config = configs[0]; // Default fallback
+  
+  if (webhookAccountId && configs.length > 1) {
+    const matchedConfig = configs.find((c: any) => c.instagram_account_id === webhookAccountId);
+    if (matchedConfig) {
+      config = matchedConfig;
+      console.log('Comment config matched by instagram_account_id:', config.user_id);
+    } else {
+      console.log('No config matched account ID:', webhookAccountId, '- using first active config');
+    }
+  }
 
   // IMPORTANT: Skip comments from own account to prevent infinite loops
   const commenterId = comment.from?.id;
