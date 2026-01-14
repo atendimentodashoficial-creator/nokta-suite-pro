@@ -553,23 +553,21 @@ export function FunilConversaoTab() {
         return o === "whatsapp" || o === "";
       };
 
-      // Lead "oficial" por telefone = prioriza lead MAIS RECENTEMENTE ATUALIZADO
-      // Isso garante consistência com a lógica do Kanban e outras partes do app
+      // Lead "oficial" por telefone = prioriza o PRIMEIRO cadastro (mais antigo)
+      // Isso mantém consistência com a lógica da aba Leads (useLeads.ts)
+      // A origem do primeiro cadastro define onde o lead pertence
       // IMPORTANTE: usamos phoneKey (últimos 8 dígitos) para bater com a aba Leads.
       const firstLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
-      (allLeads || []).forEach((lead) => {
+      
+      // Ordenar por created_at ASC para pegar o mais antigo primeiro
+      const leadsAscending = [...(allLeads || [])].sort(
+        (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      );
+      
+      leadsAscending.forEach((lead) => {
         const phone = phoneKey(lead.telefone);
-        const existing = firstLeadByPhone[phone];
-        if (!existing) {
-          firstLeadByPhone[phone] = lead;
-          return;
-        }
-        
-        // Priorizar o lead mais recentemente atualizado (updated_at, depois created_at)
-        const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
-        const newTime = new Date(lead.updated_at || lead.created_at || 0).getTime();
-        
-        if (Number.isFinite(newTime) && newTime > existingTime) {
+        // Se já vimos este telefone, pular (mantém o primeiro/mais antigo)
+        if (!firstLeadByPhone[phone]) {
           firstLeadByPhone[phone] = lead;
         }
       });
