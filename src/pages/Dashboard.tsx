@@ -46,17 +46,31 @@ export default function Dashboard() {
 
   // Filtrar dados por período
   const dadosFiltrados = useMemo(() => {
+    // Normalizar as datas do filtro para início e fim do dia
+    const startOfPeriod = new Date(
+      dateStart.getFullYear(),
+      dateStart.getMonth(),
+      dateStart.getDate(),
+      0, 0, 0, 0
+    );
+    const endOfPeriod = new Date(
+      dateEnd.getFullYear(),
+      dateEnd.getMonth(),
+      dateEnd.getDate(),
+      23, 59, 59, 999
+    );
+
     const leads = allLeads?.filter(lead => {
       const leadDate = toZonedBrasilia(new Date(lead.created_at));
-      if (leadDate < dateStart) return false;
-      if (leadDate > dateEnd) return false;
+      if (leadDate < startOfPeriod) return false;
+      if (leadDate > endOfPeriod) return false;
       return true;
     }) || [];
 
     const clientesFiltrados = clientes?.filter(cliente => {
       const clienteDate = toZonedBrasilia(new Date(cliente.created_at));
-      if (clienteDate < dateStart) return false;
-      if (clienteDate > dateEnd) return false;
+      if (clienteDate < startOfPeriod) return false;
+      if (clienteDate > endOfPeriod) return false;
       return true;
     }) || [];
 
@@ -75,8 +89,8 @@ export default function Dashboard() {
       } else {
         fatDate = new Date(fat.created_at);
       }
-      if (fatDate < dateStart) return false;
-      if (fatDate > dateEnd) return false;
+      if (fatDate < startOfPeriod) return false;
+      if (fatDate > endOfPeriod) return false;
       return true;
     }) || [];
 
@@ -114,8 +128,8 @@ export default function Dashboard() {
     const agendsRegistrados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
       const agDate = toZonedBrasilia(new Date(ag.created_at));
-      if (agDate < dateStart) return false;
-      if (agDate > dateEnd) return false;
+      if (agDate < startOfPeriod) return false;
+      if (agDate > endOfPeriod) return false;
       return true;
     }) || [];
 
@@ -123,8 +137,8 @@ export default function Dashboard() {
     const agendsRealizados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
       const agDate = toZonedBrasilia(new Date(ag.data_agendamento));
-      if (agDate < dateStart) return false;
-      if (agDate > dateEnd) return false;
+      if (agDate < startOfPeriod) return false;
+      if (agDate > endOfPeriod) return false;
       return true;
     }) || [];
 
@@ -142,8 +156,8 @@ export default function Dashboard() {
         despesaDate = new Date(despesaDateStr);
       }
       
-      if (despesaDate < dateStart) return false;
-      if (despesaDate > dateEnd) return false;
+      if (despesaDate < startOfPeriod) return false;
+      if (despesaDate > endOfPeriod) return false;
       return true;
     }) || [];
 
