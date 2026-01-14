@@ -311,16 +311,22 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
   const hasAttribution = attributions.length > 0;
 
   const getSourceInfo = (attr: AttributionEntry) => {
+    // Check if detected by AI
+    const isDetectedByAI = attr.utm_campaign === "Detectado por IA";
+    
+    if (isDetectedByAI) {
+      return { label: 'Meta Ads (I.A)', className: 'bg-purple-500 text-white', isAI: true };
+    }
     if (attr.source === 'meta') {
-      return { label: 'Meta Ads', className: 'bg-primary text-primary-foreground' };
+      return { label: 'Meta Ads', className: 'bg-primary text-primary-foreground', isAI: false };
     }
     if (attr.source === 'google') {
-      return { label: 'Google Ads', className: 'bg-secondary text-secondary-foreground' };
+      return { label: 'Google Ads', className: 'bg-secondary text-secondary-foreground', isAI: false };
     }
     if (attr.utm_source) {
-      return { label: attr.utm_source, className: 'bg-muted text-foreground' };
+      return { label: attr.utm_source, className: 'bg-muted text-foreground', isAI: false };
     }
-    return { label: 'Campanha', className: 'bg-muted text-foreground' };
+    return { label: 'Campanha', className: 'bg-muted text-foreground', isAI: false };
   };
 
   const formatDate = (timestamp: string) => {
@@ -331,6 +337,10 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
     }
   };
 
+  // Check if any attribution was detected by AI
+  const hasAIDetection = attributions.some(attr => attr.utm_campaign === "Detectado por IA");
+  const iconColorClass = hasAIDetection ? "text-purple-500" : "text-primary";
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -340,7 +350,7 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
           className="h-6 w-6 flex-shrink-0 relative"
           title={hasAttribution ? "Ver origens de campanhas" : "Sem dados de campanha"}
         >
-          <Megaphone className={hasAttribution ? "w-4 h-4 text-primary" : "w-4 h-4 text-muted-foreground"} />
+          <Megaphone className={hasAttribution ? `w-4 h-4 ${iconColorClass}` : "w-4 h-4 text-muted-foreground"} />
           {attributions.length > 1 && (
             <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
               {attributions.length}
@@ -351,7 +361,7 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
       <PopoverContent className="w-80 p-3" align="start">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Megaphone className={hasAttribution ? "w-4 h-4 text-primary" : "w-4 h-4 text-muted-foreground"} />
+            <Megaphone className={hasAttribution ? `w-4 h-4 ${iconColorClass}` : "w-4 h-4 text-muted-foreground"} />
             <span className="font-semibold text-sm">
               {hasAttribution ? `Histórico de Campanhas (${attributions.length})` : "Sem dados de campanha"}
             </span>
