@@ -178,25 +178,54 @@ export function WhatsAppKanban({
       const leadIds = Array.from(new Set(Object.values(last8ToLeadId)));
       if (leadIds.length === 0) return;
 
-      // Get agendamentos for these leads (only pending - agendado or confirmado)
-      // "realizado" means it was completed and shouldn't show as upcoming
-      // "cancelado" means it was cancelled
+      // Get agendamentos for these leads
+      // Visible in app:
+      // - "agendado" / "confirmado" -> visible in Agenda
+      // - "cancelado" -> visible in "Não Compareceu"
+      // - "realizado" -> NOT visible unless there's a fatura (handled separately)
       const {
         data: agendamentos
-      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado"]).order("data_agendamento", {
+      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado", "cancelado"]).order("data_agendamento", {
         ascending: true
       });
 
-      // Next (earliest) agendamento per lead
+      // Best agendamento per lead - prioritize pending (agendado/confirmado) over cancelado
       const leadIdToAgendamento: Record<string, ChatAgendamento> = {};
       agendamentos?.forEach(ag => {
-        if (!leadIdToAgendamento[ag.cliente_id]) {
+        const existing = leadIdToAgendamento[ag.cliente_id];
+        
+        // If no existing, set this one
+        if (!existing) {
           leadIdToAgendamento[ag.cliente_id] = {
             id: ag.id,
             data_agendamento: ag.data_agendamento,
             status: ag.status
           };
+          return;
         }
+        
+        // Prioritize pending (agendado/confirmado) over cancelado
+        const isPending = ag.status === "agendado" || ag.status === "confirmado";
+        const existingIsPending = existing.status === "agendado" || existing.status === "confirmado";
+        
+        if (isPending && !existingIsPending) {
+          // Replace cancelado with pending
+          leadIdToAgendamento[ag.cliente_id] = {
+            id: ag.id,
+            data_agendamento: ag.data_agendamento,
+            status: ag.status
+          };
+        } else if (isPending && existingIsPending) {
+          // Both pending - keep earliest
+          if (new Date(ag.data_agendamento) < new Date(existing.data_agendamento)) {
+            leadIdToAgendamento[ag.cliente_id] = {
+              id: ag.id,
+              data_agendamento: ag.data_agendamento,
+              status: ag.status
+            };
+          }
+        }
+        // If existing is pending and new is cancelado, keep existing
       });
 
       // Map chat -> agendamento using last8 match
@@ -564,19 +593,28 @@ export function WhatsAppKanban({
   const renderAgendamentoBadge = (chatId: string) => {
     const agendamento = chatAgendamentos[chatId];
     if (!agendamento) return null;
+    
     const dataAgendamento = parseISO(agendamento.data_agendamento);
     const now = new Date();
     const hoje = isToday(dataAgendamento);
     const amanha = isTomorrow(dataAgendamento);
     const passado = dataAgendamento < now && !hoje;
+    const isCancelado = agendamento.status === "cancelado";
     
     let bgColor = "bg-muted";
     let textColor = "text-muted-foreground";
+    let statusLabel = "";
     
-    if (passado) {
-      // Past appointments - red/warning color
+    if (isCancelado) {
+      // Cancelado (Não Compareceu) - gray/muted color
+      bgColor = "bg-slate-200 dark:bg-slate-800";
+      textColor = "text-slate-600 dark:text-slate-400";
+      statusLabel = " (Não compareceu)";
+    } else if (passado) {
+      // Past pending appointments - red/warning color (shouldn't happen normally)
       bgColor = "bg-red-100 dark:bg-red-950";
       textColor = "text-red-700 dark:text-red-400";
+      statusLabel = " (Atrasado)";
     } else if (hoje) {
       bgColor = "bg-green-100 dark:bg-green-950";
       textColor = "text-green-700 dark:text-green-400";
@@ -584,14 +622,16 @@ export function WhatsAppKanban({
       bgColor = "bg-orange-100 dark:bg-orange-950";
       textColor = "text-orange-700 dark:text-orange-400";
     }
-    return <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs mt-2 w-full ${bgColor} ${textColor}`}>
+    
+    return (
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs mt-2 w-full ${bgColor} ${textColor}`}>
         <Calendar className="w-3 h-3 flex-shrink-0" />
         <span className="truncate">
-          {format(dataAgendamento, "dd/MM", {
-          locale: ptBR
-        })} às {format(dataAgendamento, "HH:mm")}
+          {format(dataAgendamento, "dd/MM", { locale: ptBR })} às {format(dataAgendamento, "HH:mm")}
+          {statusLabel}
         </span>
-      </div>;
+      </div>
+    );
   };
   if (isLoading) {
     return <div className="flex items-center justify-center h-full">
