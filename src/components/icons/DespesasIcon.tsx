@@ -3,14 +3,19 @@ import { cn } from "@/lib/utils";
 
 interface DespesasIconProps {
   className?: string;
+  inverted?: boolean;
 }
 
-const DespesasIcon = ({ className }: DespesasIconProps) => {
+const DespesasIcon = ({ className, inverted = true }: DespesasIconProps) => {
   return (
     <img 
       src={despesasIcon} 
       alt="Despesas" 
-      className={cn("h-5 w-5 object-contain", className)}
+      className={cn(
+        "h-5 w-5 object-contain",
+        inverted && "brightness-0 invert",
+        className
+      )}
     />
   );
 };

@@ -262,7 +262,7 @@ export default function Despesas() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2">
-          <img src={despesasIcon} alt="Despesas" className="w-6 h-6" />
+          <img src={despesasIcon} alt="Despesas" className="w-7 h-7" />
           <h1 className="text-2xl font-bold text-foreground">Despesas</h1>
         </div>
         <div className="flex gap-2">
