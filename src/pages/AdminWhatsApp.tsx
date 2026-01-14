@@ -250,10 +250,19 @@ export default function AdminWhatsApp() {
 
     setCreateInstanceDialogOpen(false);
     setNewInstanceName("");
-    setQrCodeDialogOpen(true);
-    setQrCodeLoading(true);
-    setQrCodeData(null);
     setIsCreatingInstance(true);
+
+    // Only open QR flow upfront when we're using the QR connection method.
+    // For manual connection we only open QR if we detect the instance is not connected.
+    if (!useManualConfig) {
+      setQrCodeDialogOpen(true);
+      setQrCodeLoading(true);
+      setQrCodeData(null);
+    } else {
+      setQrCodeDialogOpen(false);
+      setQrCodeLoading(false);
+      setQrCodeData(null);
+    }
 
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -361,25 +370,36 @@ export default function AdminWhatsApp() {
           headers: { Authorization: `Bearer ${session.session?.access_token}` },
           body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
         });
-        
-        if (statusResponse.data?.connected) {
+
+        const isConnected =
+          statusResponse.data?.success === true ||
+          statusResponse.data?.status === "connected";
+
+        if (isConnected) {
           toast.success("WhatsApp conectado com sucesso!");
           setConnectionStatus('connected');
           setQrCodeDialogOpen(false);
         } else {
-          toast.success("Instância criada! Escaneie o QR code para conectar.");
-          // Show QR code for this manual instance
+          toast.success("Instância salva! Escaneie o QR code para conectar.");
+
+          // Open QR dialog only when needed
+          setQrCodeDialogOpen(true);
+          setQrCodeLoading(true);
+          setQrCodeData(null);
+
           const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
             headers: { Authorization: `Bearer ${session.session?.access_token}` },
             body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
           });
-          
+
           if (qrResponse.data?.qrcode) {
             setQrCodeData(qrResponse.data.qrcode);
             setQrCodeLoading(false);
             startQrPolling(newInstance.base_url, newInstance.api_key, newInstance);
           } else {
             setQrCodeDialogOpen(false);
+            setQrCodeLoading(false);
+            toast.error(qrResponse.data?.error || "Não foi possível obter o QR Code");
           }
         }
         
