@@ -1182,7 +1182,7 @@ export default function Conexoes() {
                         <div className="sm:hidden">
                           <p className="font-medium text-sm truncate">{account.account_name || "Conta sem nome"}</p>
                           <p className="text-xs text-muted-foreground font-mono truncate mb-2">{account.ad_account_id}</p>
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-1.5">
                             <Badge variant="outline" className="text-xs">
                               {accountType === "prepaid" ? "Pré-pago" : "Pós-pago"}
                             </Badge>
