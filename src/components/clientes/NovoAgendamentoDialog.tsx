@@ -74,28 +74,43 @@ const calcularProximaDataDisponivel = (
     const diaSemana = dataTest.getDay();
     const dataStr = format(dataTest, 'yyyy-MM-dd');
     
-    // Verificar se tem escala neste dia
-    const temEscala = escalasProfissional.some(e => e.dia_semana === diaSemana);
-    if (!temEscala) continue;
-    
-    // Verificar se está em ausência
-    const estaAusente = ausenciasProfissional.some(aus => {
+    // Verificar se há substituição de escala para esta data
+    const substituicao = ausenciasProfissional.find(aus => {
       return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
     });
-    if (estaAusente) continue;
     
     // Gerar horários do dia
     const horariosDay: string[] = [];
-    escalasProfissional.forEach(escala => {
-      if (escala.dia_semana === diaSemana) {
+    
+    if (substituicao) {
+      // Se há substituição, usar os horários dela (se definidos)
+      if (substituicao.hora_inicio && substituicao.hora_fim) {
         const horariosIntervalo = gerarHorariosIntervalo(
-          escala.hora_inicio,
-          escala.hora_fim,
+          substituicao.hora_inicio,
+          substituicao.hora_fim,
           tempoAtendimento
         );
         horariosDay.push(...horariosIntervalo);
       }
-    });
+      // Se substituição sem horários = dia indisponível (continua loop)
+      if (horariosDay.length === 0) continue;
+    } else {
+      // Sem substituição - verificar se tem escala neste dia
+      const temEscala = escalasProfissional.some(e => e.dia_semana === diaSemana);
+      if (!temEscala) continue;
+      
+      // Usar escala normal
+      escalasProfissional.forEach(escala => {
+        if (escala.dia_semana === diaSemana) {
+          const horariosIntervalo = gerarHorariosIntervalo(
+            escala.hora_inicio,
+            escala.hora_fim,
+            tempoAtendimento
+          );
+          horariosDay.push(...horariosIntervalo);
+        }
+      });
+    }
     
     // Verificar horários ocupados
     const horariosOcupados = agendamentosProfissional
@@ -115,7 +130,7 @@ const calcularProximaDataDisponivel = (
   return null;
 };
 
-// Gerar horários baseado na escala do profissional
+// Gerar horários baseado na escala do profissional ou substituição
 const gerarHorariosDisponiveis = (
   diaSemana: number,
   escalas: any[] | undefined,
@@ -123,21 +138,34 @@ const gerarHorariosDisponiveis = (
   dataSelecionada: Date,
   tempoAtendimento: number = 60
 ) => {
-  if (!escalas || escalas.length === 0) {
-    // Se não houver escala, retornar horário comercial padrão
-    return gerarHorariosIntervalo("08:00", "18:00", tempoAtendimento);
-  }
-
-  // Verificar se está em período de ausência
   const dataStr = format(dataSelecionada, 'yyyy-MM-dd');
-  const estaAusente = ausencias?.some(aus => {
+  
+  // Verificar se há substituição de escala para esta data
+  const substituicao = ausencias?.find(aus => {
     const inicio = aus.data_inicio;
     const fim = aus.data_fim;
     return dataStr >= inicio && dataStr <= fim;
   });
 
-  if (estaAusente) {
-    return []; // Profissional ausente
+  // Se há substituição
+  if (substituicao) {
+    // Se a substituição não tem horários definidos, profissional indisponível
+    if (!substituicao.hora_inicio || !substituicao.hora_fim) {
+      return []; // Profissional indisponível o dia todo
+    }
+    
+    // Usar os horários da substituição
+    return gerarHorariosIntervalo(
+      substituicao.hora_inicio,
+      substituicao.hora_fim,
+      tempoAtendimento
+    );
+  }
+
+  // Sem substituição - usar escala normal
+  if (!escalas || escalas.length === 0) {
+    // Se não houver escala, retornar horário comercial padrão
+    return gerarHorariosIntervalo("08:00", "18:00", tempoAtendimento);
   }
 
   // Buscar escalas para o dia da semana
@@ -446,15 +474,28 @@ export function NovoAgendamentoDialog({
         e => e.profissional_id === prof.id && e.dia_semana === diaSemana && e.ativo
       ) || [];
       
-      // Verificar se está em ausência
+      // Verificar se há substituição de escala para esta data
       const ausenciasProfissional = ausencias?.filter(a => a.profissional_id === prof.id) || [];
-      const estaAusente = ausenciasProfissional.some(aus => {
+      const substituicao = ausenciasProfissional.find(aus => {
         return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
       });
       
-      // Gerar todos os horários da escala
+      // Gerar todos os horários (da substituição ou da escala)
       const todosHorarios: string[] = [];
-      if (!estaAusente && escalasProfissional.length > 0) {
+      
+      if (substituicao) {
+        // Se há substituição, usar os horários dela (se definidos)
+        if (substituicao.hora_inicio && substituicao.hora_fim) {
+          const horariosIntervalo = gerarHorariosIntervalo(
+            substituicao.hora_inicio,
+            substituicao.hora_fim,
+            tempoAtendimento
+          );
+          todosHorarios.push(...horariosIntervalo);
+        }
+        // Se substituição sem horários = dia indisponível (todosHorarios fica vazio)
+      } else if (escalasProfissional.length > 0) {
+        // Sem substituição - usar escala normal
         escalasProfissional.forEach(escala => {
           const horariosIntervalo = gerarHorariosIntervalo(
             escala.hora_inicio,
