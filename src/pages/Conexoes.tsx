@@ -1161,7 +1161,8 @@ export default function Conexoes() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        {/* Desktop: nome + badges na mesma linha, ID abaixo */}
+                        <div className="hidden sm:flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-sm truncate">{account.account_name || "Conta sem nome"}</p>
                           <Badge variant="outline" className="text-xs shrink-0">
                             {accountType === "prepaid" ? "Pré-pago" : "Pós-pago"}
@@ -1175,7 +1176,26 @@ export default function Conexoes() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground font-mono truncate">{account.ad_account_id}</p>
+                        <p className="hidden sm:block text-xs text-muted-foreground font-mono truncate">{account.ad_account_id}</p>
+                        
+                        {/* Mobile: nome, ID, depois badges */}
+                        <div className="sm:hidden">
+                          <p className="font-medium text-sm truncate">{account.account_name || "Conta sem nome"}</p>
+                          <p className="text-xs text-muted-foreground font-mono truncate mb-2">{account.ad_account_id}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="outline" className="text-xs">
+                              {accountType === "prepaid" ? "Pré-pago" : "Pós-pago"}
+                            </Badge>
+                            <Badge variant={currencyType === "USD" ? "secondary" : "outline"} className="text-xs">
+                              {currencyType === "USD" ? "$ USD" : "R$ BRL"}
+                            </Badge>
+                            {currencyType === "USD" && currencySpread > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{currencySpread}% spread
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 sm:border-0 border-t pt-3 sm:pt-0">
                         <Select value={accountType} onValueChange={value => updateAccountType(account.id, account.ad_account_id, value)}>
