@@ -29,6 +29,7 @@ interface ChatAgendamento {
   data_agendamento: string;
   status: string;
   totalAgendamentos: number; // How many agendamentos this client has in history
+  updated_at?: string; // When the agendamento was last updated
 }
 interface WhatsAppKanbanProps {
   chats: any[];
@@ -189,11 +190,11 @@ export function WhatsAppKanban({
       // - "realizado" -> visible in Faturas/Fechamento (consulta realizada)
       const {
         data: agendamentos
-      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", allLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("data_agendamento", {
-        ascending: false // Most recent first for realizado
+      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status, updated_at").in("cliente_id", allLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("updated_at", {
+        ascending: false // Most recently updated first
       });
 
-      // Best agendamento per phone (last8) - priority: pending > realizado > cancelado
+      // Best agendamento per phone (last8) - priority: most recently updated
       // Group agendamentos by phone (last8) since multiple leads can have same phone
       const last8ToAgendamento: Record<string, ChatAgendamento> = {};
       const last8AgendamentoCount: Record<string, number> = {};
@@ -212,14 +213,7 @@ export function WhatsAppKanban({
         last8AgendamentoCount[phoneKey] = (last8AgendamentoCount[phoneKey] || 0) + 1;
       });
       
-      const getPriority = (status: string) => {
-        if (status === "agendado" || status === "confirmado") return 3; // Highest - pending
-        if (status === "realizado") return 2; // Medium - completed
-        if (status === "cancelado") return 1; // Lowest - cancelled
-        return 0;
-      };
-      
-      // Second pass: find best agendamento per phone (last8)
+      // Second pass: find best agendamento per phone (last8) - most recently updated wins
       agendamentos?.forEach(ag => {
         const phoneKey = leadIdToLast8[ag.cliente_id];
         if (!phoneKey) return;
@@ -227,7 +221,7 @@ export function WhatsAppKanban({
         const existing = last8ToAgendamento[phoneKey];
         const totalCount = last8AgendamentoCount[phoneKey] || 1;
         
-        // If no existing, set this one
+        // If no existing, set this one (first one is already the most recent due to order)
         if (!existing) {
           last8ToAgendamento[phoneKey] = {
             id: ag.id,
@@ -238,37 +232,18 @@ export function WhatsAppKanban({
           return;
         }
         
-        const agPriority = getPriority(ag.status);
-        const existingPriority = getPriority(existing.status);
+        // Compare updated_at - most recent wins
+        const agUpdatedAt = new Date(ag.updated_at);
+        const existingUpdatedAt = existing.updated_at ? new Date(existing.updated_at) : new Date(0);
         
-        if (agPriority > existingPriority) {
-          // Higher priority status wins
+        if (agUpdatedAt > existingUpdatedAt) {
           last8ToAgendamento[phoneKey] = {
             id: ag.id,
             data_agendamento: ag.data_agendamento,
             status: ag.status,
-            totalAgendamentos: totalCount
+            totalAgendamentos: totalCount,
+            updated_at: ag.updated_at
           };
-        } else if (agPriority === existingPriority && agPriority === 3) {
-          // Both pending - keep earliest future one
-          if (new Date(ag.data_agendamento) < new Date(existing.data_agendamento)) {
-            last8ToAgendamento[phoneKey] = {
-              id: ag.id,
-              data_agendamento: ag.data_agendamento,
-              status: ag.status,
-              totalAgendamentos: totalCount
-            };
-          }
-        } else if (agPriority === existingPriority && agPriority === 2) {
-          // Both realizado - keep most recent
-          if (new Date(ag.data_agendamento) > new Date(existing.data_agendamento)) {
-            last8ToAgendamento[phoneKey] = {
-              id: ag.id,
-              data_agendamento: ag.data_agendamento,
-              status: ag.status,
-              totalAgendamentos: totalCount
-            };
-          }
         }
       });
 
