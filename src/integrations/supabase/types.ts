@@ -1124,6 +1124,9 @@ export type Database = {
           media_type: Database["public"]["Enums"]["message_media_type"] | null
           media_url: string | null
           message_id: string
+          quoted_content: string | null
+          quoted_message_id: string | null
+          quoted_sender_type: string | null
           sender_type: Database["public"]["Enums"]["sender_type"]
           status: Database["public"]["Enums"]["message_status"] | null
           timestamp: string
@@ -1149,6 +1152,9 @@ export type Database = {
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
           media_url?: string | null
           message_id: string
+          quoted_content?: string | null
+          quoted_message_id?: string | null
+          quoted_sender_type?: string | null
           sender_type: Database["public"]["Enums"]["sender_type"]
           status?: Database["public"]["Enums"]["message_status"] | null
           timestamp: string
@@ -1174,6 +1180,9 @@ export type Database = {
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
           media_url?: string | null
           message_id?: string
+          quoted_content?: string | null
+          quoted_message_id?: string | null
+          quoted_sender_type?: string | null
           sender_type?: Database["public"]["Enums"]["sender_type"]
           status?: Database["public"]["Enums"]["message_status"] | null
           timestamp?: string
@@ -3334,6 +3343,9 @@ export type Database = {
           media_type: Database["public"]["Enums"]["message_media_type"] | null
           media_url: string | null
           message_id: string
+          quoted_content: string | null
+          quoted_message_id: string | null
+          quoted_sender_type: string | null
           sender_type: Database["public"]["Enums"]["sender_type"]
           status: Database["public"]["Enums"]["message_status"] | null
           timestamp: string
@@ -3359,6 +3371,9 @@ export type Database = {
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
           media_url?: string | null
           message_id: string
+          quoted_content?: string | null
+          quoted_message_id?: string | null
+          quoted_sender_type?: string | null
           sender_type: Database["public"]["Enums"]["sender_type"]
           status?: Database["public"]["Enums"]["message_status"] | null
           timestamp: string
@@ -3384,6 +3399,9 @@ export type Database = {
           media_type?: Database["public"]["Enums"]["message_media_type"] | null
           media_url?: string | null
           message_id?: string
+          quoted_content?: string | null
+          quoted_message_id?: string | null
+          quoted_sender_type?: string | null
           sender_type?: Database["public"]["Enums"]["sender_type"]
           status?: Database["public"]["Enums"]["message_status"] | null
           timestamp?: string

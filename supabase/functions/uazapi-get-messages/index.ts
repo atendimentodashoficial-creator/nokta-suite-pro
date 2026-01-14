@@ -298,10 +298,10 @@ Deno.serve(async (req) => {
     let finalMessages: any[] = processedMessages;
 
     if (baseMessageIds.length > 0) {
-      // Fetch ALL fields from database including UTM attribution data
+      // Fetch ALL fields from database including UTM attribution data and quoted message info
       const { data: dbMessages, error: dbError } = await supabase
         .from('whatsapp_messages')
-        .select('message_id, deleted, content, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name')
+        .select('message_id, deleted, content, utm_source, utm_campaign, utm_medium, utm_content, utm_term, fbclid, ad_thumbnail_url, fb_ad_id, fb_campaign_name, fb_adset_name, fb_ad_name, quoted_message_id, quoted_content, quoted_sender_type')
         .in('message_id', baseMessageIds)
         .eq('chat_id', existingChat.id);
 
@@ -338,6 +338,10 @@ Deno.serve(async (req) => {
               fb_campaign_name: db.fb_campaign_name,
               fb_adset_name: db.fb_adset_name,
               fb_ad_name: db.fb_ad_name,
+              // Include quoted message info
+              quoted_message_id: db.quoted_message_id,
+              quoted_content: db.quoted_content,
+              quoted_sender_type: db.quoted_sender_type,
             };
           }
           return cleanMsg;
@@ -392,6 +396,9 @@ Deno.serve(async (req) => {
           fb_campaign_name: m.fb_campaign_name,
           fb_adset_name: m.fb_adset_name,
           fb_ad_name: m.fb_ad_name,
+          quoted_message_id: m.quoted_message_id,
+          quoted_content: m.quoted_content,
+          quoted_sender_type: m.quoted_sender_type,
         }));
         
         // Reverse to get oldest first for display
