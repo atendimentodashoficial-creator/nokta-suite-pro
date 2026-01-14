@@ -9,7 +9,8 @@ import {
   Calendar as CalendarIcon,
   Tag,
   RefreshCcw,
-  DollarSign
+  DollarSign,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,9 @@ import {
   useCreateCategoriaDespesa,
   useDeleteCategoriaDespesa,
 } from "@/hooks/useCategoriasDespesas";
+import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
+import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
+import despesasIcon from "@/assets/despesas-icon.png";
 
 interface DespesaFormData {
   descricao: string;
@@ -67,6 +71,10 @@ interface DespesaFormData {
   categoria_id: string;
   data_despesa: Date | undefined;
   recorrente: boolean;
+  parcelada: boolean;
+  numero_parcelas: string;
+  data_inicio: Date | undefined;
+  data_fim: Date | undefined;
   observacoes: string;
 }
 
@@ -76,6 +84,10 @@ const initialFormData: DespesaFormData = {
   categoria_id: "",
   data_despesa: new Date(),
   recorrente: false,
+  parcelada: false,
+  numero_parcelas: "",
+  data_inicio: undefined,
+  data_fim: undefined,
   observacoes: "",
 };
 
@@ -83,6 +95,7 @@ export default function Despesas() {
   const [busca, setBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
   const [filtroTipo, setFiltroTipo] = useState<string>("todas");
+  const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd } = usePeriodFilter("this_month");
   
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -105,23 +118,32 @@ export default function Despesas() {
   const createCategoria = useCreateCategoriaDespesa();
   const deleteCategoria = useDeleteCategoriaDespesa();
 
-  // Filtered despesas
+  // Filtered despesas by period first
   const despesasFiltradas = useMemo(() => {
     if (!despesas) return [];
     
     return despesas.filter((d) => {
+      // Filter by period (using data_despesa or data_inicio for installment)
+      const despesaDate = d.data_despesa ? toZonedBrasilia(d.data_despesa) : d.data_inicio ? toZonedBrasilia(d.data_inicio) : toZonedBrasilia(d.created_at || new Date().toISOString());
+      if (despesaDate < startOfDayBrasilia(dateStart)) return false;
+      if (despesaDate > endOfDayBrasilia(dateEnd)) return false;
+      
+      // Search filter
       const matchBusca = d.descricao.toLowerCase().includes(busca.toLowerCase()) ||
         d.categorias_despesas?.nome?.toLowerCase().includes(busca.toLowerCase());
       
+      // Category filter
       const matchCategoria = filtroCategoria === "todas" || d.categoria_id === filtroCategoria;
       
-      const matchTipo = filtroTipo === "todas" || 
-        (filtroTipo === "recorrente" && d.recorrente) ||
-        (filtroTipo === "variavel" && !d.recorrente);
+      // Type filter (recorrente, variavel, parcelada)
+      let matchTipo = filtroTipo === "todas";
+      if (filtroTipo === "recorrente" && d.recorrente) matchTipo = true;
+      if (filtroTipo === "variavel" && !d.recorrente && !d.parcelada) matchTipo = true;
+      if (filtroTipo === "parcelada" && d.parcelada) matchTipo = true;
       
       return matchBusca && matchCategoria && matchTipo;
     });
-  }, [despesas, busca, filtroCategoria, filtroTipo]);
+  }, [despesas, busca, filtroCategoria, filtroTipo, dateStart, dateEnd]);
 
   // Total
   const totalDespesas = useMemo(() => {
@@ -137,6 +159,10 @@ export default function Despesas() {
         categoria_id: despesa.categoria_id || "",
         data_despesa: despesa.data_despesa ? new Date(despesa.data_despesa) : new Date(),
         recorrente: despesa.recorrente || false,
+        parcelada: despesa.parcelada || false,
+        numero_parcelas: despesa.numero_parcelas?.toString() || "",
+        data_inicio: despesa.data_inicio ? new Date(despesa.data_inicio) : undefined,
+        data_fim: despesa.data_fim ? new Date(despesa.data_fim) : undefined,
         observacoes: despesa.observacoes || "",
       });
     } else {
@@ -158,13 +184,27 @@ export default function Despesas() {
       return;
     }
 
+    if (formData.parcelada && !formData.numero_parcelas) {
+      toast({ title: "Erro", description: "Número de parcelas é obrigatório para despesa parcelada", variant: "destructive" });
+      return;
+    }
+
+    if (formData.parcelada && (!formData.data_inicio || !formData.data_fim)) {
+      toast({ title: "Erro", description: "Datas de início e fim são obrigatórias para despesa parcelada", variant: "destructive" });
+      return;
+    }
+
     try {
       const despesaData = {
         descricao: formData.descricao.trim(),
         valor,
         categoria_id: formData.categoria_id || null,
-        data_despesa: formData.data_despesa ? format(formData.data_despesa, "yyyy-MM-dd") : null,
-        recorrente: formData.recorrente,
+        data_despesa: formData.parcelada ? null : (formData.data_despesa ? format(formData.data_despesa, "yyyy-MM-dd") : null),
+        recorrente: formData.parcelada ? false : formData.recorrente,
+        parcelada: formData.parcelada,
+        numero_parcelas: formData.parcelada ? parseInt(formData.numero_parcelas) : null,
+        data_inicio: formData.parcelada && formData.data_inicio ? format(formData.data_inicio, "yyyy-MM-dd") : null,
+        data_fim: formData.parcelada && formData.data_fim ? format(formData.data_fim, "yyyy-MM-dd") : null,
         observacoes: formData.observacoes.trim() || null,
       };
 
@@ -221,9 +261,9 @@ export default function Despesas() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-2">
+          <img src={despesasIcon} alt="Despesas" className="w-6 h-6" />
           <h1 className="text-2xl font-bold text-foreground">Despesas</h1>
-          <p className="text-muted-foreground text-sm">Gerencie suas despesas fixas e variáveis</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setCategoriaDialogOpen(true)}>
@@ -237,6 +277,21 @@ export default function Despesas() {
         </div>
       </div>
 
+      {/* Period Filter */}
+      <Card className="p-4 shadow-card">
+        <div className="flex flex-wrap gap-4 items-center">
+          <PeriodFilter
+            showLabel
+            value={periodFilter}
+            onChange={setPeriodFilter}
+            dateStart={dateStart}
+            dateEnd={dateEnd}
+            onDateStartChange={setDateStart}
+            onDateEndChange={setDateEnd}
+          />
+        </div>
+      </Card>
+
       {/* Summary Card */}
       <Card className="bg-destructive/10 border-destructive/20">
         <CardContent className="py-4">
@@ -248,6 +303,7 @@ export default function Despesas() {
               <div>
                 <p className="text-sm text-muted-foreground">Total de Despesas</p>
                 <p className="text-2xl font-bold text-destructive">{formatCurrency(totalDespesas)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{despesasFiltradas.length} despesas</p>
               </div>
             </div>
           </div>
@@ -255,38 +311,41 @@ export default function Despesas() {
       </Card>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar despesa..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="pl-9"
-          />
+      <Card className="p-4 shadow-card">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar despesa..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas categorias</SelectItem>
+              {categorias?.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todos tipos</SelectItem>
+              <SelectItem value="recorrente">Recorrente</SelectItem>
+              <SelectItem value="variavel">Variável</SelectItem>
+              <SelectItem value="parcelada">Parcelada</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas categorias</SelectItem>
-            {categorias?.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-          <SelectTrigger className="w-full sm:w-[150px]">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todos tipos</SelectItem>
-            <SelectItem value="recorrente">Recorrente</SelectItem>
-            <SelectItem value="variavel">Variável</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      </Card>
 
       {/* Despesas List */}
       {isLoadingDespesas ? (
@@ -331,13 +390,30 @@ export default function Despesas() {
                           Recorrente
                         </Badge>
                       )}
+                      {despesa.parcelada && (
+                        <Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
+                          <CreditCard className="h-3 w-3 mr-1" />
+                          {despesa.numero_parcelas}x
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-                      {despesa.data_despesa && (
-                        <span className="flex items-center gap-1">
-                          <CalendarIcon className="h-3.5 w-3.5" />
-                          {format(new Date(despesa.data_despesa), "dd/MM/yyyy")}
-                        </span>
+                      {despesa.parcelada ? (
+                        <>
+                          {despesa.data_inicio && despesa.data_fim && (
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className="h-3.5 w-3.5" />
+                              {format(new Date(despesa.data_inicio), "dd/MM/yyyy")} - {format(new Date(despesa.data_fim), "dd/MM/yyyy")}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        despesa.data_despesa && (
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="h-3.5 w-3.5" />
+                            {format(new Date(despesa.data_despesa), "dd/MM/yyyy")}
+                          </span>
+                        )
                       )}
                       {despesa.categorias_despesas && (
                         <Badge 
@@ -389,7 +465,7 @@ export default function Despesas() {
 
       {/* Create/Edit Despesa Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{despesaEditando ? "Editar Despesa" : "Nova Despesa"}</DialogTitle>
           </DialogHeader>
@@ -413,36 +489,38 @@ export default function Despesas() {
                   onChange={(v) => setFormData({ ...formData, valor: v })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Data</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.data_despesa && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.data_despesa ? (
-                        format(formData.data_despesa, "dd/MM/yyyy")
-                      ) : (
-                        "Selecionar data"
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.data_despesa}
-                      onSelect={(date) => setFormData({ ...formData, data_despesa: date })}
-                      locale={ptBR}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {!formData.parcelada && (
+                <div className="space-y-2">
+                  <Label>Data</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.data_despesa && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.data_despesa ? (
+                          format(formData.data_despesa, "dd/MM/yyyy")
+                        ) : (
+                          "Selecionar data"
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.data_despesa}
+                        onSelect={(date) => setFormData({ ...formData, data_despesa: date })}
+                        locale={ptBR}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -472,16 +550,120 @@ export default function Despesas() {
               </Select>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="recorrente">Despesa Recorrente</Label>
-                <p className="text-xs text-muted-foreground">Marque se esta despesa se repete mensalmente</p>
+            {/* Tipo de despesa - recorrente ou parcelada */}
+            <div className="space-y-4 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="recorrente">Despesa Recorrente</Label>
+                  <p className="text-xs text-muted-foreground">Marque se esta despesa se repete mensalmente</p>
+                </div>
+                <Switch
+                  id="recorrente"
+                  checked={formData.recorrente}
+                  disabled={formData.parcelada}
+                  onCheckedChange={(checked) => setFormData({ ...formData, recorrente: checked, parcelada: false })}
+                />
               </div>
-              <Switch
-                id="recorrente"
-                checked={formData.recorrente}
-                onCheckedChange={(checked) => setFormData({ ...formData, recorrente: checked })}
-              />
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="parcelada">Despesa Parcelada</Label>
+                  <p className="text-xs text-muted-foreground">Para despesas com parcelas definidas</p>
+                </div>
+                <Switch
+                  id="parcelada"
+                  checked={formData.parcelada}
+                  onCheckedChange={(checked) => setFormData({ 
+                    ...formData, 
+                    parcelada: checked, 
+                    recorrente: false,
+                    numero_parcelas: checked ? formData.numero_parcelas : "",
+                    data_inicio: checked ? formData.data_inicio : undefined,
+                    data_fim: checked ? formData.data_fim : undefined
+                  })}
+                />
+              </div>
+
+              {/* Campos de parcelamento */}
+              {formData.parcelada && (
+                <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="space-y-2">
+                    <Label htmlFor="numero_parcelas">Número de Parcelas *</Label>
+                    <Input
+                      id="numero_parcelas"
+                      type="number"
+                      min="1"
+                      value={formData.numero_parcelas}
+                      onChange={(e) => setFormData({ ...formData, numero_parcelas: e.target.value })}
+                      placeholder="Ex: 12"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Data Início *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !formData.data_inicio && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.data_inicio ? (
+                              format(formData.data_inicio, "dd/MM/yy")
+                            ) : (
+                              "Início"
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.data_inicio}
+                            onSelect={(date) => setFormData({ ...formData, data_inicio: date })}
+                            locale={ptBR}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Data Fim *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !formData.data_fim && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.data_fim ? (
+                              format(formData.data_fim, "dd/MM/yy")
+                            ) : (
+                              "Fim"
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.data_fim}
+                            onSelect={(date) => setFormData({ ...formData, data_fim: date })}
+                            locale={ptBR}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
