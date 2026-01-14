@@ -235,6 +235,23 @@ export default function Conexoes() {
     }
   };
   const testOpenAIConnection = async () => {
+    // Se há uma nova chave digitada, salva primeiro e depois testa
+    const keyToTest = newOpenAIKey.trim();
+    if (keyToTest) {
+      await validateAndSaveOpenAIKey(keyToTest);
+      return;
+    }
+    
+    // Se não há nova chave, apenas testa a existente
+    if (!hasOpenAIKey) {
+      toast({
+        title: "Erro",
+        description: "Nenhuma API Key configurada",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setTestingOpenAI(true);
     setOpenAITestResult(null);
     try {
@@ -366,7 +383,9 @@ export default function Conexoes() {
   };
 
   const testApifyConnection = async () => {
-    if (!apifyApiKey) {
+    // Se há uma nova chave digitada, salva primeiro
+    const keyToTest = newApifyKey.trim() || apifyApiKey;
+    if (!keyToTest) {
       toast({
         title: "Erro",
         description: "Nenhuma API Key configurada",
@@ -374,13 +393,19 @@ export default function Conexoes() {
       });
       return;
     }
+    
+    // Se tem nova chave, salvar primeiro
+    if (newApifyKey.trim()) {
+      await saveApifyConfig();
+    }
+    
     setTestingApify(true);
     setApifyTestResult(null);
     try {
       // Test with a simple Apify API call to validate the key
       const response = await fetch("https://api.apify.com/v2/users/me", {
         headers: {
-          "Authorization": `Bearer ${apifyApiKey}`
+          "Authorization": `Bearer ${keyToTest}`
         }
       });
       
@@ -487,7 +512,14 @@ export default function Conexoes() {
     }
   };
   const testMetaConnection = async () => {
-    if (!metaAccessToken && !newMetaToken) {
+    // Se há um novo token digitado, salva primeiro e depois testa
+    const tokenToTest = newMetaToken.trim();
+    if (tokenToTest) {
+      await saveMetaToken(tokenToTest);
+      return;
+    }
+    
+    if (!metaAccessToken) {
       toast({
         title: "Erro",
         description: "Nenhum token configurado",
@@ -841,6 +873,15 @@ export default function Conexoes() {
     }
   };
   const testGoogleAdsConnection = async () => {
+    // Se há novas credenciais digitadas, salvar primeiro
+    const hasNewCredentials = newGoogleAdsDeveloperToken.trim() || newGoogleAdsClientId.trim() || 
+                              newGoogleAdsClientSecret.trim() || newGoogleAdsRefreshToken.trim();
+    
+    if (hasNewCredentials) {
+      await saveGoogleAdsConfig();
+      return;
+    }
+    
     if (!googleAdsDeveloperToken || !googleAdsClientId || !googleAdsClientSecret || !googleAdsRefreshToken) {
       toast({
         title: "Erro",
