@@ -1141,12 +1141,11 @@ export function FunilConversaoTab() {
           const adId = preferred?.fb_ad_id || null;
           const ad = preferred?.fb_ad_name || "Sem anúncio";
 
+          // Use NAME-based keys for consistent grouping
           let key: string;
-          if (viewLevel === "campaign") key = campaignId ? campaignId : campaign;
-          // Use ONLY adsetId when available (IDs are globally unique)
-          else if (viewLevel === "adset") key = adsetId ? adsetId : `${campaign}|||${adset}`;
-          // Use ONLY adId when available (IDs are globally unique)
-          else key = adId ? adId : `${campaign}|||${adset}|||${ad}`;
+          if (viewLevel === "campaign") key = campaign;
+          else if (viewLevel === "adset") key = `${campaign}|||${adset}`;
+          else key = `${campaign}|||${adset}|||${ad}`;
 
           return { key, campaignId, campaign, adsetId, adset, adId, ad };
         }
@@ -1167,13 +1166,11 @@ export function FunilConversaoTab() {
         const adId = fromLead?.fb_ad_id || fallback?.fb_ad_id || null;
         const ad = fromLead?.fb_ad_name || fallback?.fb_ad_name || "Sem anúncio";
 
+        // Use NAME-based keys for consistent grouping
         let key: string;
-        // Use campaignId when available for unique identification, fallback to name
-        if (viewLevel === "campaign") key = campaignId ? campaignId : campaign;
-        // Use ONLY adsetId when available (IDs are globally unique)
-        else if (viewLevel === "adset") key = adsetId ? adsetId : `${campaign}|||${adset}`;
-        // Use ONLY adId when available (IDs are globally unique)
-        else key = adId ? adId : `${campaign}|||${adset}|||${ad}`;
+        if (viewLevel === "campaign") key = campaign;
+        else if (viewLevel === "adset") key = `${campaign}|||${adset}`;
+        else key = `${campaign}|||${adset}|||${ad}`;
 
         return { key, campaignId, campaign, adsetId, adset, adId, ad };
       };
@@ -1204,8 +1201,9 @@ export function FunilConversaoTab() {
       };
 
       const bumpAllLevels = (attr: ReturnType<typeof getAttribution>) => {
-        // Campaign - use campaignId for unique key when available
-        const campaignKey = attr.campaignId ? attr.campaignId : attr.campaign;
+        // Campaign - use campaign NAME as key for consistent grouping
+        // This handles cases where some leads have IDs and others don't
+        const campaignKey = attr.campaign;
         ensureGroup(groupedCampaign, campaignKey, {
           campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
@@ -1215,9 +1213,9 @@ export function FunilConversaoTab() {
           ad_name: null,
         });
 
-        // Adset - use ONLY adsetId when available (IDs are globally unique)
-        // This prevents duplicates when the same adset appears with different campaign references
-        const adsetKey = attr.adsetId ? attr.adsetId : `${attr.campaign}|||${attr.adset}`;
+        // Adset - use adset NAME as key (combined with campaign for uniqueness)
+        // This ensures leads with same adset name but different ID presence are grouped together
+        const adsetKey = `${attr.campaign}|||${attr.adset}`;
         ensureGroup(groupedAdset, adsetKey, {
           campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
@@ -1227,8 +1225,8 @@ export function FunilConversaoTab() {
           ad_name: null,
         });
 
-        // Ad - use ONLY adId when available (IDs are globally unique)
-        const adKey = attr.adId ? attr.adId : `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
+        // Ad - use ad NAME as key (combined with campaign and adset for uniqueness)
+        const adKey = `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
         ensureGroup(groupedAd, adKey, {
           campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
@@ -1242,15 +1240,14 @@ export function FunilConversaoTab() {
       const bumpMetric = (attr: ReturnType<typeof getAttribution>, field: keyof Pick<FunnelData, "leads" | "agendados" | "compareceu" | "nao_compareceu" | "em_negociacao" | "clientes" | "valor_fechado">, amount: number) => {
         bumpAllLevels(attr);
 
-        const campaignKey = attr.campaignId ? attr.campaignId : attr.campaign;
+        // Use NAME-based keys matching bumpAllLevels
+        const campaignKey = attr.campaign;
         groupedCampaign[campaignKey][field] += amount;
 
-        // Use ONLY adsetId when available (matches bumpAllLevels logic)
-        const adsetKey = attr.adsetId ? attr.adsetId : `${attr.campaign}|||${attr.adset}`;
+        const adsetKey = `${attr.campaign}|||${attr.adset}`;
         groupedAdset[adsetKey][field] += amount;
 
-        // Use ONLY adId when available (matches bumpAllLevels logic)
-        const adKey = attr.adId ? attr.adId : `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
+        const adKey = `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
         groupedAd[adKey][field] += amount;
       };
       // Contadores para eventos de leads que vieram originalmente de "Disparos"
