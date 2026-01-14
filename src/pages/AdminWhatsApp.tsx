@@ -307,20 +307,34 @@ export default function AdminWhatsApp() {
 
         // Configure webhook for manual instance
         const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${createdInstance.id}`;
-        const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
-          headers: { Authorization: `Bearer ${session.session?.access_token}` },
-          body: {
-            base_url: baseUrl,
-            api_key: apiKey,
-            webhook_url: webhookUrl,
-            instancia_id: createdInstance.id,
-          },
-        });
+        console.log("Configuring webhook for manual instance:", { webhookUrl, baseUrl, instancia_id: createdInstance.id });
+        
+        try {
+          const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+            body: {
+              base_url: baseUrl,
+              api_key: apiKey,
+              webhook_url: webhookUrl,
+              instancia_id: createdInstance.id,
+            },
+          });
 
-        if (webhookResponse.data?.success) {
-          console.log("Webhook configured for manual instance");
-        } else {
-          console.error("Webhook config failed for manual instance:", webhookResponse.data);
+          console.log("Webhook response for manual instance:", webhookResponse);
+          
+          if (webhookResponse.error) {
+            console.error("Webhook invoke error:", webhookResponse.error);
+            toast.error("Erro ao configurar webhook: " + webhookResponse.error.message);
+          } else if (webhookResponse.data?.success) {
+            console.log("Webhook configured successfully for manual instance");
+            toast.success("Webhook configurado com sucesso!");
+          } else {
+            console.error("Webhook config failed for manual instance:", webhookResponse.data);
+            toast.warning("Webhook pode não ter sido configurado corretamente");
+          }
+        } catch (webhookErr) {
+          console.error("Exception configuring webhook:", webhookErr);
+          toast.error("Erro ao configurar webhook");
         }
 
         // Reset config state
