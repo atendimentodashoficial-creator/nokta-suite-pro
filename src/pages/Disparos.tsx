@@ -221,17 +221,21 @@ export default function Disparos() {
 
     setIsSyncing(true);
     try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        if (!silent) {
-          toast.error('Sua sessão expirou. Faça login novamente.');
-          setTimeout(() => (window.location.href = '/auth'), 2000);
+      // Force refresh session before calling edge function to ensure valid token
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      // If refresh fails, try getSession as fallback
+      let session = refreshData?.session;
+      if (refreshError || !session) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData?.session) {
+          if (!silent) {
+            toast.error('Sua sessão expirou. Faça login novamente.');
+            setTimeout(() => (window.location.href = '/auth'), 2000);
+          }
+          return;
         }
-        return;
+        session = sessionData.session;
       }
 
       const response = await supabase.functions.invoke('disparos-get-chats', {

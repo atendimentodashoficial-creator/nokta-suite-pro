@@ -620,17 +620,19 @@ export default function AdminWhatsApp() {
     }
     setIsSyncing(true);
     try {
-      // Refresh session before calling edge function
-      const {
-        data: {
-          session
-        },
-        error: sessionError
-      } = await supabase.auth.getSession();
-      if (sessionError || !session) {
-        toast.error('Sua sessão expirou. Faça login novamente.');
-        setTimeout(() => window.location.href = '/auth', 2000);
-        return;
+      // Force refresh session before calling edge function to ensure valid token
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      // If refresh fails, try getSession as fallback
+      let session = refreshData?.session;
+      if (refreshError || !session) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData?.session) {
+          toast.error('Sua sessão expirou. Faça login novamente.');
+          setTimeout(() => window.location.href = '/auth', 2000);
+          return;
+        }
+        session = sessionData.session;
       }
       const response = await supabase.functions.invoke('uazapi-get-chats', {
         headers: {
