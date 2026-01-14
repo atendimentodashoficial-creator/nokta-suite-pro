@@ -316,7 +316,7 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
   const getSourceInfo = (attr: AttributionEntry) => {
     // Check if detected by AI
     if (isDetectedByAICheck(attr.utm_campaign)) {
-      return { label: 'Meta Ads (I.A)', className: 'bg-purple-500 text-white', isAI: true };
+      return { label: 'Anúncios', className: 'bg-purple-500 text-white', isAI: true };
     }
     if (attr.source === 'meta') {
       return { label: 'Meta Ads', className: 'bg-primary text-primary-foreground', isAI: false };
