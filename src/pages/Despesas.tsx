@@ -274,10 +274,7 @@ export default function Despesas() {
             <Tag className="h-4 w-4 mr-2" />
             Categorias
           </Button>
-          <Button size="icon" className="sm:hidden" onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button className="hidden sm:flex" onClick={() => handleOpenDialog()}>
+          <Button onClick={() => handleOpenDialog()}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Despesa
           </Button>
