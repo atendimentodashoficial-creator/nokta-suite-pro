@@ -178,11 +178,12 @@ export function WhatsAppKanban({
       const leadIds = Array.from(new Set(Object.values(last8ToLeadId)));
       if (leadIds.length === 0) return;
 
-      // Get agendamentos for these leads (only future ones)
-      const now = new Date().toISOString();
+      // Get agendamentos for these leads (only pending - agendado or confirmado)
+      // "realizado" means it was completed and shouldn't show as upcoming
+      // "cancelado" means it was cancelled
       const {
         data: agendamentos
-      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado"]).gte("data_agendamento", now).order("data_agendamento", {
+      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado"]).order("data_agendamento", {
         ascending: true
       });
 
@@ -564,11 +565,19 @@ export function WhatsAppKanban({
     const agendamento = chatAgendamentos[chatId];
     if (!agendamento) return null;
     const dataAgendamento = parseISO(agendamento.data_agendamento);
+    const now = new Date();
     const hoje = isToday(dataAgendamento);
     const amanha = isTomorrow(dataAgendamento);
+    const passado = dataAgendamento < now && !hoje;
+    
     let bgColor = "bg-muted";
     let textColor = "text-muted-foreground";
-    if (hoje) {
+    
+    if (passado) {
+      // Past appointments - red/warning color
+      bgColor = "bg-red-100 dark:bg-red-950";
+      textColor = "text-red-700 dark:text-red-400";
+    } else if (hoje) {
       bgColor = "bg-green-100 dark:bg-green-950";
       textColor = "text-green-700 dark:text-green-400";
     } else if (amanha) {
