@@ -618,7 +618,7 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
                         try {
                           const { data: session } = await supabase.auth.getSession();
                           
-                          // Create instance via admin API
+                          // Create instance via admin API (edge function saves to database automatically)
                           const createResponse = await supabase.functions.invoke("uazapi-admin-create-instance", {
                             headers: { Authorization: `Bearer ${session.session?.access_token}` },
                             body: { instance_name: newInstanceName.trim() },
@@ -628,36 +628,64 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
                             throw new Error(createResponse.data?.error || "Erro ao criar instância");
                           }
                           
-                          const { base_url, api_key } = createResponse.data;
+                          const responseData = createResponse.data;
+                          const base_url = responseData.base_url || responseData.instance?.base_url;
+                          const api_key = responseData.api_key || responseData.instance?.api_key;
+                          const instance_id = responseData.instance_id || responseData.id || responseData.instance?.id;
                           
-                          // Save to database
-                          const { data: newInst, error: insertError } = await supabase
-                            .from("disparos_instancias")
-                            .insert({
-                              user_id: user?.id,
-                              nome: newInstanceName.trim(),
-                              base_url,
-                              api_key,
-                              is_active: true,
-                            })
-                            .select()
-                            .single();
+                          let newInst: DisparosInstancia;
                           
-                          if (insertError) throw insertError;
+                          // Check if edge function already saved the instance
+                          if (responseData.already_saved && instance_id) {
+                            // Fetch the saved instance from database
+                            const { data: savedInst, error: fetchError } = await supabase
+                              .from("disparos_instancias")
+                              .select("*")
+                              .eq("id", instance_id)
+                              .single();
+                            
+                            if (fetchError || !savedInst) {
+                              throw new Error("Instância criada mas não encontrada no banco");
+                            }
+                            
+                            newInst = savedInst as DisparosInstancia;
+                          } else {
+                            // Legacy: save to database if edge function didn't
+                            const { data: insertedInst, error: insertError } = await supabase
+                              .from("disparos_instancias")
+                              .insert({
+                                user_id: user?.id,
+                                nome: newInstanceName.trim(),
+                                base_url,
+                                api_key,
+                                is_active: true,
+                              })
+                              .select()
+                              .single();
+                            
+                            if (insertError) throw insertError;
+                            newInst = insertedInst as DisparosInstancia;
+                          }
                           
-                          setTempNewInstance(newInst as DisparosInstancia);
+                          setTempNewInstance(newInst);
                           
                           // Get QR code
                           const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
                             headers: { Authorization: `Bearer ${session.session?.access_token}` },
-                            body: { base_url, api_key },
+                            body: { base_url: newInst.base_url, api_key: newInst.api_key },
                           });
                           
                           if (qrResponse.data?.qrcode) {
                             setNewInstanceQrCode(qrResponse.data.qrcode);
-                            startNewInstancePolling(newInst as DisparosInstancia);
+                            startNewInstancePolling(newInst);
+                          } else if (qrResponse.data?.connected) {
+                            // Already connected!
+                            toast.success("WhatsApp já está conectado!");
+                            setAddDialogOpen(false);
+                            setConnectionStatus(prev => ({ ...prev, [newInst.id]: 'connected' }));
+                            onInstanciasChange();
                           } else {
-                            toast.error("Não foi possível obter o QR Code");
+                            toast.error(qrResponse.data?.error || "Não foi possível obter o QR Code");
                           }
                         } catch (error: any) {
                           toast.error(error.message || "Erro ao criar instância");
