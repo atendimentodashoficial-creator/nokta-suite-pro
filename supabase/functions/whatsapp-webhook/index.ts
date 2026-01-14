@@ -207,6 +207,35 @@ function extractUtmDataFromMessage(message: any, payload: any): ExtractedUtmData
   return utmData;
 }
 
+// Keywords that indicate the message came from an ad
+const AD_KEYWORDS = [
+  "vi seu anúncio", "vi o anúncio", "vi no instagram", "vi no facebook",
+  "vi na propaganda", "vi a propaganda", "vi pelo instagram", "vi pelo facebook",
+  "vi uma publicação", "vi um post", "vi o post", "vi sua publicação",
+  "vim pelo anúncio", "vim do anúncio", "vim pelo instagram", "vim do instagram",
+  "vim pelo facebook", "vim do facebook", "através do anúncio", "através do instagram",
+  "através do facebook", "pelo anúncio", "do anúncio"
+];
+
+// Detect if message text indicates it came from an ad
+function detectAdMentionInText(text: string): { isFromAd: boolean; source: string | null } {
+  if (!text) return { isFromAd: false, source: null };
+  
+  const normalized = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const textWithAccents = text.toLowerCase();
+  
+  for (const keyword of AD_KEYWORDS) {
+    const normalizedKeyword = keyword.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (normalized.includes(normalizedKeyword) || textWithAccents.includes(keyword)) {
+      // Determine source
+      if (keyword.includes("instagram")) return { isFromAd: true, source: "instagram" };
+      if (keyword.includes("facebook")) return { isFromAd: true, source: "facebook" };
+      return { isFromAd: true, source: "meta" };
+    }
+  }
+  return { isFromAd: false, source: null };
+}
+
 // Helper function to fetch campaign name from Facebook Ads API
 async function fetchFacebookCampaignInfo(
   supabase: any,
@@ -1680,6 +1709,26 @@ Deno.serve(async (req) => {
     console.log('No matching lead found, creating new lead...');
     await logEvent(effectiveUserId, 'info', `Criando novo lead para ${name} (${phone})`);
 
+    // If no UTM data from referral, try to detect ad mention in message text
+    let finalUtmData = { ...utmData };
+    let adDetectedFromText = false;
+    
+    if (!utmData.utm_source && messageText) {
+      const adDetection = detectAdMentionInText(messageText);
+      if (adDetection.isFromAd) {
+        console.log('Ad mention detected in message text:', adDetection.source);
+        finalUtmData.utm_source = adDetection.source || 'facebook';
+        finalUtmData.utm_medium = 'cpc';
+        finalUtmData.utm_campaign = 'Detectado automaticamente';
+        adDetectedFromText = true;
+        await logEvent(effectiveUserId, 'info', `Anúncio detectado no texto: "${messageText.substring(0, 50)}..."`);
+      }
+    }
+
+    const observacoes = messageText 
+      ? `Primeira mensagem: ${messageText}${adDetectedFromText ? ' [Anúncio detectado automaticamente]' : ''}`
+      : `Contato recebido via ${leadOrigem}`;
+
     const { data: newLead, error: insertError } = await supabase
       .from('leads')
       .insert({
@@ -1688,26 +1737,26 @@ Deno.serve(async (req) => {
         telefone: normalizedIncoming,
         procedimento_nome: `Contato via ${leadOrigem}`,
         origem: leadOrigem,
-        observacoes: messageText ? `Primeira mensagem: ${messageText}` : `Contato recebido via ${leadOrigem}`,
+        observacoes,
         status: 'lead',
         origem_lead: true,
         data_contato: today,
         instancia_nome: instanciaNome,
         respondeu: true, // Lead created from incoming message = already responded
-        // UTM data from Click-to-WhatsApp ads
-        utm_source: utmData.utm_source,
-        utm_campaign: utmData.utm_campaign,
-        utm_medium: utmData.utm_medium,
-        utm_content: utmData.utm_content,
-        utm_term: utmData.utm_term,
-        fbclid: utmData.fbclid,
+        // UTM data from Click-to-WhatsApp ads (or detected from text)
+        utm_source: finalUtmData.utm_source,
+        utm_campaign: finalUtmData.utm_campaign,
+        utm_medium: finalUtmData.utm_medium,
+        utm_content: finalUtmData.utm_content,
+        utm_term: finalUtmData.utm_term,
+        fbclid: finalUtmData.fbclid,
         // Facebook Ad enriched data
-        fb_ad_id: utmData.fb_ad_id,
-        fb_campaign_id: utmData.fb_campaign_id,
-        fb_campaign_name: utmData.fb_campaign_name,
-        fb_adset_id: utmData.fb_adset_id,
-        fb_adset_name: utmData.fb_adset_name,
-        fb_ad_name: utmData.fb_ad_name,
+        fb_ad_id: finalUtmData.fb_ad_id,
+        fb_campaign_id: finalUtmData.fb_campaign_id,
+        fb_campaign_name: finalUtmData.fb_campaign_name,
+        fb_adset_id: finalUtmData.fb_adset_id,
+        fb_adset_name: finalUtmData.fb_adset_name,
+        fb_ad_name: finalUtmData.fb_ad_name,
       })
       .select()
       .single();
