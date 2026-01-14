@@ -627,14 +627,14 @@ export function WhatsAppKanban({
       textColor = "text-blue-700 dark:text-blue-400";
       statusLabel = " (Realizado)";
     } else if (isCancelado) {
-      // Cancelado (Não Compareceu) - gray/muted color
-      bgColor = "bg-slate-200 dark:bg-slate-800";
-      textColor = "text-slate-600 dark:text-slate-400";
-      statusLabel = " (Não compareceu)";
-    } else if (passado) {
-      // Past pending appointments - red/warning color
+      // Cancelado (Não Compareceu) - red color
       bgColor = "bg-red-100 dark:bg-red-950";
       textColor = "text-red-700 dark:text-red-400";
+      statusLabel = " (Não compareceu)";
+    } else if (passado) {
+      // Past pending appointments - yellow/warning color
+      bgColor = "bg-yellow-100 dark:bg-yellow-950";
+      textColor = "text-yellow-700 dark:text-yellow-400";
       statusLabel = " (Atrasado)";
     } else if (hoje) {
       // Today - green
