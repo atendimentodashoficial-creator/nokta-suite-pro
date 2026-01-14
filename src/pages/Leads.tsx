@@ -282,31 +282,35 @@ export default function Leads() {
             onDateEndChange={setDateEnd}
           />
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-500"></span>
-              WhatsApp: <strong className="text-foreground">{leadsWhatsAppCount}</strong>
-            </span>
-            <span className="text-border">|</span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-              Disparos: <strong className="text-foreground">{leadsDisparosCount}</strong>
-            </span>
-            {origemFilter === "disparos" && whatsAppLeadsWithDisparos.length > 0 && (
+            {origemFilter === "whatsapp" ? (
               <>
-                <span className="text-border">|</span>
-                <span className="flex items-center gap-1.5 text-amber-600">
-                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  +{whatsAppLeadsWithDisparos.length} de WhatsApp
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  WhatsApp: <strong className="text-foreground">{leadsWhatsAppCount}</strong>
                 </span>
+                {disparosLeadsWithWhatsApp.length > 0 && (
+                  <>
+                    <span className="text-border">|</span>
+                    <span className="flex items-center gap-1.5 text-amber-600">
+                      +{disparosLeadsWithWhatsApp.length} de Disparos
+                    </span>
+                  </>
+                )}
               </>
-            )}
-            {origemFilter === "whatsapp" && disparosLeadsWithWhatsApp.length > 0 && (
+            ) : (
               <>
-                <span className="text-border">|</span>
-                <span className="flex items-center gap-1.5 text-amber-600">
-                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  +{disparosLeadsWithWhatsApp.length} de Disparos
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  Disparos: <strong className="text-foreground">{leadsDisparosCount}</strong>
                 </span>
+                {whatsAppLeadsWithDisparos.length > 0 && (
+                  <>
+                    <span className="text-border">|</span>
+                    <span className="flex items-center gap-1.5 text-amber-600">
+                      +{whatsAppLeadsWithDisparos.length} de WhatsApp
+                    </span>
+                  </>
+                )}
               </>
             )}
           </div>
