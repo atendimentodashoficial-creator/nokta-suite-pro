@@ -98,6 +98,24 @@ function getMediaPlaceholder(message: WhatsAppWebhookPayload['message']): string
   return null;
 }
 
+// Helper function to normalize media type for database enum compatibility
+// Converts raw API values like "ptt", "AudioMessage" to valid enum values like "audio"
+function normalizeMediaType(rawMediaType: string | null | undefined, messageType: string | null | undefined): string | null {
+  const raw = (rawMediaType || messageType || '').toLowerCase();
+  
+  if (!raw) return null;
+  
+  // Map common variations to valid enum values
+  if (raw === 'ptt' || raw.includes('audio')) return 'audio';
+  if (raw.includes('image')) return 'image';
+  if (raw.includes('video')) return 'video';
+  if (raw.includes('document') || raw.includes('application')) return 'document';
+  if (raw.includes('sticker')) return 'sticker';
+  
+  // Return the raw value if it's already a valid enum value
+  return raw;
+}
+
 // Helper function to extract UTM data from message payload EARLY (before saving messages)
 interface ExtractedUtmData {
   utm_source: string | null;
@@ -855,7 +873,7 @@ Deno.serve(async (req) => {
                   message_id: messageId,
                   content: currentContent,
                   sender_type: currentSenderType,
-                  media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                  media_type: mediaPlaceholder ? normalizeMediaType(anyMsg?.mediaType, anyMsg?.messageType) : null,
                   timestamp: msgTime,
                   // Include UTM attribution directly
                   utm_source: earlyUtmData.utm_source,
@@ -986,7 +1004,7 @@ Deno.serve(async (req) => {
                     message_id: messageId,
                     content: messageText || '',
                     sender_type: isFromMe ? 'agent' : 'customer',
-                    media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                    media_type: mediaPlaceholder ? normalizeMediaType(anyMsg?.mediaType, anyMsg?.messageType) : null,
                     timestamp: msgTime,
                     utm_source: earlyUtmData.utm_source,
                     utm_campaign: earlyUtmData.utm_campaign,
@@ -1069,7 +1087,7 @@ Deno.serve(async (req) => {
                   message_id: messageId,
                   content: messageText || '',
                   sender_type: isFromMe ? 'agent' : 'customer',
-                  media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                  media_type: mediaPlaceholder ? normalizeMediaType(anyMsg?.mediaType, anyMsg?.messageType) : null,
                   timestamp: msgTime,
                   utm_source: earlyUtmData.utm_source,
                   utm_campaign: earlyUtmData.utm_campaign,
@@ -1175,7 +1193,7 @@ Deno.serve(async (req) => {
                 message_id: messageId,
                 content: messageText || '',
                 sender_type: isFromMe ? 'agent' : 'customer',
-                media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                media_type: mediaPlaceholder ? normalizeMediaType(anyMsg?.mediaType, anyMsg?.messageType) : null,
                 timestamp: msgTime,
                 // Include UTM attribution directly
                 utm_source: earlyUtmData.utm_source,
@@ -1304,10 +1322,10 @@ Deno.serve(async (req) => {
                     message_id: messageId,
                     content: messageText || '',
                     sender_type: isFromMe ? 'agent' : 'customer',
-                    media_type: mediaPlaceholder ? (anyMsgLocal?.mediaType || anyMsgLocal?.messageType || null) : null,
-                    timestamp: msgTime,
-                    utm_source: earlyUtmData.utm_source,
-                    utm_campaign: earlyUtmData.utm_campaign,
+                  media_type: mediaPlaceholder ? normalizeMediaType(anyMsgLocal?.mediaType, anyMsgLocal?.messageType) : null,
+                  timestamp: msgTime,
+                  utm_source: earlyUtmData.utm_source,
+                  utm_campaign: earlyUtmData.utm_campaign,
                     utm_medium: earlyUtmData.utm_medium,
                     utm_content: earlyUtmData.utm_content,
                     utm_term: earlyUtmData.utm_term,
@@ -1388,7 +1406,7 @@ Deno.serve(async (req) => {
                   message_id: messageId,
                   content: messageText || '',
                   sender_type: isFromMe ? 'agent' : 'customer',
-                  media_type: mediaPlaceholder ? (anyMsg?.mediaType || anyMsg?.messageType || null) : null,
+                  media_type: mediaPlaceholder ? normalizeMediaType(anyMsg?.mediaType, anyMsg?.messageType) : null,
                   timestamp: msgTime,
                   // Include UTM attribution directly
                   utm_source: earlyUtmData.utm_source,
