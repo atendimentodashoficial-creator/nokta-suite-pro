@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone, Pencil, Save, X } from "lucide-react";
+import { Clock, Send, CheckCircle, AlertCircle, Loader2, Megaphone, Eye, User, Calendar, MapPin, Mail, Phone, Pencil, Save, X, MessageSquare, Copy, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -52,9 +52,73 @@ export function PixelStatusBadge({
   const [savingEdit, setSavingEdit] = useState(false);
   const [faturaValor, setFaturaValor] = useState<number | null>(null);
   const [loadingLeadData, setLoadingLeadData] = useState(false);
+  const [sendFormDialogOpen, setSendFormDialogOpen] = useState(false);
+  const [sendingForm, setSendingForm] = useState(false);
   const queryClient = useQueryClient();
   
   const status = pixelStatus || "pendente";
+
+  // Get the form URL for this fatura
+  const getFormUrl = () => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/conversao/${faturaId}`;
+  };
+
+  // Open WhatsApp with form link
+  const openWhatsAppWithForm = async () => {
+    setSendingForm(true);
+    try {
+      // Fetch pixel config for message template
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const { data: pixelConfig } = await supabase
+        .from("meta_pixel_config")
+        .select("mensagem_formulario")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const formUrl = getFormUrl();
+      const message = pixelConfig?.mensagem_formulario 
+        ? `${pixelConfig.mensagem_formulario}\n\n${formUrl}`
+        : `Olá! Para finalizar seu cadastro, preencha o formulário:\n\n${formUrl}`;
+      
+      // Format phone for WhatsApp
+      const phoneClean = clienteTelefone.replace(/\D/g, "");
+      const whatsappUrl = `https://wa.me/${phoneClean}?text=${encodeURIComponent(message)}`;
+      
+      // Update fatura status to formulario_enviado
+      await supabase
+        .from("faturas")
+        .update({
+          pixel_status: "formulario_enviado",
+          pixel_form_sent_at: new Date().toISOString(),
+        })
+        .eq("id", faturaId);
+
+      queryClient.invalidateQueries({ queryKey: ["faturas"] });
+      
+      // Open WhatsApp
+      window.open(whatsappUrl, "_blank");
+      setSendFormDialogOpen(false);
+      toast.success("Formulário enviado!");
+    } catch (error) {
+      console.error("Error sending form:", error);
+      toast.error("Erro ao enviar formulário");
+    } finally {
+      setSendingForm(false);
+    }
+  };
+
+  // Copy form link to clipboard
+  const copyFormLink = async () => {
+    try {
+      await navigator.clipboard.writeText(getFormUrl());
+      toast.success("Link copiado!");
+    } catch {
+      toast.error("Erro ao copiar link");
+    }
+  };
 
   const openReviewDialog = async () => {
     setLoadingLeadData(true);
@@ -308,6 +372,27 @@ export function PixelStatusBadge({
         </div>
         
         <div className="flex gap-2">
+          {(status === "pendente" || status === "formulario_enviado") && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant={status === "formulario_enviado" ? "outline" : "default"}
+                    onClick={() => setSendFormDialogOpen(true)}
+                    className="text-xs"
+                  >
+                    <Send className="h-3 w-3 mr-1" />
+                    {status === "formulario_enviado" ? "Reenviar" : "Enviar formulário"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Enviar link do formulário via WhatsApp</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
           {status === "dados_completos" && (
             <TooltipProvider>
               <Tooltip>
@@ -336,6 +421,51 @@ export function PixelStatusBadge({
           )}
         </div>
       </div>
+
+      {/* Send Form Dialog */}
+      <Dialog open={sendFormDialogOpen} onOpenChange={setSendFormDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-primary" />
+              Enviar Formulário
+            </DialogTitle>
+            <DialogDescription>
+              Envie o link do formulário para o cliente preencher os dados necessários para o Pixel.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Link do formulário:</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs bg-background p-2 rounded flex-1 overflow-hidden text-ellipsis">
+                  {getFormUrl()}
+                </code>
+                <Button size="icon" variant="ghost" onClick={copyFormLink} className="h-8 w-8">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button onClick={openWhatsAppWithForm} disabled={sendingForm} className="w-full">
+                {sendingForm ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                )}
+                Enviar via WhatsApp
+              </Button>
+              
+              <Button variant="outline" onClick={() => window.open(getFormUrl(), "_blank")} className="w-full">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Abrir formulário
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Review Dialog */}
       <Dialog open={reviewDialogOpen} onOpenChange={(open) => {
