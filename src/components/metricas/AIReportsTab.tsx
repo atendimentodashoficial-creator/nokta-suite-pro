@@ -529,7 +529,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     const agendadosUntracked = phonesAgendadosUntracked.size;
     const agendadosDisparos = phonesAgendadosDisparos.size;
 
-    // Compareceu = faturas em negociação ou fechadas (para exibição no funil)
+    // Compareceu = faturas negociação ou fechadas (para exibição no funil)
     const compareceuTotal = phonesCompareceu.size;
     const compareceuTracked = phonesCompareceuTracked.size;
     const compareceuUntracked = phonesCompareceuUntracked.size;
@@ -540,7 +540,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
     const clientesUntracked = phonesFechadoUntracked.size;
     const clientesDisparos = phonesFechadoDisparos.size;
 
-    // Em negociação = compareceu - fechado
+    // Negociação = compareceu - fechado
     const emNegociacao = compareceuTotal - clientesTotal;
 
     // Calculate conversion rates (igual ao Dashboard e Funil)

@@ -1323,7 +1323,7 @@ export function FunilConversaoTab() {
           }
         }
 
-        // Etapa 3: Compareceu / Em negociação
+        // Etapa 3: Compareceu / Negociação
         if (temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
           const attr = getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3, isDisparos: isFromDisparos });
           bumpMetric(attr, "compareceu", 1);
@@ -2311,7 +2311,7 @@ export function FunilConversaoTab() {
 
         <Card className="text-center">
           <CardHeader className="pb-1">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Em Negociação</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground">Negociação</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-2xl font-bold">{formatNumber(totals.em_negociacao)}</div>
@@ -2324,7 +2324,7 @@ export function FunilConversaoTab() {
                       <span>{totals.emNegociacaoTracked} via Anúncio</span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Em negociação de anúncios</p>
+                      <p>Negociação de anúncios</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -2337,7 +2337,7 @@ export function FunilConversaoTab() {
                       <span>{totals.emNegociacaoUntracked} não rastreados</span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Em negociação sem rastreamento de anúncios</p>
+                      <p>Negociação sem rastreamento de anúncios</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

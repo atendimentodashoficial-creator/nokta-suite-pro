@@ -381,7 +381,7 @@ export default function Dashboard() {
   const faturasFechadas = dadosFiltrados.faturas.filter(f => f.status === "fechado").length;
   const faturasEmNegociacao = dadosFiltrados.faturas.filter(f => f.status === "negociacao");
   const receitaEmNegociacao = faturasEmNegociacao.reduce((sum, f) => sum + Number(f.valor), 0);
-  // Receita prevista = Fechadas + Em Negociação
+  // Receita prevista = Fechadas + Negociação
   const receitaPrevista = receitaAtual + receitaEmNegociacao;
 
   // DESPESAS
@@ -643,7 +643,7 @@ export default function Dashboard() {
                 gradient
               />
               <StatsCard
-                title="Em Negociação"
+                title="Negociação"
                 value={`R$ ${receitaEmNegociacao.toLocaleString("pt-BR")}`}
                 change={`${faturasEmNegociacao.length} faturas`}
                 changeType="positive"
