@@ -11,6 +11,7 @@ const BodySchema = z.object({
   action: z.enum(["get", "submit"]),
   faturaId: z.string().min(1),
   nome: z.string().optional(),
+  email: z.string().optional(),
   genero: z.string().optional(),
   data_nascimento: z.string().optional(),
   cep: z.string().optional(),
@@ -40,7 +41,7 @@ serve(async (req) => {
       );
     }
 
-    const { action, faturaId, nome, genero, data_nascimento, cep, cidade, estado, endereco } = parsed.data;
+    const { action, faturaId, nome, email, genero, data_nascimento, cep, cidade, estado, endereco } = parsed.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -65,7 +66,7 @@ serve(async (req) => {
         user_id,
         cliente_id,
         pixel_status,
-        leads:cliente_id(id, nome, genero, data_nascimento, cep, cidade, estado, endereco)
+        leads:cliente_id(id, nome, email, genero, data_nascimento, cep, cidade, estado, endereco)
       `
       )
       .eq("id", faturaId)
@@ -93,6 +94,7 @@ serve(async (req) => {
     // Basic normalization (keep nulls to avoid overwriting with empty strings)
     const leadUpdate = {
       nome: nome?.trim() ? nome.trim() : undefined,
+      email: email?.trim() ? email.trim().toLowerCase() : null,
       genero: genero?.trim() ? genero.trim() : null,
       data_nascimento: data_nascimento?.trim() ? data_nascimento.trim() : null,
       cep: cep?.trim() ? cep.trim() : null,
