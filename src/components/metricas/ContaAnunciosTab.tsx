@@ -482,7 +482,7 @@ export function ContaAnunciosTab() {
                   Ir para Conexões
                 </Button>
               </CardContent>
-            </Card> : <div className="overflow-x-auto pb-2"><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 min-w-fit">
+            </Card> : <div className="overflow-x-auto pb-2 max-w-full"><div className="grid grid-flow-col auto-cols-[minmax(320px,360px)] gap-4">
               {filteredAccounts.map(account => {
           const data = accountData[account.ad_account_id];
           const isLoading = loadingAccounts[account.ad_account_id];
