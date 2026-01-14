@@ -1320,35 +1320,50 @@ export function FunilConversaoTab() {
 
         // Etapa 2: Agendados
         // Conta todos os agendamentos do período (incluindo cancelados/não compareceu)
+        // IMPORTANTE: Usar a origem do lead vinculado ao agendamento, não a origem primária do telefone
         if (hasAgendamentoInPeriod) {
-          const attr = getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2, isDisparos: isFromDisparos });
+          const agendamentoLead = leadById[leadIdStage2];
+          const agendamentoOrigem = (agendamentoLead?.origem || "").toLowerCase();
+          const isAgendamentoDisparos = agendamentoOrigem === "disparos";
+          
+          const attr = getAttribution(phone, { preferredLeadId: leadIdStage2, eventTs: tsStage2, isDisparos: isAgendamentoDisparos });
           bumpMetric(attr, "agendados", 1);
-          if (isFromDisparos) viaDisparos.agendados++;
+          if (isAgendamentoDisparos) viaDisparos.agendados++;
 
           // Marcar "não compareceu" se o agendamento foi cancelado (aparece na aba Não Compareceu)
           if (phonesWithNaoCompareceuInPeriod.has(phone)) {
             bumpMetric(attr, "nao_compareceu", 1);
-            if (isFromDisparos) viaDisparos.nao_compareceu++;
+            if (isAgendamentoDisparos) viaDisparos.nao_compareceu++;
           }
         }
 
         // Etapa 3: Compareceu / Negociação
+        // IMPORTANTE: Usar a origem do lead vinculado à fatura, não a origem primária do telefone
         if (temFaturaNegociacaoInPeriod || temFaturaFechadaInPeriod) {
-          const attr = getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3, isDisparos: isFromDisparos });
+          const faturaLead = leadById[leadIdStage3];
+          const faturaOrigem = (faturaLead?.origem || "").toLowerCase();
+          const isFaturaDisparos = faturaOrigem === "disparos";
+          
+          const attr = getAttribution(phone, { preferredLeadId: leadIdStage3, eventTs: tsStage3, isDisparos: isFaturaDisparos });
           bumpMetric(attr, "compareceu", 1);
-          if (isFromDisparos) viaDisparos.compareceu++;
+          if (isFaturaDisparos) viaDisparos.compareceu++;
 
           if (temFaturaNegociacaoInPeriod && !temFaturaFechadaInPeriod) {
             bumpMetric(attr, "em_negociacao", 1);
-            if (isFromDisparos) viaDisparos.em_negociacao++;
+            if (isFaturaDisparos) viaDisparos.em_negociacao++;
           }
         }
 
         // Etapa 4: Clientes
+        // IMPORTANTE: Usar a origem do lead vinculado à fatura fechada, não a origem primária do telefone
         if (temFaturaFechadaInPeriod) {
-          const attr = getAttribution(phone, { preferredLeadId: leadIdStage4, eventTs: tsStage4, isDisparos: isFromDisparos });
+          const clienteLead = leadById[leadIdStage4];
+          const clienteOrigem = (clienteLead?.origem || "").toLowerCase();
+          const isClienteDisparos = clienteOrigem === "disparos";
+          
+          const attr = getAttribution(phone, { preferredLeadId: leadIdStage4, eventTs: tsStage4, isDisparos: isClienteDisparos });
           bumpMetric(attr, "clientes", 1);
-          if (isFromDisparos) viaDisparos.clientes++;
+          if (isClienteDisparos) viaDisparos.clientes++;
 
           let valorFechado = 0;
           allIds.forEach((id) => {
@@ -1357,7 +1372,7 @@ export function FunilConversaoTab() {
 
           if (valorFechado > 0) {
             bumpMetric(attr, "valor_fechado", valorFechado);
-            if (isFromDisparos) viaDisparos.valor_fechado += valorFechado;
+            if (isClienteDisparos) viaDisparos.valor_fechado += valorFechado;
           } else {
             // Fallback para valor_tratamento
             const valorTratamento = allIds
@@ -1365,7 +1380,7 @@ export function FunilConversaoTab() {
               .find((l) => l?.valor_tratamento)?.valor_tratamento;
             if (valorTratamento) {
               bumpMetric(attr, "valor_fechado", valorTratamento);
-              if (isFromDisparos) viaDisparos.valor_fechado += valorTratamento;
+              if (isClienteDisparos) viaDisparos.valor_fechado += valorTratamento;
             }
           }
         }
