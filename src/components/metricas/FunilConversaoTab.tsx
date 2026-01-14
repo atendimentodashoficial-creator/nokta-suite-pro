@@ -918,6 +918,25 @@ export function FunilConversaoTab() {
       > = {};
       const bestCampaignTsByPhone: Record<string, number> = {};
 
+      // Build name→ID maps for normalization
+      // This handles cases where some leads have IDs and others don't for the same campaign/adset/ad
+      const campaignNameToId: Record<string, string> = {};
+      const adsetNameToId: Record<string, string> = {};
+      const adNameToId: Record<string, string> = {};
+      
+      // First pass: collect all name→ID mappings from leads that have IDs
+      (allLeads || []).forEach((l) => {
+        if (l.fb_campaign_name && l.fb_campaign_id) {
+          campaignNameToId[l.fb_campaign_name] = l.fb_campaign_id;
+        }
+        if (l.fb_adset_name && l.fb_adset_id) {
+          adsetNameToId[l.fb_adset_name] = l.fb_adset_id;
+        }
+        if (l.fb_ad_name && l.fb_ad_id) {
+          adNameToId[l.fb_ad_name] = l.fb_ad_id;
+        }
+      });
+
       (allLeads || []).forEach((l) => {
         const phone = phoneKey(l.telefone);
         if (!phonesInPeriod.has(phone)) return;
@@ -929,12 +948,13 @@ export function FunilConversaoTab() {
         }
 
         bestCampaignTsByPhone[phone] = t;
+        // Use normalized IDs (fill in missing IDs from name→ID map)
         bestCampaignByPhone[phone] = {
-          fb_campaign_id: l.fb_campaign_id,
+          fb_campaign_id: l.fb_campaign_id || (l.fb_campaign_name ? campaignNameToId[l.fb_campaign_name] : null) || null,
           fb_campaign_name: l.fb_campaign_name,
-          fb_adset_id: l.fb_adset_id,
+          fb_adset_id: l.fb_adset_id || (l.fb_adset_name ? adsetNameToId[l.fb_adset_name] : null) || null,
           fb_adset_name: l.fb_adset_name,
-          fb_ad_id: l.fb_ad_id,
+          fb_ad_id: l.fb_ad_id || (l.fb_ad_name ? adNameToId[l.fb_ad_name] : null) || null,
           fb_ad_name: l.fb_ad_name,
         };
       });
@@ -1134,18 +1154,26 @@ export function FunilConversaoTab() {
         // Se esse lead não tiver campanha, ele deve ficar como "Sem campanha" mesmo que exista atribuição em registros futuros.
         if (opts?.strictPreferred && opts.preferredLeadId) {
           const preferred = leadById[opts.preferredLeadId];
-          const campaignId = preferred?.fb_campaign_id || null;
-          const campaign = preferred?.fb_campaign_name || "Sem campanha";
-          const adsetId = preferred?.fb_adset_id || null;
-          const adset = preferred?.fb_adset_name || "Sem conjunto";
-          const adId = preferred?.fb_ad_id || null;
-          const ad = preferred?.fb_ad_name || "Sem anúncio";
+          // Normalize IDs using name→ID maps
+          const rawCampaignId = preferred?.fb_campaign_id || null;
+          const rawCampaignName = preferred?.fb_campaign_name || null;
+          const rawAdsetId = preferred?.fb_adset_id || null;
+          const rawAdsetName = preferred?.fb_adset_name || null;
+          const rawAdId = preferred?.fb_ad_id || null;
+          const rawAdName = preferred?.fb_ad_name || null;
+          
+          const campaignId = rawCampaignId || (rawCampaignName ? campaignNameToId[rawCampaignName] : null) || null;
+          const campaign = rawCampaignName || "Sem campanha";
+          const adsetId = rawAdsetId || (rawAdsetName ? adsetNameToId[rawAdsetName] : null) || null;
+          const adset = rawAdsetName || "Sem conjunto";
+          const adId = rawAdId || (rawAdName ? adNameToId[rawAdName] : null) || null;
+          const ad = rawAdName || "Sem anúncio";
 
-          // Use NAME-based keys for consistent grouping
+          // Use ID as key when available, fallback to name-based key
           let key: string;
-          if (viewLevel === "campaign") key = campaign;
-          else if (viewLevel === "adset") key = `${campaign}|||${adset}`;
-          else key = `${campaign}|||${adset}|||${ad}`;
+          if (viewLevel === "campaign") key = campaignId || campaign;
+          else if (viewLevel === "adset") key = adsetId || `${campaignId || campaign}|||${adset}`;
+          else key = adId || `${campaignId || campaign}|||${adsetId || adset}|||${ad}`;
 
           return { key, campaignId, campaign, adsetId, adset, adId, ad };
         }
@@ -1159,18 +1187,26 @@ export function FunilConversaoTab() {
         const shouldUseFallback = opts?.eventTs === undefined;
         const fallback = shouldUseFallback ? bestCampaignByPhone[phone] : undefined;
 
-        const campaignId = fromLead?.fb_campaign_id || fallback?.fb_campaign_id || null;
-        const campaign = fromLead?.fb_campaign_name || fallback?.fb_campaign_name || "Sem campanha";
-        const adsetId = fromLead?.fb_adset_id || fallback?.fb_adset_id || null;
-        const adset = fromLead?.fb_adset_name || fallback?.fb_adset_name || "Sem conjunto";
-        const adId = fromLead?.fb_ad_id || fallback?.fb_ad_id || null;
-        const ad = fromLead?.fb_ad_name || fallback?.fb_ad_name || "Sem anúncio";
+        // Normalize IDs using name→ID maps (fills in missing IDs from other leads with same name)
+        const rawCampaignId = fromLead?.fb_campaign_id || fallback?.fb_campaign_id || null;
+        const rawCampaignName = fromLead?.fb_campaign_name || fallback?.fb_campaign_name || null;
+        const rawAdsetId = fromLead?.fb_adset_id || fallback?.fb_adset_id || null;
+        const rawAdsetName = fromLead?.fb_adset_name || fallback?.fb_adset_name || null;
+        const rawAdId = fromLead?.fb_ad_id || fallback?.fb_ad_id || null;
+        const rawAdName = fromLead?.fb_ad_name || fallback?.fb_ad_name || null;
+        
+        const campaignId = rawCampaignId || (rawCampaignName ? campaignNameToId[rawCampaignName] : null) || null;
+        const campaign = rawCampaignName || "Sem campanha";
+        const adsetId = rawAdsetId || (rawAdsetName ? adsetNameToId[rawAdsetName] : null) || null;
+        const adset = rawAdsetName || "Sem conjunto";
+        const adId = rawAdId || (rawAdName ? adNameToId[rawAdName] : null) || null;
+        const ad = rawAdName || "Sem anúncio";
 
-        // Use NAME-based keys for consistent grouping
+        // Use ID as key when available, fallback to name-based key
         let key: string;
-        if (viewLevel === "campaign") key = campaign;
-        else if (viewLevel === "adset") key = `${campaign}|||${adset}`;
-        else key = `${campaign}|||${adset}|||${ad}`;
+        if (viewLevel === "campaign") key = campaignId || campaign;
+        else if (viewLevel === "adset") key = adsetId || `${campaignId || campaign}|||${adset}`;
+        else key = adId || `${campaignId || campaign}|||${adsetId || adset}|||${ad}`;
 
         return { key, campaignId, campaign, adsetId, adset, adId, ad };
       };
@@ -1201,9 +1237,8 @@ export function FunilConversaoTab() {
       };
 
       const bumpAllLevels = (attr: ReturnType<typeof getAttribution>) => {
-        // Campaign - use campaign NAME as key for consistent grouping
-        // This handles cases where some leads have IDs and others don't
-        const campaignKey = attr.campaign;
+        // Campaign - use ID when available (already normalized), fallback to name
+        const campaignKey = attr.campaignId || attr.campaign;
         ensureGroup(groupedCampaign, campaignKey, {
           campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
@@ -1213,9 +1248,8 @@ export function FunilConversaoTab() {
           ad_name: null,
         });
 
-        // Adset - use adset NAME as key (combined with campaign for uniqueness)
-        // This ensures leads with same adset name but different ID presence are grouped together
-        const adsetKey = `${attr.campaign}|||${attr.adset}`;
+        // Adset - use ID when available (already normalized), fallback to name-based key
+        const adsetKey = attr.adsetId || `${attr.campaignId || attr.campaign}|||${attr.adset}`;
         ensureGroup(groupedAdset, adsetKey, {
           campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
@@ -1225,8 +1259,8 @@ export function FunilConversaoTab() {
           ad_name: null,
         });
 
-        // Ad - use ad NAME as key (combined with campaign and adset for uniqueness)
-        const adKey = `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
+        // Ad - use ID when available (already normalized), fallback to name-based key
+        const adKey = attr.adId || `${attr.campaignId || attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
         ensureGroup(groupedAd, adKey, {
           campaign_id: attr.campaignId,
           campaign_name: attr.campaign,
@@ -1240,14 +1274,14 @@ export function FunilConversaoTab() {
       const bumpMetric = (attr: ReturnType<typeof getAttribution>, field: keyof Pick<FunnelData, "leads" | "agendados" | "compareceu" | "nao_compareceu" | "em_negociacao" | "clientes" | "valor_fechado">, amount: number) => {
         bumpAllLevels(attr);
 
-        // Use NAME-based keys matching bumpAllLevels
-        const campaignKey = attr.campaign;
+        // Use ID-based keys matching bumpAllLevels (IDs are already normalized)
+        const campaignKey = attr.campaignId || attr.campaign;
         groupedCampaign[campaignKey][field] += amount;
 
-        const adsetKey = `${attr.campaign}|||${attr.adset}`;
+        const adsetKey = attr.adsetId || `${attr.campaignId || attr.campaign}|||${attr.adset}`;
         groupedAdset[adsetKey][field] += amount;
 
-        const adKey = `${attr.campaign}|||${attr.adset}|||${attr.ad}`;
+        const adKey = attr.adId || `${attr.campaignId || attr.campaign}|||${attr.adsetId || attr.adset}|||${attr.ad}`;
         groupedAd[adKey][field] += amount;
       };
       // Contadores para eventos de leads que vieram originalmente de "Disparos"
