@@ -1150,7 +1150,15 @@ export default function Conexoes() {
                   const accountType = account.account_type || (account.is_prepay_account ? "prepaid" : "postpaid");
                   const currencyType = account.currency_type || "BRL";
                   const currencySpread = account.currency_spread || 0;
-                  return <div key={account.id} className="flex flex-col p-3 border rounded-lg bg-muted/50 gap-3">
+                  return <div key={account.id} className="relative flex flex-col p-3 pr-10 border rounded-lg bg-muted/50 gap-3">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => removeAdAccount(account.id)} 
+                        className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate mb-1">{account.account_name || "Conta sem nome"}</p>
                         <p className="text-xs text-muted-foreground font-mono truncate mb-2">{account.ad_account_id}</p>
@@ -1203,9 +1211,6 @@ export default function Conexoes() {
                             title="Spread do cartão em %"
                           />
                         )}
-                        <Button variant="ghost" size="icon" onClick={() => removeAdAccount(account.id)} className="h-9 w-9 text-destructive hover:text-destructive ml-auto">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>;
                 })}
