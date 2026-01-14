@@ -36,7 +36,14 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
 
   const hasAttribution = Boolean(localLead.utm_source || localLead.utm_campaign || localLead.fbclid || localLead.gclid);
 
+  // Check if detected by AI (utm_campaign = "Detectado por IA")
+  const isDetectedByAI = localLead.utm_campaign === "Detectado por IA";
+
   const sourceInfo = useMemo(() => {
+    // AI detected - show purple with (I.A) suffix
+    if (isDetectedByAI) {
+      return { label: "Meta Ads (I.A)", bgColor: "bg-purple-100 dark:bg-purple-900", textColor: "text-purple-700 dark:text-purple-300" };
+    }
     if (localLead.utm_source === "facebook" || localLead.fbclid) {
       return { label: "Meta Ads", bgColor: "bg-blue-100 dark:bg-blue-900", textColor: "text-blue-700 dark:text-blue-300" };
     }
@@ -47,7 +54,7 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
       return { label: localLead.utm_source, bgColor: "bg-purple-100 dark:bg-purple-900", textColor: "text-purple-700 dark:text-purple-300" };
     }
     return { label: "Campanha", bgColor: "bg-gray-100 dark:bg-gray-800", textColor: "text-gray-700 dark:text-gray-300" };
-  }, [localLead.utm_source, localLead.fbclid, localLead.gclid]);
+  }, [localLead.utm_source, localLead.fbclid, localLead.gclid, isDetectedByAI]);
 
   // Enriquecer automaticamente quando temos ID do anúncio (ou utm_content numérico), mas faltam os nomes.
   useEffect(() => {
@@ -116,7 +123,7 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               title="Ver detalhes da campanha"
             >
-              <Megaphone className="h-4 w-4 flex-shrink-0 text-blue-500" />
+              <Megaphone className={`h-4 w-4 flex-shrink-0 ${isDetectedByAI ? 'text-purple-500' : 'text-blue-500'}`} />
               <span className={`text-xs px-2 py-0.5 rounded ${sourceInfo.bgColor} ${sourceInfo.textColor}`}>
                 {sourceInfo.label}
               </span>
@@ -132,7 +139,7 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
           >
             <div className="flex flex-col h-[55vh] sm:h-auto sm:max-h-[70vh] min-h-0">
               <div className="flex items-center gap-2 p-2 sm:p-3 border-b bg-background shrink-0">
-                <Megaphone className="w-4 h-4 text-blue-500" />
+                <Megaphone className={`w-4 h-4 ${isDetectedByAI ? 'text-purple-500' : 'text-blue-500'}`} />
                 <span className="font-semibold text-xs sm:text-sm">Origem do Anúncio</span>
               </div>
 
