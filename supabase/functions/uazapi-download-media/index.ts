@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     const base_url = config!.base_url;
     const api_key = config!.api_key;
 
-    // Download media from UAZapi
+    // Download media from UAZapi - request base64 by default for reliable display
     const response = await fetch(`${base_url}/message/download`, {
       method: 'POST',
       headers: {
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({ 
         id: messageId,
-        return_base64: returnBase64 || false,
+        return_base64: returnBase64 !== false, // Default to true for base64
         generate_mp3: generateMp3 || false,
         return_link: returnLink || false,
         transcribe: transcribe || false,
@@ -94,14 +94,53 @@ Deno.serve(async (req) => {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('UAZapi download error:', response.status, errorText);
       throw new Error(`UAZapi error: ${response.statusText}`);
     }
 
     const result = await response.json();
-    console.log('Media downloaded successfully');
+    console.log('Media download API response keys:', Object.keys(result));
+
+    // Normalize the response to always provide fileURL and mimetype
+    // UAZapi may return different field names depending on options
+    let fileURL: string | null = null;
+    let mimetype: string | null = null;
+
+    // Check various possible field names from UAZapi response
+    // Priority: base64 data URI > direct URL > fileUrl > url
+    if (result.base64 && result.mimetype) {
+      // Build a data URI from base64
+      fileURL = `data:${result.mimetype};base64,${result.base64}`;
+      mimetype = result.mimetype;
+    } else if (result.fileURL) {
+      fileURL = result.fileURL;
+      mimetype = result.mimetype || result.mimeType || 'application/octet-stream';
+    } else if (result.fileUrl) {
+      fileURL = result.fileUrl;
+      mimetype = result.mimetype || result.mimeType || 'application/octet-stream';
+    } else if (result.url) {
+      fileURL = result.url;
+      mimetype = result.mimetype || result.mimeType || 'application/octet-stream';
+    } else if (result.data?.base64 && result.data?.mimetype) {
+      // Nested format
+      fileURL = `data:${result.data.mimetype};base64,${result.data.base64}`;
+      mimetype = result.data.mimetype;
+    } else if (result.data?.url) {
+      fileURL = result.data.url;
+      mimetype = result.data.mimetype || result.data.mimeType || 'application/octet-stream';
+    }
+
+    // If we still don't have a URL, log the full result for debugging
+    if (!fileURL) {
+      console.error('Could not extract media URL from response:', JSON.stringify(result));
+      throw new Error('Could not extract media URL from response');
+    }
+
+    console.log('Media downloaded successfully, mimetype:', mimetype);
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ fileURL, mimetype }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
