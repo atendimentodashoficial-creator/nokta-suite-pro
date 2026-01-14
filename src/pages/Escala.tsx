@@ -567,15 +567,28 @@ export default function Escala() {
     hora_fim: string | null;
     motivo: string | null;
   }) => {
+    // Buscar todas as ausências do mesmo grupo (mesma data e profissional)
+    const todasDoGrupo = todasAusencias?.filter(
+      a => a.profissional_id === ausencia.profissional_id && a.data_inicio === ausencia.data_inicio
+    ) || [];
+    
     setAusenciaEditando({ id: ausencia.id, profissional_id: ausencia.profissional_id });
     const dataAusencia = parseISO(ausencia.data_inicio);
     setDatasAusenciaEditando([dataAusencia]);
-    const isDiaInteiro = !ausencia.hora_inicio && !ausencia.hora_fim;
+    
+    // Verifica se é dia inteiro (nenhuma ausência do grupo tem horários)
+    const isDiaInteiro = todasDoGrupo.every(a => !a.hora_inicio && !a.hora_fim);
     setDiaInteiroEditando(isDiaInteiro);
     
-    if (ausencia.hora_inicio && ausencia.hora_fim) {
-      // Carrega os horários salvos da ausência
-      setHorariosAusenciaEditando([{ inicio: ausencia.hora_inicio.slice(0, 5), fim: ausencia.hora_fim.slice(0, 5) }]);
+    if (!isDiaInteiro && todasDoGrupo.some(a => a.hora_inicio && a.hora_fim)) {
+      // Carrega TODOS os horários salvos do grupo
+      const horariosCarregados = todasDoGrupo
+        .filter(a => a.hora_inicio && a.hora_fim)
+        .map(a => ({
+          inicio: a.hora_inicio!.slice(0, 5),
+          fim: a.hora_fim!.slice(0, 5)
+        }));
+      setHorariosAusenciaEditando(horariosCarregados.length > 0 ? horariosCarregados : [{ inicio: "", fim: "" }]);
     } else {
       // Se é dia inteiro, busca os horários de escala do profissional para esse dia
       const diaSemana = getDay(dataAusencia);
@@ -656,8 +669,17 @@ export default function Escala() {
     if (!ausenciaEditando || datasAusenciaEditando.length === 0) return;
     
     try {
-      // Primeiro, deleta a ausência original
-      await deleteAusencia.mutateAsync(ausenciaEditando.id);
+      // Buscar TODAS as ausências do grupo (mesma data e profissional) para deletar
+      const dataOriginal = datasAusenciaEditando[0];
+      const dataStr = format(dataOriginal, "yyyy-MM-dd");
+      const todasDoGrupo = todasAusencias?.filter(
+        a => a.profissional_id === ausenciaEditando.profissional_id && a.data_inicio === dataStr
+      ) || [];
+      
+      // Deletar todas as ausências do grupo
+      for (const ausencia of todasDoGrupo) {
+        await deleteAusencia.mutateAsync(ausencia.id);
+      }
       
       // Depois, cria as novas ausências com base nas datas e horários selecionados
       for (const data of datasAusenciaEditando) {
@@ -672,32 +694,34 @@ export default function Escala() {
           });
         } else {
           for (const horario of horariosAusenciaEditando) {
-            await createAusencia.mutateAsync({
-              profissional_id: ausenciaEditando.profissional_id,
-              data_inicio: format(data, "yyyy-MM-dd"),
-              data_fim: format(data, "yyyy-MM-dd"),
-              hora_inicio: horario.inicio,
-              hora_fim: horario.fim,
-              motivo: motivoEditando || null
-            });
+            if (horario.inicio && horario.fim) {
+              await createAusencia.mutateAsync({
+                profissional_id: ausenciaEditando.profissional_id,
+                data_inicio: format(data, "yyyy-MM-dd"),
+                data_fim: format(data, "yyyy-MM-dd"),
+                hora_inicio: horario.inicio,
+                hora_fim: horario.fim,
+                motivo: motivoEditando || null
+              });
+            }
           }
         }
       }
       
       toast({
-        title: "Ausência atualizada",
+        title: "Substituição atualizada",
         description: `${datasAusenciaEditando.length} data(s) registrada(s)`
       });
       setDialogEditarAusencia(false);
       setAusenciaEditando(null);
       setDatasAusenciaEditando([]);
-      setHorariosAusenciaEditando([{ inicio: "07:00", fim: "08:30" }]);
+      setHorariosAusenciaEditando([{ inicio: "", fim: "" }]);
       setDiaInteiroEditando(false);
       setMotivoEditando("");
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar a ausência",
+        description: "Não foi possível atualizar a substituição",
         variant: "destructive"
       });
     }
