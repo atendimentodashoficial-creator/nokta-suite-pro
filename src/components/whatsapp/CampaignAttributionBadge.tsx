@@ -310,11 +310,12 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
   // Sempre renderiza o ícone: quando não há atribuição, ele aparece em estado “neutro”.
   const hasAttribution = attributions.length > 0;
 
+  const isDetectedByAICheck = (campaign: string | null) => 
+    campaign === "Detectado por I.A" || campaign === "Detectado por IA";
+
   const getSourceInfo = (attr: AttributionEntry) => {
     // Check if detected by AI
-    const isDetectedByAI = attr.utm_campaign === "Detectado por IA";
-    
-    if (isDetectedByAI) {
+    if (isDetectedByAICheck(attr.utm_campaign)) {
       return { label: 'Meta Ads (I.A)', className: 'bg-purple-500 text-white', isAI: true };
     }
     if (attr.source === 'meta') {
@@ -329,6 +330,9 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
     return { label: 'Campanha', className: 'bg-muted text-foreground', isAI: false };
   };
 
+  // Check if any attribution was detected by AI
+  const hasAIDetection = attributions.some(attr => isDetectedByAICheck(attr.utm_campaign));
+
   const formatDate = (timestamp: string) => {
     try {
       return format(new Date(timestamp), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -337,8 +341,6 @@ export function CampaignAttributionBadge({ contactNumber, chatId }: CampaignAttr
     }
   };
 
-  // Check if any attribution was detected by AI
-  const hasAIDetection = attributions.some(attr => attr.utm_campaign === "Detectado por IA");
   const iconColorClass = hasAIDetection ? "text-purple-500" : "text-primary";
 
   return (
