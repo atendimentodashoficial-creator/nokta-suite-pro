@@ -1487,20 +1487,34 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
   };
 
   // Find the FIRST customer message that has campaign attribution (earliest in the conversation)
-  const attributionAnchorMessageId =
-    messages.find(
-      (m) =>
-        m?.sender_type === "customer" &&
-        Boolean(
-          m?.utm_source ||
-            m?.utm_campaign ||
-            m?.fbclid ||
-            m?.fb_campaign_name ||
-            m?.fb_ad_id
-        )
-    )?.message_id ??
-    // Fallback: first customer message for lead attribution
-    messages.find((m) => m?.sender_type === "customer")?.message_id;
+  // or the first customer message if lead has attribution (fallback)
+  const firstCustomerMsgWithAttribution = messages.find(
+    (m) =>
+      m?.sender_type === "customer" &&
+      Boolean(
+        m?.utm_source ||
+          m?.utm_campaign ||
+          m?.fbclid ||
+          m?.fb_campaign_name ||
+          m?.fb_ad_id
+      )
+  );
+  
+  const firstCustomerMsg = messages.find((m) => m?.sender_type === "customer");
+  
+  // Check if lead has attribution data
+  const leadHasAttribution = Boolean(
+    leadAttribution?.utm_source ||
+      leadAttribution?.utm_campaign ||
+      leadAttribution?.fbclid ||
+      leadAttribution?.fb_campaign_name ||
+      leadAttribution?.fb_ad_id
+  );
+  
+  // Priority: message with its own attribution, or first customer msg if lead has attribution
+  const attributionAnchorMessageId = 
+    firstCustomerMsgWithAttribution?.message_id ?? 
+    (leadHasAttribution ? firstCustomerMsg?.message_id : null);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
