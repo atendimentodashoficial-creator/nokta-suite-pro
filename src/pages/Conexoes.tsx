@@ -1150,35 +1150,36 @@ export default function Conexoes() {
                   const accountType = account.account_type || (account.is_prepay_account ? "prepaid" : "postpaid");
                   const currencyType = account.currency_type || "BRL";
                   const currencySpread = account.currency_spread || 0;
-                  return <div key={account.id} className="relative flex flex-col p-3 pr-10 border rounded-lg bg-muted/50 gap-3">
+                  return <div key={account.id} className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:pr-3 pr-10 border rounded-lg bg-muted/50 gap-3">
+                      {/* Botão de excluir - mobile: canto superior direito, desktop: inline */}
                       <Button 
                         variant="ghost" 
                         size="icon" 
                         onClick={() => removeAdAccount(account.id)} 
-                        className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive"
+                        className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive sm:hidden"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm truncate mb-1">{account.account_name || "Conta sem nome"}</p>
-                        <p className="text-xs text-muted-foreground font-mono truncate mb-2">{account.ad_account_id}</p>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge variant="outline" className="text-xs">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-sm truncate">{account.account_name || "Conta sem nome"}</p>
+                          <Badge variant="outline" className="text-xs shrink-0">
                             {accountType === "prepaid" ? "Pré-pago" : "Pós-pago"}
                           </Badge>
-                          <Badge variant={currencyType === "USD" ? "secondary" : "outline"} className="text-xs">
+                          <Badge variant={currencyType === "USD" ? "secondary" : "outline"} className="text-xs shrink-0">
                             {currencyType === "USD" ? "$ USD" : "R$ BRL"}
                           </Badge>
                           {currencyType === "USD" && currencySpread > 0 && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs shrink-0">
                               +{currencySpread}% spread
                             </Badge>
                           )}
                         </div>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{account.ad_account_id}</p>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap border-t pt-3">
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap sm:border-0 border-t pt-3 sm:pt-0">
                         <Select value={accountType} onValueChange={value => updateAccountType(account.id, account.ad_account_id, value)}>
-                          <SelectTrigger className="flex-1 min-w-[90px] h-9 text-xs">
+                          <SelectTrigger className="w-[100px] h-8 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1187,7 +1188,7 @@ export default function Conexoes() {
                           </SelectContent>
                         </Select>
                         <Select value={currencyType} onValueChange={value => updateAccountCurrency(account.id, value)}>
-                          <SelectTrigger className="flex-1 min-w-[80px] h-9 text-xs">
+                          <SelectTrigger className="w-[85px] h-8 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1206,11 +1207,14 @@ export default function Conexoes() {
                               const val = parseFloat(e.target.value) || 0;
                               updateAccountSpread(account.id, Math.round(val * 100) / 100);
                             }}
-                            className="w-[65px] h-9 text-xs"
+                            className="w-[70px] h-8 text-xs"
                             placeholder="%"
                             title="Spread do cartão em %"
                           />
                         )}
+                        <Button variant="ghost" size="icon" onClick={() => removeAdAccount(account.id)} className="hidden sm:flex text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>;
                 })}
