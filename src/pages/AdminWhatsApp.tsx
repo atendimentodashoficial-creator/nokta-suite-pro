@@ -1581,9 +1581,13 @@ export default function AdminWhatsApp() {
                 </div>)}
             </div> : (/* Layout Desktop */
         viewMode === "kanban" ? (/* Visualização Kanban */
-        selectedChat ? (
-          <ResizablePanelGroup direction="horizontal" className="flex-1">
-            <ResizablePanel defaultSize={65} minSize={30}>
+        <ResizablePanelGroup 
+          key={selectedChat ? "kanban-with-chat" : "kanban-no-chat"}
+          direction="horizontal" 
+          className="flex-1 min-h-0"
+        >
+          <ResizablePanel defaultSize={selectedChat ? 65 : 100} minSize={30} className="min-h-0">
+            <div className="h-full flex flex-col overflow-hidden min-h-0">
               <WhatsAppKanban 
                 chats={filteredChats} 
                 onChatSelect={handleChatSelect} 
@@ -1598,30 +1602,24 @@ export default function AdminWhatsApp() {
                   loadChats();
                 }}
               />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={35} minSize={25} maxSize={60}>
-              <div className="h-full flex flex-col overflow-hidden">
-                <ChatWindow chat={selectedChat} initialMessage={prefillMessage} onMessagesRead={() => {
-                  if (selectedChat?.id && selectedChat.id !== "temp") {
-                    void clearUnreadCount(selectedChat.id);
-                  }
-                }} onChatUpdated={handleChatUpdated} availableChats={chats} onBack={() => { setSelectedChat(null); setPrefillMessage(null); }} />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        ) : (
-          <WhatsAppKanban 
-            chats={filteredChats} 
-            onChatSelect={handleChatSelect} 
-            selectedChatId={undefined}
-            onChatsDeleted={({ ids, normalizedNumbers }) => {
-              setChats((prev) => prev.filter((c) => !ids.includes(c.id) && !normalizedNumbers.includes((c.normalized_number || '').toString())));
-              setFilteredChats((prev) => prev.filter((c) => !ids.includes(c.id) && !normalizedNumbers.includes((c.normalized_number || '').toString())));
-              loadChats();
-            }}
-          />
-        )) : (/* Layout Desktop Lista - Resizable */
+            </div>
+          </ResizablePanel>
+          {selectedChat && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={35} minSize={25} maxSize={60} className="min-h-0">
+                <div className="h-full flex flex-col overflow-hidden min-h-0">
+                  <ChatWindow chat={selectedChat} initialMessage={prefillMessage} onMessagesRead={() => {
+                    if (selectedChat?.id && selectedChat.id !== "temp") {
+                      void clearUnreadCount(selectedChat.id);
+                    }
+                  }} onChatUpdated={handleChatUpdated} availableChats={chats} onBack={() => { setSelectedChat(null); setPrefillMessage(null); }} />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+        ) : (/* Layout Desktop Lista - Resizable */
         <ResizablePanelGroup direction="horizontal" className="flex-1">
                 <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
                   <div className="h-full flex flex-col overflow-hidden border-r">
