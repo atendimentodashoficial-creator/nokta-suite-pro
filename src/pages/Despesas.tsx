@@ -10,7 +10,8 @@ import {
   Tag,
   RefreshCcw,
   DollarSign,
-  CreditCard
+  CreditCard,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +64,7 @@ import {
 } from "@/hooks/useCategoriasDespesas";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
-import despesasIcon from "@/assets/despesas-icon.png";
+
 
 interface DespesaFormData {
   descricao: string;
@@ -262,7 +263,7 @@ export default function Despesas() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2">
-          <img src={despesasIcon} alt="Despesas" className="w-7 h-7" />
+          <Wallet className="w-6 h-6" />
           <h1 className="text-2xl font-bold text-foreground">Despesas</h1>
         </div>
         <div className="flex gap-2">
