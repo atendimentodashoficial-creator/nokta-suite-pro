@@ -63,26 +63,36 @@ interface MessageBubbleProps {
 const isMediaMetadata = (content: string, isMediaMessage: boolean): boolean => {
   if (!isMediaMessage) return false;
   if (!content) return false;
-  
+
   const trimmed = content.trim();
-  
+
   // Check for placeholder text like [audio], [image], [video], [document]
   if (/^\[(audio|image|video|document|imagem|áudio|vídeo|documento)\]$/i.test(trimmed)) {
     return true;
   }
-  
-  // Check if content looks like JSON metadata (starts with { and contains typical metadata keys)
-  if (trimmed.startsWith('{') && (
-    trimmed.includes('"JPEGThumbnail"') ||
-    trimmed.includes('"URL"') ||
-    trimmed.includes('"mediaKey"') ||
-    trimmed.includes('"mimetype"') ||
-    trimmed.includes('"fileSHA256"') ||
-    trimmed.includes('"fileLength"')
-  )) {
+
+  // Common emoji placeholders used by the webhook for media-only messages
+  if (
+    /^(🎵\s*áudio|📷\s*imagem|🎥\s*vídeo|📄\s*documento|🏷️\s*figurinha|📍\s*localização|👤\s*contato)$/i.test(
+      trimmed
+    )
+  ) {
     return true;
   }
-  
+
+  // Check if content looks like JSON metadata (starts with { and contains typical metadata keys)
+  if (
+    trimmed.startsWith('{') &&
+    (trimmed.includes('"JPEGThumbnail"') ||
+      trimmed.includes('"URL"') ||
+      trimmed.includes('"mediaKey"') ||
+      trimmed.includes('"mimetype"') ||
+      trimmed.includes('"fileSHA256"') ||
+      trimmed.includes('"fileLength"'))
+  ) {
+    return true;
+  }
+
   return false;
 };
 
@@ -468,7 +478,7 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
           {renderQuotedMessage()}
 
           {/* Media content - hide if deleted */}
-          {!isDeleted && isMedia && message.media_url && renderMedia()}
+          {!isDeleted && isMedia && renderMedia()}
 
           {/* Text content - hide metadata for media messages */}
           {message.content && !isMediaMetadata(message.content, isMedia) && (
@@ -506,7 +516,7 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
       {renderQuotedMessage()}
 
       {/* Media content - hide if deleted */}
-      {!isDeleted && isMedia && message.media_url && renderMedia()}
+      {!isDeleted && isMedia && renderMedia()}
 
       {/* Text content - hide metadata for media messages */}
       {message.content && !isMediaMetadata(message.content, isMedia) && (
