@@ -230,7 +230,7 @@ export function HeaderAttributionBadge({ contactNumber, chatId }: HeaderAttribut
   const getSourceInfo = (attr: AttributionEntry) => {
     // Check if detected by AI
     if (isDetectedByAI(attr.utm_campaign)) {
-      return { label: "Meta Ads (I.A)", className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300", isAI: true };
+      return { label: "Anúncios", className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300", isAI: true };
     }
     if (attr.source === "meta") return { label: "Meta Ads", className: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300", isAI: false };
     if (attr.source === "google") return { label: "Google Ads", className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300", isAI: false };

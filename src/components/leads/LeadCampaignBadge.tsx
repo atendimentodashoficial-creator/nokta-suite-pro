@@ -40,9 +40,9 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
   const isDetectedByAI = localLead.utm_campaign === "Detectado por I.A" || localLead.utm_campaign === "Detectado por IA";
 
   const sourceInfo = useMemo(() => {
-    // AI detected - show purple with (I.A) suffix
+    // AI detected - show purple with "Anúncios" label
     if (isDetectedByAI) {
-      return { label: "Meta Ads (I.A)", bgColor: "bg-purple-100 dark:bg-purple-900", textColor: "text-purple-700 dark:text-purple-300" };
+      return { label: "Anúncios", bgColor: "bg-purple-100 dark:bg-purple-900", textColor: "text-purple-700 dark:text-purple-300" };
     }
     if (localLead.utm_source === "facebook" || localLead.fbclid) {
       return { label: "Meta Ads", bgColor: "bg-blue-100 dark:bg-blue-900", textColor: "text-blue-700 dark:text-blue-300" };
@@ -169,9 +169,9 @@ export function LeadCampaignBadge({ lead }: LeadCampaignBadgeProps) {
 
                 {(localLead.fb_campaign_name || localLead.utm_campaign) && (
                   <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Campanha (Gerenciador):</span>
-                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-2">
-                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 break-words">
+                    <span className="text-xs text-muted-foreground">Rastreamento:</span>
+                    <div className={`${isDetectedByAI ? 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800' : 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'} border rounded-md p-2`}>
+                      <span className={`text-xs font-semibold break-words ${isDetectedByAI ? 'text-purple-700 dark:text-purple-300' : 'text-blue-700 dark:text-blue-300'}`}>
                         {localLead.fb_campaign_name || localLead.utm_campaign}
                       </span>
                     </div>
