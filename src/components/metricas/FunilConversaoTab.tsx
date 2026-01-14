@@ -765,16 +765,18 @@ export function FunilConversaoTab() {
       
       // Rastrear origem primária por telefone - USAR O LEAD PRIMÁRIO SELECIONADO
       // Isso garante consistência entre a seleção de lead e a categorização de origem
+      // Determina origem primária por telefone usando APENAS o campo 'origem'
+      // Isso mantém consistência com a aba Leads (isWhatsAppOrigin/isDisparosOrigin)
       const primaryOriginByPhone: Record<string, string> = {};
       Object.values(firstLeadByPhone).forEach((lead) => {
         const phone = phoneKey(lead.telefone);
         const origem = (lead.origem || "").toLowerCase();
-        const origemTipo = (lead.origem_tipo || "").toLowerCase();
-        // Se origem ou origem_tipo é "disparos", usar "disparos" como origem primária
-        if (origem === "disparos" || origemTipo === "disparos") {
+        // Usar apenas 'origem' (não origem_tipo) para manter consistência com aba Leads
+        // origem vazia ou "whatsapp" = WhatsApp, "disparos" = Disparos
+        if (origem === "disparos") {
           primaryOriginByPhone[phone] = "disparos";
         } else {
-          primaryOriginByPhone[phone] = origem || "whatsapp";
+          primaryOriginByPhone[phone] = "whatsapp";
         }
       });
 
@@ -823,7 +825,6 @@ export function FunilConversaoTab() {
       Object.values(firstLeadByPhone).forEach((primaryLead) => {
         const phone = phoneKey(primaryLead.telefone);
         const origem = (primaryLead.origem || "").toLowerCase();
-        const origemTipo = (primaryLead.origem_tipo || "").toLowerCase();
         
         if (!isWithinPeriod(primaryLead.created_at)) return;
         
@@ -831,8 +832,8 @@ export function FunilConversaoTab() {
         // Esses contatos ainda podem contar em agendamentos/faturas se houver eventos no período
         if (primaryLead.status === "cliente") return;
         
-        // Verificar tanto 'origem' quanto 'origem_tipo' para determinar se veio de Disparos
-        if (origem === "disparos" || origemTipo === "disparos") {
+        // Usar apenas 'origem' (não origem_tipo) para manter consistência com aba Leads
+        if (origem === "disparos") {
           phonesWithDisparosLeadInPeriod.add(phone);
         } else {
           // WhatsApp ou origem vazia/null
