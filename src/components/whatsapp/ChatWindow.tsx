@@ -715,19 +715,9 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
 
         setLeadAttribution(baseAttribution);
 
-        // Verificar se o lead tem algum agendamento
-        const { data: agendamentos } = await supabase
-          .from('agendamentos')
-          .select('id')
-          .eq('cliente_id', lead.id)
-          .limit(1);
-
-        // Se tem agendamento, considerar como cliente
-        if (agendamentos && agendamentos.length > 0) {
-          setLeadStatus('cliente');
-        } else {
-          setLeadStatus(lead.status);
-        }
+        // Use the lead's actual status from the database
+        // This ensures consistency with what's visible in the app pages (Clientes, Leads, etc.)
+        setLeadStatus(lead.status);
       } else {
         setLeadId(null);
         setLeadStatus(null);
