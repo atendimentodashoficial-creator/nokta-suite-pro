@@ -683,7 +683,7 @@ export function WhatsAppKanban({
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>;
   }
-  return <div className="flex-1 flex flex-col overflow-hidden">
+  return <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

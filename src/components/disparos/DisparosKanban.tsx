@@ -595,7 +595,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       {/* Kanban Header with Settings */}
       <div className="h-[60px] px-3 border-b flex items-center gap-3 bg-card flex-shrink-0">
         {/* Instance Filter */}
