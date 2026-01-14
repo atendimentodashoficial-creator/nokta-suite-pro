@@ -399,66 +399,59 @@ export default function Despesas() {
           {despesasFiltradas.map((despesa) => (
             <Card key={despesa.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-medium text-foreground break-words">{despesa.descricao}</h3>
-                      {despesa.recorrente && (
-                        <Badge variant="secondary" className="text-xs">
-                          <RefreshCcw className="h-3 w-3 mr-1" />
-                          Recorrente
-                        </Badge>
-                      )}
-                      {despesa.parcelada && (
-                        <Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
-                          <CreditCard className="h-3 w-3 mr-1" />
-                          {despesa.numero_parcelas}x
-                        </Badge>
-                      )}
+                <div className="flex items-center justify-between gap-4">
+                  {/* Linha principal: Descrição e Valor */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="font-medium text-foreground truncate">{despesa.descricao}</h3>
+                      <span className="text-lg font-bold text-destructive shrink-0">
+                        {formatCurrency(Number(despesa.valor))}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                    
+                    {/* Linha secundária: Detalhes sutis */}
+                    <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground flex-wrap">
                       {despesa.parcelada ? (
-                        <>
-                          {despesa.data_inicio && despesa.data_fim && (
-                            <span className="flex items-center gap-1">
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                              {format(new Date(despesa.data_inicio), "dd/MM/yyyy")} - {format(new Date(despesa.data_fim), "dd/MM/yyyy")}
-                            </span>
-                          )}
-                        </>
+                        despesa.data_inicio && despesa.data_fim && (
+                          <span>{format(new Date(despesa.data_inicio), "dd/MM/yy")} - {format(new Date(despesa.data_fim), "dd/MM/yy")}</span>
+                        )
                       ) : (
                         despesa.data_despesa && (
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="h-3.5 w-3.5" />
-                            {format(new Date(despesa.data_despesa), "dd/MM/yyyy")}
-                          </span>
+                          <span>{format(new Date(despesa.data_despesa), "dd/MM/yyyy")}</span>
                         )
                       )}
+                      
                       {despesa.categorias_despesas && (
-                        <Badge 
-                          variant="outline" 
-                          className="text-xs"
-                          style={{ 
-                            borderColor: despesa.categorias_despesas.cor || undefined,
-                            color: despesa.categorias_despesas.cor || undefined
-                          }}
-                        >
-                          {despesa.categorias_despesas.nome}
-                        </Badge>
+                        <>
+                          <span>•</span>
+                          <span style={{ color: despesa.categorias_despesas.cor || undefined }}>
+                            {despesa.categorias_despesas.nome}
+                          </span>
+                        </>
+                      )}
+                      
+                      {despesa.recorrente && (
+                        <>
+                          <span>•</span>
+                          <span className="text-blue-600">Recorrente</span>
+                        </>
+                      )}
+                      
+                      {despesa.parcelada && (
+                        <>
+                          <span>•</span>
+                          <span className="text-orange-600">{despesa.numero_parcelas}x</span>
+                        </>
                       )}
                     </div>
-                    {despesa.observacoes && (
-                      <p className="text-xs text-muted-foreground line-clamp-1">{despesa.observacoes}</p>
-                    )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-lg font-semibold text-destructive">
-                      {formatCurrency(Number(despesa.valor))}
-                    </span>
+                  
+                  {/* Ações */}
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       onClick={() => handleOpenDialog(despesa)}
                     >
                       <Pencil className="h-4 w-4" />
@@ -466,7 +459,7 @@ export default function Despesas() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
                       onClick={() => {
                         setDespesaParaExcluir(despesa.id);
                         setDeleteDialogOpen(true);
