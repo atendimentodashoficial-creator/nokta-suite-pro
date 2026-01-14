@@ -28,6 +28,7 @@ interface ChatAgendamento {
   id: string;
   data_agendamento: string;
   status: string;
+  totalAgendamentos: number; // How many agendamentos this client has in history
 }
 interface WhatsAppKanbanProps {
   chats: any[];
@@ -190,7 +191,14 @@ export function WhatsAppKanban({
       });
 
       // Best agendamento per lead - priority: pending > realizado > cancelado
+      // Also count total agendamentos per lead
       const leadIdToAgendamento: Record<string, ChatAgendamento> = {};
+      const leadAgendamentoCount: Record<string, number> = {};
+      
+      // First pass: count agendamentos per lead
+      agendamentos?.forEach(ag => {
+        leadAgendamentoCount[ag.cliente_id] = (leadAgendamentoCount[ag.cliente_id] || 0) + 1;
+      });
       
       const getPriority = (status: string) => {
         if (status === "agendado" || status === "confirmado") return 3; // Highest - pending
@@ -199,15 +207,18 @@ export function WhatsAppKanban({
         return 0;
       };
       
+      // Second pass: find best agendamento per lead
       agendamentos?.forEach(ag => {
         const existing = leadIdToAgendamento[ag.cliente_id];
+        const totalCount = leadAgendamentoCount[ag.cliente_id] || 1;
         
         // If no existing, set this one
         if (!existing) {
           leadIdToAgendamento[ag.cliente_id] = {
             id: ag.id,
             data_agendamento: ag.data_agendamento,
-            status: ag.status
+            status: ag.status,
+            totalAgendamentos: totalCount
           };
           return;
         }
@@ -220,7 +231,8 @@ export function WhatsAppKanban({
           leadIdToAgendamento[ag.cliente_id] = {
             id: ag.id,
             data_agendamento: ag.data_agendamento,
-            status: ag.status
+            status: ag.status,
+            totalAgendamentos: totalCount
           };
         } else if (agPriority === existingPriority && agPriority === 3) {
           // Both pending - keep earliest future one
@@ -228,7 +240,8 @@ export function WhatsAppKanban({
             leadIdToAgendamento[ag.cliente_id] = {
               id: ag.id,
               data_agendamento: ag.data_agendamento,
-              status: ag.status
+              status: ag.status,
+              totalAgendamentos: totalCount
             };
           }
         } else if (agPriority === existingPriority && agPriority === 2) {
@@ -237,7 +250,8 @@ export function WhatsAppKanban({
             leadIdToAgendamento[ag.cliente_id] = {
               id: ag.id,
               data_agendamento: ag.data_agendamento,
-              status: ag.status
+              status: ag.status,
+              totalAgendamentos: totalCount
             };
           }
         }
@@ -646,13 +660,20 @@ export function WhatsAppKanban({
       textColor = "text-orange-700 dark:text-orange-400";
     }
     
+    const hasMultiple = agendamento.totalAgendamentos > 1;
+    
     return (
       <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs mt-2 w-full ${bgColor} ${textColor}`}>
         <Calendar className="w-3 h-3 flex-shrink-0" />
-        <span className="truncate">
+        <span className="truncate flex-1">
           {format(dataAgendamento, "dd/MM", { locale: ptBR })} às {format(dataAgendamento, "HH:mm")}
           {statusLabel}
         </span>
+        {hasMultiple && (
+          <span className="flex-shrink-0 bg-current/20 px-1.5 py-0.5 rounded text-[10px] font-medium">
+            +{agendamento.totalAgendamentos - 1}
+          </span>
+        )}
       </div>
     );
   };
