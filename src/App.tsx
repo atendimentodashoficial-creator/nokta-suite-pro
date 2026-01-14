@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import Agenda from "./pages/Agenda";
 import Configuracoes from "./pages/Configuracoes";
 import Faturas from "./pages/Faturas";
+import Despesas from "./pages/Despesas";
 import EmNegociacao from "./pages/EmNegociacao";
 import AdminWhatsApp from "./pages/AdminWhatsApp";
 import NaoCompareceu from "./pages/NaoCompareceu";
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="clientes/:id" element={<ClienteDetalhes />} />
             <Route path="em-negociacao" element={<EmNegociacao />} />
             <Route path="faturas" element={<Faturas />} />
+            <Route path="despesas" element={<Despesas />} />
             <Route path="whatsapp" element={<AdminWhatsApp />} />
             <Route path="disparos" element={<Disparos />} />
             <Route path="extrator" element={<Extrator />} />
