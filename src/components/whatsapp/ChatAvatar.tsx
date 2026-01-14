@@ -37,19 +37,10 @@ export const ChatAvatar = ({ chat, size = "md" }: ChatAvatarProps) => {
       if (lead) {
         setLeadId(lead.id);
         
-        // Verificar se o lead tem algum agendamento
-        const { data: agendamentos } = await supabase
-          .from('agendamentos')
-          .select('id')
-          .eq('cliente_id', lead.id)
-          .limit(1);
-        
-        // Se tem agendamento, considerar como cliente
-        if (agendamentos && agendamentos.length > 0) {
-          setLeadStatus('cliente');
-        } else {
-          setLeadStatus(lead.status);
-        }
+        // Use the lead's actual status from the database
+        // Only mark as "cliente" if the lead status is actually "cliente"
+        // This ensures consistency with what's visible in the Clientes page
+        setLeadStatus(lead.status);
       } else {
         setLeadId(null);
         setLeadStatus(null);
@@ -88,7 +79,7 @@ export const ChatAvatar = ({ chat, size = "md" }: ChatAvatarProps) => {
     };
   }, [chat.contact_number]);
 
-  // Realtime: escutar criação de agendamentos para este lead
+  // Realtime: escutar criação/atualização de agendamentos para este lead
   useEffect(() => {
     if (!leadId) return;
 
@@ -97,14 +88,14 @@ export const ChatAvatar = ({ chat, size = "md" }: ChatAvatarProps) => {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'agendamentos',
           filter: `cliente_id=eq.${leadId}`
         },
         () => {
-          // Quando um agendamento é criado, atualizar para cliente
-          setLeadStatus('cliente');
+          // Reload lead status when agendamentos change
+          loadLeadStatus();
         }
       )
       .subscribe();
