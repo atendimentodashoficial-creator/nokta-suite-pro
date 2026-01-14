@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { useState, useMemo, useEffect } from "react";
+import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Plus, 
@@ -603,19 +603,29 @@ export default function Despesas() {
               {/* Campos de parcelamento */}
               {formData.parcelada && (
                 <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                  <div className="space-y-2">
-                    <Label htmlFor="numero_parcelas">Número de Parcelas *</Label>
-                    <Input
-                      id="numero_parcelas"
-                      type="number"
-                      min="1"
-                      value={formData.numero_parcelas}
-                      onChange={(e) => setFormData({ ...formData, numero_parcelas: e.target.value })}
-                      placeholder="Ex: 12"
-                    />
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="numero_parcelas">Número de Parcelas *</Label>
+                      <Input
+                        id="numero_parcelas"
+                        type="number"
+                        min="1"
+                        value={formData.numero_parcelas}
+                        onChange={(e) => {
+                          const parcelas = e.target.value;
+                          const numParcelas = parseInt(parcelas);
+                          let newDataFim = formData.data_fim;
+                          
+                          if (formData.data_inicio && numParcelas > 0) {
+                            newDataFim = addMonths(formData.data_inicio, numParcelas - 1);
+                          }
+                          
+                          setFormData({ ...formData, numero_parcelas: parcelas, data_fim: newDataFim });
+                        }}
+                        placeholder="Ex: 12"
+                      />
+                    </div>
+
                     <div className="space-y-2">
                       <Label>Data Início *</Label>
                       <Popover>
@@ -639,44 +649,41 @@ export default function Despesas() {
                           <Calendar
                             mode="single"
                             selected={formData.data_inicio}
-                            onSelect={(date) => setFormData({ ...formData, data_inicio: date })}
+                            onSelect={(date) => {
+                              const numParcelas = parseInt(formData.numero_parcelas);
+                              let newDataFim = formData.data_fim;
+                              
+                              if (date && numParcelas > 0) {
+                                newDataFim = addMonths(date, numParcelas - 1);
+                              }
+                              
+                              setFormData({ ...formData, data_inicio: date, data_fim: newDataFim });
+                            }}
                             locale={ptBR}
                             initialFocus
                           />
                         </PopoverContent>
                       </Popover>
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label>Data Fim *</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !formData.data_fim && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formData.data_fim ? (
-                              format(formData.data_fim, "dd/MM/yy")
-                            ) : (
-                              "Fim"
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={formData.data_fim}
-                            onSelect={(date) => setFormData({ ...formData, data_fim: date })}
-                            locale={ptBR}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Data Fim (calculada automaticamente)</Label>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal cursor-default",
+                        !formData.data_fim && "text-muted-foreground"
+                      )}
+                      disabled
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.data_fim ? (
+                        format(formData.data_fim, "dd/MM/yyyy")
+                      ) : (
+                        "Preencha parcelas e data início"
+                      )}
+                    </Button>
                   </div>
                 </div>
               )}
