@@ -146,10 +146,9 @@ export function NovaFaturaDialog({
   // Calcular valor total incluindo upsells
   const upsells = form.watch("upsells") || [];
   const valorBase = form.watch("valor") || "0";
-  const valorBaseNumerico = parseFloat(valorBase.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+  const valorBaseNumerico = parseCurrencyToNumber(valorBase);
   const valorUpsells = upsells.reduce((acc, upsell) => {
-    const val = parseFloat((upsell.valor || "0").replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
-    return acc + val;
+    return acc + parseCurrencyToNumber(upsell.valor || "0");
   }, 0);
   const valorTotal = valorBaseNumerico + valorUpsells;
 
@@ -157,24 +156,23 @@ export function NovaFaturaDialog({
     setIsSubmitting(true);
     try {
       // Converter valor de string para número
-      const valorNumerico = parseFloat(data.valor.replace(/[^\d,.-]/g, '').replace(',', '.'));
+      const valorNumerico = parseCurrencyToNumber(data.valor);
 
       // Calcular valor total incluindo upsells
       const valorUpsellsTotal = (data.upsells || []).reduce((acc, upsell) => {
-        const val = parseFloat(upsell.valor.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
-        return acc + val;
+        return acc + parseCurrencyToNumber(upsell.valor);
       }, 0);
 
       const valorTotalFatura = valorNumerico + valorUpsellsTotal;
 
       const valorEntrada = data.forma_pagamento !== "a_vista" && data.valor_entrada 
-        ? parseFloat(data.valor_entrada.replace(/[^\d,.-]/g, '').replace(',', '.')) 
+        ? parseCurrencyToNumber(data.valor_entrada)
         : 0;
       const numeroParcelas = data.forma_pagamento !== "a_vista" && data.numero_parcelas
         ? parseInt(data.numero_parcelas)
         : 1;
       const taxaParcelamento = data.forma_pagamento !== "a_vista" && data.taxa_parcelamento
-        ? parseFloat(data.taxa_parcelamento.replace(/[^\d,.-]/g, '').replace(',', '.'))
+        ? parseCurrencyToNumber(data.taxa_parcelamento)
         : 0;
       
       // Calcular valor com taxa baseado em quem paga
@@ -240,7 +238,7 @@ export function NovaFaturaDialog({
       // Criar upsells
       if (faturaResult && data.upsells && data.upsells.length > 0) {
         const upsellsToInsert = data.upsells.map(upsell => {
-          const valorUpsell = parseFloat(upsell.valor.replace(/[^\d,.-]/g, '').replace(',', '.'));
+          const valorUpsell = parseCurrencyToNumber(upsell.valor);
           const isProduto = upsell.tipo === "produto";
           const item = isProduto 
             ? produtos?.find(p => p.id === upsell.item_id)
