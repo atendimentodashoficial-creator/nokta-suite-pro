@@ -49,6 +49,26 @@ serve(async (req) => {
     const { action, ad_account_id, campaign_id, adset_id, date_start, date_end, account_type } = await req.json();
     console.log("Action:", action, "Ad Account ID:", ad_account_id, "Campaign ID:", campaign_id, "Adset ID:", adset_id, "Date range:", date_start, "-", date_end, "Account Type:", account_type);
 
+    // Função para buscar cotação do dólar
+    const fetchUSDToBRL = async (): Promise<number> => {
+      try {
+        // Usar API do Banco Central do Brasil
+        const response = await fetch("https://economia.awesomeapi.com.br/last/USD-BRL");
+        const data = await response.json();
+        if (data?.USDBRL?.bid) {
+          const rate = parseFloat(data.USDBRL.bid);
+          console.log("[EXCHANGE] USD to BRL rate:", rate);
+          return rate;
+        }
+        // Fallback
+        console.log("[EXCHANGE] Using fallback rate");
+        return 5.0;
+      } catch (error) {
+        console.error("[EXCHANGE] Error fetching exchange rate:", error);
+        return 5.0; // Fallback
+      }
+    };
+
     // Use service role client to query database
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -243,17 +263,21 @@ serve(async (req) => {
           onConflict: "user_id,ad_account_id"
         });
 
-      // Buscar account_type do banco se não foi passado
+      // Buscar account_type e currency_type do banco se não foi passado
       let effectiveAccountType = account_type;
+      let effectiveCurrencyType = "BRL";
+      
+      const { data: accountData } = await adminClient
+        .from("facebook_ad_accounts")
+        .select("account_type, currency_type")
+        .eq("user_id", user.id)
+        .eq("ad_account_id", normalizedAccountId)
+        .single();
+      
       if (!effectiveAccountType) {
-        const { data: accountData } = await adminClient
-          .from("facebook_ad_accounts")
-          .select("account_type")
-          .eq("user_id", user.id)
-          .eq("ad_account_id", normalizedAccountId)
-          .single();
         effectiveAccountType = accountData?.account_type;
       }
+      effectiveCurrencyType = accountData?.currency_type || "BRL";
 
       // Determinar se é pré-pago baseado no tipo definido pelo usuário ou detecção do Facebook
       const isPrepaid = effectiveAccountType === "prepaid" ||
@@ -265,9 +289,23 @@ serve(async (req) => {
       const amountSpentCents = fbData.amount_spent ? parseInt(String(fbData.amount_spent)) : 0;
 
       // balance (na API) costuma ser "amount due" (especialmente em pós-pago)
-      const amountDue = balanceCents / 100;
-      const spendCap = spendCapCents / 100;
-      const amountSpent = amountSpentCents / 100;
+      let amountDue = balanceCents / 100;
+      let spendCap = spendCapCents / 100;
+      let amountSpent = amountSpentCents / 100;
+      let convertedSpendInPeriod = spendInPeriod;
+      let convertedDailyBudget = totalDailyBudget;
+      let exchangeRate = 1;
+
+      // Se a conta está configurada como USD, converter todos os valores para BRL
+      if (effectiveCurrencyType === "USD") {
+        exchangeRate = await fetchUSDToBRL();
+        amountDue = amountDue * exchangeRate;
+        spendCap = spendCap * exchangeRate;
+        amountSpent = amountSpent * exchangeRate;
+        convertedSpendInPeriod = spendInPeriod * exchangeRate;
+        convertedDailyBudget = totalDailyBudget * exchangeRate;
+        console.log("[CONVERSION] Converted USD values to BRL with rate:", exchangeRate);
+      }
 
       // Regra:
       // - Pré-pago: saldo disponível ≈ spend_cap - amount_spent
@@ -278,6 +316,7 @@ serve(async (req) => {
       console.log("[BALANCE] fb.spend_cap(raw):", fbData.spend_cap, "cents:", spendCapCents);
       console.log("[BALANCE] fb.amount_spent(raw):", fbData.amount_spent, "cents:", amountSpentCents);
       console.log("[BALANCE] isPrepaid:", isPrepaid, "effectiveType:", effectiveAccountType, "display:", displayBalance);
+      console.log("[BALANCE] currencyType:", effectiveCurrencyType, "exchangeRate:", exchangeRate);
 
       return new Response(
         JSON.stringify({
@@ -286,15 +325,17 @@ serve(async (req) => {
             id: normalizedAccountId,
             name: fbData.name,
             balance: displayBalance,
-            currency: fbData.currency || "BRL",
+            currency: "BRL", // Sempre retornar em BRL (convertido se necessário)
+            currency_type: effectiveCurrencyType, // Moeda original da conta
             is_prepay_account: isPrepaid,
             account_type: effectiveAccountType || (isPrepaid ? "prepaid" : "postpaid"),
             funding_source_details: fbData.funding_source_details,
             amount_spent: amountSpent,
             spend_cap: spendCap,
             amount_due: amountDue,
-            spend_in_period: spendInPeriod,
-            daily_budget: totalDailyBudget
+            spend_in_period: convertedSpendInPeriod,
+            daily_budget: convertedDailyBudget,
+            exchange_rate: effectiveCurrencyType === "USD" ? exchangeRate : null
           }
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -312,6 +353,21 @@ serve(async (req) => {
       const normalizedAccountId = ad_account_id.startsWith("act_") 
         ? ad_account_id 
         : `act_${ad_account_id}`;
+
+      // Buscar currency_type da conta para converter valores se necessário
+      const { data: accountSettings } = await adminClient
+        .from("facebook_ad_accounts")
+        .select("currency_type")
+        .eq("user_id", user.id)
+        .eq("ad_account_id", normalizedAccountId)
+        .single();
+      
+      const currencyType = accountSettings?.currency_type || "BRL";
+      let exchangeRate = 1;
+      if (currencyType === "USD") {
+        exchangeRate = await fetchUSDToBRL();
+        console.log("[CAMPAIGN_METRICS] Converting USD to BRL with rate:", exchangeRate);
+      }
 
       // Buscar campanhas com métricas
       const timeRange = date_start && date_end
@@ -432,9 +488,18 @@ serve(async (req) => {
 
           // Calcular orçamento (daily_budget em centavos, converter para reais)
           // Se tiver daily_budget, usar; senão dividir lifetime_budget por 30 dias (estimativa)
-          const dailyBudget = campaign.daily_budget 
+          let dailyBudget = campaign.daily_budget 
             ? parseFloat(campaign.daily_budget) / 100 
             : (campaign.lifetime_budget ? parseFloat(campaign.lifetime_budget) / 100 / 30 : 0);
+
+          // Aplicar conversão se necessário
+          if (exchangeRate !== 1) {
+            metrics.spend = metrics.spend * exchangeRate;
+            metrics.cpc = metrics.cpc * exchangeRate;
+            metrics.cpm = metrics.cpm * exchangeRate;
+            metrics.cost_per_result = metrics.cost_per_result * exchangeRate;
+            dailyBudget = dailyBudget * exchangeRate;
+          }
 
           campaignsWithMetrics.push({
             campaign_id: campaign.id,
@@ -447,9 +512,13 @@ serve(async (req) => {
         } catch (insightError) {
           console.error("Error fetching insights for campaign:", campaign.id, insightError);
           // Mesmo em caso de erro, incluir orçamento
-          const dailyBudget = campaign.daily_budget 
+          let dailyBudget = campaign.daily_budget 
             ? parseFloat(campaign.daily_budget) / 100 
             : (campaign.lifetime_budget ? parseFloat(campaign.lifetime_budget) / 100 / 30 : 0);
+
+          if (exchangeRate !== 1) {
+            dailyBudget = dailyBudget * exchangeRate;
+          }
 
           campaignsWithMetrics.push({
             campaign_id: campaign.id,
@@ -499,9 +568,13 @@ serve(async (req) => {
           if (adsetsData.data && Array.isArray(adsetsData.data)) {
             for (const adset of adsetsData.data) {
               if (adset.status?.toUpperCase() === "ACTIVE") {
-                const adsetBudget = adset.daily_budget 
+                let adsetBudget = adset.daily_budget 
                   ? parseFloat(adset.daily_budget) / 100 
                   : (adset.lifetime_budget ? parseFloat(adset.lifetime_budget) / 100 / 30 : 0);
+                // Aplicar conversão se necessário
+                if (exchangeRate !== 1) {
+                  adsetBudget = adsetBudget * exchangeRate;
+                }
                 aboBudget += adsetBudget;
               }
             }
@@ -521,7 +594,9 @@ serve(async (req) => {
           campaigns: campaignsWithMetrics,
           total_active_budget: totalActiveBudget,
           cbo_budget: cboBudget,
-          abo_budget: aboBudget
+          abo_budget: aboBudget,
+          currency_type: currencyType,
+          exchange_rate: currencyType === "USD" ? exchangeRate : null
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

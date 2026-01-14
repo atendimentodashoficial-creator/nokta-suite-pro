@@ -20,6 +20,7 @@ interface LinkedAdAccount {
   ad_account_id: string;
   account_name: string | null;
   account_type: string | null;
+  currency_type: string | null;
   is_prepay_account: boolean | null;
 }
 interface LinkedGoogleAdsAccount {
@@ -57,6 +58,7 @@ export default function Conexoes() {
   const [linkedAdAccounts, setLinkedAdAccounts] = useState<LinkedAdAccount[]>([]);
   const [newAccountId, setNewAccountId] = useState("");
   const [newAccountType, setNewAccountType] = useState<string>("prepaid");
+  const [newAccountCurrency, setNewAccountCurrency] = useState<string>("BRL");
   const [addingAccount, setAddingAccount] = useState(false);
 
   // ===== Google Ads State =====
@@ -530,7 +532,7 @@ export default function Conexoes() {
       const {
         data,
         error
-      } = await supabase.from("facebook_ad_accounts").select("id, ad_account_id, account_name, account_type, is_prepay_account").eq("user_id", user?.id).order("created_at", {
+      } = await supabase.from("facebook_ad_accounts").select("id, ad_account_id, account_name, account_type, currency_type, is_prepay_account").eq("user_id", user?.id).order("created_at", {
         ascending: false
       });
       if (!error && data) {
@@ -582,16 +584,18 @@ export default function Conexoes() {
         throw new Error(response.data?.error || "Erro ao buscar conta");
       }
 
-      // Atualizar o tipo de conta no banco
+      // Atualizar o tipo de conta e moeda no banco
       await supabase.from("facebook_ad_accounts").update({
-        account_type: newAccountType
+        account_type: newAccountType,
+        currency_type: newAccountCurrency
       }).eq("ad_account_id", normalizedId).eq("user_id", user?.id);
       setNewAccountId("");
       setNewAccountType("prepaid");
+      setNewAccountCurrency("BRL");
       loadLinkedAdAccounts();
       toast({
         title: "Conta vinculada com sucesso!",
-        description: `${response.data.data.name} foi adicionada como ${newAccountType === "prepaid" ? "Pré-pago" : "Pós-pago"}`
+        description: `${response.data.data.name} foi adicionada como ${newAccountType === "prepaid" ? "Pré-pago" : "Pós-pago"} em ${newAccountCurrency}`
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erro ao adicionar conta";
@@ -624,6 +628,30 @@ export default function Conexoes() {
       toast({
         title: "Erro ao atualizar",
         description: "Não foi possível atualizar o tipo de conta",
+        variant: "destructive"
+      });
+    }
+  };
+  const updateAccountCurrency = async (accountId: string, currency: string) => {
+    try {
+      const {
+        error
+      } = await supabase.from("facebook_ad_accounts").update({
+        currency_type: currency
+      }).eq("id", accountId).eq("user_id", user?.id);
+      if (error) throw error;
+      setLinkedAdAccounts(prev => prev.map(acc => acc.id === accountId ? {
+        ...acc,
+        currency_type: currency
+      } : acc));
+      toast({
+        title: "Moeda atualizada",
+        description: `Moeda definida como ${currency === "BRL" ? "Real (BRL)" : "Dólar (USD)"}`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar a moeda",
         variant: "destructive"
       });
     }
@@ -1011,6 +1039,18 @@ export default function Conexoes() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="w-[100px]">
+                <Label>Moeda</Label>
+                <Select value={newAccountCurrency} onValueChange={setNewAccountCurrency}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BRL">R$ (BRL)</SelectItem>
+                    <SelectItem value="USD">$ (USD)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={addAdAccount} disabled={addingAccount}>
                 {addingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <>
                     <Plus className="h-4 w-4 mr-2" />
@@ -1023,6 +1063,7 @@ export default function Conexoes() {
             {linkedAdAccounts.length > 0 ? <div className="space-y-2 mt-4">
                 {linkedAdAccounts.map(account => {
                   const accountType = account.account_type || (account.is_prepay_account ? "prepaid" : "postpaid");
+                  const currencyType = account.currency_type || "BRL";
                   return <div key={account.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg bg-muted/50 gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -1030,10 +1071,13 @@ export default function Conexoes() {
                           <Badge variant="outline" className="text-xs shrink-0">
                             {accountType === "prepaid" ? "Pré-pago" : "Pós-pago"}
                           </Badge>
+                          <Badge variant={currencyType === "USD" ? "secondary" : "outline"} className="text-xs shrink-0">
+                            {currencyType === "USD" ? "$ USD" : "R$ BRL"}
+                          </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground font-mono truncate">{account.ad_account_id}</p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
                         <Select value={accountType} onValueChange={value => updateAccountType(account.id, account.ad_account_id, value)}>
                           <SelectTrigger className="w-[100px] h-8 text-xs">
                             <SelectValue />
@@ -1041,6 +1085,15 @@ export default function Conexoes() {
                           <SelectContent>
                             <SelectItem value="prepaid">Pré-pago</SelectItem>
                             <SelectItem value="postpaid">Pós-pago</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={currencyType} onValueChange={value => updateAccountCurrency(account.id, value)}>
+                          <SelectTrigger className="w-[85px] h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="BRL">R$ BRL</SelectItem>
+                            <SelectItem value="USD">$ USD</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button variant="ghost" size="icon" onClick={() => removeAdAccount(account.id)} className="text-destructive hover:text-destructive">
