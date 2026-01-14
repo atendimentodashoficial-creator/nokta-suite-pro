@@ -80,10 +80,7 @@ export default function EmNegociacao() {
           <Handshake className="w-6 h-6" />
           <h1 className="text-2xl font-bold">Em Negociação</h1>
         </div>
-        <Button size="icon" className="sm:hidden" onClick={() => setSelecionarClienteOpen(true)}>
-          <Plus className="h-4 w-4" />
-        </Button>
-        <Button className="hidden sm:flex" onClick={() => setSelecionarClienteOpen(true)}>
+        <Button onClick={() => setSelecionarClienteOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Nova Negociação
         </Button>
