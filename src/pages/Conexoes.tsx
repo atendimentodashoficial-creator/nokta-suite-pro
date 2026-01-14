@@ -1084,7 +1084,11 @@ export default function Conexoes() {
                 <div className="w-[90px]">
                   <Label>Spread %</Label>
                   <Input
-                    placeholder="0"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="50"
+                    placeholder="0.00"
                     value={newAccountSpread}
                     onChange={(e) => setNewAccountSpread(e.target.value)}
                     className="mt-1"
@@ -1145,13 +1149,13 @@ export default function Conexoes() {
                         {currencyType === "USD" && (
                           <Input
                             type="number"
-                            step="0.1"
+                            step="0.01"
                             min="0"
                             max="50"
                             value={currencySpread}
                             onChange={(e) => {
                               const val = parseFloat(e.target.value) || 0;
-                              updateAccountSpread(account.id, val);
+                              updateAccountSpread(account.id, Math.round(val * 100) / 100);
                             }}
                             className="w-[70px] h-8 text-xs"
                             placeholder="%"
