@@ -185,14 +185,37 @@ export function WhatsAppKanban({
 
       // Get agendamentos for these leads
       // Visible in app:
-      // - "agendado" / "confirmado" -> visible in Agenda
+      // - "agendado" / "confirmado" -> visible in Agenda (future or pending)
       // - "cancelado" -> visible in "Não Compareceu"
-      // - "realizado" -> visible in Faturas/Fechamento (consulta realizada)
+      // - "realizado" -> visible ONLY if has linked fatura (in Faturas)
       const {
         data: agendamentos
       } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status, updated_at").in("cliente_id", allLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("updated_at", {
         ascending: false // Most recently updated first
       });
+
+      // Get fatura_agendamentos to know which "realizado" are visible (have fatura)
+      const agendamentoIds = agendamentos?.map(a => a.id) || [];
+      const { data: faturaAgendamentos } = await supabase
+        .from("fatura_agendamentos")
+        .select("agendamento_id")
+        .in("agendamento_id", agendamentoIds);
+      
+      const agendamentosComFatura = new Set(faturaAgendamentos?.map(fa => fa.agendamento_id) || []);
+
+      // Filter to only VISIBLE agendamentos:
+      // - agendado/confirmado: always visible
+      // - cancelado: always visible  
+      // - realizado: only if has fatura linked
+      const visibleAgendamentos = agendamentos?.filter(ag => {
+        if (ag.status === "agendado" || ag.status === "confirmado" || ag.status === "cancelado") {
+          return true;
+        }
+        if (ag.status === "realizado") {
+          return agendamentosComFatura.has(ag.id);
+        }
+        return false;
+      }) || [];
 
       // Best agendamento per phone (last8) - priority: most recently updated
       // Group agendamentos by phone (last8) since multiple leads can have same phone
@@ -206,8 +229,8 @@ export function WhatsAppKanban({
         if (k) leadIdToLast8[l.id] = k;
       });
       
-      // First pass: count agendamentos per phone (last8)
-      agendamentos?.forEach(ag => {
+      // First pass: count VISIBLE agendamentos per phone (last8)
+      visibleAgendamentos.forEach(ag => {
         const phoneKey = leadIdToLast8[ag.cliente_id];
         if (!phoneKey) return;
         last8AgendamentoCount[phoneKey] = (last8AgendamentoCount[phoneKey] || 0) + 1;
@@ -215,7 +238,7 @@ export function WhatsAppKanban({
       
       // Second pass: pick the most recently UPDATED agendamento per phone (last8)
       // Because query is ordered by updated_at desc, the first record we see for a phoneKey is the one we want.
-      agendamentos?.forEach(ag => {
+      visibleAgendamentos.forEach(ag => {
         const phoneKey = leadIdToLast8[ag.cliente_id];
         if (!phoneKey) return;
 
