@@ -396,82 +396,84 @@ export default function Despesas() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {despesasFiltradas.map((despesa) => (
-            <Card key={despesa.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  {/* Linha principal: Descrição e Valor */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-4">
-                      <h3 className="font-medium text-foreground truncate">{despesa.descricao}</h3>
-                      <span className="text-lg font-bold text-destructive shrink-0">
-                        {formatCurrency(Number(despesa.valor))}
-                      </span>
+          {despesasFiltradas.map((despesa) => {
+            // Determinar ícone e cor baseado no tipo
+            const getTipoConfig = () => {
+              if (despesa.recorrente) return { icon: RefreshCcw, color: "bg-blue-500/10 text-blue-600", label: "Recorrente" };
+              if (despesa.parcelada) return { icon: CreditCard, color: "bg-orange-500/10 text-orange-600", label: `${despesa.numero_parcelas}x` };
+              return { icon: DollarSign, color: "bg-emerald-500/10 text-emerald-600", label: "Variável" };
+            };
+            const tipoConfig = getTipoConfig();
+            const TipoIcon = tipoConfig.icon;
+
+            return (
+              <Card key={despesa.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    {/* Ícone de tipo à esquerda */}
+                    <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", tipoConfig.color)}>
+                      <TipoIcon className="h-5 w-5" />
                     </div>
                     
-                    {/* Linha secundária: Detalhes sutis */}
-                    <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground flex-wrap">
-                      {despesa.parcelada ? (
-                        despesa.data_inicio && despesa.data_fim && (
-                          <span>{format(new Date(despesa.data_inicio), "dd/MM/yy")} - {format(new Date(despesa.data_fim), "dd/MM/yy")}</span>
-                        )
-                      ) : (
-                        despesa.data_despesa && (
-                          <span>{format(new Date(despesa.data_despesa), "dd/MM/yyyy")}</span>
-                        )
-                      )}
-                      
-                      {despesa.categorias_despesas && (
-                        <>
-                          <span>•</span>
-                          <span style={{ color: despesa.categorias_despesas.cor || undefined }}>
-                            {despesa.categorias_despesas.nome}
-                          </span>
-                        </>
-                      )}
-                      
-                      {despesa.recorrente && (
-                        <>
-                          <span>•</span>
-                          <span className="text-blue-600">Recorrente</span>
-                        </>
-                      )}
-                      
-                      {despesa.parcelada && (
-                        <>
-                          <span>•</span>
-                          <span className="text-orange-600">{despesa.numero_parcelas}x</span>
-                        </>
-                      )}
+                    {/* Informações centrais */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-foreground truncate">{despesa.descricao}</h3>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                        {despesa.parcelada ? (
+                          despesa.data_inicio && (
+                            <span>{format(new Date(despesa.data_inicio), "dd/MM/yy")} - {despesa.data_fim && format(new Date(despesa.data_fim), "dd/MM/yy")}</span>
+                          )
+                        ) : (
+                          despesa.data_despesa && (
+                            <span>{format(new Date(despesa.data_despesa), "dd/MM/yyyy")}</span>
+                          )
+                        )}
+                        {despesa.categorias_despesas && (
+                          <>
+                            <span>•</span>
+                            <span style={{ color: despesa.categorias_despesas.cor || undefined }}>
+                              {despesa.categorias_despesas.nome}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Valor à direita */}
+                    <div className="text-right shrink-0">
+                      <p className="text-lg font-bold text-destructive">
+                        {formatCurrency(Number(despesa.valor))}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{tipoConfig.label}</p>
+                    </div>
+                    
+                    {/* Ações */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleOpenDialog(despesa)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                          setDespesaParaExcluir(despesa.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  
-                  {/* Ações */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      onClick={() => handleOpenDialog(despesa)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        setDespesaParaExcluir(despesa.id);
-                        setDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
