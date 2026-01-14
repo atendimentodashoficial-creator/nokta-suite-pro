@@ -166,18 +166,21 @@ export function WhatsAppKanban({
       // Fetch leads (we'll match locally by last8 digits)
       const {
         data: leads
-      } = await supabase.from("leads").select("id, telefone");
+      } = await supabase.from("leads").select("id, telefone").is("deleted_at", null);
       if (!leads || leads.length === 0) return;
 
-      // Map last8 -> leadId (if collision, keep the first)
-      const last8ToLeadId: Record<string, string> = {};
+      // Map last8 -> ALL leadIds (handle duplicates with same phone)
+      const last8ToLeadIds: Record<string, string[]> = {};
       leads.forEach(l => {
         const k = last8(l.telefone);
         if (!k) return;
-        if (!last8ToLeadId[k]) last8ToLeadId[k] = l.id;
+        if (!last8ToLeadIds[k]) last8ToLeadIds[k] = [];
+        last8ToLeadIds[k].push(l.id);
       });
-      const leadIds = Array.from(new Set(Object.values(last8ToLeadId)));
-      if (leadIds.length === 0) return;
+      
+      // Get ALL leadIds for agendamento lookup
+      const allLeadIds = leads.map(l => l.id);
+      if (allLeadIds.length === 0) return;
 
       // Get agendamentos for these leads
       // Visible in app:
@@ -186,18 +189,27 @@ export function WhatsAppKanban({
       // - "realizado" -> visible in Faturas/Fechamento (consulta realizada)
       const {
         data: agendamentos
-      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", leadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("data_agendamento", {
+      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status").in("cliente_id", allLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("data_agendamento", {
         ascending: false // Most recent first for realizado
       });
 
-      // Best agendamento per lead - priority: pending > realizado > cancelado
-      // Also count total agendamentos per lead
-      const leadIdToAgendamento: Record<string, ChatAgendamento> = {};
-      const leadAgendamentoCount: Record<string, number> = {};
+      // Best agendamento per phone (last8) - priority: pending > realizado > cancelado
+      // Group agendamentos by phone (last8) since multiple leads can have same phone
+      const last8ToAgendamento: Record<string, ChatAgendamento> = {};
+      const last8AgendamentoCount: Record<string, number> = {};
       
-      // First pass: count agendamentos per lead
+      // Create leadId -> last8 map
+      const leadIdToLast8: Record<string, string> = {};
+      leads.forEach(l => {
+        const k = last8(l.telefone);
+        if (k) leadIdToLast8[l.id] = k;
+      });
+      
+      // First pass: count agendamentos per phone (last8)
       agendamentos?.forEach(ag => {
-        leadAgendamentoCount[ag.cliente_id] = (leadAgendamentoCount[ag.cliente_id] || 0) + 1;
+        const phoneKey = leadIdToLast8[ag.cliente_id];
+        if (!phoneKey) return;
+        last8AgendamentoCount[phoneKey] = (last8AgendamentoCount[phoneKey] || 0) + 1;
       });
       
       const getPriority = (status: string) => {
@@ -207,14 +219,17 @@ export function WhatsAppKanban({
         return 0;
       };
       
-      // Second pass: find best agendamento per lead
+      // Second pass: find best agendamento per phone (last8)
       agendamentos?.forEach(ag => {
-        const existing = leadIdToAgendamento[ag.cliente_id];
-        const totalCount = leadAgendamentoCount[ag.cliente_id] || 1;
+        const phoneKey = leadIdToLast8[ag.cliente_id];
+        if (!phoneKey) return;
+        
+        const existing = last8ToAgendamento[phoneKey];
+        const totalCount = last8AgendamentoCount[phoneKey] || 1;
         
         // If no existing, set this one
         if (!existing) {
-          leadIdToAgendamento[ag.cliente_id] = {
+          last8ToAgendamento[phoneKey] = {
             id: ag.id,
             data_agendamento: ag.data_agendamento,
             status: ag.status,
@@ -228,7 +243,7 @@ export function WhatsAppKanban({
         
         if (agPriority > existingPriority) {
           // Higher priority status wins
-          leadIdToAgendamento[ag.cliente_id] = {
+          last8ToAgendamento[phoneKey] = {
             id: ag.id,
             data_agendamento: ag.data_agendamento,
             status: ag.status,
@@ -237,7 +252,7 @@ export function WhatsAppKanban({
         } else if (agPriority === existingPriority && agPriority === 3) {
           // Both pending - keep earliest future one
           if (new Date(ag.data_agendamento) < new Date(existing.data_agendamento)) {
-            leadIdToAgendamento[ag.cliente_id] = {
+            last8ToAgendamento[phoneKey] = {
               id: ag.id,
               data_agendamento: ag.data_agendamento,
               status: ag.status,
@@ -247,7 +262,7 @@ export function WhatsAppKanban({
         } else if (agPriority === existingPriority && agPriority === 2) {
           // Both realizado - keep most recent
           if (new Date(ag.data_agendamento) > new Date(existing.data_agendamento)) {
-            leadIdToAgendamento[ag.cliente_id] = {
+            last8ToAgendamento[phoneKey] = {
               id: ag.id,
               data_agendamento: ag.data_agendamento,
               status: ag.status,
@@ -261,8 +276,7 @@ export function WhatsAppKanban({
       const chatAgMap: Record<string, ChatAgendamento | null> = {};
       chats.forEach(chat => {
         const k = chatIdToLast8[chat.id];
-        const leadId = k ? last8ToLeadId[k] : undefined;
-        chatAgMap[chat.id] = leadId ? leadIdToAgendamento[leadId] ?? null : null;
+        chatAgMap[chat.id] = k ? last8ToAgendamento[k] ?? null : null;
       });
       setChatAgendamentos(chatAgMap);
     } catch (error) {
