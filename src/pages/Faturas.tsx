@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, CreditCard, Receipt, Phone } from "lucide-react";
+import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, CreditCard, Receipt, Phone, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -96,10 +96,10 @@ export default function Faturas() {
           <h1 className="text-2xl font-bold">Faturas</h1>
         </div>
         <Button size="icon" className="sm:hidden" onClick={() => setSelecionarClienteOpen(true)}>
-          <DollarSign className="h-4 w-4" />
+          <Plus className="h-4 w-4" />
         </Button>
         <Button className="hidden sm:flex" onClick={() => setSelecionarClienteOpen(true)}>
-          <DollarSign className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 mr-2" />
           Nova Fatura
         </Button>
       </div>
