@@ -11,6 +11,7 @@ import { CheckCircle, Loader2 } from "lucide-react";
 
 interface FormData {
   nome: string;
+  email: string;
   genero: string;
   data_nascimento: string;
   cep: string;
@@ -26,6 +27,7 @@ export default function FormularioConversao() {
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     nome: "",
+    email: "",
     genero: "",
     data_nascimento: "",
     cep: "",
@@ -55,6 +57,7 @@ export default function FormularioConversao() {
         if (lead) {
           setFormData({
             nome: "", // Deixar vazio para o cliente preencher
+            email: lead.email || "",
             genero: lead.genero || "",
             data_nascimento: lead.data_nascimento || "",
             cep: lead.cep || "",
@@ -170,6 +173,18 @@ export default function FormularioConversao() {
                 value={formData.nome}
                 onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
                 autoComplete="name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="seu@email.com"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                autoComplete="email"
               />
             </div>
 
