@@ -141,7 +141,8 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
 
   const configureWebhook = async (instancia: DisparosInstancia): Promise<boolean> => {
     try {
-      const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook/${user?.id}/${instancia.id}`;
+      // Use environment variable for the correct Supabase URL
+      const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${instancia.id}`;
       const { data: session } = await supabase.auth.getSession();
 
       const response = await supabase.functions.invoke("uazapi-set-webhook", {
