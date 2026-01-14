@@ -341,6 +341,51 @@ export default function AdminWhatsApp() {
         setManualBaseUrl("");
         setManualApiKey("");
         setConnectionMethod("qrcode");
+        
+        // For manual connection, we're done - don't continue to QR code flow
+        setMainInstance(newInstance);
+        setHasConfig(true);
+        
+        // Link to uazapi_config
+        await supabase.from('uazapi_config').upsert({
+          user_id: user?.id,
+          base_url: newInstance.base_url,
+          api_key: newInstance.api_key,
+          whatsapp_instancia_id: newInstance.id,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+        
+        // Check if already connected
+        const statusResponse = await supabase.functions.invoke("uazapi-check-status", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
+        });
+        
+        if (statusResponse.data?.connected) {
+          toast.success("WhatsApp conectado com sucesso!");
+          setConnectionStatus('connected');
+          setQrCodeDialogOpen(false);
+        } else {
+          toast.success("Instância criada! Escaneie o QR code para conectar.");
+          // Show QR code for this manual instance
+          const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+            body: { base_url: newInstance.base_url, api_key: newInstance.api_key },
+          });
+          
+          if (qrResponse.data?.qrcode) {
+            setQrCodeData(qrResponse.data.qrcode);
+            setQrCodeLoading(false);
+            startQrPolling(newInstance.base_url, newInstance.api_key, newInstance);
+          } else {
+            setQrCodeDialogOpen(false);
+          }
+        }
+        
+        setIsCreatingInstance(false);
+        checkConfig();
+        return; // Exit here - don't continue to admin API flow
       } else {
         // Try Admin API first
         const createResponse = await supabase.functions.invoke("uazapi-admin-create-instance", {
