@@ -170,23 +170,19 @@ export function IceBreakersConfig({
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex gap-2">
           <Button
             variant="outline"
-            size="sm"
             onClick={addIceBreaker}
             disabled={iceBreakers.length >= 4}
-            className="flex-1"
           >
             <Plus className="h-4 w-4 mr-2" />
             Adicionar
           </Button>
 
           <Button
-            size="sm"
             onClick={() => saveIceBreakers.mutate()}
             disabled={saveIceBreakers.isPending}
-            className="flex-1"
           >
             {saveIceBreakers.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
