@@ -553,8 +553,8 @@ export function FunilConversaoTab() {
         return o === "whatsapp" || o === "";
       };
 
-      // Lead "oficial" por telefone = prioriza lead COM atribuição (origem/rastreio)
-      // Se múltiplos leads existem para o mesmo telefone, preferir aquele que tem dados de origem
+      // Lead "oficial" por telefone = prioriza lead MAIS RECENTEMENTE ATUALIZADO
+      // Isso garante consistência com a lógica do Kanban e outras partes do app
       // IMPORTANTE: usamos phoneKey (últimos 8 dígitos) para bater com a aba Leads.
       const firstLeadByPhone: Record<string, (typeof allLeads)[number]> = {};
       (allLeads || []).forEach((lead) => {
@@ -565,34 +565,12 @@ export function FunilConversaoTab() {
           return;
         }
         
-        // Verificar se o novo lead tem atribuição melhor que o existente
-        // Considerar tanto 'origem' quanto 'origem_tipo' para determinar se veio de Disparos
-        const existingHasAttribution = existing.origem === 'Disparos' || existing.origem_tipo === 'Disparos' || existing.fbclid || existing.utm_source || existing.fb_campaign_name;
-        const newHasAttribution = lead.origem === 'Disparos' || lead.origem_tipo === 'Disparos' || lead.fbclid || lead.utm_source || lead.fb_campaign_name;
+        // Priorizar o lead mais recentemente atualizado (updated_at, depois created_at)
+        const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
+        const newTime = new Date(lead.updated_at || lead.created_at || 0).getTime();
         
-        // Prioridade: lead com atribuição E status diferente de "cliente"
-        // Para que a contagem de Leads no Funil não seja afetada
-        const existingIsCliente = existing.status === 'cliente';
-        const newIsCliente = lead.status === 'cliente';
-        
-        // Se o novo NÃO é cliente e o existente É cliente, preferir o novo (se ambos têm atribuição igual)
-        if (newHasAttribution && existingHasAttribution && existingIsCliente && !newIsCliente) {
+        if (Number.isFinite(newTime) && newTime > existingTime) {
           firstLeadByPhone[phone] = lead;
-        } else if (newHasAttribution && !existingHasAttribution) {
-          // Se o novo tem atribuição e o existente não, usar o novo
-          firstLeadByPhone[phone] = lead;
-        } else if (!newHasAttribution && !existingHasAttribution) {
-          // Se nenhum tem atribuição, preferir não-cliente, depois mais antigo
-          if (existingIsCliente && !newIsCliente) {
-            firstLeadByPhone[phone] = lead;
-          } else if (existingIsCliente === newIsCliente) {
-            // Ambos têm mesmo status de cliente, usar o mais antigo
-            const existingTime = new Date(existing.created_at || 0).getTime();
-            const nextTime = new Date(lead.created_at || 0).getTime();
-            if (Number.isFinite(nextTime) && nextTime < existingTime) {
-              firstLeadByPhone[phone] = lead;
-            }
-          }
         }
       });
 
