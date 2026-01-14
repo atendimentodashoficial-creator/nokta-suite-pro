@@ -354,7 +354,7 @@ export function NovaFaturaDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="negociacao">Em Negociação</SelectItem>
+                          <SelectItem value="negociacao">Negociação</SelectItem>
                           <SelectItem value="fechado">Fechado</SelectItem>
                         </SelectContent>
                       </Select>

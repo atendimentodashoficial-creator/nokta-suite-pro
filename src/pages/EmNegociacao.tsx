@@ -78,7 +78,7 @@ export default function EmNegociacao() {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Handshake className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-          <h1 className="text-xl sm:text-2xl font-bold truncate">Em Negociação</h1>
+          <h1 className="text-xl sm:text-2xl font-bold truncate">Negociação</h1>
         </div>
         <Button size="sm" onClick={() => setSelecionarClienteOpen(true)} className="flex-shrink-0">
           <Plus className="h-4 w-4 mr-1" />
@@ -148,7 +148,7 @@ export default function EmNegociacao() {
             <DollarSign className="h-6 w-6 text-primary-foreground" />
           </div>
           <div className="flex-1">
-            <p className="text-sm text-muted-foreground">Total em Negociação</p>
+            <p className="text-sm text-muted-foreground">Total Negociação</p>
             <p className="text-2xl font-bold text-blue-600">R$ {totalNegociacao.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
             })}</p>
@@ -178,7 +178,7 @@ export default function EmNegociacao() {
                         {(fatura.leads as any)?.nome || "Cliente não identificado"}
                       </h3>
                       <Badge className="bg-blue-500/20 text-blue-700 mt-1">
-                        Em Negociação
+                        Negociação
                       </Badge>
                     </div>
                   </div>

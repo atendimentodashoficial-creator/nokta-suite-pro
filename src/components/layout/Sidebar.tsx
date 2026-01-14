@@ -14,7 +14,7 @@ export const navigation = [
   { name: "Não Compareceu", href: "/nao-compareceu", icon: UserX },
   { name: "Leads", href: "/leads", icon: UserPlus, separator: true },
   { name: "Clientes", href: "/clientes", icon: Users },
-  { name: "Em Negociação", href: "/em-negociacao", icon: Handshake },
+  { name: "Negociação", href: "/em-negociacao", icon: Handshake },
   { name: "Faturas", href: "/faturas", icon: FileText },
   { name: "Despesas", href: "/despesas", icon: Wallet },
   { name: "Relatórios", href: "/relatorios", icon: TrendingUp },

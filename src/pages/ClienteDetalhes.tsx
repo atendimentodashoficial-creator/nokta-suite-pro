@@ -58,7 +58,7 @@ const origemAgendamentoConfig: Record<string, { label: string; color: string; ic
 };
 const statusFaturaConfig = {
   negociacao: {
-    label: "Em Negociação",
+    label: "Negociação",
     color: "bg-yellow-500/20 text-yellow-700"
   },
   follow_up: {
@@ -903,7 +903,7 @@ export default function ClienteDetalhes() {
                                 Fatura Excluída
                               </Badge>
                               <Badge variant="outline" className="bg-muted">
-                                Status anterior: {fatura.status === 'fechado' ? 'Fechado' : 'Em Negociação'}
+                                Status anterior: {fatura.status === 'fechado' ? 'Fechado' : 'Negociação'}
                               </Badge>
                             </div>
                             

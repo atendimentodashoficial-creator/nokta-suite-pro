@@ -93,7 +93,7 @@ export function FunilVisualDialog({ open, onOpenChange, data }: FunilVisualDialo
       isNegative: true,
     },
     {
-      name: "Em Negociação",
+      name: "Negociação",
       value: data.em_negociacao,
       icon: Handshake,
       bgColor: "bg-yellow-500",
