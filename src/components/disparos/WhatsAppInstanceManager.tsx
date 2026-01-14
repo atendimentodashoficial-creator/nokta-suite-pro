@@ -95,8 +95,19 @@ export function WhatsAppInstanceManager({
     ? instances.filter(inst => inst.id === mainInstanceId || !mainInstanceId)
     : instances.filter(inst => inst.id !== mainInstanceId);
 
-  // DON'T auto-check connection status on mount - it causes "auto-connect" appearance
-  // Only check when user explicitly clicks to connect or refresh
+  // Auto-check connection status on mount for displayed instances
+  useEffect(() => {
+    const displayInstances = instanceType === "whatsapp" 
+      ? (mainInstanceId ? instances.filter(inst => inst.id === mainInstanceId) : [])
+      : instances.filter(inst => !mainInstanceId || inst.id !== mainInstanceId);
+    
+    displayInstances.forEach(instance => {
+      // Only check if status is unknown (not already checked)
+      if (!connectionStatus[instance.id]) {
+        checkConnectionStatus(instance);
+      }
+    });
+  }, [instances, mainInstanceId, instanceType]);
 
   // Cleanup polling on unmount
   useEffect(() => {
