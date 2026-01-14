@@ -90,6 +90,31 @@ export function WhatsAppKanban({
       loadChatAgendamentos();
     }
   }, [chats]);
+
+  // Subscribe to agendamentos changes for real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('whatsapp-kanban-agendamentos')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agendamentos'
+        },
+        () => {
+          // Reload agendamentos when any change happens
+          if (chats.length > 0) {
+            loadChatAgendamentos();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chats]);
   const loadData = async () => {
     setIsLoading(true);
     try {
