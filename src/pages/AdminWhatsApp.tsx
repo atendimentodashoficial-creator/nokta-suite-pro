@@ -1860,10 +1860,11 @@ export default function AdminWhatsApp() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Instance Dialog (name first, then connection method) */}
+      {/* Create Instance Dialog */}
       <Dialog open={createInstanceDialogOpen} onOpenChange={(open) => {
         if (!open) {
           setConnectionMethod("qrcode");
+          setNewInstanceName("");
           setManualBaseUrl("");
           setManualApiKey("");
           setPairingCodePhone("");
@@ -1873,91 +1874,157 @@ export default function AdminWhatsApp() {
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Nova Instância WhatsApp</DialogTitle>
+            <DialogTitle>Nova Instância</DialogTitle>
             <DialogDescription>
-              Defina um nome e escolha como deseja conectar.
+              Escolha como deseja adicionar sua instância
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 pt-4">
-            <div>
-              <Label>Nome da instância</Label>
-              <Input
-                value={newInstanceName}
-                onChange={(e) => setNewInstanceName(e.target.value)}
-                placeholder="Ex: WhatsApp Principal"
-                className="mt-1"
-              />
-            </div>
+          {/* Connection Type Tabs */}
+          <div className="flex gap-2 border-b pb-3">
+            <Button
+              variant={connectionMethod === "qrcode" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setConnectionMethod("qrcode")}
+              className="flex-1"
+            >
+              <QrCode className="h-4 w-4 mr-1" />
+              QR Code
+            </Button>
+            <Button
+              variant={connectionMethod === "manual" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setConnectionMethod("manual")}
+              className="flex-1"
+            >
+              <Keyboard className="h-4 w-4 mr-1" />
+              Manual
+            </Button>
+          </div>
 
-            {/* Connection Method Selector */}
-            <div className="space-y-2">
-              <Label>Método de conexão</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={connectionMethod === "qrcode" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setConnectionMethod("qrcode")}
-                  className="flex-1"
-                >
-                  <QrCode className="h-4 w-4 mr-1" />
-                  QR Code
+          {/* QR Code Flow */}
+          {connectionMethod === "qrcode" && (
+            <div className="space-y-4 pt-2">
+              <div>
+                <Label>Nome da instância</Label>
+                <Input
+                  value={newInstanceName}
+                  onChange={(e) => setNewInstanceName(e.target.value)}
+                  placeholder="Ex: WhatsApp Principal"
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
+                  Cancelar
                 </Button>
                 <Button
-                  variant={connectionMethod === "manual" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setConnectionMethod("manual")}
-                  className="flex-1"
+                  onClick={() => handleCreateInstance(newInstanceName, false)}
+                  disabled={isCreatingInstance}
                 >
-                  <Keyboard className="h-4 w-4 mr-1" />
-                  Manual
+                  {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar e Conectar"}
                 </Button>
               </div>
             </div>
+          )}
 
-            {/* Manual Config Fields */}
-            {connectionMethod === "manual" && (
-              <>
-                <div>
-                  <Label>URL Base da instância</Label>
-                  <Input
-                    value={manualBaseUrl}
-                    onChange={(e) => setManualBaseUrl(e.target.value)}
-                    placeholder="Ex: https://nokta.uazapi.com"
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    URL do servidor UAZAPI onde a instância foi criada
-                  </p>
-                </div>
-                <div>
-                  <Label>API Key / Token da instância</Label>
-                  <Input
-                    value={manualApiKey}
-                    onChange={(e) => setManualApiKey(e.target.value)}
-                    placeholder="Ex: abc123-def456-..."
-                    className="mt-1"
-                    type="password"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Token de acesso gerado ao criar a instância no painel UAZAPI
-                  </p>
-                </div>
-              </>
-            )}
+          {/* Manual Connection */}
+          {connectionMethod === "manual" && (
+            <div className="space-y-4 pt-2">
+              <div>
+                <Label>Nome</Label>
+                <Input
+                  value={newInstanceName}
+                  onChange={(e) => setNewInstanceName(e.target.value)}
+                  placeholder="Ex: WhatsApp Principal"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>URL Base</Label>
+                <Input
+                  value={manualBaseUrl}
+                  onChange={(e) => setManualBaseUrl(e.target.value)}
+                  placeholder="https://sua-instancia.uazapi.com"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Token da Instância</Label>
+                <Input
+                  type="password"
+                  value={manualApiKey}
+                  onChange={(e) => setManualApiKey(e.target.value)}
+                  placeholder="Token de autenticação"
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!newInstanceName.trim() || !manualBaseUrl.trim() || !manualApiKey.trim()) {
+                      toast.error("Preencha todos os campos");
+                      return;
+                    }
+                    
+                    setIsCreatingInstance(true);
+                    try {
+                      const { data, error } = await supabase
+                        .from("uazapi_config")
+                        .insert({
+                          user_id: user?.id,
+                          nome: newInstanceName.trim(),
+                          base_url: manualBaseUrl.trim(),
+                          api_key: manualApiKey.trim(),
+                          is_active: true,
+                        })
+                        .select()
+                        .single();
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setCreateInstanceDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => handleCreateInstance(newInstanceName, connectionMethod === "manual")}
-                disabled={isCreatingInstance}
-              >
-                {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : connectionMethod === "manual" ? "Conectar" : "Continuar"}
-              </Button>
+                      if (error) throw error;
+
+                      // Configure webhook
+                      const { data: session } = await supabase.auth.getSession();
+                      const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${data.id}`;
+                      
+                      const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+                        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+                        body: {
+                          base_url: manualBaseUrl.trim(),
+                          api_key: manualApiKey.trim(),
+                          webhook_url: webhookUrl,
+                          instancia_id: data.id,
+                        },
+                      });
+
+                      if (webhookResponse.data?.success) {
+                        toast.success("Instância adicionada e webhook configurado!");
+                      } else {
+                        toast.warning("Instância adicionada, mas o webhook não foi configurado automaticamente.");
+                      }
+                      
+                      setCreateInstanceDialogOpen(false);
+                      setNewInstanceName("");
+                      setManualBaseUrl("");
+                      setManualApiKey("");
+                      await checkConfig();
+                    } catch (error: any) {
+                      toast.error(error.message || "Erro ao adicionar instância");
+                    } finally {
+                      setIsCreatingInstance(false);
+                    }
+                  }}
+                  disabled={isCreatingInstance}
+                >
+                  {isCreatingInstance ? <Loader2 className="h-4 w-4 animate-spin" /> : "Adicionar"}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 
