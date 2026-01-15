@@ -40,6 +40,7 @@ interface NovaCampanhaDialogProps {
 interface Contato {
   numero: string;
   nome?: string;
+  origem?: string; // Nome da lista/fonte de onde foi importado
 }
 interface KanbanColumn {
   id: string;
@@ -130,6 +131,22 @@ export function NovaCampanhaDialog({
   // Paginação do popup "Ver todos"
   const [allContactsPage, setAllContactsPage] = useState(1);
   const [allContactsPerPage, setAllContactsPerPage] = useState(50);
+  const [allContactsFilterOrigem, setAllContactsFilterOrigem] = useState<string>("all");
+
+  // Lista de origens únicas para o dropdown
+  const origensUnicas = useMemo(() => {
+    const origens = new Set<string>();
+    contatos.forEach(c => {
+      if (c.origem) origens.add(c.origem);
+    });
+    return Array.from(origens).sort();
+  }, [contatos]);
+
+  // Contatos filtrados por origem
+  const contatosFiltradosPorOrigem = useMemo(() => {
+    if (allContactsFilterOrigem === "all") return contatos;
+    return contatos.filter(c => c.origem === allContactsFilterOrigem);
+  }, [contatos, allContactsFilterOrigem]);
 
   // Preview state - stores randomly generated messages for each block
   const [previewMessages, setPreviewMessages] = useState<Record<number, { variacaoIdx: number; text: string; mediaPreview?: string | null; tipo: string }>>({});
@@ -440,6 +457,7 @@ export function NovaCampanhaDialog({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
     const reader = new FileReader();
     reader.onload = event => {
       const text = event.target?.result as string;
@@ -460,7 +478,7 @@ export function NovaCampanhaDialog({
         toast.error("Nenhum contato válido encontrado no arquivo");
         return;
       }
-      addContatosWithSelection(novosContatos);
+      addContatosWithSelection(novosContatos, `Arquivo: ${fileName}`);
       toast.success(`${novosContatos.length} contato(s) importado(s)`);
     };
     reader.readAsText(file);
@@ -540,10 +558,12 @@ export function NovaCampanhaDialog({
   };
 
   // Helper to add contacts and auto-select them
-  const addContatosWithSelection = (novosContatos: Contato[]) => {
+  const addContatosWithSelection = (novosContatos: Contato[], origem?: string) => {
     setContatos(prev => {
       const existingNumbers = new Set(prev.map(c => c.numero));
-      const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
+      const unique = novosContatos
+        .filter(c => !existingNumbers.has(c.numero))
+        .map(c => ({ ...c, origem: origem || c.origem }));
       // Auto-select all new contacts
       setSelectedContacts(prevSelected => {
         const next = new Set(prevSelected);
@@ -663,7 +683,7 @@ export function NovaCampanhaDialog({
         toast.info("Nenhum lead com telefone válido encontrado");
         return;
       }
-      addContatosWithSelection(novosContatos);
+      addContatosWithSelection(novosContatos, "Leads");
       toast.success(`${novosContatos.length} lead(s) importado(s)`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -698,7 +718,7 @@ export function NovaCampanhaDialog({
         toast.info("Nenhum cliente com telefone válido encontrado");
         return;
       }
-      addContatosWithSelection(novosContatos);
+      addContatosWithSelection(novosContatos, "Clientes");
       toast.success(`${novosContatos.length} cliente(s) importado(s)`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -713,6 +733,10 @@ export function NovaCampanhaDialog({
     if (!user) return;
     setLoadingDataSource(true);
     try {
+      // Get column name for origin tracking
+      const column = kanbanColumns.find(c => c.id === columnId);
+      const columnName = column?.nome || "Kanban WhatsApp";
+      
       const {
         data: kanbanData,
         error: kanbanError
@@ -748,7 +772,7 @@ export function NovaCampanhaDialog({
         toast.info("Nenhum contato válido nesta coluna" + (filterByDate ? " no período selecionado" : ""));
         return;
       }
-      addContatosWithSelection(novosContatos);
+      addContatosWithSelection(novosContatos, `WA: ${columnName}`);
       toast.success(`${novosContatos.length} contato(s) importado(s) do Kanban WhatsApp`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -763,6 +787,10 @@ export function NovaCampanhaDialog({
     if (!user) return;
     setLoadingDataSource(true);
     try {
+      // Get column name for origin tracking
+      const column = disparosKanbanColumns.find(c => c.id === columnId);
+      const columnName = column?.nome || "Kanban Disparos";
+      
       const {
         data: kanbanData,
         error: kanbanError
@@ -798,7 +826,7 @@ export function NovaCampanhaDialog({
         toast.info("Nenhum contato válido nesta coluna" + (filterByDate ? " no período selecionado" : ""));
         return;
       }
-      addContatosWithSelection(novosContatos);
+      addContatosWithSelection(novosContatos, `Disp: ${columnName}`);
       toast.success(`${novosContatos.length} contato(s) importado(s) do Kanban Disparos`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -855,7 +883,7 @@ export function NovaCampanhaDialog({
         return;
       }
       
-      addContatosWithSelection(novosContatos);
+      addContatosWithSelection(novosContatos, "WA: Leads");
       toast.success(`${novosContatos.length} contato(s) importado(s) da aba Leads (WhatsApp)`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -912,7 +940,7 @@ export function NovaCampanhaDialog({
         return;
       }
       
-      addContatosWithSelection(novosContatos);
+      addContatosWithSelection(novosContatos, "Disp: Leads");
       toast.success(`${novosContatos.length} contato(s) importado(s) da aba Leads (Disparos)`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -938,7 +966,7 @@ export function NovaCampanhaDialog({
       return;
     }
 
-    addContatosWithSelection(novosContatos);
+    addContatosWithSelection(novosContatos, lista.nome);
 
     toast.success(`${novosContatos.length} contato(s) importado(s) da lista "${lista.nome}"`);
     setShowImportDialog(false);
@@ -1918,6 +1946,7 @@ export function NovaCampanhaDialog({
       setShowAllContacts(open);
       if (!open) {
         setAllContactsPage(1);
+        setAllContactsFilterOrigem("all");
       }
     }}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
@@ -1925,17 +1954,71 @@ export function NovaCampanhaDialog({
           <DialogTitle>Lista de Contatos ({contatos.length})</DialogTitle>
           <DialogDescription>
             {selectedContacts.size} de {contatos.length} selecionados para envio
+            {allContactsFilterOrigem !== "all" && (
+              <span className="ml-2 text-primary">
+                (mostrando {contatosFiltradosPorOrigem.length} de "{allContactsFilterOrigem}")
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Filter by origin */}
+        {origensUnicas.length > 0 && (
+          <div className="flex items-center gap-2 pb-2">
+            <List className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Filtrar por lista:</span>
+            <Select value={allContactsFilterOrigem} onValueChange={(v) => {
+              setAllContactsFilterOrigem(v);
+              setAllContactsPage(1);
+            }}>
+              <SelectTrigger className="w-48 h-8">
+                <SelectValue placeholder="Todas as listas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as listas</SelectItem>
+                {origensUnicas.map(origem => (
+                  <SelectItem key={origem} value={origem}>
+                    {origem} ({contatos.filter(c => c.origem === origem).length})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {allContactsFilterOrigem !== "all" && (
+              <Button variant="ghost" size="sm" onClick={() => setAllContactsFilterOrigem("all")} className="h-8 px-2">
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Selection and pagination controls */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={selectAllContactsOnPage}>
+            <Button variant="outline" size="sm" onClick={() => {
+              const pageContacts = contatosFiltradosPorOrigem.slice(
+                (allContactsPage - 1) * allContactsPerPage, 
+                allContactsPage * allContactsPerPage
+              );
+              setSelectedContacts(prev => {
+                const next = new Set(prev);
+                pageContacts.forEach(c => next.add(c.numero));
+                return next;
+              });
+            }}>
               <CheckSquare className="h-4 w-4 mr-1" />
               Selecionar página
             </Button>
-            <Button variant="outline" size="sm" onClick={deselectAllContactsOnPage}>
+            <Button variant="outline" size="sm" onClick={() => {
+              const pageContacts = contatosFiltradosPorOrigem.slice(
+                (allContactsPage - 1) * allContactsPerPage, 
+                allContactsPage * allContactsPerPage
+              );
+              setSelectedContacts(prev => {
+                const next = new Set(prev);
+                pageContacts.forEach(c => next.delete(c.numero));
+                return next;
+              });
+            }}>
               <Square className="h-4 w-4 mr-1" />
               Desselecionar página
             </Button>
@@ -1964,7 +2047,7 @@ export function NovaCampanhaDialog({
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-[50vh] pr-4">
             <div className="space-y-1">
-              {contatos
+              {contatosFiltradosPorOrigem
                 .slice((allContactsPage - 1) * allContactsPerPage, allContactsPage * allContactsPerPage)
                 .map((c, idx) => {
                   const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
@@ -1975,16 +2058,23 @@ export function NovaCampanhaDialog({
                       className={`flex items-center justify-between p-2 hover:bg-muted rounded text-sm border-b last:border-b-0 cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => toggleContactSelection(c.numero)}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <Checkbox 
                           checked={isSelected} 
                           onCheckedChange={() => toggleContactSelection(c.numero)}
                           onClick={(e) => e.stopPropagation()}
                         />
                         <span className="text-xs text-muted-foreground w-8">{globalIdx + 1}.</span>
-                        <span>
-                          {c.nome ? `${c.nome} - ` : ""}{c.numero}
-                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate">
+                            {c.nome ? `${c.nome} - ` : ""}{c.numero}
+                          </span>
+                          {c.origem && (
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {c.origem}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <Button 
                         variant="ghost" 
@@ -2005,8 +2095,8 @@ export function NovaCampanhaDialog({
         </div>
 
         {/* Pagination */}
-        {contatos.length > allContactsPerPage && (() => {
-          const totalPages = Math.ceil(contatos.length / allContactsPerPage);
+        {contatosFiltradosPorOrigem.length > allContactsPerPage && (() => {
+          const totalPages = Math.ceil(contatosFiltradosPorOrigem.length / allContactsPerPage);
           return (
             <div className="flex items-center justify-center gap-2 pt-2 border-t">
               <Button 
