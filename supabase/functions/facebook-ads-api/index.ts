@@ -402,7 +402,7 @@ serve(async (req) => {
       // - Pré-pago: O campo balance do FB é o crédito disponível (positivo = tem saldo)
       //   Se spend_cap existe, usar spend_cap - amount_spent
       //   Se não, usar o balance diretamente do Facebook
-      // - Pós-pago: O balance é o valor devido, mostrar como negativo
+      // - Pós-pago: Usar funding_source_details.current_balance (Fundos - Saldo Atual)
       let displayBalance: number;
       if (isPrepaid) {
         // Para pré-pago, se tem spend_cap definido, calcular saldo restante
@@ -414,8 +414,21 @@ serve(async (req) => {
           displayBalance = rawBalance;
         }
       } else {
-        // Para pós-pago, balance é o valor devido (mostrar como negativo)
-        displayBalance = -Math.abs(rawBalance);
+        // Para pós-pago: usar funding_source_details.current_balance
+        // Este é o campo "Fundos - Saldo Atual" do Facebook
+        const fundingDetails = fbData.funding_source_details;
+        const currentBalanceCents = fundingDetails?.current_balance 
+          ? parseInt(String(fundingDetails.current_balance)) 
+          : 0;
+        let currentBalance = currentBalanceCents / 100;
+        
+        // Converter se USD
+        if (effectiveCurrencyType === "USD") {
+          currentBalance = currentBalance * exchangeRate;
+        }
+        
+        displayBalance = currentBalance;
+        console.log("[BALANCE] Pós-pago: funding_source_details.current_balance:", fundingDetails?.current_balance, "converted:", currentBalance);
       }
 
       console.log("[BALANCE] fb.balance(raw):", fbData.balance, "cents:", balanceCents, "converted:", rawBalance);
