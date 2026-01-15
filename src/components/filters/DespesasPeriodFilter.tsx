@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,8 +8,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 export type DespesasPeriodValue = 
-  | "jan" | "feb" | "mar" | "apr" | "may" | "jun"
-  | "jul" | "aug" | "sep" | "oct" | "nov" | "dec"
+  | "today" 
+  | "yesterday" 
+  | "last_7_days" 
+  | "last_30_days" 
+  | "this_week" 
+  | "last_week" 
+  | "this_month" 
+  | "last_month" 
+  | "max" 
   | "custom";
 
 interface DespesasPeriodFilterProps {
@@ -22,26 +29,6 @@ interface DespesasPeriodFilterProps {
   showLabel?: boolean;
   className?: string;
 }
-
-const monthNames: Record<string, string> = {
-  jan: "Janeiro",
-  feb: "Fevereiro",
-  mar: "Março",
-  apr: "Abril",
-  may: "Maio",
-  jun: "Junho",
-  jul: "Julho",
-  aug: "Agosto",
-  sep: "Setembro",
-  oct: "Outubro",
-  nov: "Novembro",
-  dec: "Dezembro",
-};
-
-const monthIndexMap: Record<string, number> = {
-  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
-};
 
 export function DespesasPeriodFilter({
   value,
@@ -71,12 +58,6 @@ export function DespesasPeriodFilter({
     }
   }, [endPopoverOpen, dateEnd]);
 
-  const getDisplayValue = () => {
-    if (value === "custom") return "Personalizado";
-    if (monthNames[value]) return monthNames[value];
-    return "Selecionar";
-  };
-
   const handleSelectFullMonth = (calendarMonth: Date) => {
     const monthStart = startOfMonth(calendarMonth);
     const monthEnd = endOfMonth(calendarMonth);
@@ -97,21 +78,18 @@ export function DespesasPeriodFilter({
       <Select value={value} onValueChange={(v) => onChange(v as DespesasPeriodValue)}>
         <SelectTrigger className="w-[180px]">
           <Calendar className="h-4 w-4 mr-2" />
-          <SelectValue placeholder="Período">{getDisplayValue()}</SelectValue>
+          <SelectValue placeholder="Período" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="jan">Janeiro</SelectItem>
-          <SelectItem value="feb">Fevereiro</SelectItem>
-          <SelectItem value="mar">Março</SelectItem>
-          <SelectItem value="apr">Abril</SelectItem>
-          <SelectItem value="may">Maio</SelectItem>
-          <SelectItem value="jun">Junho</SelectItem>
-          <SelectItem value="jul">Julho</SelectItem>
-          <SelectItem value="aug">Agosto</SelectItem>
-          <SelectItem value="sep">Setembro</SelectItem>
-          <SelectItem value="oct">Outubro</SelectItem>
-          <SelectItem value="nov">Novembro</SelectItem>
-          <SelectItem value="dec">Dezembro</SelectItem>
+          <SelectItem value="today">Hoje</SelectItem>
+          <SelectItem value="yesterday">Ontem</SelectItem>
+          <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
+          <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
+          <SelectItem value="this_week">Esta semana</SelectItem>
+          <SelectItem value="last_week">Semana passada</SelectItem>
+          <SelectItem value="this_month">Mês Atual</SelectItem>
+          <SelectItem value="last_month">Mês passado</SelectItem>
+          <SelectItem value="max">Máximo</SelectItem>
           <SelectItem value="custom">Personalizado</SelectItem>
         </SelectContent>
       </Select>
@@ -195,12 +173,7 @@ export function DespesasPeriodFilter({
 
 // Helper hook for managing despesas period state
 export function useDespesasPeriodFilter() {
-  // Default to current month
-  const currentMonth = new Date().getMonth();
-  const monthKeys = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-  const defaultPeriod = monthKeys[currentMonth] as DespesasPeriodValue;
-
-  const [periodFilter, setPeriodFilter] = useState<DespesasPeriodValue>(defaultPeriod);
+  const [periodFilter, setPeriodFilter] = useState<DespesasPeriodValue>("this_month");
   const [dateStart, setDateStart] = useState<Date>(startOfMonth(new Date()));
   const [dateEnd, setDateEnd] = useState<Date>(endOfMonth(new Date()));
 
@@ -210,20 +183,50 @@ export function useDespesasPeriodFilter() {
 
   const handlePeriodChange = (value: DespesasPeriodValue) => {
     const today = new Date();
-    const currentYear = today.getFullYear();
     let start: Date;
-    let end: Date;
+    let end: Date = today;
 
-    if (value === "custom") {
-      // Don't change dates for custom
-      return;
-    } else if (monthIndexMap[value] !== undefined) {
-      const monthIndex = monthIndexMap[value];
-      start = startOfMonth(new Date(currentYear, monthIndex, 1));
-      end = endOfMonth(new Date(currentYear, monthIndex, 1));
-    } else {
-      start = startOfMonth(today);
-      end = endOfMonth(today);
+    switch (value) {
+      case "today":
+        start = today;
+        break;
+      case "yesterday":
+        start = subDays(today, 1);
+        end = subDays(today, 1);
+        break;
+      case "last_7_days":
+        start = subDays(today, 6);
+        break;
+      case "last_30_days":
+        start = subDays(today, 29);
+        break;
+      case "this_week":
+        start = startOfWeek(today, { weekStartsOn: 0 });
+        end = endOfWeek(today, { weekStartsOn: 0 });
+        break;
+      case "last_week":
+        const lastWeekStart = startOfWeek(subDays(today, 7), { weekStartsOn: 0 });
+        start = lastWeekStart;
+        end = endOfWeek(lastWeekStart, { weekStartsOn: 0 });
+        break;
+      case "this_month":
+        start = startOfMonth(today);
+        end = endOfMonth(today);
+        break;
+      case "last_month":
+        start = startOfMonth(subMonths(today, 1));
+        end = endOfMonth(subMonths(today, 1));
+        break;
+      case "max":
+        start = new Date(2020, 0, 1);
+        end = today;
+        break;
+      case "custom":
+        // Don't change dates for custom - user controls them
+        return;
+      default:
+        start = startOfMonth(today);
+        end = endOfMonth(today);
     }
 
     setDateStart(start);
