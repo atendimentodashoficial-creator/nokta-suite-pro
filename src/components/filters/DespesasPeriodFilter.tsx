@@ -59,7 +59,7 @@ export function DespesasPeriodFilter({
   const getDisplayValue = () => {
     if (value === "today") return "Hoje";
     if (value === "custom") return "Personalizado";
-    if (monthNames[value]) return `${monthNames[value]}/${currentYear}`;
+    if (monthNames[value]) return monthNames[value];
     return "Selecionar";
   };
 
@@ -78,18 +78,18 @@ export function DespesasPeriodFilter({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="today">Hoje</SelectItem>
-          <SelectItem value="jan">Janeiro/{currentYear}</SelectItem>
-          <SelectItem value="feb">Fevereiro/{currentYear}</SelectItem>
-          <SelectItem value="mar">Março/{currentYear}</SelectItem>
-          <SelectItem value="apr">Abril/{currentYear}</SelectItem>
-          <SelectItem value="may">Maio/{currentYear}</SelectItem>
-          <SelectItem value="jun">Junho/{currentYear}</SelectItem>
-          <SelectItem value="jul">Julho/{currentYear}</SelectItem>
-          <SelectItem value="aug">Agosto/{currentYear}</SelectItem>
-          <SelectItem value="sep">Setembro/{currentYear}</SelectItem>
-          <SelectItem value="oct">Outubro/{currentYear}</SelectItem>
-          <SelectItem value="nov">Novembro/{currentYear}</SelectItem>
-          <SelectItem value="dec">Dezembro/{currentYear}</SelectItem>
+          <SelectItem value="jan">Janeiro</SelectItem>
+          <SelectItem value="feb">Fevereiro</SelectItem>
+          <SelectItem value="mar">Março</SelectItem>
+          <SelectItem value="apr">Abril</SelectItem>
+          <SelectItem value="may">Maio</SelectItem>
+          <SelectItem value="jun">Junho</SelectItem>
+          <SelectItem value="jul">Julho</SelectItem>
+          <SelectItem value="aug">Agosto</SelectItem>
+          <SelectItem value="sep">Setembro</SelectItem>
+          <SelectItem value="oct">Outubro</SelectItem>
+          <SelectItem value="nov">Novembro</SelectItem>
+          <SelectItem value="dec">Dezembro</SelectItem>
           <SelectItem value="custom">Personalizado</SelectItem>
         </SelectContent>
       </Select>
