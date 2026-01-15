@@ -1503,24 +1503,22 @@ export function NovaCampanhaDialog({
 
           {/* Contatos */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <List className="h-4 w-4 text-muted-foreground" />
-                  <Label>Lista de Contatos ({contatos.length})</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch 
-                    id="deduplicar" 
-                    checked={deduplicarNumeros} 
-                    onCheckedChange={setDeduplicarNumeros}
-                  />
-                  <Label htmlFor="deduplicar" className="text-xs text-muted-foreground cursor-pointer">
-                    Evitar duplicados
-                  </Label>
-                </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <List className="h-4 w-4 text-muted-foreground" />
+                <Label>Lista de Contatos ({contatos.length})</Label>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <Switch 
+                  id="deduplicar" 
+                  checked={deduplicarNumeros} 
+                  onCheckedChange={setDeduplicarNumeros}
+                />
+                <Label htmlFor="deduplicar" className="text-xs text-muted-foreground cursor-pointer">
+                  Evitar duplicados
+                </Label>
+              </div>
+              <div className="flex gap-2 ml-auto">
                 <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource}>
                   <Users className="h-4 w-4 mr-1" />
                   Importar
