@@ -159,7 +159,7 @@ serve(async (req) => {
       // Buscar dados básicos da conta
       // Observação: para contas pré-pagas, o "saldo disponível" não vem no field balance.
       // Precisamos de spend_cap e amount_spent para estimar: saldo = spend_cap - amount_spent
-      const fbUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}?fields=name,balance,spend_cap,funding_source_details,is_prepay_account,currency,amount_spent&access_token=${accessToken}`;
+      const fbUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}?fields=name,balance,spend_cap,funding_source_details{current_balance,display_string,type},is_prepay_account,currency,amount_spent&access_token=${accessToken}`;
 
       console.log(`Fetching Facebook Ads data for account: ${normalizedAccountId}`);
 
@@ -179,6 +179,26 @@ serve(async (req) => {
           }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      // Buscar gasto total (desde o início) via Insights (date_preset=maximum)
+      // Isso é o mesmo "Valor gasto (desde o início)" do gerenciador e evita inconsistências do field amount_spent.
+      let lifetimeSpend = 0;
+      try {
+        const lifetimeInsightsUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=spend&date_preset=maximum&access_token=${accessToken}`;
+        const lifetimeResponse = await fetch(lifetimeInsightsUrl);
+        const lifetimeData = await lifetimeResponse.json();
+
+        if (lifetimeData?.error) {
+          console.error("[LIFETIME] Insights API Error:", lifetimeData.error);
+        } else if (Array.isArray(lifetimeData?.data) && lifetimeData.data.length > 0 && lifetimeData.data[0]?.spend) {
+          const parsed = parseFloat(String(lifetimeData.data[0].spend));
+          lifetimeSpend = Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        console.log("[LIFETIME] Spend (maximum):", lifetimeSpend);
+      } catch (lifetimeError) {
+        console.error("[LIFETIME] Error fetching insights:", lifetimeError);
       }
 
       // Buscar gastos no período (se date_start e date_end foram fornecidos)
@@ -366,17 +386,18 @@ serve(async (req) => {
       const isPrepaid = effectiveAccountType === "prepaid" ||
         (effectiveAccountType !== "postpaid" && fbData.is_prepay_account);
 
-      // Valores retornados pela API normalmente vêm em centavos (string)
+      // Valores monetários:
+      // - balance/spend_cap vêm em centavos (inteiro)
+      // - "Total gasto (desde o início)" vem do Insights (lifetimeSpend) em unidade monetária
       const balanceCents = fbData.balance ? parseInt(String(fbData.balance)) : 0;
       const spendCapCents = fbData.spend_cap ? parseInt(String(fbData.spend_cap)) : 0;
-      const amountSpentCents = fbData.amount_spent ? parseInt(String(fbData.amount_spent)) : 0;
 
       // balance (na API) representa:
       // - Para pré-pago: crédito disponível na conta (positivo = tem saldo)
       // - Para pós-pago: valor devido (negativo = deve)
       let rawBalance = balanceCents / 100;
       let spendCap = spendCapCents / 100;
-      let amountSpent = amountSpentCents / 100;
+      let amountSpent = Number.isFinite(lifetimeSpend) ? lifetimeSpend : 0;
       let convertedSpendInPeriod = spendInPeriod;
       let convertedDailyBudget = totalDailyBudget;
       let exchangeRate = 1;
@@ -436,7 +457,7 @@ serve(async (req) => {
 
       console.log("[BALANCE] fb.balance(raw):", fbData.balance, "cents:", balanceCents, "converted:", rawBalance);
       console.log("[BALANCE] fb.spend_cap(raw):", fbData.spend_cap, "cents:", spendCapCents);
-      console.log("[BALANCE] fb.amount_spent(raw):", fbData.amount_spent, "cents:", amountSpentCents);
+      console.log("[BALANCE] fb.amount_spent(raw field):", fbData.amount_spent, "| lifetimeSpend(insights):", lifetimeSpend);
       console.log("[BALANCE] isPrepaid:", isPrepaid, "effectiveType:", effectiveAccountType, "display:", displayBalance);
       console.log("[BALANCE] currencyType:", effectiveCurrencyType, "spread:", currencySpread, "% exchangeRate:", exchangeRate);
 
