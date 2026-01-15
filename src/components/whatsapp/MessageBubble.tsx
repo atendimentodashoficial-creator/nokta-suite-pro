@@ -171,25 +171,36 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
     setMediaRequested(true);
     setIsLoadingMedia(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
-        console.error('Session expired when loading media');
+        console.error("Session expired when loading media");
         setIsLoadingMedia(false);
         return;
       }
 
-      const response = await supabase.functions.invoke('uazapi-download-media', {
+      const response = await supabase.functions.invoke("uazapi-download-media", {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: { messageId: message.message_id, instanciaId }
+        body: {
+          messageId: message.message_id,
+          instanciaId,
+          mediaType: message.media_type,
+        },
       });
 
       if (response.error) throw response.error;
-      
+      if (!response.data?.fileURL || !response.data?.mimetype) {
+        throw new Error("Resposta de mídia inválida");
+      }
+
       setMediaData(response.data);
     } catch (error) {
-      console.error('Error loading media:', error);
+      console.error("Error loading media:", error);
+      setMediaData(null);
     } finally {
       setIsLoadingMedia(false);
     }
@@ -247,10 +258,14 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
 
     if (!mediaData) {
       return (
-        <div className="flex items-center gap-2 p-3 bg-black/10 rounded mb-2">
+        <Button
+          variant="ghost"
+          className="flex items-center gap-2 p-3 h-auto w-full justify-start bg-black/10 hover:bg-black/20 rounded mb-2"
+          onClick={loadMedia}
+        >
           {getMediaIcon()}
-          <span className="text-xs opacity-70">Erro ao carregar mídia</span>
-        </div>
+          <span className="text-xs opacity-70">Falha ao carregar. Toque para tentar novamente</span>
+        </Button>
       );
     }
 
