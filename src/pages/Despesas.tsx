@@ -66,6 +66,10 @@ import {
   useDeleteCategoriaDespesa,
   CategoriaDespesa,
 } from "@/hooks/useCategoriasDespesas";
+import {
+  useDespesasAjustes,
+  useCreateDespesaAjuste,
+} from "@/hooks/useDespesasAjustes";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
 
@@ -116,16 +120,24 @@ export default function Despesas() {
   const [categoriaEditando, setCategoriaEditando] = useState<CategoriaDespesa | null>(null);
   const [editNomeCategoria, setEditNomeCategoria] = useState("");
   const [editCorCategoria, setEditCorCategoria] = useState("#6366f1");
+  
+  // State for value adjustment
+  const [ajusteDialogOpen, setAjusteDialogOpen] = useState(false);
+  const [ajusteNovoValor, setAjusteNovoValor] = useState("");
+  const [ajusteDataInicio, setAjusteDataInicio] = useState<Date | undefined>(new Date());
+  const [ajusteObservacao, setAjusteObservacao] = useState("");
 
   // Queries and mutations
   const { data: despesas, isLoading: isLoadingDespesas } = useDespesas();
   const { data: categorias, isLoading: isLoadingCategorias } = useCategoriasDespesas();
+  const { data: ajustesDespesa } = useDespesasAjustes(despesaEditando?.id);
   const createDespesa = useCreateDespesa();
   const updateDespesa = useUpdateDespesa();
   const deleteDespesa = useDeleteDespesa();
   const createCategoria = useCreateCategoriaDespesa();
   const updateCategoria = useUpdateCategoriaDespesa();
   const deleteCategoria = useDeleteCategoriaDespesa();
+  const createAjuste = useCreateDespesaAjuste();
 
   // Filtered despesas by period first
   const despesasFiltradas = useMemo(() => {
@@ -259,6 +271,51 @@ export default function Despesas() {
       setCategoriaDialogOpen(false);
     } catch (error) {
       toast({ title: "Erro", description: "Erro ao criar categoria", variant: "destructive" });
+    }
+  };
+
+  const handleOpenAjusteDialog = () => {
+    if (!despesaEditando) return;
+    setAjusteNovoValor("");
+    setAjusteDataInicio(new Date());
+    setAjusteObservacao("");
+    setAjusteDialogOpen(true);
+  };
+
+  const handleSalvarAjuste = async () => {
+    if (!despesaEditando) return;
+    
+    const novoValor = parseCurrencyToNumber(ajusteNovoValor);
+    if (novoValor <= 0) {
+      toast({ title: "Erro", description: "Novo valor deve ser maior que zero", variant: "destructive" });
+      return;
+    }
+
+    if (!ajusteDataInicio) {
+      toast({ title: "Erro", description: "Data de início do ajuste é obrigatória", variant: "destructive" });
+      return;
+    }
+
+    try {
+      // Cria o registro de ajuste
+      await createAjuste.mutateAsync({
+        despesa_id: despesaEditando.id,
+        valor_anterior: despesaEditando.valor,
+        valor_novo: novoValor,
+        data_ajuste: format(ajusteDataInicio, "yyyy-MM-dd"),
+        observacao: ajusteObservacao.trim() || undefined,
+      });
+
+      // Atualiza o valor atual da despesa
+      await updateDespesa.mutateAsync({
+        id: despesaEditando.id,
+        valor: novoValor,
+      });
+
+      toast({ title: "Sucesso", description: "Ajuste de valor registrado com sucesso" });
+      setAjusteDialogOpen(false);
+    } catch (error) {
+      toast({ title: "Erro", description: "Erro ao salvar ajuste", variant: "destructive" });
     }
   };
 
@@ -752,6 +809,46 @@ export default function Despesas() {
                   </div>
                 </div>
               )}
+
+              {/* Seção de ajuste de valor para despesas recorrentes em edição */}
+              {despesaEditando && formData.recorrente && (
+                <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">Ajuste de Valor</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Altere o valor a partir de uma data (registros anteriores mantidos)
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOpenAjusteDialog}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Ajustar Valor
+                    </Button>
+                  </div>
+                  
+                  {/* Histórico de ajustes */}
+                  {ajustesDespesa && ajustesDespesa.length > 0 && (
+                    <div className="space-y-2 mt-3">
+                      <Label className="text-xs text-muted-foreground">Histórico de ajustes:</Label>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {ajustesDespesa.map((ajuste) => (
+                          <div key={ajuste.id} className="flex justify-between items-center text-xs p-2 bg-background rounded">
+                            <span>{format(new Date(ajuste.data_ajuste), "dd/MM/yyyy")}</span>
+                            <span className="text-muted-foreground">
+                              {formatCurrency(ajuste.valor_anterior)} → {formatCurrency(ajuste.valor_novo)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -934,6 +1031,89 @@ export default function Despesas() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Ajuste de Valor Dialog */}
+      <Dialog open={ajusteDialogOpen} onOpenChange={setAjusteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Ajustar Valor da Despesa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {despesaEditando && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium">{despesaEditando.descricao}</p>
+                <p className="text-xs text-muted-foreground">
+                  Valor atual: {formatCurrency(despesaEditando.valor)}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="ajuste_valor">Novo Valor *</Label>
+              <CurrencyInput
+                id="ajuste_valor"
+                value={ajusteNovoValor}
+                onChange={setAjusteNovoValor}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>A partir de *</Label>
+              <p className="text-xs text-muted-foreground">
+                O novo valor será aplicado a partir desta data. Registros anteriores não serão afetados.
+              </p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !ajusteDataInicio && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {ajusteDataInicio ? (
+                      format(ajusteDataInicio, "dd/MM/yyyy")
+                    ) : (
+                      "Selecionar data"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={ajusteDataInicio}
+                    onSelect={setAjusteDataInicio}
+                    locale={ptBR}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ajuste_obs">Observação (opcional)</Label>
+              <Input
+                id="ajuste_obs"
+                value={ajusteObservacao}
+                onChange={(e) => setAjusteObservacao(e.target.value)}
+                placeholder="Ex: Reajuste anual..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAjusteDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSalvarAjuste}
+              disabled={createAjuste.isPending || updateDespesa.isPending}
+            >
+              Salvar Ajuste
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

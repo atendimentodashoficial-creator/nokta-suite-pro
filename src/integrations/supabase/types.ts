@@ -690,6 +690,44 @@ export type Database = {
           },
         ]
       }
+      despesas_ajustes: {
+        Row: {
+          created_at: string
+          data_ajuste: string
+          despesa_id: string
+          id: string
+          observacao: string | null
+          valor_anterior: number
+          valor_novo: number
+        }
+        Insert: {
+          created_at?: string
+          data_ajuste: string
+          despesa_id: string
+          id?: string
+          observacao?: string | null
+          valor_anterior: number
+          valor_novo: number
+        }
+        Update: {
+          created_at?: string
+          data_ajuste?: string
+          despesa_id?: string
+          id?: string
+          observacao?: string | null
+          valor_anterior?: number
+          valor_novo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_ajustes_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disparos_campanha_contatos: {
         Row: {
           campanha_id: string
