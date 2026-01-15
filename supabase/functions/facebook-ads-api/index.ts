@@ -438,14 +438,43 @@ serve(async (req) => {
           displayBalance = rawBalance;
         }
       } else {
-        // Para pós-pago: o campo "balance" do FB representa o saldo devedor (amount due).
-        // Como "current_balance" não existe no FundingSourceDetails dessa conta,
-        // usamos o rawBalance (balance da conta) como saldo disponível.
-        // Para pós-pago, balance positivo = valor a pagar, balance negativo = crédito.
-        // O que o usuário quer ver é "Fundos - Saldo Atual", que na prática
-        // para contas de cartão de crédito é o rawBalance (já convertido).
-        displayBalance = rawBalance;
-        console.log("[BALANCE] Pós-pago: usando balance da conta como saldo:", rawBalance);
+        // Para pós-pago: buscar saldo de fundos via funding_source endpoint
+        // Saldo = Fundos disponíveis - Valores devidos (rawBalance)
+        const fundingDetails = fbData.funding_source_details;
+        let fundingSourceBalance = 0;
+        
+        if (fundingDetails?.id) {
+          try {
+            // Buscar detalhes do funding source para obter o saldo de fundos
+            const fundingUrl = `https://graph.facebook.com/v22.0/${fundingDetails.id}?fields=amount,run_status&access_token=${accessToken}`;
+            console.log("[FUNDING] Fetching funding source:", fundingDetails.id);
+            
+            const fundingResponse = await fetch(fundingUrl);
+            const fundingData = await fundingResponse.json();
+            
+            console.log("[FUNDING] Response:", JSON.stringify(fundingData));
+            
+            if (fundingData?.amount) {
+              // amount vem em centavos
+              let fundingAmount = parseInt(String(fundingData.amount)) / 100;
+              
+              // Converter se USD
+              if (effectiveCurrencyType === "USD") {
+                fundingAmount = fundingAmount * exchangeRate;
+              }
+              
+              fundingSourceBalance = fundingAmount;
+              console.log("[FUNDING] Funding source balance:", fundingSourceBalance);
+            }
+          } catch (fundingError) {
+            console.error("[FUNDING] Error fetching funding source:", fundingError);
+          }
+        }
+        
+        // Saldo da conta = Fundos - Valores devidos
+        // rawBalance já é o "valores devidos" (positivo = deve)
+        displayBalance = fundingSourceBalance - rawBalance;
+        console.log("[BALANCE] Pós-pago: fundos:", fundingSourceBalance, "- devidos:", rawBalance, "= saldo:", displayBalance);
       }
 
       console.log("[BALANCE] fb.balance(raw):", fbData.balance, "cents:", balanceCents, "converted:", rawBalance);
