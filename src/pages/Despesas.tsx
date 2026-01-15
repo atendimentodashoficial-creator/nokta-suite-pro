@@ -75,7 +75,7 @@ import {
   useCreateDespesaExclusao,
   isDespesaExcluidaNoMes,
 } from "@/hooks/useDespesasExclusoes";
-import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
+import { DespesasPeriodFilter, useDespesasPeriodFilter } from "@/components/filters/DespesasPeriodFilter";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia, formatBrasilia, parseDateStringBrasilia } from "@/utils/timezone";
 import { startOfMonth } from "date-fns";
 
@@ -110,7 +110,7 @@ export default function Despesas() {
   const [busca, setBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
   const [filtroTipo, setFiltroTipo] = useState<string>("todas");
-  const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd } = usePeriodFilter("this_month");
+  const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd } = useDespesasPeriodFilter();
   
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -411,7 +411,7 @@ export default function Despesas() {
       {/* Filtros */}
       <Card className="p-4 shadow-card">
         <div className="flex flex-wrap gap-4 items-center">
-          <PeriodFilter
+          <DespesasPeriodFilter
             showLabel
             value={periodFilter}
             onChange={setPeriodFilter}
@@ -1082,58 +1082,33 @@ export default function Despesas() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {despesaParaExcluir?.recorrente 
-                ? (despesaParaExcluir?.data_fim 
-                    ? "Excluir Despesa Recorrente" 
-                    : "Encerrar Despesa Recorrente")
+                ? "Remover Despesa Recorrente"
                 : "Excluir Despesa"}
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               {despesaParaExcluir?.recorrente ? (
-                despesaParaExcluir?.data_fim ? (
-                  // Despesa já encerrada - mostrar opções de excluir do mês ou permanentemente
+                <>
                   <span className="block">
-                    Esta despesa já foi encerrada. Deseja removê-la apenas do mês de{" "}
-                    <strong>{format(startOfMonth(dateStart), "MMMM/yyyy", { locale: ptBR })}</strong>{" "}
-                    ou excluir permanentemente todos os registros?
+                    Deseja remover esta despesa do mês de{" "}
+                    <strong>{format(startOfMonth(dateStart), "MMMM/yyyy", { locale: ptBR })}</strong>?
                   </span>
-                ) : (
-                  // Despesa ativa - opção de encerrar ou excluir do mês
-                  <>
-                    <span className="block">
-                      Escolha uma opção:
-                    </span>
-                    <span className="block text-sm">
-                      • <strong>Encerrar:</strong> A despesa não aparecerá mais a partir de hoje, mas o histórico será mantido.
-                    </span>
-                    <span className="block text-sm">
-                      • <strong>Excluir do mês:</strong> Remove apenas do mês de{" "}
-                      <strong>{format(startOfMonth(dateStart), "MMMM/yyyy", { locale: ptBR })}</strong>.
-                    </span>
-                  </>
-                )
+                  <span className="block text-sm text-muted-foreground">
+                    A despesa continuará aparecendo nos outros meses em que estava ativa.
+                  </span>
+                </>
               ) : (
                 "Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita."
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            {despesaParaExcluir?.recorrente && (
-              <Button
-                variant="outline"
-                onClick={handleExcluirDoMes}
-                disabled={createExclusao.isPending}
-              >
-                Excluir só deste mês
-              </Button>
-            )}
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={despesaParaExcluir?.recorrente ? handleExcluirDoMes : handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={createExclusao.isPending}
             >
-              {despesaParaExcluir?.recorrente 
-                ? (despesaParaExcluir?.data_fim ? "Excluir permanentemente" : "Encerrar")
-                : "Excluir"}
+              {despesaParaExcluir?.recorrente ? "Remover deste mês" : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
