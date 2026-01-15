@@ -21,6 +21,7 @@ interface FacebookAccountData {
   name: string;
   balance: number;
   currency: string;
+  currency_type?: string;
   is_prepay_account: boolean;
   funding_source_details?: {
     display_string?: string;
@@ -29,6 +30,8 @@ interface FacebookAccountData {
   amount_spent: number;
   spend_in_period?: number;
   daily_budget?: number;
+  exchange_rate?: number | null;
+  currency_spread?: number;
 }
 interface LinkedAccount {
   id: string;
@@ -477,12 +480,19 @@ export function ContaAnunciosTab() {
                           <Skeleton className="h-6 w-24" />
                           <Skeleton className="h-6 w-32" />
                         </div> : data ? <>
-                          {/* Tipo de Conta */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">
-                              {data.is_prepay_account ? "Conta pré-paga" : "Conta pós-paga"}
-                            </span>
+                          {/* Tipo de Conta e Moeda */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">
+                                {data.is_prepay_account ? "Conta pré-paga" : "Conta pós-paga"}
+                              </span>
+                            </div>
+                            {data.currency_type === "USD" && data.exchange_rate && (
+                              <Badge variant="outline" className="text-xs">
+                                USD → BRL (${(1).toFixed(2)} = R$ {data.exchange_rate.toFixed(2)})
+                              </Badge>
+                            )}
                           </div>
 
                           {/* Saldo */}
@@ -494,8 +504,11 @@ export function ContaAnunciosTab() {
                               "h-5 w-5",
                               data.balance >= 0 ? "text-emerald-500" : "text-red-500"
                             )} />
-                            <div>
-                              <p className="text-xs text-muted-foreground">Saldo da Conta</p>
+                            <div className="flex-1">
+                              <p className="text-xs text-muted-foreground">
+                                Saldo da Conta
+                                {data.currency_type === "USD" && " (convertido)"}
+                              </p>
                               <p className={cn(
                                 "text-xl font-bold",
                                 data.balance >= 0 ? "text-emerald-600" : "text-red-600"
@@ -507,31 +520,44 @@ export function ContaAnunciosTab() {
                           </div>
 
                           {/* Orçamento Diário Ativo */}
-                          {data.daily_budget !== undefined && data.daily_budget > 0 && <div className="flex items-center gap-3 p-3 bg-blue-500/10 rounded-lg">
+                          {data.daily_budget !== undefined && data.daily_budget > 0 && (
+                            <div className="flex items-center gap-3 p-3 bg-blue-500/10 rounded-lg">
                               <Target className="h-5 w-5 text-blue-500" />
                               <div>
-                                <p className="text-xs text-muted-foreground">Orçamento Diário Ativo</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Orçamento Diário Ativo
+                                  {data.currency_type === "USD" && " (convertido)"}
+                                </p>
                                 <p className="text-lg font-bold text-blue-600">
                                   {formatCurrency(data.daily_budget, data.currency)}
                                 </p>
                               </div>
-                            </div>}
+                            </div>
+                          )}
 
                           {/* Gasto no Período */}
-                          {data.spend_in_period !== undefined && <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg">
+                          {data.spend_in_period !== undefined && (
+                            <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg">
                               <TrendingUp className="h-5 w-5 text-primary" />
                               <div>
-                                <p className="text-xs text-muted-foreground">Gasto no Período</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Gasto no Período
+                                  {data.currency_type === "USD" && " (convertido)"}
+                                </p>
                                 <p className="text-lg font-bold text-primary">
                                   {formatCurrency(data.spend_in_period, data.currency)}
                                 </p>
                               </div>
-                            </div>}
+                            </div>
+                          )}
 
                           {/* Total Gasto (desde o início) */}
                           <div className="pt-2 border-t">
                             <p className="text-xs text-muted-foreground">
                               Total gasto (desde o início): {formatCurrency(data.amount_spent, data.currency)}
+                              {data.currency_type === "USD" && data.currency_spread > 0 && (
+                                <span className="ml-1">(spread: {data.currency_spread}%)</span>
+                              )}
                             </p>
                           </div>
                         </> : <div className="text-center py-4 text-muted-foreground">
