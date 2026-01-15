@@ -69,7 +69,6 @@ export function CompararListasDialog({
   const [duplicados, setDuplicados] = useState<ContatoDuplicado[]>([]);
   const [activeResultTab, setActiveResultTab] = useState("nao_enviados");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [apenasEnviados, setApenasEnviados] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -80,7 +79,6 @@ export function CompararListasDialog({
       setSelectedCampanhas(new Set());
       setResultado([]);
       setDuplicados([]);
-      setApenasEnviados(false);
     }
   }, [open]);
 
@@ -172,17 +170,10 @@ export function CompararListasDialog({
     try {
       const contatosLista = parseListaContatos(listaInput);
       
-      // Build query - optionally filter by sent status
-      let query = supabase
+      const { data: contatosCampanha, error } = await supabase
         .from("disparos_campanha_contatos")
-        .select("numero, campanha_id, status")
+        .select("numero, campanha_id")
         .in("campanha_id", Array.from(selectedCampanhas));
-      
-      if (apenasEnviados) {
-        query = query.eq("status", "sent");
-      }
-
-      const { data: contatosCampanha, error } = await query;
 
       if (error) throw error;
 
@@ -229,17 +220,10 @@ export function CompararListasDialog({
 
     setIsLoading(true);
     try {
-      // Build query - optionally filter by sent status
-      let query = supabase
+      const { data: contatosCampanha, error } = await supabase
         .from("disparos_campanha_contatos")
-        .select("numero, nome, campanha_id, status")
+        .select("numero, nome, campanha_id")
         .in("campanha_id", Array.from(selectedCampanhas));
-      
-      if (apenasEnviados) {
-        query = query.eq("status", "sent");
-      }
-
-      const { data: contatosCampanha, error } = await query;
 
       if (error) throw error;
 
@@ -531,17 +515,6 @@ export function CompararListasDialog({
                   )}
                 </div>
               </ScrollArea>
-
-              <div className="flex items-center gap-2 px-1">
-                <Checkbox
-                  id="apenas-enviados"
-                  checked={apenasEnviados}
-                  onCheckedChange={(checked) => setApenasEnviados(checked === true)}
-                />
-                <Label htmlFor="apenas-enviados" className="text-sm cursor-pointer">
-                  Considerar apenas contatos já enviados
-                </Label>
-              </div>
 
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => setStep(modo === "lista" ? "input" : "mode")}>
