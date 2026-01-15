@@ -688,7 +688,7 @@ export default function AdminWhatsApp() {
           // Configure webhook after successful connection
             const instanciaId = instanciaRef?.id;
             if (instanciaId && user?.id) {
-              const webhookUrl = `https://xlzkmnrgtrcmptszyyar.supabase.co/functions/v1/whatsapp-webhook/${user.id}/${instanciaId}`;
+              const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user.id}/${instanciaId}`;
               console.log("Configuring webhook:", webhookUrl);
 
             const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
@@ -700,6 +700,7 @@ export default function AdminWhatsApp() {
                 instancia_id: instanciaId,
               },
             });
+
 
             console.log("Webhook response:", webhookResponse.data);
 
