@@ -159,7 +159,7 @@ serve(async (req) => {
       // Buscar dados básicos da conta
       // Observação: para contas pré-pagas, o "saldo disponível" não vem no field balance.
       // Precisamos de spend_cap e amount_spent para estimar: saldo = spend_cap - amount_spent
-      const fbUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}?fields=name,balance,spend_cap,funding_source_details{current_balance,display_string,type},is_prepay_account,currency,amount_spent&access_token=${accessToken}`;
+      const fbUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}?fields=name,balance,spend_cap,funding_source_details,is_prepay_account,currency,amount_spent&access_token=${accessToken}`;
 
       console.log(`Fetching Facebook Ads data for account: ${normalizedAccountId}`);
 
@@ -438,21 +438,14 @@ serve(async (req) => {
           displayBalance = rawBalance;
         }
       } else {
-        // Para pós-pago: usar funding_source_details.current_balance
-        // Este é o campo "Fundos - Saldo Atual" do Facebook
-        const fundingDetails = fbData.funding_source_details;
-        const currentBalanceCents = fundingDetails?.current_balance 
-          ? parseInt(String(fundingDetails.current_balance)) 
-          : 0;
-        let currentBalance = currentBalanceCents / 100;
-        
-        // Converter se USD
-        if (effectiveCurrencyType === "USD") {
-          currentBalance = currentBalance * exchangeRate;
-        }
-        
-        displayBalance = currentBalance;
-        console.log("[BALANCE] Pós-pago: funding_source_details.current_balance:", fundingDetails?.current_balance, "converted:", currentBalance);
+        // Para pós-pago: o campo "balance" do FB representa o saldo devedor (amount due).
+        // Como "current_balance" não existe no FundingSourceDetails dessa conta,
+        // usamos o rawBalance (balance da conta) como saldo disponível.
+        // Para pós-pago, balance positivo = valor a pagar, balance negativo = crédito.
+        // O que o usuário quer ver é "Fundos - Saldo Atual", que na prática
+        // para contas de cartão de crédito é o rawBalance (já convertido).
+        displayBalance = rawBalance;
+        console.log("[BALANCE] Pós-pago: usando balance da conta como saldo:", rawBalance);
       }
 
       console.log("[BALANCE] fb.balance(raw):", fbData.balance, "cents:", balanceCents, "converted:", rawBalance);
