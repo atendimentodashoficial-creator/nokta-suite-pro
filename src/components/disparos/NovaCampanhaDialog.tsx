@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
-import { Upload, FileText, Image, Video, Music, X, Plus, Trash2, Users, Kanban, Phone, Shuffle, ChevronDown, ChevronUp, Layers, Copy, FileDown, List, ClipboardPaste, Database, RefreshCw } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, type ReactNode, useMemo } from "react";
+import { Upload, FileText, Image, Video, Music, X, Plus, Trash2, Users, Kanban, Phone, Shuffle, ChevronDown, ChevronUp, Layers, Copy, FileDown, List, ClipboardPaste, Database, RefreshCw, Check, CheckSquare, Square, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -122,6 +123,13 @@ export function NovaCampanhaDialog({
 
   // Listas do extrator
   const [listasExtrator, setListasExtrator] = useState<ListaExtrator[]>([]);
+
+  // Seleção de contatos (para permitir desselecionar antes de criar campanha)
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+
+  // Paginação do popup "Ver todos"
+  const [allContactsPage, setAllContactsPage] = useState(1);
+  const [allContactsPerPage, setAllContactsPerPage] = useState(50);
 
   // Preview state - stores randomly generated messages for each block
   const [previewMessages, setPreviewMessages] = useState<Record<number, { variacaoIdx: number; text: string; mediaPreview?: string | null; tipo: string }>>({});
@@ -452,11 +460,7 @@ export function NovaCampanhaDialog({
         toast.error("Nenhum contato válido encontrado no arquivo");
         return;
       }
-      setContatos(prev => {
-        const existingNumbers = new Set(prev.map(c => c.numero));
-        const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-        return [...prev, ...unique];
-      });
+      addContatosWithSelection(novosContatos);
       toast.success(`${novosContatos.length} contato(s) importado(s)`);
     };
     reader.readAsText(file);
@@ -513,15 +517,67 @@ export function NovaCampanhaDialog({
       numero,
       nome: novoNome.trim() || undefined
     }]);
+    // Auto-select new contact
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      next.add(numero);
+      return next;
+    });
     setNovoNumero("");
     setNovoNome("");
   };
   const removeContato = (numero: string) => {
     setContatos(prev => prev.filter(c => c.numero !== numero));
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      next.delete(numero);
+      return next;
+    });
   };
   const clearAll = () => {
     setContatos([]);
+    setSelectedContacts(new Set());
   };
+
+  // Helper to add contacts and auto-select them
+  const addContatosWithSelection = (novosContatos: Contato[]) => {
+    setContatos(prev => {
+      const existingNumbers = new Set(prev.map(c => c.numero));
+      const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
+      // Auto-select all new contacts
+      setSelectedContacts(prevSelected => {
+        const next = new Set(prevSelected);
+        unique.forEach(c => next.add(c.numero));
+        return next;
+      });
+      return [...prev, ...unique];
+    });
+  };
+
+  const toggleContactSelection = (numero: string) => {
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(numero)) {
+        next.delete(numero);
+      } else {
+        next.add(numero);
+      }
+      return next;
+    });
+  };
+
+  const selectAllContacts = () => {
+    setSelectedContacts(new Set(contatos.map(c => c.numero)));
+  };
+
+  const deselectAllContacts = () => {
+    setSelectedContacts(new Set());
+  };
+
+  // Contatos selecionados para envio
+  const selectedContatosForSubmit = useMemo(() => {
+    return contatos.filter(c => selectedContacts.has(c.numero));
+  }, [contatos, selectedContacts]);
   const exportContatos = () => {
     if (contatos.length === 0) {
       toast.error("Nenhum contato para exportar");
@@ -591,11 +647,7 @@ export function NovaCampanhaDialog({
         toast.info("Nenhum lead com telefone válido encontrado");
         return;
       }
-      setContatos(prev => {
-        const existingNumbers = new Set(prev.map(c => c.numero));
-        const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-        return [...prev, ...unique];
-      });
+      addContatosWithSelection(novosContatos);
       toast.success(`${novosContatos.length} lead(s) importado(s)`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -630,11 +682,7 @@ export function NovaCampanhaDialog({
         toast.info("Nenhum cliente com telefone válido encontrado");
         return;
       }
-      setContatos(prev => {
-        const existingNumbers = new Set(prev.map(c => c.numero));
-        const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-        return [...prev, ...unique];
-      });
+      addContatosWithSelection(novosContatos);
       toast.success(`${novosContatos.length} cliente(s) importado(s)`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -684,11 +732,7 @@ export function NovaCampanhaDialog({
         toast.info("Nenhum contato válido nesta coluna" + (filterByDate ? " no período selecionado" : ""));
         return;
       }
-      setContatos(prev => {
-        const existingNumbers = new Set(prev.map(c => c.numero));
-        const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-        return [...prev, ...unique];
-      });
+      addContatosWithSelection(novosContatos);
       toast.success(`${novosContatos.length} contato(s) importado(s) do Kanban WhatsApp`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -738,11 +782,7 @@ export function NovaCampanhaDialog({
         toast.info("Nenhum contato válido nesta coluna" + (filterByDate ? " no período selecionado" : ""));
         return;
       }
-      setContatos(prev => {
-        const existingNumbers = new Set(prev.map(c => c.numero));
-        const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-        return [...prev, ...unique];
-      });
+      addContatosWithSelection(novosContatos);
       toast.success(`${novosContatos.length} contato(s) importado(s) do Kanban Disparos`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -799,11 +839,7 @@ export function NovaCampanhaDialog({
         return;
       }
       
-      setContatos(prev => {
-        const existingNumbers = new Set(prev.map(c => c.numero));
-        const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-        return [...prev, ...unique];
-      });
+      addContatosWithSelection(novosContatos);
       toast.success(`${novosContatos.length} contato(s) importado(s) da aba Leads (WhatsApp)`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -860,11 +896,7 @@ export function NovaCampanhaDialog({
         return;
       }
       
-      setContatos(prev => {
-        const existingNumbers = new Set(prev.map(c => c.numero));
-        const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-        return [...prev, ...unique];
-      });
+      addContatosWithSelection(novosContatos);
       toast.success(`${novosContatos.length} contato(s) importado(s) da aba Leads (Disparos)`);
       setShowDateFilter(false);
       setDateFrom("");
@@ -890,11 +922,7 @@ export function NovaCampanhaDialog({
       return;
     }
 
-    setContatos(prev => {
-      const existingNumbers = new Set(prev.map(c => c.numero));
-      const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-      return [...prev, ...unique];
-    });
+    addContatosWithSelection(novosContatos);
 
     toast.success(`${novosContatos.length} contato(s) importado(s) da lista "${lista.nome}"`);
     setShowImportDialog(false);
@@ -909,8 +937,8 @@ export function NovaCampanhaDialog({
       toast.error("Selecione pelo menos uma instância");
       return;
     }
-    if (contatos.length === 0) {
-      toast.error("Adicione pelo menos um contato");
+    if (selectedContatosForSubmit.length === 0) {
+      toast.error("Selecione pelo menos um contato");
       return;
     }
 
@@ -966,7 +994,7 @@ export function NovaCampanhaDialog({
         delay_max: delayMaxSeconds,
         delay_bloco_min: delayBlocoMin,
         delay_bloco_max: delayBlocoMax,
-        total_contatos: contatos.length,
+        total_contatos: selectedContatosForSubmit.length,
         status: "pending",
         instancias_ids: selectedInstancias
       }).select().single();
@@ -1006,8 +1034,8 @@ export function NovaCampanhaDialog({
       } = await supabase.from("disparos_campanha_variacoes").insert(variacoesToInsert);
       if (variacoesError) throw variacoesError;
 
-      // Insert contacts
-      const contatosToInsert = contatos.map(c => ({
+      // Insert contacts (only selected ones)
+      const contatosToInsert = selectedContatosForSubmit.map(c => ({
         campanha_id: campanha.id,
         numero: c.numero.startsWith("55") ? c.numero : `55${c.numero}`,
         nome: c.nome || null,
@@ -1039,6 +1067,8 @@ export function NovaCampanhaDialog({
     setDelayBlocoMin(3);
     setDelayBlocoMax(8);
     setContatos([]);
+    setSelectedContacts(new Set());
+    setAllContactsPage(1);
     setNovoNumero("");
     setNovoNome("");
     setDateFrom("");
@@ -1437,11 +1467,7 @@ export function NovaCampanhaDialog({
                       toast.error("Nenhum número válido encontrado");
                       return;
                     }
-                    setContatos(prev => {
-                      const existingNumbers = new Set(prev.map(c => c.numero));
-                      const unique = novosContatos.filter(c => !existingNumbers.has(c.numero));
-                      return [...prev, ...unique];
-                    });
+                    addContatosWithSelection(novosContatos);
                     toast.success(`${novosContatos.length} contato(s) colado(s)`);
                   } catch (error) {
                     toast.error("Não foi possível acessar a área de transferência");
@@ -1472,7 +1498,7 @@ export function NovaCampanhaDialog({
             {contatos.length > 0 && <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">
-                    {contatos.length} contato{contatos.length !== 1 ? "s" : ""}
+                    {selectedContacts.size} de {contatos.length} selecionado{selectedContacts.size !== 1 ? "s" : ""}
                   </span>
                   <div className="flex gap-1">
                     {contatos.length > 10 && <Button variant="ghost" size="sm" onClick={() => setShowAllContacts(true)}>
@@ -1501,14 +1527,38 @@ export function NovaCampanhaDialog({
                   </div>
                 </div>
                 <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
-                  {contatos.slice(0, 50).map(c => <div key={c.numero} className="flex items-center justify-between p-1.5 hover:bg-muted rounded text-sm">
-                      <span>
-                        {c.nome ? `${c.nome} - ` : ""}{c.numero}
-                      </span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeContato(c.numero)}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>)}
+                  {contatos.slice(0, 50).map(c => {
+                    const isSelected = selectedContacts.has(c.numero);
+                    return (
+                      <div 
+                        key={c.numero} 
+                        className={`flex items-center justify-between p-1.5 hover:bg-muted rounded text-sm cursor-pointer ${isSelected ? 'bg-primary/5' : 'opacity-50'}`}
+                        onClick={() => toggleContactSelection(c.numero)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Checkbox 
+                            checked={isSelected} 
+                            onCheckedChange={() => toggleContactSelection(c.numero)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span>
+                            {c.nome ? `${c.nome} - ` : ""}{c.numero}
+                          </span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeContato(c.numero);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                   {contatos.length > 50 && <Button variant="link" size="sm" onClick={() => setShowAllContacts(true)} className="w-full text-xs text-muted-foreground">
                       ... e mais {contatos.length - 50} contatos (clique para ver todos)
                     </Button>}
@@ -1848,31 +1898,123 @@ export function NovaCampanhaDialog({
     </Dialog>
 
     {/* All Contacts Dialog */}
-    <Dialog open={showAllContacts} onOpenChange={setShowAllContacts}>
+    <Dialog open={showAllContacts} onOpenChange={(open) => {
+      setShowAllContacts(open);
+      if (!open) {
+        setAllContactsPage(1);
+      }
+    }}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Lista de Contatos ({contatos.length})</DialogTitle>
           <DialogDescription>
-            Visualização completa de todos os contatos da campanha
+            {selectedContacts.size} de {contatos.length} selecionados para envio
           </DialogDescription>
         </DialogHeader>
+
+        {/* Selection and pagination controls */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={selectAllContacts}>
+              <CheckSquare className="h-4 w-4 mr-1" />
+              Selecionar todos
+            </Button>
+            <Button variant="outline" size="sm" onClick={deselectAllContacts}>
+              <Square className="h-4 w-4 mr-1" />
+              Desselecionar todos
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Por página:</span>
+            <Select value={String(allContactsPerPage)} onValueChange={(v) => {
+              setAllContactsPerPage(Number(v));
+              setAllContactsPage(1);
+            }}>
+              <SelectTrigger className="w-20 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="200">200</SelectItem>
+                <SelectItem value="500">500</SelectItem>
+                <SelectItem value="1000">1000</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-[60vh] pr-4">
+          <ScrollArea className="h-[50vh] pr-4">
             <div className="space-y-1">
-              {contatos.map((c, idx) => <div key={c.numero} className="flex items-center justify-between p-2 hover:bg-muted rounded text-sm border-b last:border-b-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-8">{idx + 1}.</span>
-                    <span>
-                      {c.nome ? `${c.nome} - ` : ""}{c.numero}
-                    </span>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeContato(c.numero)}>
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>)}
+              {contatos
+                .slice((allContactsPage - 1) * allContactsPerPage, allContactsPage * allContactsPerPage)
+                .map((c, idx) => {
+                  const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
+                  const isSelected = selectedContacts.has(c.numero);
+                  return (
+                    <div 
+                      key={c.numero} 
+                      className={`flex items-center justify-between p-2 hover:bg-muted rounded text-sm border-b last:border-b-0 cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => toggleContactSelection(c.numero)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Checkbox 
+                          checked={isSelected} 
+                          onCheckedChange={() => toggleContactSelection(c.numero)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="text-xs text-muted-foreground w-8">{globalIdx + 1}.</span>
+                        <span>
+                          {c.nome ? `${c.nome} - ` : ""}{c.numero}
+                        </span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeContato(c.numero);
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
             </div>
           </ScrollArea>
         </div>
+
+        {/* Pagination */}
+        {contatos.length > allContactsPerPage && (
+          <div className="flex items-center justify-center gap-2 pt-2 border-t">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8"
+              disabled={allContactsPage <= 1}
+              onClick={() => setAllContactsPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm">
+              Página {allContactsPage} de {Math.ceil(contatos.length / allContactsPerPage)}
+            </span>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8"
+              disabled={allContactsPage >= Math.ceil(contatos.length / allContactsPerPage)}
+              onClick={() => setAllContactsPage(p => Math.min(Math.ceil(contatos.length / allContactsPerPage), p + 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
         <div className="flex justify-between items-center pt-4 border-t">
           <Button variant="destructive" size="sm" onClick={() => {
             clearAll();
