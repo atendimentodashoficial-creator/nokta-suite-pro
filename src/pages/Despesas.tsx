@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { format, addMonths } from "date-fns";
+import { format, addMonths, startOfMonth, endOfMonth, differenceInMonths, isBefore, isAfter, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Plus, 
@@ -77,7 +77,7 @@ import {
 } from "@/hooks/useDespesasExclusoes";
 import { DespesasPeriodFilter, useDespesasPeriodFilter } from "@/components/filters/DespesasPeriodFilter";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia, formatBrasilia, parseDateStringBrasilia } from "@/utils/timezone";
-import { startOfMonth } from "date-fns";
+
 
 
 interface DespesaFormData {
@@ -146,64 +146,114 @@ export default function Despesas() {
   const deleteCategoria = useDeleteCategoriaDespesa();
   const createAjuste = useCreateDespesaAjuste();
   const createExclusao = useCreateDespesaExclusao();
+  // Helper function to calculate occurrences in period
+  const calcularOcorrenciasNoPeriodo = (despesa: DespesaComCategoria, periodStart: Date, periodEnd: Date): number => {
+    if (despesa.recorrente) {
+      // For recurring: count how many months overlap
+      const dataInicio = despesa.data_despesa ? toZonedBrasilia(despesa.data_despesa) : toZonedBrasilia(despesa.created_at || new Date().toISOString());
+      const dataFim = despesa.data_fim ? toZonedBrasilia(despesa.data_fim) : null;
+      
+      // Effective start is the later of despesa start or period start
+      const effectiveStart = isBefore(dataInicio, periodStart) ? periodStart : dataInicio;
+      // Effective end is the earlier of despesa end (or period end if no end) and period end
+      const effectiveEnd = dataFim && isBefore(dataFim, periodEnd) ? dataFim : periodEnd;
+      
+      if (isBefore(effectiveEnd, effectiveStart)) return 0;
+      
+      // Count months between effective start and end (inclusive)
+      let count = 0;
+      let currentMonth = startOfMonth(effectiveStart);
+      const lastMonth = startOfMonth(effectiveEnd);
+      
+      while (!isAfter(currentMonth, lastMonth)) {
+        // Check if excluded for this month
+        if (!exclusoesMensais || !isDespesaExcluidaNoMes(exclusoesMensais, despesa.id, currentMonth)) {
+          count++;
+        }
+        currentMonth = addMonths(currentMonth, 1);
+      }
+      
+      return count;
+    } else if (despesa.parcelada && despesa.data_inicio && despesa.data_fim) {
+      // For installments: count how many installments fall within period
+      const dataInicio = toZonedBrasilia(despesa.data_inicio);
+      const dataFim = toZonedBrasilia(despesa.data_fim);
+      
+      // Effective start is the later of despesa start or period start
+      const effectiveStart = isBefore(dataInicio, periodStart) ? periodStart : dataInicio;
+      // Effective end is the earlier of despesa end and period end
+      const effectiveEnd = isBefore(dataFim, periodEnd) ? dataFim : periodEnd;
+      
+      if (isBefore(effectiveEnd, effectiveStart)) return 0;
+      
+      // Count months between effective start and end (inclusive)
+      let count = 0;
+      let currentMonth = startOfMonth(effectiveStart);
+      const lastMonth = startOfMonth(effectiveEnd);
+      
+      while (!isAfter(currentMonth, lastMonth)) {
+        count++;
+        currentMonth = addMonths(currentMonth, 1);
+      }
+      
+      return count;
+    }
+    
+    // For single expenses, always 1
+    return 1;
+  };
 
-  // Filtered despesas by period first
-  const despesasFiltradas = useMemo(() => {
+  // Filtered despesas by period with occurrence count
+  const despesasFiltradasComOcorrencias = useMemo(() => {
     if (!despesas) return [];
     
     const periodStart = startOfDayBrasilia(dateStart);
     const periodEnd = endOfDayBrasilia(dateEnd);
     
-    return despesas.filter((d) => {
-      // Para despesas recorrentes, verificar se estava ativa durante o período selecionado
-      if (d.recorrente) {
-        // Data de início da despesa recorrente (usa data_despesa como dia de pagamento mensal)
-        const dataInicio = d.data_despesa ? toZonedBrasilia(d.data_despesa) : toZonedBrasilia(d.created_at || new Date().toISOString());
-        // Data fim (se encerrada)
-        const dataFim = d.data_fim ? toZonedBrasilia(d.data_fim) : null;
+    return despesas
+      .map((d) => {
+        // Calculate occurrences
+        const ocorrencias = calcularOcorrenciasNoPeriodo(d, periodStart, periodEnd);
+        return { ...d, ocorrencias };
+      })
+      .filter((d) => {
+        // Filter out items with no occurrences
+        if (d.ocorrencias === 0) return false;
         
-        // Despesa recorrente deve ter iniciado antes ou durante o período
-        if (dataInicio > periodEnd) return false;
-        // Se tem data_fim, deve ter sido encerrada após o início do período
-        if (dataFim && dataFim < periodStart) return false;
-        
-        // Verificar se está excluída do mês do período selecionado
-        if (exclusoesMensais && isDespesaExcluidaNoMes(exclusoesMensais, d.id, periodStart)) {
-          return false;
+        // For non-recurring/non-installment, check date range
+        if (!d.recorrente && !d.parcelada) {
+          const despesaDate = d.data_despesa ? toZonedBrasilia(d.data_despesa) : toZonedBrasilia(d.created_at || new Date().toISOString());
+          if (despesaDate < periodStart) return false;
+          if (despesaDate > periodEnd) return false;
         }
-      } else if (d.parcelada) {
-        // Para parceladas, usar data_inicio
-        const despesaDate = d.data_inicio ? toZonedBrasilia(d.data_inicio) : toZonedBrasilia(d.created_at || new Date().toISOString());
-        if (despesaDate < periodStart) return false;
-        if (despesaDate > periodEnd) return false;
-      } else {
-        // Para despesas variáveis/únicas
-        const despesaDate = d.data_despesa ? toZonedBrasilia(d.data_despesa) : toZonedBrasilia(d.created_at || new Date().toISOString());
-        if (despesaDate < periodStart) return false;
-        if (despesaDate > periodEnd) return false;
-      }
-      
-      // Search filter
-      const matchBusca = d.descricao.toLowerCase().includes(busca.toLowerCase()) ||
-        d.categorias_despesas?.nome?.toLowerCase().includes(busca.toLowerCase());
-      
-      // Category filter
-      const matchCategoria = filtroCategoria === "todas" || d.categoria_id === filtroCategoria;
-      
-      // Type filter (recorrente, variavel, parcelada)
-      let matchTipo = filtroTipo === "todas";
-      if (filtroTipo === "recorrente" && d.recorrente) matchTipo = true;
-      if (filtroTipo === "variavel" && !d.recorrente && !d.parcelada) matchTipo = true;
-      if (filtroTipo === "parcelada" && d.parcelada) matchTipo = true;
-      
-      return matchBusca && matchCategoria && matchTipo;
-    });
+        
+        // Search filter
+        const matchBusca = d.descricao.toLowerCase().includes(busca.toLowerCase()) ||
+          d.categorias_despesas?.nome?.toLowerCase().includes(busca.toLowerCase());
+        
+        // Category filter
+        const matchCategoria = filtroCategoria === "todas" || d.categoria_id === filtroCategoria;
+        
+        // Type filter (recorrente, variavel, parcelada)
+        let matchTipo = filtroTipo === "todas";
+        if (filtroTipo === "recorrente" && d.recorrente) matchTipo = true;
+        if (filtroTipo === "variavel" && !d.recorrente && !d.parcelada) matchTipo = true;
+        if (filtroTipo === "parcelada" && d.parcelada) matchTipo = true;
+        
+        return matchBusca && matchCategoria && matchTipo;
+      });
   }, [despesas, busca, filtroCategoria, filtroTipo, dateStart, dateEnd, exclusoesMensais]);
 
-  // Total
+  // Backwards compatibility alias
+  const despesasFiltradas = despesasFiltradasComOcorrencias;
+
+  // Total considering occurrences
   const totalDespesas = useMemo(() => {
-    return despesasFiltradas.reduce((acc, d) => acc + Number(d.valor), 0);
-  }, [despesasFiltradas]);
+    return despesasFiltradasComOcorrencias.reduce((acc, d) => {
+      const multiplicador = (d.recorrente || d.parcelada) ? d.ocorrencias : 1;
+      return acc + (Number(d.valor) * multiplicador);
+    }, 0);
+  }, [despesasFiltradasComOcorrencias]);
 
   const handleOpenDialog = (despesa?: DespesaComCategoria) => {
     if (despesa) {
@@ -532,6 +582,12 @@ export default function Despesas() {
             };
             const tipoConfig = getTipoConfig();
             const TipoIcon = tipoConfig.icon;
+            
+            // Calculate display values with occurrences
+            const ocorrencias = despesa.ocorrencias || 1;
+            const valorUnitario = Number(despesa.valor);
+            const valorTotal = (despesa.recorrente || despesa.parcelada) ? valorUnitario * ocorrencias : valorUnitario;
+            const mostrarOcorrencias = (despesa.recorrente || despesa.parcelada) && ocorrencias > 1;
 
             return (
               <Card key={despesa.id} className="hover:shadow-md transition-shadow">
@@ -570,9 +626,14 @@ export default function Despesas() {
                     {/* Valor à direita */}
                     <div className="text-right shrink-0">
                       <p className="text-lg font-bold text-destructive">
-                        {formatCurrency(Number(despesa.valor))}
+                        {formatCurrency(valorTotal)}
                       </p>
-                      <p className="text-xs text-muted-foreground">{tipoConfig.label}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {mostrarOcorrencias 
+                          ? `${formatCurrency(valorUnitario)} × ${ocorrencias} meses`
+                          : tipoConfig.label
+                        }
+                      </p>
                     </div>
                     
                     {/* Ações */}
@@ -654,9 +715,16 @@ export default function Despesas() {
                           </>
                         )}
                       </div>
-                      <p className="text-base font-bold text-destructive">
-                        {formatCurrency(Number(despesa.valor))}
-                      </p>
+                      <div className="text-right">
+                        <p className="text-base font-bold text-destructive">
+                          {formatCurrency(valorTotal)}
+                        </p>
+                        {mostrarOcorrencias && (
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(valorUnitario)} × {ocorrencias}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
