@@ -110,7 +110,7 @@ export default function Despesas() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoriaDialogOpen, setCategoriaDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [despesaParaExcluir, setDespesaParaExcluir] = useState<string | null>(null);
+  const [despesaParaExcluir, setDespesaParaExcluir] = useState<DespesaComCategoria | null>(null);
   const [despesaEditando, setDespesaEditando] = useState<DespesaComCategoria | null>(null);
   
   // Form state
@@ -143,11 +143,32 @@ export default function Despesas() {
   const despesasFiltradas = useMemo(() => {
     if (!despesas) return [];
     
+    const periodStart = startOfDayBrasilia(dateStart);
+    const periodEnd = endOfDayBrasilia(dateEnd);
+    
     return despesas.filter((d) => {
-      // Filter by period (using data_despesa or data_inicio for installment)
-      const despesaDate = d.data_despesa ? toZonedBrasilia(d.data_despesa) : d.data_inicio ? toZonedBrasilia(d.data_inicio) : toZonedBrasilia(d.created_at || new Date().toISOString());
-      if (despesaDate < startOfDayBrasilia(dateStart)) return false;
-      if (despesaDate > endOfDayBrasilia(dateEnd)) return false;
+      // Para despesas recorrentes, verificar se estava ativa durante o período selecionado
+      if (d.recorrente) {
+        // Data de início da despesa recorrente (usa data_despesa como dia de pagamento mensal)
+        const dataInicio = d.data_despesa ? toZonedBrasilia(d.data_despesa) : toZonedBrasilia(d.created_at || new Date().toISOString());
+        // Data fim (se encerrada)
+        const dataFim = d.data_fim ? toZonedBrasilia(d.data_fim) : null;
+        
+        // Despesa recorrente deve ter iniciado antes ou durante o período
+        if (dataInicio > periodEnd) return false;
+        // Se tem data_fim, deve ter sido encerrada após o início do período
+        if (dataFim && dataFim < periodStart) return false;
+      } else if (d.parcelada) {
+        // Para parceladas, usar data_inicio
+        const despesaDate = d.data_inicio ? toZonedBrasilia(d.data_inicio) : toZonedBrasilia(d.created_at || new Date().toISOString());
+        if (despesaDate < periodStart) return false;
+        if (despesaDate > periodEnd) return false;
+      } else {
+        // Para despesas variáveis/únicas
+        const despesaDate = d.data_despesa ? toZonedBrasilia(d.data_despesa) : toZonedBrasilia(d.created_at || new Date().toISOString());
+        if (despesaDate < periodStart) return false;
+        if (despesaDate > periodEnd) return false;
+      }
       
       // Search filter
       const matchBusca = d.descricao.toLowerCase().includes(busca.toLowerCase()) ||
@@ -249,8 +270,18 @@ export default function Despesas() {
     if (!despesaParaExcluir) return;
     
     try {
-      await deleteDespesa.mutateAsync(despesaParaExcluir);
-      toast({ title: "Sucesso", description: "Despesa excluída com sucesso" });
+      // Para despesas recorrentes, apenas define data_fim ao invés de excluir permanentemente
+      if (despesaParaExcluir.recorrente) {
+        const hoje = format(new Date(), "yyyy-MM-dd");
+        await updateDespesa.mutateAsync({
+          id: despesaParaExcluir.id,
+          data_fim: hoje,
+        });
+        toast({ title: "Sucesso", description: "Despesa recorrente encerrada. O histórico foi mantido." });
+      } else {
+        await deleteDespesa.mutateAsync(despesaParaExcluir.id);
+        toast({ title: "Sucesso", description: "Despesa excluída com sucesso" });
+      }
       setDeleteDialogOpen(false);
       setDespesaParaExcluir(null);
     } catch (error) {
@@ -525,7 +556,7 @@ export default function Despesas() {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         onClick={() => {
-                          setDespesaParaExcluir(despesa.id);
+                          setDespesaParaExcluir(despesa);
                           setDeleteDialogOpen(true);
                         }}
                       >
@@ -559,7 +590,7 @@ export default function Despesas() {
                           size="icon"
                           className="h-7 w-7 text-muted-foreground"
                           onClick={() => {
-                            setDespesaParaExcluir(despesa.id);
+                            setDespesaParaExcluir(despesa);
                             setDeleteDialogOpen(true);
                           }}
                         >
@@ -1015,9 +1046,18 @@ export default function Despesas() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Despesa</AlertDialogTitle>
+            <AlertDialogTitle>
+              {despesaParaExcluir?.recorrente ? "Encerrar Despesa Recorrente" : "Excluir Despesa"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita.
+              {despesaParaExcluir?.recorrente ? (
+                <>
+                  A despesa recorrente será encerrada a partir de hoje. 
+                  O histórico dos meses anteriores será mantido.
+                </>
+              ) : (
+                "Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita."
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1026,7 +1066,7 @@ export default function Despesas() {
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Excluir
+              {despesaParaExcluir?.recorrente ? "Encerrar" : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
