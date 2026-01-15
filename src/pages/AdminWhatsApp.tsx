@@ -1979,13 +1979,14 @@ export default function AdminWhatsApp() {
                     try {
                       const { data, error } = await supabase
                         .from("uazapi_config")
-                        .insert({
+                        .upsert({
                           user_id: user?.id,
                           instance_name: newInstanceName.trim(),
                           base_url: manualBaseUrl.trim(),
                           api_key: manualApiKey.trim(),
                           is_active: true,
-                        })
+                          updated_at: new Date().toISOString(),
+                        }, { onConflict: 'user_id' })
                         .select()
                         .single();
 
