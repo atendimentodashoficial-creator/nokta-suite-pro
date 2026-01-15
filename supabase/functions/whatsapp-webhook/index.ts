@@ -420,6 +420,8 @@ Deno.serve(async (req) => {
 
     if (payloadToken) {
       console.log('PRIORITY 1: Resolving instance from payload token (api_key):', payloadToken);
+      
+      // First check disparos_instancias
       const { data: instanciaFromToken } = await supabase
         .from('disparos_instancias')
         .select('id, nome, instance_name, user_id')
@@ -433,7 +435,7 @@ Deno.serve(async (req) => {
         instanciaNomeFromDb = instanciaFromToken.nome || payloadInstanceName;
         effectiveUserId = instanciaFromToken.user_id;
         resolvedFromToken = true;
-        console.log('SUCCESS: Resolved instance from token:', {
+        console.log('SUCCESS: Resolved instance from disparos_instancias token:', {
           instanciaId,
           instanciaNome: instanciaNomeFromDb,
           effectiveUserId,
@@ -457,6 +459,30 @@ Deno.serve(async (req) => {
           .from('disparos_instancias')
           .update({ last_webhook_at: new Date().toISOString() })
           .eq('id', instanciaId);
+      } else {
+        // PRIORITY 1B: Check if token matches uazapi_config (main WhatsApp instance)
+        console.log('PRIORITY 1B: Checking uazapi_config for main WhatsApp instance');
+        const { data: uazapiFromToken } = await supabase
+          .from('uazapi_config')
+          .select('id, user_id, instance_name')
+          .eq('api_key', payloadToken)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (uazapiFromToken?.user_id) {
+          effectiveUserId = uazapiFromToken.user_id;
+          instanciaNomeFromDb = uazapiFromToken.instance_name || payloadInstanceName;
+          isMainWhatsAppInstance = true; // This IS the main WhatsApp instance
+          resolvedFromToken = true;
+          effectiveUazapiConfig = { whatsapp_instancia_id: null }; // No linked disparos instance
+          
+          console.log('SUCCESS: Resolved instance from uazapi_config (main WhatsApp):', {
+            effectiveUserId,
+            instanciaNome: instanciaNomeFromDb,
+            isMainWhatsAppInstance,
+          });
+        }
       }
     }
 
