@@ -1453,6 +1453,7 @@ export type Database = {
           is_prepay_account: boolean | null
           last_balance: number | null
           last_sync_at: string | null
+          manual_funds_balance: number | null
           status: string | null
           updated_at: string
           user_id: string
@@ -1468,6 +1469,7 @@ export type Database = {
           is_prepay_account?: boolean | null
           last_balance?: number | null
           last_sync_at?: string | null
+          manual_funds_balance?: number | null
           status?: string | null
           updated_at?: string
           user_id: string
@@ -1483,6 +1485,7 @@ export type Database = {
           is_prepay_account?: boolean | null
           last_balance?: number | null
           last_sync_at?: string | null
+          manual_funds_balance?: number | null
           status?: string | null
           updated_at?: string
           user_id?: string

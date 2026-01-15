@@ -371,7 +371,7 @@ serve(async (req) => {
       
       const { data: accountData } = await adminClient
         .from("facebook_ad_accounts")
-        .select("account_type, currency_type, currency_spread")
+        .select("account_type, currency_type, currency_spread, manual_funds_balance")
         .eq("user_id", user.id)
         .eq("ad_account_id", normalizedAccountId)
         .single();
@@ -381,6 +381,7 @@ serve(async (req) => {
       }
       effectiveCurrencyType = accountData?.currency_type || "BRL";
       currencySpread = accountData?.currency_spread || 0;
+      const manualFundsBalance = accountData?.manual_funds_balance;
 
       // Determinar se é pré-pago baseado no tipo definido pelo usuário ou detecção do Facebook
       const isPrepaid = effectiveAccountType === "prepaid" ||
@@ -438,71 +439,60 @@ serve(async (req) => {
           displayBalance = rawBalance;
         }
       } else {
-        // Para pós-pago: buscar TODOS os funding sources da conta
-        // A conta pode ter Fundos (prepaid) + Cartão de Crédito
+        // Para pós-pago: buscar saldo de fundos
+        // Primeiro tentar usar o valor manual_funds_balance se existir
         // Saldo = Fundos disponíveis - Valores devidos (rawBalance)
         let fundingSourceBalance = 0;
         
-        try {
-          // Buscar todos os funding sources da conta de anúncios
-          const fundingSourcesUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/funding_sources?fields=id,display_string,type,amount&access_token=${accessToken}`;
-          console.log("[FUNDING] Fetching all funding sources for account:", normalizedAccountId);
+        // Prioridade 1: Usar o saldo de fundos manual inserido pelo usuário
+        if (manualFundsBalance !== null && manualFundsBalance !== undefined && manualFundsBalance > 0) {
+          // O valor manual está na moeda original da conta
+          fundingSourceBalance = parseFloat(String(manualFundsBalance));
           
-          const fundingSourcesResponse = await fetch(fundingSourcesUrl);
-          const fundingSourcesData = await fundingSourcesResponse.json();
-          
-          console.log("[FUNDING] All funding sources response:", JSON.stringify(fundingSourcesData));
-          
-          if (fundingSourcesData?.data && Array.isArray(fundingSourcesData.data)) {
-            // Procurar por funding sources com saldo (Fundos/Prepaid)
-            for (const source of fundingSourcesData.data) {
-              console.log("[FUNDING] Source:", source.id, "type:", source.type, "display:", source.display_string, "amount:", source.amount);
-              
-              // type 2 = Prepaid funds/credits, type 1 = Credit card
-              // amount existe apenas em prepaid funds
-              if (source.amount !== undefined && source.amount !== null) {
-                const amountValue = parseInt(String(source.amount)) / 100;
-                console.log("[FUNDING] Found prepaid funds:", amountValue, "USD");
-                
-                // Converter se USD
-                let convertedAmount = amountValue;
-                if (effectiveCurrencyType === "USD") {
-                  convertedAmount = amountValue * exchangeRate;
-                }
-                
-                fundingSourceBalance += convertedAmount;
-              }
-            }
+          // Converter se USD
+          if (effectiveCurrencyType === "USD") {
+            fundingSourceBalance = fundingSourceBalance * exchangeRate;
           }
           
-          // Se não encontrou via funding_sources, tentar buscar adsprepaymentcycle
-          if (fundingSourceBalance === 0) {
-            try {
-              const prepayUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}?fields=adspaymentcycle{threshold_amount,current_balance}&access_token=${accessToken}`;
-              console.log("[FUNDING] Trying adspaymentcycle...");
-              
-              const prepayResponse = await fetch(prepayUrl);
-              const prepayData = await prepayResponse.json();
-              
-              console.log("[FUNDING] adspaymentcycle response:", JSON.stringify(prepayData));
-              
-              if (prepayData?.adspaymentcycle?.current_balance) {
-                // current_balance aqui pode ser o saldo disponível
-                let balance = parseInt(String(prepayData.adspaymentcycle.current_balance)) / 100;
-                if (effectiveCurrencyType === "USD") {
-                  balance = balance * exchangeRate;
+          console.log("[FUNDING] Using manual_funds_balance:", manualFundsBalance, "converted:", fundingSourceBalance);
+        } else {
+          // Prioridade 2: Tentar buscar via API (pode não funcionar para todas as contas)
+          try {
+            // Buscar todos os funding sources da conta de anúncios
+            const fundingSourcesUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/funding_sources?fields=id,display_string,type,amount&access_token=${accessToken}`;
+            console.log("[FUNDING] Fetching all funding sources for account:", normalizedAccountId);
+            
+            const fundingSourcesResponse = await fetch(fundingSourcesUrl);
+            const fundingSourcesData = await fundingSourcesResponse.json();
+            
+            console.log("[FUNDING] All funding sources response:", JSON.stringify(fundingSourcesData));
+            
+            if (fundingSourcesData?.data && Array.isArray(fundingSourcesData.data)) {
+              // Procurar por funding sources com saldo (Fundos/Prepaid)
+              for (const source of fundingSourcesData.data) {
+                console.log("[FUNDING] Source:", source.id, "type:", source.type, "display:", source.display_string, "amount:", source.amount);
+                
+                // type 2 = Prepaid funds/credits, type 1 = Credit card
+                // amount existe apenas em prepaid funds
+                if (source.amount !== undefined && source.amount !== null) {
+                  const amountValue = parseInt(String(source.amount)) / 100;
+                  console.log("[FUNDING] Found prepaid funds:", amountValue, "USD");
+                  
+                  // Converter se USD
+                  let convertedAmount = amountValue;
+                  if (effectiveCurrencyType === "USD") {
+                    convertedAmount = amountValue * exchangeRate;
+                  }
+                  
+                  fundingSourceBalance += convertedAmount;
                 }
-                fundingSourceBalance = balance;
-                console.log("[FUNDING] Found balance via adspaymentcycle:", fundingSourceBalance);
               }
-            } catch (prepayError) {
-              console.log("[FUNDING] adspaymentcycle not available:", prepayError);
             }
+            
+            console.log("[FUNDING] Total funding source balance from API:", fundingSourceBalance);
+          } catch (fundingError) {
+            console.error("[FUNDING] Error fetching funding sources:", fundingError);
           }
-          
-          console.log("[FUNDING] Total funding source balance:", fundingSourceBalance);
-        } catch (fundingError) {
-          console.error("[FUNDING] Error fetching funding sources:", fundingError);
         }
         
         // Saldo da conta = Fundos - Valores devidos
