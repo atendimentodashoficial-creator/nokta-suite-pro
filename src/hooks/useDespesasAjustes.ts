@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { nowInBrasilia, parseDateStringBrasilia } from "@/utils/timezone";
 
 export interface DespesaAjuste {
   id: string;
@@ -85,14 +86,14 @@ export const useDeleteDespesaAjuste = () => {
 export const getValorAtualDespesa = (
   valorBase: number,
   ajustes: DespesaAjuste[],
-  dataReferencia: Date = new Date()
+  dataReferencia: Date = nowInBrasilia()
 ): number => {
   if (!ajustes || ajustes.length === 0) return valorBase;
   
   // Ordena por data decrescente e pega o ajuste mais recente que seja anterior ou igual à data de referência
   const ajusteValido = ajustes
-    .filter(a => new Date(a.data_ajuste) <= dataReferencia)
-    .sort((a, b) => new Date(b.data_ajuste).getTime() - new Date(a.data_ajuste).getTime())[0];
+    .filter(a => parseDateStringBrasilia(a.data_ajuste) <= dataReferencia)
+    .sort((a, b) => parseDateStringBrasilia(b.data_ajuste).getTime() - parseDateStringBrasilia(a.data_ajuste).getTime())[0];
   
   return ajusteValido ? ajusteValido.valor_novo : valorBase;
 };

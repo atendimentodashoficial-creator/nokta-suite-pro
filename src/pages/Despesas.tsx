@@ -71,7 +71,7 @@ import {
   useCreateDespesaAjuste,
 } from "@/hooks/useDespesasAjustes";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
-import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
+import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia, formatBrasilia, parseDateStringBrasilia } from "@/utils/timezone";
 
 
 interface DespesaFormData {
@@ -482,13 +482,13 @@ export default function Despesas() {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-foreground truncate">{despesa.descricao}</h3>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                        {despesa.parcelada ? (
+                          {despesa.parcelada ? (
                           despesa.data_inicio && (
-                            <span>{format(new Date(despesa.data_inicio), "dd/MM/yy")} - {despesa.data_fim && format(new Date(despesa.data_fim), "dd/MM/yy")}</span>
+                            <span>{formatBrasilia(parseDateStringBrasilia(despesa.data_inicio), "dd/MM/yy")} - {despesa.data_fim && formatBrasilia(parseDateStringBrasilia(despesa.data_fim), "dd/MM/yy")}</span>
                           )
                         ) : (
                           despesa.data_despesa && (
-                            <span>{format(new Date(despesa.data_despesa), "dd/MM/yyyy")}</span>
+                            <span>{formatBrasilia(parseDateStringBrasilia(despesa.data_despesa), "dd/MM/yyyy")}</span>
                           )
                         )}
                         {despesa.categorias_despesas && (
@@ -573,11 +573,11 @@ export default function Despesas() {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {despesa.parcelada ? (
                           despesa.data_inicio && (
-                            <span>{format(new Date(despesa.data_inicio), "dd/MM/yy")} - {despesa.data_fim && format(new Date(despesa.data_fim), "dd/MM/yy")}</span>
+                            <span>{formatBrasilia(parseDateStringBrasilia(despesa.data_inicio), "dd/MM/yy")} - {despesa.data_fim && formatBrasilia(parseDateStringBrasilia(despesa.data_fim), "dd/MM/yy")}</span>
                           )
                         ) : (
                           despesa.data_despesa && (
-                            <span>{format(new Date(despesa.data_despesa), "dd/MM/yy")}</span>
+                            <span>{formatBrasilia(parseDateStringBrasilia(despesa.data_despesa), "dd/MM/yy")}</span>
                           )
                         )}
                         {despesa.categorias_despesas && (
@@ -838,7 +838,7 @@ export default function Despesas() {
                       <div className="space-y-1 max-h-32 overflow-y-auto">
                         {ajustesDespesa.map((ajuste) => (
                           <div key={ajuste.id} className="flex justify-between items-center text-xs p-2 bg-background rounded">
-                            <span>{format(new Date(ajuste.data_ajuste), "dd/MM/yyyy")}</span>
+                            <span>{formatBrasilia(parseDateStringBrasilia(ajuste.data_ajuste), "dd/MM/yyyy")}</span>
                             <span className="text-muted-foreground">
                               {formatCurrency(ajuste.valor_anterior)} → {formatCurrency(ajuste.valor_novo)}
                             </span>
