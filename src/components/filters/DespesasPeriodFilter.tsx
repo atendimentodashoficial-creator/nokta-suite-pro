@@ -8,7 +8,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 export type DespesasPeriodValue = 
-  | "today"
   | "jan" | "feb" | "mar" | "apr" | "may" | "jun"
   | "jul" | "aug" | "sep" | "oct" | "nov" | "dec"
   | "custom";
@@ -57,7 +56,6 @@ export function DespesasPeriodFilter({
   const currentYear = new Date().getFullYear();
 
   const getDisplayValue = () => {
-    if (value === "today") return "Hoje";
     if (value === "custom") return "Personalizado";
     if (monthNames[value]) return monthNames[value];
     return "Selecionar";
@@ -77,7 +75,6 @@ export function DespesasPeriodFilter({
           <SelectValue placeholder="Período">{getDisplayValue()}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="today">Hoje</SelectItem>
           <SelectItem value="jan">Janeiro</SelectItem>
           <SelectItem value="feb">Fevereiro</SelectItem>
           <SelectItem value="mar">Março</SelectItem>
@@ -158,10 +155,7 @@ export function useDespesasPeriodFilter() {
     let start: Date;
     let end: Date;
 
-    if (value === "today") {
-      start = today;
-      end = today;
-    } else if (value === "custom") {
+    if (value === "custom") {
       // Don't change dates for custom
       return;
     } else if (monthIndexMap[value] !== undefined) {
