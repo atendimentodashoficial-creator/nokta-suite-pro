@@ -100,6 +100,21 @@ export function DespesasPeriodFilter({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
+              <div className="p-2 border-b">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-primary hover:text-primary"
+                  onClick={() => {
+                    const monthStart = startOfMonth(dateStart);
+                    const monthEnd = endOfMonth(dateStart);
+                    onDateStartChange(monthStart);
+                    onDateEndChange(monthEnd);
+                  }}
+                >
+                  Selecionar mês inteiro ({format(dateStart, "MMMM", { locale: ptBR })})
+                </Button>
+              </div>
               <CalendarComponent
                 mode="single"
                 selected={dateStart}
@@ -119,6 +134,21 @@ export function DespesasPeriodFilter({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
+              <div className="p-2 border-b">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-primary hover:text-primary"
+                  onClick={() => {
+                    const monthStart = startOfMonth(dateEnd);
+                    const monthEnd = endOfMonth(dateEnd);
+                    onDateStartChange(monthStart);
+                    onDateEndChange(monthEnd);
+                  }}
+                >
+                  Selecionar mês inteiro ({format(dateEnd, "MMMM", { locale: ptBR })})
+                </Button>
+              </div>
               <CalendarComponent
                 mode="single"
                 selected={dateEnd}
