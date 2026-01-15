@@ -1051,10 +1051,8 @@ Deno.serve(async (req) => {
                   console.log('Saved first WhatsApp message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
                 }
               }
-
-              return new Response(JSON.stringify({ ok: true }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              });
+              
+              // NOTE: Do NOT return here - we must continue to lead creation logic below
             }
 
             // No tombstone - create chat normally
