@@ -728,6 +728,38 @@ export type Database = {
           },
         ]
       }
+      despesas_exclusoes_mensais: {
+        Row: {
+          created_at: string
+          despesa_id: string
+          id: string
+          mes: string
+          motivo: string | null
+        }
+        Insert: {
+          created_at?: string
+          despesa_id: string
+          id?: string
+          mes: string
+          motivo?: string | null
+        }
+        Update: {
+          created_at?: string
+          despesa_id?: string
+          id?: string
+          mes?: string
+          motivo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_exclusoes_mensais_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "despesas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disparos_campanha_contatos: {
         Row: {
           campanha_id: string
