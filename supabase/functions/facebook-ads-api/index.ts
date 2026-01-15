@@ -165,6 +165,9 @@ serve(async (req) => {
 
       const fbResponse = await fetch(fbUrl);
       const fbData = await fbResponse.json();
+      
+      // Log completo do funding_source_details para debug
+      console.log("[DEBUG] funding_source_details:", JSON.stringify(fbData.funding_source_details));
 
       if (fbData.error) {
         console.error("Facebook API Error:", fbData.error);
