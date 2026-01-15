@@ -70,8 +70,14 @@ import {
   useDespesasAjustes,
   useCreateDespesaAjuste,
 } from "@/hooks/useDespesasAjustes";
+import {
+  useDespesasExclusoes,
+  useCreateDespesaExclusao,
+  isDespesaExcluidaNoMes,
+} from "@/hooks/useDespesasExclusoes";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia, formatBrasilia, parseDateStringBrasilia } from "@/utils/timezone";
+import { startOfMonth } from "date-fns";
 
 
 interface DespesaFormData {
@@ -131,6 +137,7 @@ export default function Despesas() {
   const { data: despesas, isLoading: isLoadingDespesas } = useDespesas();
   const { data: categorias, isLoading: isLoadingCategorias } = useCategoriasDespesas();
   const { data: ajustesDespesa } = useDespesasAjustes(despesaEditando?.id);
+  const { data: exclusoesMensais } = useDespesasExclusoes();
   const createDespesa = useCreateDespesa();
   const updateDespesa = useUpdateDespesa();
   const deleteDespesa = useDeleteDespesa();
@@ -138,6 +145,7 @@ export default function Despesas() {
   const updateCategoria = useUpdateCategoriaDespesa();
   const deleteCategoria = useDeleteCategoriaDespesa();
   const createAjuste = useCreateDespesaAjuste();
+  const createExclusao = useCreateDespesaExclusao();
 
   // Filtered despesas by period first
   const despesasFiltradas = useMemo(() => {
@@ -158,6 +166,11 @@ export default function Despesas() {
         if (dataInicio > periodEnd) return false;
         // Se tem data_fim, deve ter sido encerrada após o início do período
         if (dataFim && dataFim < periodStart) return false;
+        
+        // Verificar se está excluída do mês do período selecionado
+        if (exclusoesMensais && isDespesaExcluidaNoMes(exclusoesMensais, d.id, periodStart)) {
+          return false;
+        }
       } else if (d.parcelada) {
         // Para parceladas, usar data_inicio
         const despesaDate = d.data_inicio ? toZonedBrasilia(d.data_inicio) : toZonedBrasilia(d.created_at || new Date().toISOString());
@@ -185,7 +198,7 @@ export default function Despesas() {
       
       return matchBusca && matchCategoria && matchTipo;
     });
-  }, [despesas, busca, filtroCategoria, filtroTipo, dateStart, dateEnd]);
+  }, [despesas, busca, filtroCategoria, filtroTipo, dateStart, dateEnd, exclusoesMensais]);
 
   // Total
   const totalDespesas = useMemo(() => {
@@ -286,6 +299,27 @@ export default function Despesas() {
       setDespesaParaExcluir(null);
     } catch (error) {
       toast({ title: "Erro", description: "Erro ao excluir despesa", variant: "destructive" });
+    }
+  };
+
+  // Excluir despesa recorrente apenas do mês selecionado
+  const handleExcluirDoMes = async () => {
+    if (!despesaParaExcluir || !despesaParaExcluir.recorrente) return;
+    
+    try {
+      await createExclusao.mutateAsync({
+        despesa_id: despesaParaExcluir.id,
+        mes: startOfMonth(dateStart),
+        motivo: "Excluída manualmente deste mês",
+      });
+      toast({ 
+        title: "Sucesso", 
+        description: `Despesa removida de ${format(startOfMonth(dateStart), "MMMM/yyyy", { locale: ptBR })}` 
+      });
+      setDeleteDialogOpen(false);
+      setDespesaParaExcluir(null);
+    } catch (error) {
+      toast({ title: "Erro", description: "Erro ao excluir do mês", variant: "destructive" });
     }
   };
 
@@ -1047,26 +1081,59 @@ export default function Despesas() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {despesaParaExcluir?.recorrente ? "Encerrar Despesa Recorrente" : "Excluir Despesa"}
+              {despesaParaExcluir?.recorrente 
+                ? (despesaParaExcluir?.data_fim 
+                    ? "Excluir Despesa Recorrente" 
+                    : "Encerrar Despesa Recorrente")
+                : "Excluir Despesa"}
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="space-y-2">
               {despesaParaExcluir?.recorrente ? (
-                <>
-                  A despesa recorrente será encerrada a partir de hoje. 
-                  O histórico dos meses anteriores será mantido.
-                </>
+                despesaParaExcluir?.data_fim ? (
+                  // Despesa já encerrada - mostrar opções de excluir do mês ou permanentemente
+                  <span className="block">
+                    Esta despesa já foi encerrada. Deseja removê-la apenas do mês de{" "}
+                    <strong>{format(startOfMonth(dateStart), "MMMM/yyyy", { locale: ptBR })}</strong>{" "}
+                    ou excluir permanentemente todos os registros?
+                  </span>
+                ) : (
+                  // Despesa ativa - opção de encerrar ou excluir do mês
+                  <>
+                    <span className="block">
+                      Escolha uma opção:
+                    </span>
+                    <span className="block text-sm">
+                      • <strong>Encerrar:</strong> A despesa não aparecerá mais a partir de hoje, mas o histórico será mantido.
+                    </span>
+                    <span className="block text-sm">
+                      • <strong>Excluir do mês:</strong> Remove apenas do mês de{" "}
+                      <strong>{format(startOfMonth(dateStart), "MMMM/yyyy", { locale: ptBR })}</strong>.
+                    </span>
+                  </>
+                )
               ) : (
                 "Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita."
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {despesaParaExcluir?.recorrente && (
+              <Button
+                variant="outline"
+                onClick={handleExcluirDoMes}
+                disabled={createExclusao.isPending}
+              >
+                Excluir só deste mês
+              </Button>
+            )}
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {despesaParaExcluir?.recorrente ? "Encerrar" : "Excluir"}
+              {despesaParaExcluir?.recorrente 
+                ? (despesaParaExcluir?.data_fim ? "Excluir permanentemente" : "Encerrar")
+                : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
