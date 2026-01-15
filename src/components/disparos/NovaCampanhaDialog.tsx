@@ -1992,8 +1992,21 @@ export function NovaCampanhaDialog({
         )}
 
         {/* Selection and pagination controls */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 pb-2 border-b">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="default" size="sm" onClick={() => {
+              setSelectedContacts(new Set(contatos.map(c => c.numero)));
+            }}>
+              <CheckSquare className="h-4 w-4 mr-1" />
+              Marcar Todos
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              setSelectedContacts(new Set());
+            }}>
+              <Square className="h-4 w-4 mr-1" />
+              Desmarcar Todos
+            </Button>
+            <div className="w-px h-6 bg-border" />
             <Button variant="outline" size="sm" onClick={() => {
               const pageContacts = contatosFiltradosPorOrigem.slice(
                 (allContactsPage - 1) * allContactsPerPage, 
@@ -2006,7 +2019,7 @@ export function NovaCampanhaDialog({
               });
             }}>
               <CheckSquare className="h-4 w-4 mr-1" />
-              Selecionar página
+              Marcar Página
             </Button>
             <Button variant="outline" size="sm" onClick={() => {
               const pageContacts = contatosFiltradosPorOrigem.slice(
@@ -2020,10 +2033,10 @@ export function NovaCampanhaDialog({
               });
             }}>
               <Square className="h-4 w-4 mr-1" />
-              Desselecionar página
+              Desmarcar Página
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-end">
             <span className="text-xs text-muted-foreground">Por página:</span>
             <Select value={String(allContactsPerPage)} onValueChange={(v) => {
               setAllContactsPerPage(Number(v));
