@@ -26,8 +26,7 @@ import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
 import { AvisosTab } from "@/components/whatsapp/AvisosTab";
 import { HistoricoAvisosTab } from "@/components/whatsapp/HistoricoAvisosTab";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { DateRangeCalendars } from "@/components/filters/CalendarWithMonthSelect";
 
 export default function Agenda() {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<any>(null);
@@ -280,41 +279,12 @@ export default function Agenda() {
 
               {/* Data Início e Fim - apenas quando personalizado */}
               {filtroPeriodo === "personalizado" && (
-                <div className="flex items-center gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="min-w-[90px]">
-                        {format(dataInicio, "dd/MM/yy", { locale: ptBR })}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarPicker
-                        mode="single"
-                        selected={dataInicio}
-                        onSelect={(date) => date && setDataInicio(date)}
-                        locale={ptBR}
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <span className="text-muted-foreground text-sm">até</span>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="min-w-[90px]">
-                        {format(dataFim, "dd/MM/yy", { locale: ptBR })}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarPicker
-                        mode="single"
-                        selected={dataFim}
-                        onSelect={(date) => date && setDataFim(date)}
-                        locale={ptBR}
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <DateRangeCalendars
+                  dateStart={dataInicio}
+                  dateEnd={dataFim}
+                  onDateStartChange={setDataInicio}
+                  onDateEndChange={setDataFim}
+                />
               )}
             </div>
 

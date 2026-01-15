@@ -7,8 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateRangeCalendars } from "@/components/filters/CalendarWithMonthSelect";
 import { cn } from "@/lib/utils";
 import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -54,8 +53,6 @@ export function ContaAnunciosTab() {
   const [periodFilter, setPeriodFilter] = useState("today");
   const [dateStart, setDateStart] = useState<Date>(new Date());
   const [dateEnd, setDateEnd] = useState<Date>(new Date());
-  const [calendarStartOpen, setCalendarStartOpen] = useState(false);
-  const [calendarEndOpen, setCalendarEndOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState("all");
 
   // Filtrar contas baseado na seleção
@@ -314,63 +311,12 @@ export function ContaAnunciosTab() {
           </div>
 
           {periodFilter === "custom" && (
-            <div className="flex items-center gap-2">
-              <Popover open={calendarStartOpen} onOpenChange={setCalendarStartOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "justify-start text-left font-normal min-w-[90px]",
-                      !dateStart && "text-muted-foreground"
-                    )}
-                  >
-                    {dateStart ? format(dateStart, "dd/MM/yy", { locale: ptBR }) : "Selecione"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateStart}
-                    onSelect={(date) => {
-                      if (date) setDateStart(date);
-                      setCalendarStartOpen(false);
-                    }}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <span className="text-muted-foreground text-sm">até</span>
-
-              <Popover open={calendarEndOpen} onOpenChange={setCalendarEndOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "justify-start text-left font-normal min-w-[90px]",
-                      !dateEnd && "text-muted-foreground"
-                    )}
-                  >
-                    {dateEnd ? format(dateEnd, "dd/MM/yy", { locale: ptBR }) : "Selecione"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateEnd}
-                    onSelect={(date) => {
-                      if (date) setDateEnd(date);
-                      setCalendarEndOpen(false);
-                    }}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            <DateRangeCalendars
+              dateStart={dateStart}
+              dateEnd={dateEnd}
+              onDateStartChange={setDateStart}
+              onDateEndChange={setDateEnd}
+            />
           )}
 
           <Button 
