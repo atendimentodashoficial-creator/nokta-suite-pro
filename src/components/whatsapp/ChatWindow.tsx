@@ -48,6 +48,7 @@ interface ChatWindowProps {
   availableChats?: any[];
   onBack?: () => void;
   initialMessage?: string | null;
+  instanciaId?: string | null;
 }
 
 interface ClienteData {
@@ -61,7 +62,7 @@ interface ClienteData {
 const messagesCache = new Map<string, { messages: any[]; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
-export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated, availableChats = [], onBack, initialMessage }: ChatWindowProps) => {
+export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated, availableChats = [], onBack, initialMessage, instanciaId }: ChatWindowProps) => {
   const queryClient = useQueryClient();
   
   // Inicializar com mensagens do cache se disponível (evita flash de loading)
@@ -1715,7 +1716,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
                     )}
 
                     {/* Mensagem */}
-                    <MessageBubble message={msg} fallbackAttribution={msg.message_id === attributionAnchorMessageId ? leadAttribution : undefined} />
+                    <MessageBubble message={msg} fallbackAttribution={msg.message_id === attributionAnchorMessageId ? leadAttribution : undefined} instanciaId={instanciaId} />
                   </div>
                 </div>
               </div>
