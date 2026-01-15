@@ -339,8 +339,10 @@ serve(async (req) => {
       const spendCapCents = fbData.spend_cap ? parseInt(String(fbData.spend_cap)) : 0;
       const amountSpentCents = fbData.amount_spent ? parseInt(String(fbData.amount_spent)) : 0;
 
-      // balance (na API) costuma ser "amount due" (especialmente em pós-pago)
-      let amountDue = balanceCents / 100;
+      // balance (na API) representa:
+      // - Para pré-pago: crédito disponível na conta (positivo = tem saldo)
+      // - Para pós-pago: valor devido (negativo = deve)
+      let rawBalance = balanceCents / 100;
       let spendCap = spendCapCents / 100;
       let amountSpent = amountSpentCents / 100;
       let convertedSpendInPeriod = spendInPeriod;
@@ -356,7 +358,7 @@ serve(async (req) => {
         const effectiveRate = exchangeRate * spreadMultiplier;
         console.log("[CONVERSION] Commercial rate:", exchangeRate, "Spread:", currencySpread, "% Effective rate:", effectiveRate);
         
-        amountDue = amountDue * effectiveRate;
+        rawBalance = rawBalance * effectiveRate;
         spendCap = spendCap * effectiveRate;
         amountSpent = amountSpent * effectiveRate;
         convertedSpendInPeriod = spendInPeriod * effectiveRate;
@@ -367,12 +369,27 @@ serve(async (req) => {
         console.log("[CONVERSION] Converted USD values to BRL with effective rate:", effectiveRate);
       }
 
-      // Regra:
-      // - Pré-pago: saldo disponível ≈ spend_cap - amount_spent
-      // - Pós-pago: saldo na conta (para exibição) = -amount_due (dívida fica negativa)
-      const displayBalance = isPrepaid ? (spendCap - amountSpent) : (-amountDue);
+      // Regra para saldo:
+      // - Pré-pago: O campo balance do FB é o crédito disponível (positivo = tem saldo)
+      //   Se spend_cap existe, usar spend_cap - amount_spent
+      //   Se não, usar o balance diretamente do Facebook
+      // - Pós-pago: O balance é o valor devido, mostrar como negativo
+      let displayBalance: number;
+      if (isPrepaid) {
+        // Para pré-pago, se tem spend_cap definido, calcular saldo restante
+        // Se não tem spend_cap (0), usar o balance do FB diretamente
+        if (spendCap > 0) {
+          displayBalance = spendCap - amountSpent;
+        } else {
+          // Balance do FB para pré-pago é o crédito disponível
+          displayBalance = rawBalance;
+        }
+      } else {
+        // Para pós-pago, balance é o valor devido (mostrar como negativo)
+        displayBalance = -Math.abs(rawBalance);
+      }
 
-      console.log("[BALANCE] fb.balance(raw):", fbData.balance, "cents:", balanceCents);
+      console.log("[BALANCE] fb.balance(raw):", fbData.balance, "cents:", balanceCents, "converted:", rawBalance);
       console.log("[BALANCE] fb.spend_cap(raw):", fbData.spend_cap, "cents:", spendCapCents);
       console.log("[BALANCE] fb.amount_spent(raw):", fbData.amount_spent, "cents:", amountSpentCents);
       console.log("[BALANCE] isPrepaid:", isPrepaid, "effectiveType:", effectiveAccountType, "display:", displayBalance);
@@ -392,7 +409,7 @@ serve(async (req) => {
             funding_source_details: fbData.funding_source_details,
             amount_spent: amountSpent,
             spend_cap: spendCap,
-            amount_due: amountDue,
+            amount_due: rawBalance,
             spend_in_period: convertedSpendInPeriod,
             daily_budget: convertedDailyBudget,
             exchange_rate: effectiveCurrencyType === "USD" ? exchangeRate : null,
