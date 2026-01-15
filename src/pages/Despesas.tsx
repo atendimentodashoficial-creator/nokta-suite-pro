@@ -572,7 +572,7 @@ export default function Despesas() {
               </div>
               {!formData.parcelada && (
                 <div className="space-y-2">
-                  <Label>Data</Label>
+                  <Label>{formData.recorrente ? "Dia de Pagamento" : "Data"}</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
