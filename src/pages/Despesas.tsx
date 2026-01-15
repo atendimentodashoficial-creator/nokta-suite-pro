@@ -11,7 +11,9 @@ import {
   RefreshCcw,
   DollarSign,
   CreditCard,
-  Wallet
+  Wallet,
+  Check,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +62,9 @@ import {
 import {
   useCategoriasDespesas,
   useCreateCategoriaDespesa,
+  useUpdateCategoriaDespesa,
   useDeleteCategoriaDespesa,
+  CategoriaDespesa,
 } from "@/hooks/useCategoriasDespesas";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
@@ -109,6 +113,9 @@ export default function Despesas() {
   const [formData, setFormData] = useState<DespesaFormData>(initialFormData);
   const [novaCategoria, setNovaCategoria] = useState("");
   const [corCategoria, setCorCategoria] = useState("#6366f1");
+  const [categoriaEditando, setCategoriaEditando] = useState<CategoriaDespesa | null>(null);
+  const [editNomeCategoria, setEditNomeCategoria] = useState("");
+  const [editCorCategoria, setEditCorCategoria] = useState("#6366f1");
 
   // Queries and mutations
   const { data: despesas, isLoading: isLoadingDespesas } = useDespesas();
@@ -117,6 +124,7 @@ export default function Despesas() {
   const updateDespesa = useUpdateDespesa();
   const deleteDespesa = useDeleteDespesa();
   const createCategoria = useCreateCategoriaDespesa();
+  const updateCategoria = useUpdateCategoriaDespesa();
   const deleteCategoria = useDeleteCategoriaDespesa();
 
   // Filtered despesas by period first
@@ -812,23 +820,88 @@ export default function Despesas() {
                     key={cat.id} 
                     className="flex items-center justify-between p-2 rounded-lg border"
                   >
-                    <div className="flex items-center gap-2">
-                      {cat.cor && (
-                        <div 
-                          className="h-4 w-4 rounded-full" 
-                          style={{ backgroundColor: cat.cor }}
+                    {categoriaEditando?.id === cat.id ? (
+                      // Edit mode
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="color"
+                          value={editCorCategoria}
+                          onChange={(e) => setEditCorCategoria(e.target.value)}
+                          className="h-8 w-8 rounded border border-input cursor-pointer"
                         />
-                      )}
-                      <span className="text-sm">{cat.nome}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => deleteCategoria.mutate(cat.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                        <Input
+                          value={editNomeCategoria}
+                          onChange={(e) => setEditNomeCategoria(e.target.value)}
+                          placeholder="Nome da categoria"
+                          className="flex-1 h-8"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary"
+                          onClick={() => {
+                            if (editNomeCategoria.trim()) {
+                              updateCategoria.mutate({
+                                id: cat.id,
+                                nome: editNomeCategoria.trim(),
+                                cor: editCorCategoria,
+                              }, {
+                                onSuccess: () => {
+                                  setCategoriaEditando(null);
+                                  toast({ title: "Categoria atualizada!" });
+                                },
+                              });
+                            }
+                          }}
+                          disabled={updateCategoria.isPending}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setCategoriaEditando(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      // View mode
+                      <>
+                        <div className="flex items-center gap-2">
+                          {cat.cor && (
+                            <div 
+                              className="h-4 w-4 rounded-full" 
+                              style={{ backgroundColor: cat.cor }}
+                            />
+                          )}
+                          <span className="text-sm">{cat.nome}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setCategoriaEditando(cat);
+                              setEditNomeCategoria(cat.nome);
+                              setEditCorCategoria(cat.cor || "#6366f1");
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => deleteCategoria.mutate(cat.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
