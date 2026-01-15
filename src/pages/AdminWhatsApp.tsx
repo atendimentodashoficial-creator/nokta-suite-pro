@@ -590,7 +590,11 @@ export default function AdminWhatsApp() {
       try {
         await supabase.functions.invoke("uazapi-admin-delete-instance", {
           headers: { Authorization: `Bearer ${session.session?.access_token}` },
-          body: { instance_id: mainInstance.id },
+          body: {
+            instance_name: mainInstance.nome || mainInstance.id,
+            base_url: mainInstance.base_url,
+            api_key: mainInstance.api_key,
+          },
         });
       } catch (e) {
         console.error("Error deleting from UAZapi:", e);
