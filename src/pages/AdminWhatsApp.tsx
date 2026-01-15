@@ -1637,7 +1637,7 @@ export default function AdminWhatsApp() {
       {isMobile ? <div className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
               {/* Se há um chat selecionado, mostra o ChatWindow em tela cheia (abaixo do header mobile) */}
               {showChatWindow && selectedChat ? <div className="fixed top-16 left-0 right-0 bottom-0 z-50 bg-background flex flex-col">
-                  <ChatWindow chat={selectedChat} initialMessage={prefillMessage} onMessagesRead={() => {
+                  <ChatWindow chat={selectedChat} initialMessage={prefillMessage} instanciaId={mainInstance?.id} onMessagesRead={() => {
               if (selectedChat?.id && selectedChat.id !== "temp") {
                 void clearUnreadCount(selectedChat.id);
               }
@@ -1730,7 +1730,7 @@ export default function AdminWhatsApp() {
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={35} minSize={25} maxSize={60} className="min-h-0">
                 <div className="h-full flex flex-col overflow-hidden min-h-0">
-                  <ChatWindow chat={selectedChat} initialMessage={prefillMessage} onMessagesRead={() => {
+                  <ChatWindow chat={selectedChat} initialMessage={prefillMessage} instanciaId={mainInstance?.id} onMessagesRead={() => {
                     if (selectedChat?.id && selectedChat.id !== "temp") {
                       void clearUnreadCount(selectedChat.id);
                     }
@@ -1784,7 +1784,7 @@ export default function AdminWhatsApp() {
                 {/* Coluna 2: Chat Window */}
                 <ResizablePanel defaultSize={70} minSize={40}>
                   <div className="h-full flex flex-col overflow-hidden">
-                    {selectedChat ? <ChatWindow chat={selectedChat} initialMessage={prefillMessage} onMessagesRead={() => {
+                    {selectedChat ? <ChatWindow chat={selectedChat} initialMessage={prefillMessage} instanciaId={mainInstance?.id} onMessagesRead={() => {
                 if (selectedChat?.id && selectedChat.id !== "temp") {
                   void clearUnreadCount(selectedChat.id);
                 }
