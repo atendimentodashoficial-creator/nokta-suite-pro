@@ -55,6 +55,21 @@ export function DespesasPeriodFilter({
 }: DespesasPeriodFilterProps) {
   const [startPopoverOpen, setStartPopoverOpen] = useState(false);
   const [endPopoverOpen, setEndPopoverOpen] = useState(false);
+  const [startCalendarMonth, setStartCalendarMonth] = useState<Date>(dateStart);
+  const [endCalendarMonth, setEndCalendarMonth] = useState<Date>(dateEnd);
+
+  // Reset calendar month when popover opens
+  useEffect(() => {
+    if (startPopoverOpen) {
+      setStartCalendarMonth(dateStart);
+    }
+  }, [startPopoverOpen, dateStart]);
+
+  useEffect(() => {
+    if (endPopoverOpen) {
+      setEndCalendarMonth(dateEnd);
+    }
+  }, [endPopoverOpen, dateEnd]);
 
   const getDisplayValue = () => {
     if (value === "custom") return "Personalizado";
@@ -62,9 +77,9 @@ export function DespesasPeriodFilter({
     return "Selecionar";
   };
 
-  const handleSelectFullMonth = (baseDate: Date) => {
-    const monthStart = startOfMonth(baseDate);
-    const monthEnd = endOfMonth(baseDate);
+  const handleSelectFullMonth = (calendarMonth: Date) => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
     onDateStartChange(monthStart);
     onDateEndChange(monthEnd);
     setStartPopoverOpen(false);
@@ -115,13 +130,15 @@ export function DespesasPeriodFilter({
                   variant="ghost"
                   size="sm"
                   className="w-full text-xs text-primary hover:text-primary"
-                  onClick={() => handleSelectFullMonth(dateStart)}
+                  onClick={() => handleSelectFullMonth(startCalendarMonth)}
                 >
                   Selecionar mês inteiro
                 </Button>
               </div>
               <CalendarComponent
                 mode="single"
+                month={startCalendarMonth}
+                onMonthChange={setStartCalendarMonth}
                 selected={dateStart}
                 onSelect={(date) => {
                   if (date) {
@@ -149,13 +166,15 @@ export function DespesasPeriodFilter({
                   variant="ghost"
                   size="sm"
                   className="w-full text-xs text-primary hover:text-primary"
-                  onClick={() => handleSelectFullMonth(dateEnd)}
+                  onClick={() => handleSelectFullMonth(endCalendarMonth)}
                 >
                   Selecionar mês inteiro
                 </Button>
               </div>
               <CalendarComponent
                 mode="single"
+                month={endCalendarMonth}
+                onMonthChange={setEndCalendarMonth}
                 selected={dateEnd}
                 onSelect={(date) => {
                   if (date) {
