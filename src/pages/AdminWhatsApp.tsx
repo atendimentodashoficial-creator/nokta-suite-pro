@@ -1981,7 +1981,7 @@ export default function AdminWhatsApp() {
                         .from("uazapi_config")
                         .insert({
                           user_id: user?.id,
-                          nome: newInstanceName.trim(),
+                          instance_name: newInstanceName.trim(),
                           base_url: manualBaseUrl.trim(),
                           api_key: manualApiKey.trim(),
                           is_active: true,
