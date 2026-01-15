@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -53,12 +53,22 @@ export function DespesasPeriodFilter({
   showLabel = false,
   className,
 }: DespesasPeriodFilterProps) {
-  const currentYear = new Date().getFullYear();
+  const [startPopoverOpen, setStartPopoverOpen] = useState(false);
+  const [endPopoverOpen, setEndPopoverOpen] = useState(false);
 
   const getDisplayValue = () => {
     if (value === "custom") return "Personalizado";
     if (monthNames[value]) return monthNames[value];
     return "Selecionar";
+  };
+
+  const handleSelectFullMonth = (baseDate: Date) => {
+    const monthStart = startOfMonth(baseDate);
+    const monthEnd = endOfMonth(baseDate);
+    onDateStartChange(monthStart);
+    onDateEndChange(monthEnd);
+    setStartPopoverOpen(false);
+    setEndPopoverOpen(false);
   };
 
   return (
@@ -93,7 +103,7 @@ export function DespesasPeriodFilter({
 
       {value === "custom" && (
         <div className="flex items-center gap-2 basis-full sm:basis-auto">
-          <Popover>
+          <Popover open={startPopoverOpen} onOpenChange={setStartPopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="min-w-[90px]">
                 {format(dateStart, "dd/MM/yy", { locale: ptBR })}
@@ -105,20 +115,20 @@ export function DespesasPeriodFilter({
                   variant="ghost"
                   size="sm"
                   className="w-full text-xs text-primary hover:text-primary"
-                  onClick={() => {
-                    const monthStart = startOfMonth(dateStart);
-                    const monthEnd = endOfMonth(dateStart);
-                    onDateStartChange(monthStart);
-                    onDateEndChange(monthEnd);
-                  }}
+                  onClick={() => handleSelectFullMonth(dateStart)}
                 >
-                  Selecionar mês inteiro ({format(dateStart, "MMMM", { locale: ptBR })})
+                  Selecionar mês inteiro
                 </Button>
               </div>
               <CalendarComponent
                 mode="single"
                 selected={dateStart}
-                onSelect={(date) => date && onDateStartChange(date)}
+                onSelect={(date) => {
+                  if (date) {
+                    onDateStartChange(date);
+                    setStartPopoverOpen(false);
+                  }
+                }}
                 locale={ptBR}
                 className="pointer-events-auto"
               />
@@ -127,7 +137,7 @@ export function DespesasPeriodFilter({
 
           <span className="text-muted-foreground text-sm">até</span>
 
-          <Popover>
+          <Popover open={endPopoverOpen} onOpenChange={setEndPopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="min-w-[90px]">
                 {format(dateEnd, "dd/MM/yy", { locale: ptBR })}
@@ -139,20 +149,20 @@ export function DespesasPeriodFilter({
                   variant="ghost"
                   size="sm"
                   className="w-full text-xs text-primary hover:text-primary"
-                  onClick={() => {
-                    const monthStart = startOfMonth(dateEnd);
-                    const monthEnd = endOfMonth(dateEnd);
-                    onDateStartChange(monthStart);
-                    onDateEndChange(monthEnd);
-                  }}
+                  onClick={() => handleSelectFullMonth(dateEnd)}
                 >
-                  Selecionar mês inteiro ({format(dateEnd, "MMMM", { locale: ptBR })})
+                  Selecionar mês inteiro
                 </Button>
               </div>
               <CalendarComponent
                 mode="single"
                 selected={dateEnd}
-                onSelect={(date) => date && onDateEndChange(date)}
+                onSelect={(date) => {
+                  if (date) {
+                    onDateEndChange(date);
+                    setEndPopoverOpen(false);
+                  }
+                }}
                 locale={ptBR}
                 className="pointer-events-auto"
               />
