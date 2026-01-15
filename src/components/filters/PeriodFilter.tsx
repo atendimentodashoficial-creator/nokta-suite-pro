@@ -41,6 +41,33 @@ export function PeriodFilter({
   showLabel = false,
   className,
 }: PeriodFilterProps) {
+  const [startPopoverOpen, setStartPopoverOpen] = useState(false);
+  const [endPopoverOpen, setEndPopoverOpen] = useState(false);
+  const [startCalendarMonth, setStartCalendarMonth] = useState<Date>(dateStart);
+  const [endCalendarMonth, setEndCalendarMonth] = useState<Date>(dateEnd);
+
+  // Reset calendar month when popover opens
+  useEffect(() => {
+    if (startPopoverOpen) {
+      setStartCalendarMonth(dateStart);
+    }
+  }, [startPopoverOpen, dateStart]);
+
+  useEffect(() => {
+    if (endPopoverOpen) {
+      setEndCalendarMonth(dateEnd);
+    }
+  }, [endPopoverOpen, dateEnd]);
+
+  const handleSelectFullMonth = (calendarMonth: Date) => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    onDateStartChange(monthStart);
+    onDateEndChange(monthEnd);
+    setStartPopoverOpen(false);
+    setEndPopoverOpen(false);
+  };
+
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className || ""}`.trim()}>
       {showLabel && (
@@ -68,20 +95,37 @@ export function PeriodFilter({
         </SelectContent>
       </Select>
 
-      {/* Datas (apenas quando personalizado). No mobile sempre quebra para baixo, igual na Agenda. */}
+      {/* Datas (apenas quando personalizado) */}
       {value === "custom" && (
         <div className="flex items-center gap-2 basis-full sm:basis-auto">
-          <Popover>
+          <Popover open={startPopoverOpen} onOpenChange={setStartPopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="min-w-[90px]">
                 {format(dateStart, "dd/MM/yy", { locale: ptBR })}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
+              <div className="p-2 border-b">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-primary hover:text-primary"
+                  onClick={() => handleSelectFullMonth(startCalendarMonth)}
+                >
+                  Selecionar mês inteiro
+                </Button>
+              </div>
               <CalendarComponent
                 mode="single"
+                month={startCalendarMonth}
+                onMonthChange={setStartCalendarMonth}
                 selected={dateStart}
-                onSelect={(date) => date && onDateStartChange(date)}
+                onSelect={(date) => {
+                  if (date) {
+                    onDateStartChange(date);
+                    setStartPopoverOpen(false);
+                  }
+                }}
                 locale={ptBR}
                 className="pointer-events-auto"
               />
@@ -90,17 +134,34 @@ export function PeriodFilter({
 
           <span className="text-muted-foreground text-sm">até</span>
 
-          <Popover>
+          <Popover open={endPopoverOpen} onOpenChange={setEndPopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="min-w-[90px]">
                 {format(dateEnd, "dd/MM/yy", { locale: ptBR })}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
+              <div className="p-2 border-b">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-primary hover:text-primary"
+                  onClick={() => handleSelectFullMonth(endCalendarMonth)}
+                >
+                  Selecionar mês inteiro
+                </Button>
+              </div>
               <CalendarComponent
                 mode="single"
+                month={endCalendarMonth}
+                onMonthChange={setEndCalendarMonth}
                 selected={dateEnd}
-                onSelect={(date) => date && onDateEndChange(date)}
+                onSelect={(date) => {
+                  if (date) {
+                    onDateEndChange(date);
+                    setEndPopoverOpen(false);
+                  }
+                }}
                 locale={ptBR}
                 className="pointer-events-auto"
               />
@@ -113,10 +174,10 @@ export function PeriodFilter({
 }
 
 // Helper hook for managing period state
-export function usePeriodFilter(defaultPeriod: PeriodValue = "max") {
+export function usePeriodFilter(defaultPeriod: PeriodValue = "this_month") {
   const [periodFilter, setPeriodFilter] = useState<PeriodValue>(defaultPeriod);
-  const [dateStart, setDateStart] = useState<Date>(new Date(2020, 0, 1));
-  const [dateEnd, setDateEnd] = useState<Date>(new Date());
+  const [dateStart, setDateStart] = useState<Date>(startOfMonth(new Date()));
+  const [dateEnd, setDateEnd] = useState<Date>(endOfMonth(new Date()));
 
   useEffect(() => {
     handlePeriodChange(periodFilter);
@@ -166,7 +227,8 @@ export function usePeriodFilter(defaultPeriod: PeriodValue = "max") {
         // Don't change dates for custom - user controls them
         return;
       default:
-        start = new Date(2020, 0, 1);
+        start = startOfMonth(today);
+        end = endOfMonth(today);
     }
 
     setDateStart(start);
@@ -177,7 +239,6 @@ export function usePeriodFilter(defaultPeriod: PeriodValue = "max") {
     if (!items) return [];
     
     // Use LOCAL timezone to match how dates are displayed in the UI
-    // (toLocaleDateString uses local timezone, so filtering should too)
     const startOfPeriod = new Date(
       dateStart.getFullYear(),
       dateStart.getMonth(),
@@ -193,7 +254,6 @@ export function usePeriodFilter(defaultPeriod: PeriodValue = "max") {
     );
 
     return items.filter(item => {
-      // Parse the UTC timestamp and let JavaScript convert to local timezone
       const itemDate = new Date(item.created_at);
       return itemDate >= startOfPeriod && itemDate <= endOfPeriod;
     });
