@@ -1565,7 +1565,22 @@ export function FunilConversaoTab() {
         return [];
       }
 
-      return data || [];
+      // Filtrar apenas agendamentos excluídos cujo cliente ainda existe no app
+      // (não foi excluído da tabela leads)
+      if (!data || data.length === 0) return [];
+
+      const clienteIds = data.map((d: any) => d.cliente_id).filter(Boolean);
+      if (clienteIds.length === 0) return data;
+
+      const { data: leadsData } = await supabase
+        .from("leads")
+        .select("id")
+        .in("id", clienteIds)
+        .is("deleted_at", null);
+
+      const visibleClienteIds = new Set((leadsData || []).map((l: any) => l.id));
+
+      return data.filter((d: any) => visibleClienteIds.has(d.cliente_id));
     },
     enabled: !!user?.id,
   });
