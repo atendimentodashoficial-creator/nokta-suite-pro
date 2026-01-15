@@ -182,16 +182,45 @@ serve(async (req) => {
       let spendInPeriod = 0;
       if (date_start && date_end) {
         try {
-          const timeRangeValue = encodeURIComponent(
-            JSON.stringify({ since: date_start, until: date_end })
+          // Observação: a Insights API pode retornar 0/empty em ranges muito longos.
+          // Para o filtro "Máximo" (ex: 2020-01-01 → hoje), usamos date_preset=maximum
+          // para evitar limitações/timeout.
+          let useMaximumPreset = false;
+
+          const startMs = Date.parse(`${date_start}T00:00:00.000Z`);
+          const endMs = Date.parse(`${date_end}T00:00:00.000Z`);
+          if (Number.isFinite(startMs) && Number.isFinite(endMs)) {
+            const diffDays = Math.abs(endMs - startMs) / (1000 * 60 * 60 * 24);
+            // ~37 meses ≈ 1125 dias (margem); acima disso tende a dar resultado inconsistente.
+            if (diffDays > 1100) {
+              useMaximumPreset = true;
+            }
+          }
+
+          const insightsUrl = useMaximumPreset
+            ? `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=spend&date_preset=maximum&access_token=${accessToken}`
+            : (() => {
+                const timeRangeValue = encodeURIComponent(
+                  JSON.stringify({ since: date_start, until: date_end })
+                );
+                return `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=spend&time_range=${timeRangeValue}&access_token=${accessToken}`;
+              })();
+
+          console.log(
+            "Fetching insights for period:",
+            date_start,
+            "to",
+            date_end,
+            "useMaximumPreset:",
+            useMaximumPreset
           );
-          const insightsUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}/insights?fields=spend&time_range=${timeRangeValue}&access_token=${accessToken}`;
-          console.log("Fetching insights for period:", date_start, "to", date_end);
-          
+
           const insightsResponse = await fetch(insightsUrl);
           const insightsData = await insightsResponse.json();
-          
-          if (insightsData.data && insightsData.data.length > 0 && insightsData.data[0].spend) {
+
+          if (insightsData?.error) {
+            console.error("Insights API Error:", insightsData.error);
+          } else if (insightsData.data && insightsData.data.length > 0 && insightsData.data[0].spend) {
             spendInPeriod = parseFloat(insightsData.data[0].spend);
             console.log("Spend in period:", spendInPeriod);
           }
