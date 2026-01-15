@@ -801,6 +801,44 @@ export type Database = {
           },
         ]
       }
+      disparos_campanha_snapshots: {
+        Row: {
+          campanha_id: string
+          created_at: string
+          id: string
+          nome_versao: string
+          snapshot_data: Json
+          user_id: string
+          versao: number
+        }
+        Insert: {
+          campanha_id: string
+          created_at?: string
+          id?: string
+          nome_versao: string
+          snapshot_data: Json
+          user_id: string
+          versao?: number
+        }
+        Update: {
+          campanha_id?: string
+          created_at?: string
+          id?: string
+          nome_versao?: string
+          snapshot_data?: Json
+          user_id?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disparos_campanha_snapshots_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "disparos_campanhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disparos_campanha_variacoes: {
         Row: {
           bloco: number
