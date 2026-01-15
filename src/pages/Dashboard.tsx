@@ -6,7 +6,7 @@ import { useLeads, useLeadStats } from "@/hooks/useLeads";
 import { useDespesasTotal, useDespesasRelatorio } from "@/hooks/useDespesas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo, useEffect } from "react";
-import { format, subDays, subMonths } from "date-fns";
+import { format, subDays, subMonths, startOfMonth, endOfMonth, addMonths, isBefore, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
@@ -142,9 +142,156 @@ export default function Dashboard() {
       return true;
     }) || [];
 
-    // Filtrar despesas por período
-    const despesasFiltradas = despesas?.filter(d => {
-      // Usar data_despesa ou data_inicio (para parceladas)
+    // Helper function to calculate expense occurrences in period
+    const calcularOcorrenciasDespesa = (d: typeof despesas extends (infer T)[] | undefined ? T : never): number => {
+      if (d.recorrente) {
+        // For recurring: count how many months overlap
+        const dataInicioStr = d.data_despesa || d.created_at;
+        if (!dataInicioStr) return 0;
+        
+        let dataInicio: Date;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dataInicioStr)) {
+          const [year, month, day] = dataInicioStr.split('-').map(Number);
+          dataInicio = new Date(year, month - 1, day, 12, 0, 0, 0);
+        } else {
+          dataInicio = new Date(dataInicioStr);
+        }
+        
+        let dataFim: Date | null = null;
+        if (d.data_fim) {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(d.data_fim)) {
+            const [year, month, day] = d.data_fim.split('-').map(Number);
+            dataFim = new Date(year, month - 1, day, 12, 0, 0, 0);
+          } else {
+            dataFim = new Date(d.data_fim);
+          }
+        }
+        
+        // Effective start is the later of despesa start or period start
+        const effectiveStart = isBefore(dataInicio, startOfPeriod) ? startOfPeriod : dataInicio;
+        // Effective end is the earlier of despesa end (or period end if no end) and period end
+        const effectiveEnd = dataFim && isBefore(dataFim, endOfPeriod) ? dataFim : endOfPeriod;
+        
+        if (isBefore(effectiveEnd, effectiveStart)) return 0;
+        
+        // Count months between effective start and end (inclusive)
+        let count = 0;
+        let currentMonth = startOfMonth(effectiveStart);
+        const lastMonth = startOfMonth(effectiveEnd);
+        
+        while (!isAfter(currentMonth, lastMonth)) {
+          count++;
+          currentMonth = addMonths(currentMonth, 1);
+        }
+        
+        return count;
+      } else if (d.parcelada && d.data_inicio && d.data_fim) {
+        // For installments: count how many installments fall within period
+        let dataInicio: Date;
+        let dataFim: Date;
+        
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d.data_inicio)) {
+          const [year, month, day] = d.data_inicio.split('-').map(Number);
+          dataInicio = new Date(year, month - 1, day, 12, 0, 0, 0);
+        } else {
+          dataInicio = new Date(d.data_inicio);
+        }
+        
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d.data_fim)) {
+          const [year, month, day] = d.data_fim.split('-').map(Number);
+          dataFim = new Date(year, month - 1, day, 12, 0, 0, 0);
+        } else {
+          dataFim = new Date(d.data_fim);
+        }
+        
+        // Effective start is the later of despesa start or period start
+        const effectiveStart = isBefore(dataInicio, startOfPeriod) ? startOfPeriod : dataInicio;
+        // Effective end is the earlier of despesa end and period end
+        const effectiveEnd = isBefore(dataFim, endOfPeriod) ? dataFim : endOfPeriod;
+        
+        if (isBefore(effectiveEnd, effectiveStart)) return 0;
+        
+        // Count months between effective start and end (inclusive)
+        let count = 0;
+        let currentMonth = startOfMonth(effectiveStart);
+        const lastMonth = startOfMonth(effectiveEnd);
+        
+        while (!isAfter(currentMonth, lastMonth)) {
+          count++;
+          currentMonth = addMonths(currentMonth, 1);
+        }
+        
+        return count;
+      }
+      
+      // For single expenses, always 1
+      return 1;
+    };
+
+    // Filtrar despesas por período com cálculo de ocorrências
+    const despesasFiltradas = despesas?.map(d => {
+      const ocorrencias = calcularOcorrenciasDespesa(d);
+      return { ...d, ocorrencias };
+    }).filter(d => {
+      // Filter out items with no occurrences
+      if (d.ocorrencias === 0) return false;
+      
+      // For recurring expenses, check if they overlap with period
+      if (d.recorrente) {
+        const dataInicioStr = d.data_despesa || d.created_at;
+        if (!dataInicioStr) return false;
+        
+        let dataInicio: Date;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dataInicioStr)) {
+          const [year, month, day] = dataInicioStr.split('-').map(Number);
+          dataInicio = new Date(year, month - 1, day, 12, 0, 0, 0);
+        } else {
+          dataInicio = new Date(dataInicioStr);
+        }
+        
+        // Check if started before period end
+        if (dataInicio > endOfPeriod) return false;
+        
+        // Check if ended before period start
+        if (d.data_fim) {
+          let dataFim: Date;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(d.data_fim)) {
+            const [year, month, day] = d.data_fim.split('-').map(Number);
+            dataFim = new Date(year, month - 1, day, 12, 0, 0, 0);
+          } else {
+            dataFim = new Date(d.data_fim);
+          }
+          if (dataFim < startOfPeriod) return false;
+        }
+        
+        return true;
+      }
+      
+      // For installments, check if they overlap with period
+      if (d.parcelada && d.data_inicio && d.data_fim) {
+        let dataInicio: Date;
+        let dataFim: Date;
+        
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d.data_inicio)) {
+          const [year, month, day] = d.data_inicio.split('-').map(Number);
+          dataInicio = new Date(year, month - 1, day, 12, 0, 0, 0);
+        } else {
+          dataInicio = new Date(d.data_inicio);
+        }
+        
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d.data_fim)) {
+          const [year, month, day] = d.data_fim.split('-').map(Number);
+          dataFim = new Date(year, month - 1, day, 12, 0, 0, 0);
+        } else {
+          dataFim = new Date(d.data_fim);
+        }
+        
+        // Check if overlaps with period
+        if (dataFim < startOfPeriod || dataInicio > endOfPeriod) return false;
+        return true;
+      }
+      
+      // For variable/single expenses, use original logic
       const despesaDateStr = d.data_despesa || d.data_inicio || d.created_at;
       if (!despesaDateStr) return false;
       
@@ -398,17 +545,23 @@ export default function Dashboard() {
   // Receita prevista = Fechadas + Negociação
   const receitaPrevista = receitaAtual + receitaEmNegociacao;
 
-  // DESPESAS
+  // DESPESAS (considerando ocorrências para recorrentes e parceladas)
   const despesasRecorrentes = dadosFiltrados.despesas.filter(d => d.recorrente);
   const despesasParceladas = dadosFiltrados.despesas.filter(d => d.parcelada);
   const despesasVariaveis = dadosFiltrados.despesas.filter(d => !d.recorrente && !d.parcelada);
   
-  const totalDespesasPeriodo = dadosFiltrados.despesas.reduce((sum, d) => sum + Number(d.valor), 0);
-  const totalRecorrentes = despesasRecorrentes.reduce((sum, d) => sum + Number(d.valor), 0);
-  const totalParceladas = despesasParceladas.reduce((sum, d) => sum + Number(d.valor), 0);
+  // Calcular totais considerando ocorrências
+  const calcularValorComOcorrencias = (d: typeof dadosFiltrados.despesas[0]) => {
+    const ocorrencias = d.ocorrencias || 1;
+    return (d.recorrente || d.parcelada) ? Number(d.valor) * ocorrencias : Number(d.valor);
+  };
+  
+  const totalDespesasPeriodo = dadosFiltrados.despesas.reduce((sum, d) => sum + calcularValorComOcorrencias(d), 0);
+  const totalRecorrentes = despesasRecorrentes.reduce((sum, d) => sum + calcularValorComOcorrencias(d), 0);
+  const totalParceladas = despesasParceladas.reduce((sum, d) => sum + calcularValorComOcorrencias(d), 0);
   const totalVariaveis = despesasVariaveis.reduce((sum, d) => sum + Number(d.valor), 0);
 
-  // Despesas por categoria
+  // Despesas por categoria (considerando ocorrências)
   const despesasPorCategoria = useMemo(() => {
     const catMap: Record<string, { nome: string; cor: string | null; total: number; quantidade: number }> = {};
     
@@ -416,12 +569,14 @@ export default function Dashboard() {
       const catId = d.categoria_id || "sem-categoria";
       const catNome = d.categorias_despesas?.nome || "Sem Categoria";
       const catCor = d.categorias_despesas?.cor || null;
+      const valorComOcorrencias = calcularValorComOcorrencias(d);
+      const ocorrencias = d.ocorrencias || 1;
       
       if (!catMap[catId]) {
         catMap[catId] = { nome: catNome, cor: catCor, total: 0, quantidade: 0 };
       }
-      catMap[catId].total += Number(d.valor);
-      catMap[catId].quantidade++;
+      catMap[catId].total += valorComOcorrencias;
+      catMap[catId].quantidade += ocorrencias;
     });
     
     return Object.values(catMap).sort((a, b) => b.total - a.total);
