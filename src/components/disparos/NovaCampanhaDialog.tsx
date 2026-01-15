@@ -589,7 +589,19 @@ export function NovaCampanhaDialog({
         ? new Set(prev.map(c => getLast8Digits(c.numero)))
         : new Set(prev.map(c => c.numero));
       
-      const unique = novosContatos
+      // Primeiro, deduplica os próprios novosContatos entre si
+      const seenInNew = new Set<string>();
+      const deduplicatedNew = novosContatos.filter(c => {
+        const key = deduplicarNumeros ? getLast8Digits(c.numero) : c.numero;
+        if (seenInNew.has(key)) {
+          return false;
+        }
+        seenInNew.add(key);
+        return true;
+      });
+      
+      // Depois, filtra os que já existem na lista
+      const unique = deduplicatedNew
         .filter(c => {
           const key = deduplicarNumeros ? getLast8Digits(c.numero) : c.numero;
           return !existingKeys.has(key);
@@ -2141,9 +2153,9 @@ export function NovaCampanhaDialog({
                 .map((c, idx) => {
                   const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
                   const isSelected = selectedContacts.has(c.numero);
-                  return (
-                    <div 
-                      key={c.numero} 
+                    return (
+                      <div 
+                        key={`${globalIdx}-${c.numero}`} 
                       className={`flex items-center justify-between p-2 hover:bg-muted rounded text-sm border-b last:border-b-0 cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => toggleContactSelection(c.numero)}
                     >
