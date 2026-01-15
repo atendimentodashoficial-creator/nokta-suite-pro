@@ -618,6 +618,37 @@ export function NovaCampanhaDialog({
     });
   };
 
+  // Efeito para remover duplicatas quando o switch é ativado
+  useEffect(() => {
+    if (deduplicarNumeros && contatos.length > 0) {
+      const seen = new Set<string>();
+      const deduplicatedContatos = contatos.filter(c => {
+        const key = getLast8Digits(c.numero);
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
+      
+      // Só atualiza se realmente removeu duplicatas
+      if (deduplicatedContatos.length < contatos.length) {
+        setContatos(deduplicatedContatos);
+        // Atualiza também os selecionados
+        setSelectedContacts(prev => {
+          const validNumbers = new Set(deduplicatedContatos.map(c => c.numero));
+          const next = new Set<string>();
+          prev.forEach(num => {
+            if (validNumbers.has(num)) {
+              next.add(num);
+            }
+          });
+          return next;
+        });
+      }
+    }
+  }, [deduplicarNumeros]);
+
   const toggleContactSelection = (numero: string) => {
     setSelectedContacts(prev => {
       const next = new Set(prev);
