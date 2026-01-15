@@ -815,6 +815,73 @@ export function EditarCampanhaDialog({
       const delayMinSeconds = delayUnit === "minutes" ? delayMin * 60 : delayMin;
       const delayMaxSeconds = delayUnit === "minutes" ? delayMax * 60 : delayMax;
 
+      // Check if campaign was already executed and create snapshot
+      const { data: existingCampanha } = await supabase
+        .from("disparos_campanhas")
+        .select("*, status, iniciado_em, enviados, falhas")
+        .eq("id", campanhaId)
+        .single();
+
+      if (existingCampanha && existingCampanha.iniciado_em && existingCampanha.enviados > 0) {
+        // Get contacts stats for snapshot
+        const { data: contatosSnapshot } = await supabase
+          .from("disparos_campanha_contatos")
+          .select("status")
+          .eq("campanha_id", campanhaId);
+
+        const contatoStats = {
+          total: contatosSnapshot?.length || 0,
+          enviados: contatosSnapshot?.filter(c => c.status === "sent").length || 0,
+          falhas: contatosSnapshot?.filter(c => c.status === "failed").length || 0,
+          pendentes: contatosSnapshot?.filter(c => c.status === "pending").length || 0
+        };
+
+        // Get blocks count for snapshot
+        const { data: variacoesSnapshot } = await supabase
+          .from("disparos_campanha_variacoes")
+          .select("bloco")
+          .eq("campanha_id", campanhaId);
+        const blocosCount = variacoesSnapshot ? new Set(variacoesSnapshot.map(v => v.bloco)).size : 0;
+
+        // Count existing snapshots
+        const { data: existingSnapshots } = await supabase
+          .from("disparos_campanha_snapshots")
+          .select("versao")
+          .eq("campanha_id", campanhaId)
+          .order("versao", { ascending: false })
+          .limit(1);
+
+        const nextVersion = existingSnapshots && existingSnapshots.length > 0 
+          ? existingSnapshots[0].versao + 1 
+          : 1;
+
+        // Create snapshot
+        const snapshotData = {
+          nome: existingCampanha.nome,
+          status: existingCampanha.status,
+          total_contatos: existingCampanha.total_contatos,
+          enviados: existingCampanha.enviados,
+          falhas: existingCampanha.falhas,
+          delay_min: existingCampanha.delay_min,
+          delay_max: existingCampanha.delay_max,
+          delay_bloco_min: existingCampanha.delay_bloco_min,
+          delay_bloco_max: existingCampanha.delay_bloco_max,
+          iniciado_em: existingCampanha.iniciado_em,
+          finalizado_em: existingCampanha.finalizado_em,
+          created_at: existingCampanha.created_at,
+          contato_stats: contatoStats,
+          blocos_count: blocosCount
+        };
+
+        await supabase.from("disparos_campanha_snapshots").insert({
+          campanha_id: campanhaId,
+          user_id: user.id,
+          versao: nextVersion,
+          nome_versao: `Versão ${nextVersion} - ${new Date().toLocaleDateString('pt-BR')}`,
+          snapshot_data: snapshotData
+        });
+      }
+
       let primeiraMediaBase64: string | null = primeiraVariacao.mediaBase64Existing || null;
       if (primeiraVariacao.mediaFile) {
         const buffer = await primeiraVariacao.mediaFile.arrayBuffer();
@@ -826,7 +893,7 @@ export function EditarCampanhaDialog({
         primeiraMediaBase64 = `data:${primeiraVariacao.mediaFile.type};base64,${btoa(binary)}`;
       }
 
-      // Update campaign
+      // Update campaign - reset stats for new execution
       const { error: campanhaError } = await supabase
         .from("disparos_campanhas")
         .update({
@@ -840,6 +907,11 @@ export function EditarCampanhaDialog({
           delay_bloco_max: delayBlocoMax,
           total_contatos: contatos.length,
           instancias_ids: selectedInstancias,
+          status: "pending",
+          enviados: 0,
+          falhas: 0,
+          iniciado_em: null,
+          finalizado_em: null,
           updated_at: new Date().toISOString()
         })
         .eq("id", campanhaId);
