@@ -1089,11 +1089,14 @@ export default function Despesas() {
               {despesaParaExcluir?.recorrente ? (
                 <>
                   <span className="block">
-                    Deseja remover esta despesa do mês de{" "}
-                    <strong>{format(startOfMonth(dateStart), "MMMM/yyyy", { locale: ptBR })}</strong>?
+                    Escolha uma opção para a despesa recorrente:
                   </span>
-                  <span className="block text-sm text-muted-foreground">
-                    A despesa continuará aparecendo nos outros meses em que estava ativa.
+                  <span className="block text-sm">
+                    • <strong>Remover deste mês:</strong> Remove apenas de{" "}
+                    <strong>{format(startOfMonth(dateStart), "MMMM/yyyy", { locale: ptBR })}</strong>.
+                  </span>
+                  <span className="block text-sm">
+                    • <strong>Excluir Futuras:</strong> Encerra a despesa a partir de hoje. O histórico será mantido.
                   </span>
                 </>
               ) : (
@@ -1101,14 +1104,22 @@ export default function Despesas() {
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {despesaParaExcluir?.recorrente && (
+              <Button
+                variant="outline"
+                onClick={handleExcluirDoMes}
+                disabled={createExclusao.isPending}
+              >
+                Remover deste mês
+              </Button>
+            )}
             <AlertDialogAction
-              onClick={despesaParaExcluir?.recorrente ? handleExcluirDoMes : handleDelete}
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={createExclusao.isPending}
             >
-              {despesaParaExcluir?.recorrente ? "Remover deste mês" : "Excluir"}
+              {despesaParaExcluir?.recorrente ? "Excluir Futuras" : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
