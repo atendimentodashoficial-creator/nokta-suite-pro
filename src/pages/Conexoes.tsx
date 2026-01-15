@@ -23,6 +23,7 @@ interface LinkedAdAccount {
   currency_type: string | null;
   currency_spread: number | null;
   is_prepay_account: boolean | null;
+  manual_funds_balance: number | null;
 }
 interface LinkedGoogleAdsAccount {
   id: string;
@@ -566,7 +567,7 @@ export default function Conexoes() {
       const {
         data,
         error
-      } = await supabase.from("facebook_ad_accounts").select("id, ad_account_id, account_name, account_type, currency_type, currency_spread, is_prepay_account").eq("user_id", user?.id).order("created_at", {
+      } = await supabase.from("facebook_ad_accounts").select("id, ad_account_id, account_name, account_type, currency_type, currency_spread, is_prepay_account, manual_funds_balance").eq("user_id", user?.id).order("created_at", {
         ascending: false
       });
       if (!error && data) {
@@ -713,6 +714,30 @@ export default function Conexoes() {
       toast({
         title: "Erro ao atualizar",
         description: "Não foi possível atualizar o spread",
+        variant: "destructive"
+      });
+    }
+  };
+  const updateAccountFundsBalance = async (accountId: string, fundsBalance: number | null) => {
+    try {
+      const {
+        error
+      } = await supabase.from("facebook_ad_accounts").update({
+        manual_funds_balance: fundsBalance
+      }).eq("id", accountId).eq("user_id", user?.id);
+      if (error) throw error;
+      setLinkedAdAccounts(prev => prev.map(acc => acc.id === accountId ? {
+        ...acc,
+        manual_funds_balance: fundsBalance
+      } : acc));
+      toast({
+        title: "Fundos atualizado",
+        description: fundsBalance ? `Fundos definido como ${fundsBalance}` : "Fundos removido"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar o saldo de fundos",
         variant: "destructive"
       });
     }
@@ -1150,6 +1175,7 @@ export default function Conexoes() {
                   const accountType = account.account_type || (account.is_prepay_account ? "prepaid" : "postpaid");
                   const currencyType = account.currency_type || "BRL";
                   const currencySpread = account.currency_spread || 0;
+                  const fundsBalance = account.manual_funds_balance;
                   return <div key={account.id} className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:pr-3 pr-10 border rounded-lg bg-muted/50 gap-3">
                       {/* Botão de excluir - mobile: canto superior direito, desktop: inline */}
                       <Button 
@@ -1230,6 +1256,21 @@ export default function Conexoes() {
                             className="w-[70px] h-8 text-xs"
                             placeholder="%"
                             title="Spread do cartão em %"
+                          />
+                        )}
+                        {accountType === "postpaid" && (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={fundsBalance || ""}
+                            onChange={(e) => {
+                              const val = e.target.value ? parseFloat(e.target.value) : null;
+                              updateAccountFundsBalance(account.id, val);
+                            }}
+                            className="w-[90px] h-8 text-xs"
+                            placeholder="Fundos"
+                            title={`Saldo de fundos em ${currencyType}`}
                           />
                         )}
                         <Button variant="ghost" size="icon" onClick={() => removeAdAccount(account.id)} className="hidden sm:flex text-destructive hover:text-destructive">
