@@ -1978,32 +1978,60 @@ export default function AdminWhatsApp() {
                     
                     setIsCreatingInstance(true);
                     try {
-                      const { data, error } = await supabase
-                        .from("uazapi_config")
-                        .upsert({
-                          user_id: user?.id,
+                      if (!user?.id) {
+                        toast.error("Faça login novamente");
+                        return;
+                      }
+
+                      const { data: session } = await supabase.auth.getSession();
+
+                      // 1) Create/update a real instance record (shared table)
+                      const { data: createdInstance, error: instanceError } = await supabase
+                        .from("disparos_instancias")
+                        .insert({
+                          user_id: user.id,
+                          nome: newInstanceName.trim(),
                           instance_name: newInstanceName.trim(),
                           base_url: manualBaseUrl.trim(),
                           api_key: manualApiKey.trim(),
                           is_active: true,
                           updated_at: new Date().toISOString(),
-                        }, { onConflict: 'user_id' })
-                        .select()
+                        })
+                        .select("id, nome, base_url, api_key")
                         .single();
 
-                      if (error) throw error;
+                      if (instanceError) throw instanceError;
 
-                      // Configure webhook
-                      const { data: session } = await supabase.auth.getSession();
-                      const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user?.id}/${data.id}`;
-                      
+                      // 2) Link this instance as the main WhatsApp instance
+                      const { data: uazapiCfg, error: cfgError } = await supabase
+                        .from("uazapi_config")
+                        .upsert(
+                          {
+                            user_id: user.id,
+                            whatsapp_instancia_id: createdInstance.id,
+                            base_url: manualBaseUrl.trim(),
+                            api_key: manualApiKey.trim(),
+                            instance_name: newInstanceName.trim(),
+                            is_active: true,
+                            updated_at: new Date().toISOString(),
+                          },
+                          { onConflict: "user_id" }
+                        )
+                        .select("id")
+                        .single();
+
+                      if (cfgError) throw cfgError;
+
+                      // 3) Configure webhook pointing to this instance id
+                      const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook/${user.id}/${createdInstance.id}`;
+
                       const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
                         headers: { Authorization: `Bearer ${session.session?.access_token}` },
                         body: {
                           base_url: manualBaseUrl.trim(),
                           api_key: manualApiKey.trim(),
                           webhook_url: webhookUrl,
-                          instancia_id: data.id,
+                          instancia_id: createdInstance.id,
                         },
                       });
 
@@ -2012,16 +2040,17 @@ export default function AdminWhatsApp() {
                       } else {
                         toast.warning("Webhook não foi configurado automaticamente.");
                       }
-                      
+
+                      // 4) Close dialog + reset fields
                       setCreateInstanceDialogOpen(false);
                       setNewInstanceName("");
                       setManualBaseUrl("");
                       setManualApiKey("");
-                      
-                      // Check if already connected
+
+                      // 5) Check connection, if not connected show QR
                       const statusResponse = await supabase.functions.invoke("uazapi-check-status", {
                         headers: { Authorization: `Bearer ${session.session?.access_token}` },
-                        body: { base_url: manualBaseUrl.trim(), api_key: manualApiKey.trim() },
+                        body: { base_url: createdInstance.base_url, api_key: createdInstance.api_key },
                       });
 
                       const isConnected =
@@ -2030,41 +2059,45 @@ export default function AdminWhatsApp() {
 
                       if (isConnected) {
                         toast.success("WhatsApp já está conectado!");
-                        setConnectionStatus('connected');
+                        setConnectionStatus("connected");
                         await checkConfig();
-                      } else {
-                        // Not connected - need to show QR code
-                        toast.info("Escaneie o QR code para conectar o WhatsApp");
-                        setQrCodeDialogOpen(true);
-                        setQrCodeLoading(true);
-                        setQrCodeData(null);
-
-                        const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
-                          headers: { Authorization: `Bearer ${session.session?.access_token}` },
-                          body: { base_url: manualBaseUrl.trim(), api_key: manualApiKey.trim() },
-                        });
-
-                        if (qrResponse.data?.qrcode) {
-                          setQrCodeData(qrResponse.data.qrcode);
-                          setQrCodeLoading(false);
-                          // Start polling for connection status
-                          startQrPolling(manualBaseUrl.trim(), manualApiKey.trim(), {
-                            id: data.id,
-                            base_url: manualBaseUrl.trim(),
-                            api_key: manualApiKey.trim(),
-                            nome: newInstanceName.trim(),
-                          });
-                        } else if (qrResponse.data?.connected) {
-                          toast.success("WhatsApp conectado!");
-                          setQrCodeDialogOpen(false);
-                          setConnectionStatus('connected');
-                          await checkConfig();
-                        } else {
-                          setQrCodeDialogOpen(false);
-                          setQrCodeLoading(false);
-                          toast.error(qrResponse.data?.error || "Não foi possível obter o QR Code");
-                        }
+                        return;
                       }
+
+                      toast.info("Escaneie o QR code para conectar o WhatsApp");
+                      setQrCodeDialogOpen(true);
+                      setQrCodeLoading(true);
+                      setQrCodeData(null);
+
+                      const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+                        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+                        body: { base_url: createdInstance.base_url, api_key: createdInstance.api_key },
+                      });
+
+                      if (qrResponse.data?.connected) {
+                        toast.success("WhatsApp conectado!");
+                        setQrCodeDialogOpen(false);
+                        setConnectionStatus("connected");
+                        await checkConfig();
+                        return;
+                      }
+
+                      if (qrResponse.data?.qrcode) {
+                        setQrCodeData(qrResponse.data.qrcode);
+                        setQrCodeLoading(false);
+                        startQrPolling(createdInstance.base_url, createdInstance.api_key, {
+                          id: createdInstance.id,
+                          base_url: createdInstance.base_url,
+                          api_key: createdInstance.api_key,
+                          nome: createdInstance.nome,
+                        });
+                      } else {
+                        setQrCodeDialogOpen(false);
+                        setQrCodeLoading(false);
+                        toast.error(qrResponse.data?.error || "Não foi possível obter o QR Code");
+                      }
+
+                      void uazapiCfg; // keep to avoid unused in case of future debugging
                     } catch (error: any) {
                       toast.error(error.message || "Erro ao adicionar instância");
                     } finally {
