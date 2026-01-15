@@ -2007,16 +2007,63 @@ export default function AdminWhatsApp() {
                       });
 
                       if (webhookResponse.data?.success) {
-                        toast.success("Instância adicionada e webhook configurado!");
+                        toast.success("Webhook configurado!");
                       } else {
-                        toast.warning("Instância adicionada, mas o webhook não foi configurado automaticamente.");
+                        toast.warning("Webhook não foi configurado automaticamente.");
                       }
                       
                       setCreateInstanceDialogOpen(false);
                       setNewInstanceName("");
                       setManualBaseUrl("");
                       setManualApiKey("");
-                      await checkConfig();
+                      
+                      // Check if already connected
+                      const statusResponse = await supabase.functions.invoke("uazapi-check-status", {
+                        headers: { Authorization: `Bearer ${session.session?.access_token}` },
+                        body: { base_url: manualBaseUrl.trim(), api_key: manualApiKey.trim() },
+                      });
+
+                      const isConnected =
+                        statusResponse.data?.success === true ||
+                        statusResponse.data?.status === "connected";
+
+                      if (isConnected) {
+                        toast.success("WhatsApp já está conectado!");
+                        setConnectionStatus('connected');
+                        await checkConfig();
+                      } else {
+                        // Not connected - need to show QR code
+                        toast.info("Escaneie o QR code para conectar o WhatsApp");
+                        setQrCodeDialogOpen(true);
+                        setQrCodeLoading(true);
+                        setQrCodeData(null);
+
+                        const qrResponse = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
+                          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+                          body: { base_url: manualBaseUrl.trim(), api_key: manualApiKey.trim() },
+                        });
+
+                        if (qrResponse.data?.qrcode) {
+                          setQrCodeData(qrResponse.data.qrcode);
+                          setQrCodeLoading(false);
+                          // Start polling for connection status
+                          startQrPolling(manualBaseUrl.trim(), manualApiKey.trim(), {
+                            id: data.id,
+                            base_url: manualBaseUrl.trim(),
+                            api_key: manualApiKey.trim(),
+                            nome: newInstanceName.trim(),
+                          });
+                        } else if (qrResponse.data?.connected) {
+                          toast.success("WhatsApp conectado!");
+                          setQrCodeDialogOpen(false);
+                          setConnectionStatus('connected');
+                          await checkConfig();
+                        } else {
+                          setQrCodeDialogOpen(false);
+                          setQrCodeLoading(false);
+                          toast.error(qrResponse.data?.error || "Não foi possível obter o QR Code");
+                        }
+                      }
                     } catch (error: any) {
                       toast.error(error.message || "Erro ao adicionar instância");
                     } finally {
