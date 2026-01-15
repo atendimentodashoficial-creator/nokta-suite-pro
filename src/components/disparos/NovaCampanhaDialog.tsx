@@ -2103,25 +2103,6 @@ export function NovaCampanhaDialog({
               Desmarcar Página
             </Button>
           </div>
-          <div className="flex items-center gap-2 justify-end">
-            <span className="text-xs text-muted-foreground">Por página:</span>
-            <Select value={String(allContactsPerPage)} onValueChange={(v) => {
-              setAllContactsPerPage(Number(v));
-              setAllContactsPage(1);
-            }}>
-              <SelectTrigger className="w-20 h-8">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-                <SelectItem value="200">200</SelectItem>
-                <SelectItem value="500">500</SelectItem>
-                <SelectItem value="1000">1000</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
@@ -2175,45 +2156,66 @@ export function NovaCampanhaDialog({
         </div>
 
         {/* Pagination */}
-        {contatosFiltradosPorOrigem.length > allContactsPerPage && (() => {
+        {(() => {
           const totalPages = Math.ceil(contatosFiltradosPorOrigem.length / allContactsPerPage);
           return (
-            <div className="flex items-center justify-center gap-2 pt-2 border-t">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="h-8 w-8"
-                disabled={allContactsPage <= 1}
-                onClick={() => setAllContactsPage(p => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center gap-1 text-sm">
-                <span>Página</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={totalPages}
-                  value={allContactsPage}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (!isNaN(val) && val >= 1 && val <= totalPages) {
-                      setAllContactsPage(val);
-                    }
-                  }}
-                  className="w-16 h-8 text-center"
-                />
-                <span>de {totalPages}</span>
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  disabled={allContactsPage <= 1}
+                  onClick={() => setAllContactsPage(p => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center gap-1 text-sm">
+                  <span>Página</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={totalPages || 1}
+                    value={allContactsPage}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val) && val >= 1 && val <= (totalPages || 1)) {
+                        setAllContactsPage(val);
+                      }
+                    }}
+                    className="w-16 h-8 text-center"
+                  />
+                  <span>de {totalPages || 1}</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  disabled={allContactsPage >= totalPages}
+                  onClick={() => setAllContactsPage(p => Math.min(totalPages, p + 1))}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="h-8 w-8"
-                disabled={allContactsPage >= totalPages}
-                onClick={() => setAllContactsPage(p => Math.min(totalPages, p + 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Por página:</span>
+                <Select value={String(allContactsPerPage)} onValueChange={(v) => {
+                  setAllContactsPerPage(Number(v));
+                  setAllContactsPage(1);
+                }}>
+                  <SelectTrigger className="w-20 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                    <SelectItem value="200">200</SelectItem>
+                    <SelectItem value="500">500</SelectItem>
+                    <SelectItem value="1000">1000</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           );
         })()}
