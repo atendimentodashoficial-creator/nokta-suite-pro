@@ -131,7 +131,7 @@ export function NovaCampanhaDialog({
   // Paginação do popup "Ver todos"
   const [allContactsPage, setAllContactsPage] = useState(1);
   const [allContactsPerPage, setAllContactsPerPage] = useState(50);
-  const [allContactsFilterOrigem, setAllContactsFilterOrigem] = useState<string>("all");
+  const [allContactsFilterOrigens, setAllContactsFilterOrigens] = useState<Set<string>>(new Set());
 
   // Lista de origens únicas para o dropdown
   const origensUnicas = useMemo(() => {
@@ -142,11 +142,25 @@ export function NovaCampanhaDialog({
     return Array.from(origens).sort();
   }, [contatos]);
 
-  // Contatos filtrados por origem
+  // Contatos filtrados por origem (multi-select)
   const contatosFiltradosPorOrigem = useMemo(() => {
-    if (allContactsFilterOrigem === "all") return contatos;
-    return contatos.filter(c => c.origem === allContactsFilterOrigem);
-  }, [contatos, allContactsFilterOrigem]);
+    if (allContactsFilterOrigens.size === 0) return contatos;
+    return contatos.filter(c => c.origem && allContactsFilterOrigens.has(c.origem));
+  }, [contatos, allContactsFilterOrigens]);
+
+  // Toggle origem filter
+  const toggleOrigemFilter = (origem: string) => {
+    setAllContactsFilterOrigens(prev => {
+      const next = new Set(prev);
+      if (next.has(origem)) {
+        next.delete(origem);
+      } else {
+        next.add(origem);
+      }
+      return next;
+    });
+    setAllContactsPage(1);
+  };
 
   // Preview state - stores randomly generated messages for each block
   const [previewMessages, setPreviewMessages] = useState<Record<number, { variacaoIdx: number; text: string; mediaPreview?: string | null; tipo: string }>>({});
@@ -1946,7 +1960,7 @@ export function NovaCampanhaDialog({
       setShowAllContacts(open);
       if (!open) {
         setAllContactsPage(1);
-        setAllContactsFilterOrigem("all");
+        setAllContactsFilterOrigens(new Set());
       }
     }}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
@@ -1954,39 +1968,92 @@ export function NovaCampanhaDialog({
           <DialogTitle>Lista de Contatos ({contatos.length})</DialogTitle>
           <DialogDescription>
             {selectedContacts.size} de {contatos.length} selecionados para envio
-            {allContactsFilterOrigem !== "all" && (
+            {allContactsFilterOrigens.size > 0 && (
               <span className="ml-2 text-primary">
-                (mostrando {contatosFiltradosPorOrigem.length} de "{allContactsFilterOrigem}")
+                (mostrando {contatosFiltradosPorOrigem.length} de {allContactsFilterOrigens.size} lista{allContactsFilterOrigens.size > 1 ? 's' : ''})
               </span>
             )}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Filter by origin */}
+        {/* Filter by origin - Multi-select */}
         {origensUnicas.length > 0 && (
-          <div className="flex items-center gap-2 pb-2">
-            <List className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Filtrar por lista:</span>
-            <Select value={allContactsFilterOrigem} onValueChange={(v) => {
-              setAllContactsFilterOrigem(v);
-              setAllContactsPage(1);
-            }}>
-              <SelectTrigger className="w-48 h-8">
-                <SelectValue placeholder="Todas as listas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as listas</SelectItem>
-                {origensUnicas.map(origem => (
-                  <SelectItem key={origem} value={origem}>
-                    {origem} ({contatos.filter(c => c.origem === origem).length})
-                  </SelectItem>
+          <div className="flex flex-col gap-2 pb-2">
+            <div className="flex items-center gap-2">
+              <List className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Filtrar por lista:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 min-w-48 justify-between">
+                    <span className="truncate">
+                      {allContactsFilterOrigens.size === 0 
+                        ? "Todas as listas" 
+                        : `${allContactsFilterOrigens.size} selecionada${allContactsFilterOrigens.size > 1 ? 's' : ''}`}
+                    </span>
+                    <ChevronDown className="h-3 w-3 ml-2 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <div className="p-2 border-b">
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="flex-1 h-7 text-xs"
+                        onClick={() => setAllContactsFilterOrigens(new Set(origensUnicas))}
+                      >
+                        Todas
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="flex-1 h-7 text-xs"
+                        onClick={() => setAllContactsFilterOrigens(new Set())}
+                      >
+                        Limpar
+                      </Button>
+                    </div>
+                  </div>
+                  <ScrollArea className="max-h-48">
+                    <div className="p-2 space-y-1">
+                      {origensUnicas.map(origem => (
+                        <div 
+                          key={origem} 
+                          className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer"
+                          onClick={() => toggleOrigemFilter(origem)}
+                        >
+                          <Checkbox 
+                            checked={allContactsFilterOrigens.has(origem)} 
+                            onCheckedChange={() => toggleOrigemFilter(origem)}
+                          />
+                          <span className="text-sm truncate flex-1">{origem}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {contatos.filter(c => c.origem === origem).length}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+              {allContactsFilterOrigens.size > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setAllContactsFilterOrigens(new Set())} className="h-8 px-2">
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+            {allContactsFilterOrigens.size > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {Array.from(allContactsFilterOrigens).map(origem => (
+                  <Badge key={origem} variant="secondary" className="text-xs gap-1">
+                    {origem}
+                    <X 
+                      className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                      onClick={() => toggleOrigemFilter(origem)}
+                    />
+                  </Badge>
                 ))}
-              </SelectContent>
-            </Select>
-            {allContactsFilterOrigem !== "all" && (
-              <Button variant="ghost" size="sm" onClick={() => setAllContactsFilterOrigem("all")} className="h-8 px-2">
-                <X className="h-3 w-3" />
-              </Button>
+              </div>
             )}
           </div>
         )}
