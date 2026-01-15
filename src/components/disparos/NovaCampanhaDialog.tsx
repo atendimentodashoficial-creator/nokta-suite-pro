@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -132,6 +133,9 @@ export function NovaCampanhaDialog({
   const [allContactsPage, setAllContactsPage] = useState(1);
   const [allContactsPerPage, setAllContactsPerPage] = useState(50);
   const [allContactsFilterOrigens, setAllContactsFilterOrigens] = useState<Set<string>>(new Set());
+
+  // Deduplicação automática de números
+  const [deduplicarNumeros, setDeduplicarNumeros] = useState(true);
 
   // Lista de origens únicas para o dropdown
   const origensUnicas = useMemo(() => {
@@ -571,13 +575,27 @@ export function NovaCampanhaDialog({
     setSelectedContacts(new Set());
   };
 
+  // Helper para pegar últimos 8 dígitos do número (para deduplicação)
+  const getLast8Digits = (numero: string) => {
+    const digits = numero.replace(/\D/g, "");
+    return digits.length > 8 ? digits.slice(-8) : digits;
+  };
+
   // Helper to add contacts and auto-select them
   const addContatosWithSelection = (novosContatos: Contato[], origem?: string) => {
     setContatos(prev => {
-      const existingNumbers = new Set(prev.map(c => c.numero));
+      // Se deduplicação está ativada, usar últimos 8 dígitos para comparação
+      const existingKeys = deduplicarNumeros 
+        ? new Set(prev.map(c => getLast8Digits(c.numero)))
+        : new Set(prev.map(c => c.numero));
+      
       const unique = novosContatos
-        .filter(c => !existingNumbers.has(c.numero))
+        .filter(c => {
+          const key = deduplicarNumeros ? getLast8Digits(c.numero) : c.numero;
+          return !existingKeys.has(key);
+        })
         .map(c => ({ ...c, origem: origem || c.origem }));
+      
       // Auto-select all new contacts
       setSelectedContacts(prevSelected => {
         const next = new Set(prevSelected);
@@ -1485,16 +1503,27 @@ export function NovaCampanhaDialog({
 
           {/* Contatos */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <List className="h-4 w-4 text-muted-foreground" />
                 <Label>Lista de Contatos ({contatos.length})</Label>
               </div>
-              <div className="flex gap-2 flex-wrap justify-end">
-                <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource}>
-                  <Users className="h-4 w-4 mr-1" />
-                  Importar
-                </Button>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    id="deduplicar" 
+                    checked={deduplicarNumeros} 
+                    onCheckedChange={setDeduplicarNumeros}
+                  />
+                  <Label htmlFor="deduplicar" className="text-xs text-muted-foreground cursor-pointer">
+                    Evitar duplicados
+                  </Label>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource}>
+                    <Users className="h-4 w-4 mr-1" />
+                    Importar
+                  </Button>
 
                 <Button variant="outline" size="sm" onClick={async () => {
                   try {
@@ -1540,6 +1569,7 @@ export function NovaCampanhaDialog({
                   CSV/TXT
                 </Button>
                 <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
+                </div>
               </div>
             </div>
 
