@@ -23,7 +23,7 @@ export const navigation = [
   { name: "Extrator", href: "/extrator", icon: Database },
   { name: "Instagram", href: "/instagram", icon: Instagram },
   { name: "Meta Ads", href: "/metricas-campanhas", icon: MetaIcon },
-  { name: "Google Ads", href: "/google-ads", icon: ({ className }: { className?: string }) => <img src={googleAdsIcon} alt="Google Ads" className={cn("h-5 w-5", className)} /> },
+  { name: "Google Ads", href: "/google-ads", icon: ({ className }: { className?: string }) => <img src={googleAdsIcon} alt="Google Ads" className={cn("h-5 w-5 brightness-0 invert", className)} /> },
   { name: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
