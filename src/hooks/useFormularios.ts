@@ -454,7 +454,7 @@ export function useFormulariosSessoes(filters?: { templateId?: string; dateStart
     queryFn: async () => {
       let query = supabase
         .from("formularios_sessoes")
-        .select("*, formularios_templates(nome, formularios_etapas(*))")
+        .select("*, formularios_templates(nome, layout_tipo, formularios_etapas(*))")
         .is("completed_at", null)
         .not("abandoned_at", "is", null)
         .order("abandoned_at", { ascending: false });
@@ -472,7 +472,7 @@ export function useFormulariosSessoes(filters?: { templateId?: string; dateStart
       const { data, error } = await query;
       if (error) throw error;
       return data as (FormularioSessao & { 
-        formularios_templates: { nome: string; formularios_etapas: FormularioEtapa[] } | null 
+        formularios_templates: { nome: string; layout_tipo: string; formularios_etapas: FormularioEtapa[] } | null 
       })[];
     },
     enabled: !!user,

@@ -252,9 +252,13 @@ export default function FormulariosAbandonos() {
                 </TableHeader>
                 <TableBody>
                 {paginatedSessoes?.map((sessao) => {
-                    const totalEtapas = sessao.formularios_templates?.formularios_etapas?.length || 1;
-                    // Para abandonos, mostramos etapas completadas (etapa_atual - 1), pois o usuário estava NA etapa mas não a completou
-                    const etapasCompletadas = Math.max(0, sessao.etapa_atual - 1);
+                    const isSinglePage = sessao.formularios_templates?.layout_tipo === "single_page";
+                    // Para single_page, sempre mostra 0/1 (pois é uma única etapa)
+                    // Para multi_step, mostra etapas completadas / total de etapas
+                    const totalEtapas = isSinglePage ? 1 : (sessao.formularios_templates?.formularios_etapas?.length || 1);
+                    // Para abandonos em single_page, sempre 0 completadas
+                    // Para multi_step, mostramos etapas completadas (etapa_atual - 1)
+                    const etapasCompletadas = isSinglePage ? 0 : Math.max(0, sessao.etapa_atual - 1);
                     const progresso = Math.round((etapasCompletadas / totalEtapas) * 100);
                     const tempoSessao = sessao.abandoned_at 
                       ? differenceInSeconds(new Date(sessao.abandoned_at), new Date(sessao.started_at))
