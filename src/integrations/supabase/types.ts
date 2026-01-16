@@ -2073,9 +2073,13 @@ export type Database = {
       formularios_templates: {
         Row: {
           background_color: string | null
+          border_radius: string | null
+          button_text_color: string | null
+          card_color: string | null
           cor_primaria: string | null
           created_at: string
           descricao: string | null
+          font_family: string | null
           id: string
           logo_url: string | null
           nome: string
@@ -2085,14 +2089,19 @@ export type Database = {
           pagina_obrigado_titulo: string | null
           slug: string | null
           status: string
+          text_color: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           background_color?: string | null
+          border_radius?: string | null
+          button_text_color?: string | null
+          card_color?: string | null
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
+          font_family?: string | null
           id?: string
           logo_url?: string | null
           nome: string
@@ -2102,14 +2111,19 @@ export type Database = {
           pagina_obrigado_titulo?: string | null
           slug?: string | null
           status?: string
+          text_color?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           background_color?: string | null
+          border_radius?: string | null
+          button_text_color?: string | null
+          card_color?: string | null
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
+          font_family?: string | null
           id?: string
           logo_url?: string | null
           nome?: string
@@ -2119,6 +2133,7 @@ export type Database = {
           pagina_obrigado_titulo?: string | null
           slug?: string | null
           status?: string
+          text_color?: string | null
           updated_at?: string
           user_id?: string
         }

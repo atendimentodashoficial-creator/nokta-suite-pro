@@ -6,10 +6,24 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTemplate, useUpdateTemplate, FormularioTemplate } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+const FONT_OPTIONS = [
+  { value: "Inter", label: "Inter" },
+  { value: "Roboto", label: "Roboto" },
+  { value: "Open Sans", label: "Open Sans" },
+  { value: "Lato", label: "Lato" },
+  { value: "Poppins", label: "Poppins" },
+  { value: "Montserrat", label: "Montserrat" },
+  { value: "Nunito", label: "Nunito" },
+  { value: "Raleway", label: "Raleway" },
+  { value: "Source Sans Pro", label: "Source Sans Pro" },
+  { value: "PT Sans", label: "PT Sans" },
+];
 
 interface TemplateDialogProps {
   open: boolean;
@@ -24,6 +38,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [corPrimaria, setCorPrimaria] = useState("#8B5CF6");
   const [backgroundColor, setBackgroundColor] = useState("#ffffff");
+  const [cardColor, setCardColor] = useState("#ffffff");
+  const [fontFamily, setFontFamily] = useState("Inter");
+  const [textColor, setTextColor] = useState("#1f2937");
+  const [buttonTextColor, setButtonTextColor] = useState("#ffffff");
+  const [borderRadius, setBorderRadius] = useState("12");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +83,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setStatus(template.status as "ativo" | "inativo");
       setCorPrimaria(template.cor_primaria || "#8B5CF6");
       setBackgroundColor(template.background_color || "#ffffff");
+      setCardColor(template.card_color || "#ffffff");
+      setFontFamily(template.font_family || "Inter");
+      setTextColor(template.text_color || "#1f2937");
+      setButtonTextColor(template.button_text_color || "#ffffff");
+      setBorderRadius(template.border_radius || "12");
       setLogoUrl(template.logo_url || null);
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
@@ -76,6 +100,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setStatus("ativo");
       setCorPrimaria("#8B5CF6");
       setBackgroundColor("#ffffff");
+      setCardColor("#ffffff");
+      setFontFamily("Inter");
+      setTextColor("#1f2937");
+      setButtonTextColor("#ffffff");
+      setBorderRadius("12");
       setLogoUrl(null);
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
@@ -137,6 +166,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       status,
       cor_primaria: corPrimaria,
       background_color: backgroundColor,
+      card_color: cardColor,
+      font_family: fontFamily,
+      text_color: textColor,
+      button_text_color: buttonTextColor,
+      border_radius: borderRadius,
       logo_url: logoUrl,
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
@@ -261,7 +295,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cor">Cor Primária</Label>
+                  <Label htmlFor="cor">Cor Primária (Botões)</Label>
                   <div className="flex items-center gap-2">
                     <Input
                       id="cor"
@@ -280,6 +314,27 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="buttonTextColor">Cor do Texto do Botão</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="buttonTextColor"
+                      type="color"
+                      value={buttonTextColor}
+                      onChange={(e) => setButtonTextColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={buttonTextColor}
+                      onChange={(e) => setButtonTextColor(e.target.value)}
+                      placeholder="#ffffff"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="bg">Cor de Fundo</Label>
                   <div className="flex items-center gap-2">
                     <Input
@@ -297,7 +352,81 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     />
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cardColor">Cor do Card</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="cardColor"
+                      type="color"
+                      value={cardColor}
+                      onChange={(e) => setCardColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={cardColor}
+                      onChange={(e) => setCardColor(e.target.value)}
+                      placeholder="#ffffff"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="textColor">Cor do Texto</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="textColor"
+                      type="color"
+                      value={textColor}
+                      onChange={(e) => setTextColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={textColor}
+                      onChange={(e) => setTextColor(e.target.value)}
+                      placeholder="#1f2937"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fontFamily">Fonte</Label>
+                  <Select value={fontFamily} onValueChange={setFontFamily}>
+                    <SelectTrigger id="fontFamily">
+                      <SelectValue placeholder="Selecione uma fonte" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_OPTIONS.map((font) => (
+                        <SelectItem key={font.value} value={font.value}>
+                          <span style={{ fontFamily: font.value }}>{font.label}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="borderRadius">Arredondamento dos Cantos: {borderRadius}px</Label>
+                <Input
+                  id="borderRadius"
+                  type="range"
+                  min="0"
+                  max="32"
+                  value={borderRadius}
+                  onChange={(e) => setBorderRadius(e.target.value)}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Quadrado</span>
+                  <span>Arredondado</span>
+                </div>
+              </div>
+
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
