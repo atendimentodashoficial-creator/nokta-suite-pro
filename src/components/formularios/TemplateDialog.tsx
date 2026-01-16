@@ -476,6 +476,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [fonteTamanhoBotoes, setFonteTamanhoBotoes] = useState("18px");
   const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("28px");
   const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("16px");
+  const [fonteTamanhoObrigadoBotao, setFonteTamanhoObrigadoBotao] = useState("16px");
   const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("18px");
   const [fonteTamanhoMidiaSubtitulo, setFonteTamanhoMidiaSubtitulo] = useState("14px");
   const [fonteMidia, setFonteMidia] = useState("Inter");
@@ -598,6 +599,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoBotoes((template as any).fonte_tamanho_botoes || "18px");
       setFonteTamanhoObrigadoTitulo((template as any).fonte_tamanho_obrigado_titulo || "28px");
       setFonteTamanhoObrigadoTexto((template as any).fonte_tamanho_obrigado_texto || "16px");
+      setFonteTamanhoObrigadoBotao((template as any).fonte_tamanho_obrigado_botao || "16px");
       
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
@@ -974,6 +976,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       fonte_tamanho_botoes: fonteTamanhoBotoes,
       fonte_tamanho_obrigado_titulo: fonteTamanhoObrigadoTitulo,
       fonte_tamanho_obrigado_texto: fonteTamanhoObrigadoTexto,
+      fonte_tamanho_obrigado_botao: fonteTamanhoObrigadoBotao,
       
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
@@ -1050,6 +1053,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     fonteTamanhoBotoes,
     fonteTamanhoObrigadoTitulo,
     fonteTamanhoObrigadoTexto,
+    fonteTamanhoObrigadoBotao,
     // Media styling
     fonteTamanhoMidiaTitulo,
     fonteTamanhoMidiaSubtitulo,
@@ -1805,6 +1809,17 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     <div className="space-y-1.5">
                       <Label className="text-sm">Mensagem</Label>
                       <Select value={fonteTamanhoObrigadoTexto} onValueChange={setFonteTamanhoObrigadoTexto}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Botão</Label>
+                      <Select value={fonteTamanhoObrigadoBotao} onValueChange={setFonteTamanhoObrigadoBotao}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
