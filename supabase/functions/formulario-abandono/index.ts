@@ -4,6 +4,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Max-Age": "86400",
 };
 
 Deno.serve(async (req) => {
@@ -12,7 +13,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { session_id, session_token, etapa_atual, dados_parciais } = await req.json();
+    const payload = await req.json();
+    const { action, session_id, session_token, etapa_atual, dados_parciais } = payload ?? {};
+
+    // "Ping" usado pelo frontend para aquecer CORS/preflight em navegadores novos
+    if (action === "ping") {
+      return new Response(
+        JSON.stringify({ success: true, pong: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!session_id || !session_token) {
       return new Response(
