@@ -226,7 +226,9 @@ export default function FormulariosAbandonos() {
                 <TableBody>
                 {sessoes?.map((sessao) => {
                     const totalEtapas = sessao.formularios_templates?.formularios_etapas?.length || 1;
-                    const progresso = Math.round((sessao.etapa_atual / totalEtapas) * 100);
+                    // Para abandonos, mostramos etapas completadas (etapa_atual - 1), pois o usuário estava NA etapa mas não a completou
+                    const etapasCompletadas = Math.max(0, sessao.etapa_atual - 1);
+                    const progresso = Math.round((etapasCompletadas / totalEtapas) * 100);
                     const tempoSessao = sessao.abandoned_at 
                       ? differenceInSeconds(new Date(sessao.abandoned_at), new Date(sessao.started_at))
                       : 0;
@@ -295,7 +297,7 @@ export default function FormulariosAbandonos() {
                           <div className="flex items-center gap-2">
                             <Progress value={progresso} className="w-20 h-2" />
                             <span className="text-sm text-muted-foreground">
-                              {sessao.etapa_atual}/{totalEtapas}
+                              {etapasCompletadas}/{totalEtapas}
                             </span>
                           </div>
                         </TableCell>
