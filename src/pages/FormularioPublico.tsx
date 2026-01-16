@@ -54,6 +54,10 @@ interface TemplateConfig {
   answer_text_color: string | null;
   error_text_color: string | null;
   logo_url: string | null;
+  titulo?: string | null;
+  subtitulo?: string | null;
+  titulo_cor?: string | null;
+  subtitulo_cor?: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
   pagina_obrigado_cta_texto: string | null;
@@ -1203,6 +1207,9 @@ export default function FormularioPublico() {
   const answersSize = config.fonte_tamanho_respostas || "14px";
   const buttonsSize = config.fonte_tamanho_botoes || "16px";
   const titleSize = config.fonte_tamanho_titulo || "20px";
+  const subtitleSize = config.fonte_tamanho_subtitulo || "14px";
+  const titleColor = config.titulo_cor || textColor;
+  const subtitleColor = config.subtitulo_cor || textColor;
 
   const isSinglePage = config.layout_tipo === "single_page";
   // Multi-step uses +2px for question titles
@@ -1243,9 +1250,14 @@ export default function FormularioPublico() {
                 Modo Preview
               </div>
             )}
-            {config.nome && (
-              <div className="text-center pt-2">
-                <CardTitle style={{ color: textColor, fontSize: titleSize }}>{config.nome}</CardTitle>
+            {(config.titulo || config.subtitulo) && (
+              <div className="text-center pt-2 space-y-1">
+                {config.titulo && (
+                  <CardTitle style={{ color: titleColor, fontSize: titleSize }}>{config.titulo}</CardTitle>
+                )}
+                {config.subtitulo && (
+                  <p style={{ color: subtitleColor, fontSize: subtitleSize, opacity: 0.8 }}>{config.subtitulo}</p>
+                )}
               </div>
             )}
           </CardHeader>
@@ -1330,6 +1342,16 @@ export default function FormularioPublico() {
           {isPreview && (
             <div className="text-xs text-muted-foreground px-3 py-1.5 bg-yellow-500/10 rounded-lg text-center">
               Modo Preview
+            </div>
+          )}
+          {(config.titulo || config.subtitulo) && (
+            <div className="text-center pt-2 space-y-1">
+              {config.titulo && (
+                <h2 className="font-bold" style={{ color: titleColor, fontSize: titleSize }}>{config.titulo}</h2>
+              )}
+              {config.subtitulo && (
+                <p style={{ color: subtitleColor, fontSize: subtitleSize, opacity: 0.8 }}>{config.subtitulo}</p>
+              )}
             </div>
           )}
           <div className="space-y-2">
