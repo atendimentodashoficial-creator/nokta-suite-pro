@@ -47,12 +47,14 @@ serve(async (req) => {
     
     // Usar service role para verificar tabela admin_users
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Verificar se o email do usuário existe na tabela admin_users
+
+    const normalizedEmail = (user.email ?? "").trim().toLowerCase();
+
+    // Verificar se o email do usuário existe na tabela admin_users (case-insensitive)
     const { data: adminUser, error: adminError } = await supabaseAdmin
       .from('admin_users')
       .select('id, email')
-      .eq('email', user.email)
+      .ilike('email', normalizedEmail)
       .maybeSingle();
     
     if (adminError) {
@@ -85,11 +87,11 @@ serve(async (req) => {
     const { data: adminEmails } = await supabaseAdmin
       .from('admin_users')
       .select('email');
-    
-    const adminEmailSet = new Set((adminEmails || []).map(a => a.email));
-    
+
+    const adminEmailSet = new Set((adminEmails || []).map(a => (a.email || '').trim().toLowerCase()));
+
     const filteredUsers = usersData.users
-      .filter(u => !adminEmailSet.has(u.email || ''))
+      .filter(u => !adminEmailSet.has((u.email || '').trim().toLowerCase()))
       .sort((a, b) => {
         const orderA = (a.user_metadata as any)?.display_order ?? 999;
         const orderB = (b.user_metadata as any)?.display_order ?? 999;
