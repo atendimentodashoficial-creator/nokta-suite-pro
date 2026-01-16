@@ -822,22 +822,30 @@ export default function FormularioPublico() {
               
               const mediaSection = (
                 <div className="w-full space-y-4">
-                  {/* Multiple Images */}
-                  {imagens.filter(img => img.url).map((img, idx) => (
-                    <div key={`img-${idx}`} className="space-y-2">
-                    {img.titulo && (
-                        <h3 className="text-xl md:text-2xl font-semibold text-center" style={{ color: textColor }}>
-                          {img.titulo}
-                        </h3>
-                      )}
-                      {img.subtitulo && (
-                        <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
-                          {img.subtitulo}
-                        </p>
-                      )}
-                      <img src={img.url} alt={img.titulo || `Imagem ${idx + 1}`} className="max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto" />
+                  {/* Multiple Images - displayed horizontally */}
+                  {imagens.filter(img => img.url).length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-4">
+                      {imagens.filter(img => img.url).map((img, idx) => (
+                        <div key={`img-${idx}`} className="flex flex-col items-center space-y-2">
+                          <img 
+                            src={img.url} 
+                            alt={img.titulo || `Imagem ${idx + 1}`} 
+                            className="h-24 md:h-32 w-auto max-w-[120px] md:max-w-[150px] object-contain rounded-lg" 
+                          />
+                          {img.titulo && (
+                            <h3 className="text-sm md:text-base font-semibold text-center" style={{ color: textColor }}>
+                              {img.titulo}
+                            </h3>
+                          )}
+                          {img.subtitulo && (
+                            <p className="text-xs text-center" style={{ color: textColor, opacity: 0.7 }}>
+                              {img.subtitulo}
+                            </p>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                   
                   {/* Multiple Videos */}
                   {videosArr.filter(vid => vid.url && getVideoEmbedUrl(vid.url)).map((vid, idx) => (
