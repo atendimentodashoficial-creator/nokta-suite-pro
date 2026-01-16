@@ -3,10 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export interface SideImage {
+  url: string;
+}
+
 export interface MediaItem {
   url: string;
   titulo: string;
   subtitulo: string;
+  sideImages?: SideImage[];
 }
 
 export interface FormularioTemplate {
