@@ -1297,41 +1297,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </p>
               </div>
 
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Preview</h4>
-                <div className="text-center space-y-3">
-                  {imagens.filter(i => i.url).length > 0 && (
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {imagens.filter(i => i.url).map((img, idx) => (
-                        <img key={idx} src={img.url} alt={`Preview ${idx}`} className="h-12 w-auto object-contain rounded" />
-                      ))}
-                    </div>
-                  )}
-                  {videos.filter(v => v.url).length > 0 && (
-                    <div className="text-xs text-muted-foreground bg-background/50 p-2 rounded">
-                      🎬 {videos.filter(v => v.url).length} vídeo(s) configurado(s)
-                    </div>
-                  )}
-                  {imagens.filter(i => i.url).length === 0 && videos.filter(v => v.url).length === 0 && (
-                    <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center" style={{ backgroundColor: corPrimaria + "20" }}>
-                      <svg className="w-8 h-8" style={{ color: corPrimaria }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                  <h3 className="text-xl font-bold">{paginaObrigadoTitulo || "Obrigado!"}</h3>
-                  <p className="text-muted-foreground text-sm">{paginaObrigadoMensagem}</p>
-                  {paginaObrigadoCtaTexto && (
-                    <button 
-                      type="button"
-                      className="px-4 py-2 rounded-lg text-white text-sm"
-                      style={{ backgroundColor: corPrimaria }}
-                    >
-                      {paginaObrigadoCtaTexto}
-                    </button>
-                  )}
-                </div>
-              </div>
             </TabsContent>
           </Tabs>
 
