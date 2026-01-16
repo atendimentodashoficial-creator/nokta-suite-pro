@@ -71,7 +71,7 @@ export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherPr
 
   const handleBackToAdmin = () => {
     // Limpar sessão do cliente e voltar ao painel admin
-    supabase.auth.signOut().then(() => {
+    supabase.auth.signOut({ scope: "local" }).then(() => {
       navigate('/admin/login');
     });
   };
