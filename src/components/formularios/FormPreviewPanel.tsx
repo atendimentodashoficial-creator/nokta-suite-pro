@@ -59,6 +59,7 @@ interface FormPreviewPanelProps {
     fonteTamanhoIndicadorEtapa?: string;
     corDescricaoEtapa?: string;
     corIndicadorEtapa?: string;
+    barraProgressoVisivel?: boolean;
   };
   showThankYou?: boolean;
 }
@@ -152,6 +153,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     fonteTamanhoIndicadorEtapa = "14px",
     corDescricaoEtapa = "#6b7280",
     corIndicadorEtapa = "#6b7280",
+    barraProgressoVisivel = true,
   } = config;
 
   const validImagens = imagens.filter(i => i.url);
@@ -632,15 +634,37 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           )}
           
           {/* Progress bar (multi-step only) */}
-          {layoutTipo === "multi_step" && hasEtapas && (
-            <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: progressBackgroundColor }}>
-              <div 
-                className="h-full rounded-full transition-all"
-                style={{ 
-                  width: `${Math.round(((currentEtapaIndex + 1) / etapas.length) * 100)}%`,
-                  backgroundColor: corPrimaria 
-                }}
-              />
+          {layoutTipo === "multi_step" && hasEtapas && barraProgressoVisivel && (
+            <div className="space-y-1">
+              {/* Step indicator and percentage */}
+              <div className="flex items-center justify-between">
+                <span
+                  style={{
+                    color: corIndicadorEtapa,
+                    fontSize: fonteTamanhoIndicadorEtapa,
+                  }}
+                >
+                  {currentEtapaIndex + 1}/{etapas.length}
+                </span>
+                <span
+                  style={{
+                    color: corIndicadorEtapa,
+                    fontSize: fonteTamanhoIndicadorEtapa,
+                  }}
+                >
+                  {Math.round(((currentEtapaIndex + 1) / etapas.length) * 100)}%
+                </span>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: progressBackgroundColor }}>
+                <div 
+                  className="h-full rounded-full transition-all"
+                  style={{ 
+                    width: `${Math.round(((currentEtapaIndex + 1) / etapas.length) * 100)}%`,
+                    backgroundColor: corPrimaria 
+                  }}
+                />
+              </div>
             </div>
           )}
           
