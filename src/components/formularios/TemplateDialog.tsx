@@ -1366,7 +1366,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="buttonTextColor">Cor do Texto (Botão)</Label>
+                  <Label htmlFor="buttonTextColor">Texto Botão Principal</Label>
                   <div className="flex items-center gap-2">
                     <div 
                       className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
