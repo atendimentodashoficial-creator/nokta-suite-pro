@@ -147,6 +147,56 @@ serve(async (req) => {
         );
       }
 
+      case 'get_permissions': {
+        // Obter permissões de features do usuário
+        const { data: permissions, error: getError } = await supabase
+          .from('user_feature_access')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (getError) throw getError;
+
+        return new Response(
+          JSON.stringify({ success: true, permissions }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'update_permissions': {
+        // Atualizar permissões de features do usuário
+        const { permissions } = await req.json().catch(() => ({ permissions: [] }));
+        const body = await req.clone().json();
+        const userPermissions = body.permissions || [];
+
+        // Deletar permissões existentes
+        const { error: deleteError } = await supabase
+          .from('user_feature_access')
+          .delete()
+          .eq('user_id', userId);
+
+        if (deleteError) throw deleteError;
+
+        // Inserir novas permissões
+        if (userPermissions.length > 0) {
+          const permissionsToInsert = userPermissions.map((p: { feature_key: string; enabled: boolean }) => ({
+            user_id: userId,
+            feature_key: p.feature_key,
+            enabled: p.enabled
+          }));
+
+          const { error: insertError } = await supabase
+            .from('user_feature_access')
+            .insert(permissionsToInsert);
+
+          if (insertError) throw insertError;
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Permissões atualizadas' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: 'Ação inválida' }),

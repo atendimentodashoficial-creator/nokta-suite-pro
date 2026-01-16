@@ -9,6 +9,27 @@ import noktaLogoDefault from "@/assets/nokta-logo.png";
 import googleAdsIcon from "@/assets/google-ads-icon.png";
 import { createContext, useContext } from "react";
 import { AdminClientSwitcher } from "./AdminClientSwitcher";
+import { useUserFeatureAccess } from "@/hooks/useUserFeatureAccess";
+
+// Mapeamento de href para feature_key
+const hrefToFeatureKey: Record<string, string> = {
+  "/": "calendario",
+  "/nao-compareceu": "nao-compareceu",
+  "/leads": "leads",
+  "/clientes": "clientes",
+  "/em-negociacao": "negociacao",
+  "/faturas": "faturas",
+  "/despesas": "despesas",
+  "/relatorios": "relatorios",
+  "/whatsapp": "whatsapp",
+  "/disparos": "disparos",
+  "/extrator": "extrator",
+  "/instagram": "instagram",
+  "/metricas-campanhas": "meta-ads",
+  "/google-ads": "google-ads",
+  "/configuracoes": "configuracoes",
+};
+
 export const navigation = [
   { name: "Calendário", href: "/", icon: Calendar },
   { name: "Não Compareceu", href: "/nao-compareceu", icon: UserX },
@@ -46,6 +67,13 @@ interface SidebarContentProps {
 
 export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse }: SidebarContentProps) => {
   const { user, signOut } = useAuth();
+  const { isFeatureEnabled } = useUserFeatureAccess();
+
+  // Filtrar navegação baseado nas permissões do usuário
+  const filteredNavigation = navigation.filter(item => {
+    const featureKey = hrefToFeatureKey[item.href];
+    return featureKey ? isFeatureEnabled(featureKey) : true;
+  });
 
   const handleLogout = async () => {
     await signOut();
@@ -93,7 +121,7 @@ export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse
           "flex-1 overflow-y-auto flex flex-col",
           collapsed ? "py-4 gap-6 items-center" : "px-3 py-4 space-y-1"
         )}>
-          {navigation.map((item) => (
+          {filteredNavigation.map((item) => (
             <div key={item.name}>
               {/* Separator only when expanded */}
               {item.separator && !collapsed && <div className="my-2 border-t border-sidebar-border" />}
