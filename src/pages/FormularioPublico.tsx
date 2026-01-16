@@ -427,6 +427,8 @@ export default function FormularioPublico() {
   };
 
   const handleSubmitSinglePage = async () => {
+    if (!config) return;
+
     // Validate all fields
     const newErrors: Record<string, string> = {};
     for (const etapa of etapas) {
@@ -436,6 +438,17 @@ export default function FormularioPublico() {
           if (!value || (Array.isArray(value) && value.length === 0)) {
             newErrors[etapa.id] = "Selecione pelo menos uma opção";
           }
+        } else if (etapa.tipo === "multiplos_campos") {
+          // Validate each field in multiplos_campos
+          const campos = etapa.configuracao?.campos || [];
+          campos.forEach(campo => {
+            if (campo.obrigatorio) {
+              const campoValue = formData[campo.id] as string;
+              if (!campoValue || !campoValue.trim()) {
+                newErrors[campo.id] = "Campo obrigatório";
+              }
+            }
+          });
         } else if (!value || (typeof value === "string" && !value.trim())) {
           newErrors[etapa.id] = "Campo obrigatório";
         }
@@ -447,6 +460,22 @@ export default function FormularioPublico() {
         } catch {
           newErrors[etapa.id] = "E-mail inválido";
         }
+      }
+      // Validate email fields inside multiplos_campos
+      if (etapa.tipo === "multiplos_campos") {
+        const campos = etapa.configuracao?.campos || [];
+        campos.forEach(campo => {
+          if (campo.tipo === "email") {
+            const campoValue = formData[campo.id] as string;
+            if (campoValue && campoValue.trim()) {
+              try {
+                z.string().email().parse(campoValue);
+              } catch {
+                newErrors[campo.id] = "E-mail inválido";
+              }
+            }
+          }
+        });
       }
     }
 
