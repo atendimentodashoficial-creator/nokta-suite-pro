@@ -24,7 +24,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, userId, email, password, fullName, expiryDate } = await req.json();
+    const { action, userId, email, password, fullName, expiryDate, displayOrder } = await req.json();
 
     switch (action) {
       case 'create': {
@@ -108,6 +108,36 @@ serve(async (req) => {
             success: true, 
             link: linkData.properties?.action_link 
           }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'update_name': {
+        // Atualizar nome do usuário
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          userId,
+          { user_metadata: { full_name: fullName } }
+        );
+
+        if (updateError) throw updateError;
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Nome atualizado' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'update_order': {
+        // Atualizar ordem de exibição do usuário
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          userId,
+          { user_metadata: { display_order: displayOrder } }
+        );
+
+        if (updateError) throw updateError;
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Ordem atualizada' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

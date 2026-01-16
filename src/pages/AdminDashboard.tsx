@@ -10,9 +10,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Pencil, GripVertical, Check, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 interface Metrics {
   totalUsers: number;
   totalLeads: number;
@@ -30,6 +33,7 @@ interface User {
   banned_until?: string;
   user_metadata?: {
     full_name?: string;
+    display_order?: number;
   };
   leadsCount?: number;
   faturasCount?: number;
@@ -81,6 +85,114 @@ const getLastDayOfLastMonth = () => {
   return new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
 };
 type PeriodPreset = 'current_month' | 'last_month' | 'custom';
+// Componente para card arrastável
+interface SortableUserCardProps {
+  user: User;
+  onEdit: (userId: string, currentName: string) => void;
+  onBlock: (userId: string) => void;
+  onUnblock: (userId: string) => void;
+  onLogin: (email: string) => void;
+}
+
+const SortableUserCard = ({ user, onEdit, onBlock, onUnblock, onLogin }: SortableUserCardProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: user.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const expiryDate = (user.user_metadata as any)?.expiry_date;
+  const isExpired = expiryDate && new Date(expiryDate) < new Date();
+  const displayName = user.user_metadata?.full_name || user.email;
+
+  return (
+    <Card ref={setNodeRef} style={style} className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none">
+              <GripVertical className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-base truncate">{displayName}</CardTitle>
+              {user.user_metadata?.full_name && (
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              )}
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(user.id, user.user_metadata?.full_name || '')} className="h-8 w-8">
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex items-center justify-between">
+            <CardDescription className="text-xs">
+              Criado em {new Date(user.created_at).toLocaleDateString('pt-BR')}
+            </CardDescription>
+            <div>
+              {user.banned_until ? (
+                <Badge variant="destructive" className="cursor-pointer hover:opacity-80" onClick={() => onUnblock(user.id)}>
+                  Inativo
+                </Badge>
+              ) : isExpired ? (
+                <Badge variant="secondary">Expirado</Badge>
+              ) : (
+                <Badge variant="default" className="cursor-pointer hover:opacity-80" onClick={() => onBlock(user.id)}>
+                  Ativo
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-muted-foreground text-xs">Leads</p>
+            <p className="font-medium">{user.leadsCount || 0}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs">Agendamentos</p>
+            <p className="font-medium">{user.agendamentosCount || 0}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs">Faturas</p>
+            <p className="font-medium">
+              {user.faturasCount || 0}{' '}
+              (<span className="text-[#fba82d]">{user.faturasCountNegociacao || 0}</span>/<span className="text-[#00b312]">{user.faturasCountFechadas || 0}</span>)
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs">Previsto</p>
+            <p className="font-medium">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(user.totalFaturado || 0)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs">Negociação</p>
+            <p className="font-medium text-[#fba82d]">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(user.emNegociacao || 0)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs">Pago</p>
+            <p className="font-medium text-[#00b312]">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(user.totalPago || 0)}
+            </p>
+          </div>
+        </div>
+        
+        <div className="border-t pt-[18px]">
+          <Button variant="outline" size="sm" onClick={() => onLogin(user.email)} className="w-full pt-[2px]">
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Acessar como usuário
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -101,6 +213,23 @@ export default function AdminDashboard() {
   const [endDate, setEndDate] = useState<string>(getLastDayOfCurrentMonth());
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Estados para edição de nome
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  // Sensores para drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Ordenar usuários
   const sortedUsers = useMemo(() => {
@@ -214,7 +343,14 @@ export default function AdminDashboard() {
       setMetrics(metricsData.metrics);
 
       // Usar recentUsers retornado pelas métricas que já inclui estatísticas
-      setUsers(metricsData.metrics.recentUsers || []);
+      // Ordenar por display_order se existir
+      const usersData = metricsData.metrics.recentUsers || [];
+      const orderedUsers = usersData.sort((a: User, b: User) => {
+        const orderA = a.user_metadata?.display_order ?? 9999;
+        const orderB = b.user_metadata?.display_order ?? 9999;
+        return orderA - orderB;
+      });
+      setUsers(orderedUsers);
 
       // Usar dados de weekday e daily retornados pelas métricas
       setWeekdayData(metricsData.metrics.weekdayData || []);
@@ -311,15 +447,98 @@ export default function AdminDashboard() {
       toast.error('Erro ao desbloquear usuário');
     }
   };
+  
+  // Função para abrir dialog de edição de nome
+  const handleOpenEditDialog = (userId: string, currentName: string) => {
+    setEditingUserId(userId);
+    setEditingName(currentName);
+    setEditDialogOpen(true);
+  };
+
+  // Função para salvar nome editado
+  const handleSaveUserName = async () => {
+    if (!editingUserId) return;
+    
+    try {
+      const adminToken = localStorage.getItem('admin_token');
+      const { error } = await supabase.functions.invoke('admin-manage-users', {
+        body: {
+          action: 'update_name',
+          userId: editingUserId,
+          fullName: editingName
+        },
+        headers: {
+          Authorization: `Bearer ${adminToken}`
+        }
+      });
+
+      if (error) throw error;
+      toast.success('Nome atualizado com sucesso!');
+      setEditDialogOpen(false);
+      setEditingUserId(null);
+      setEditingName("");
+      loadData();
+    } catch (error: any) {
+      console.error('Erro ao atualizar nome:', error);
+      toast.error('Erro ao atualizar nome');
+    }
+  };
+
+  // Função para lidar com drag and drop
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = users.findIndex(u => u.id === active.id);
+      const newIndex = users.findIndex(u => u.id === over.id);
+      
+      const newOrder = arrayMove(users, oldIndex, newIndex);
+      setUsers(newOrder);
+      
+      // Atualizar a ordem no backend
+      const adminToken = localStorage.getItem('admin_token');
+      
+      try {
+        // Atualizar a ordem de cada usuário afetado
+        await Promise.all(newOrder.map((user, index) => 
+          supabase.functions.invoke('admin-manage-users', {
+            body: {
+              action: 'update_order',
+              userId: user.id,
+              displayOrder: index
+            },
+            headers: {
+              Authorization: `Bearer ${adminToken}`
+            }
+          })
+        ));
+        
+        // Atualizar também no localStorage para o switcher
+        const usersForSwitcher = newOrder.map(u => ({
+          id: u.id,
+          email: u.email,
+          user_metadata: { ...u.user_metadata, display_order: newOrder.findIndex(x => x.id === u.id) }
+        }));
+        localStorage.setItem('admin_users_list', JSON.stringify(usersForSwitcher));
+        
+        toast.success('Ordem atualizada!');
+      } catch (error) {
+        console.error('Erro ao atualizar ordem:', error);
+        toast.error('Erro ao salvar nova ordem');
+        loadData(); // Recarregar ordem original em caso de erro
+      }
+    }
+  };
+
   const handleLoginAsUser = async (userEmail: string) => {
     try {
       const adminToken = localStorage.getItem('admin_token');
       
       // Salvar a lista de usuários para o switcher no sidebar
-      const usersForSwitcher = users.map(u => ({
+      const usersForSwitcher = users.map((u, index) => ({
         id: u.id,
         email: u.email,
-        user_metadata: u.user_metadata
+        user_metadata: { ...u.user_metadata, display_order: index }
       }));
       localStorage.setItem('admin_users_list', JSON.stringify(usersForSwitcher));
       
@@ -550,8 +769,16 @@ export default function AdminDashboard() {
                   {sortedUsers.map(user => {
                     const expiryDate = (user.user_metadata as any)?.expiry_date;
                     const isExpired = expiryDate && new Date(expiryDate) < new Date();
+                    const displayName = user.user_metadata?.full_name || user.email;
                     return <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.email}</TableCell>
+                        <TableCell className="font-medium">
+                          <div>
+                            <span>{displayName}</span>
+                            {user.user_metadata?.full_name && (
+                              <span className="text-xs text-muted-foreground block">{user.email}</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
                         <TableCell>{user.leadsCount || 0}</TableCell>
                         <TableCell>{user.agendamentosCount || 0}</TableCell>
@@ -585,96 +812,72 @@ export default function AdminDashboard() {
                             </Badge>}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)} title="Acessar como este usuário">
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => handleOpenEditDialog(user.id, user.user_metadata?.full_name || '')} title="Editar nome">
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)} title="Acessar como este usuário">
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>;
                   })}
                 </TableBody>
               </Table>}
 
-            {/* Versão Mobile - Cards */}
-            {isMobile && <div className="space-y-4">
-                {users.map(user => {
-                  const expiryDate = (user.user_metadata as any)?.expiry_date;
-                  const isExpired = expiryDate && new Date(expiryDate) < new Date();
-                  return <Card key={user.id} className="overflow-hidden">
-                      <CardHeader className="pb-3">
-                        <div className="space-y-2">
-                          <CardTitle className="text-base">{user.email}</CardTitle>
-                          <div className="flex items-center justify-between">
-                            <CardDescription className="text-xs">
-                              Criado em {new Date(user.created_at).toLocaleDateString('pt-BR')}
-                            </CardDescription>
-                            <div>
-                              {user.banned_until ? <Badge variant="destructive" className="cursor-pointer hover:opacity-80" onClick={() => handleUnblockUser(user.id)}>
-                                  Inativo
-                                </Badge> : isExpired ? <Badge variant="secondary">Expirado</Badge> : <Badge variant="default" className="cursor-pointer hover:opacity-80" onClick={() => handleBlockUser(user.id)}>
-                                  Ativo
-                                </Badge>}
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <p className="text-muted-foreground text-xs">Leads</p>
-                            <p className="font-medium">{user.leadsCount || 0}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Agendamentos</p>
-                            <p className="font-medium">{user.agendamentosCount || 0}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Faturas</p>
-                            <p className="font-medium">
-                              {user.faturasCount || 0}{' '}
-                              (<span className="text-[#fba82d]">{user.faturasCountNegociacao || 0}</span>/<span className="text-[#00b312]">{user.faturasCountFechadas || 0}</span>)
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Previsto</p>
-                            <p className="font-medium">
-                              {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL'
-                            }).format(user.totalFaturado || 0)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Negociação</p>
-                            <p className="font-medium text-[#fba82d]">
-                              {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL'
-                            }).format(user.emNegociacao || 0)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Pago</p>
-                            <p className="font-medium text-[#00b312]">
-                              {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL'
-                            }).format(user.totalPago || 0)}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="border-t pt-[18px]">
-                          <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)} className="w-full pt-[2px]">
-                            <ExternalLink className="w-4 h-4 mr-2" />
-                            Acessar como usuário
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>;
-                })}
-              </div>}
+            {/* Versão Mobile - Cards com Drag and Drop */}
+            {isMobile && (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-4">
+                    {users.map(user => (
+                      <SortableUserCard 
+                        key={user.id} 
+                        user={user}
+                        onEdit={handleOpenEditDialog}
+                        onBlock={handleBlockUser}
+                        onUnblock={handleUnblockUser}
+                        onLogin={handleLoginAsUser}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
           </CardContent>
         </Card>
+
+        {/* Dialog para Editar Nome */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Nome do Cliente</DialogTitle>
+              <DialogDescription>
+                Altere o nome de exibição do cliente
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nome</Label>
+                <Input 
+                  id="edit-name" 
+                  value={editingName} 
+                  onChange={e => setEditingName(e.target.value)} 
+                  placeholder="Nome do cliente"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveUserName}>
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </TabsContent>
 
       {/* Aba Dashboard - Filtros e Gráficos */}
