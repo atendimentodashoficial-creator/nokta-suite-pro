@@ -44,6 +44,7 @@ interface FormPreviewPanelProps {
     fonteTamanhoBotoes?: string;
     fonteTamanhoObrigadoTitulo?: string;
     fonteTamanhoObrigadoTexto?: string;
+    fonteTamanhoObrigadoBotao?: string;
     // Media styling
     fonteTamanhoMidiaTitulo?: string;
     fonteTamanhoMidiaSubtitulo?: string;
@@ -131,6 +132,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     fonteTamanhoBotoes = "16px",
     fonteTamanhoObrigadoTitulo = "28px",
     fonteTamanhoObrigadoTexto = "16px",
+    fonteTamanhoObrigadoBotao = "16px",
     // Media styling
     fonteTamanhoMidiaTitulo = "18px",
     fonteTamanhoMidiaSubtitulo = "14px",
@@ -168,6 +170,8 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     </>
   );
 
+  const obrigadoBotaoSize = parseInt(fonteTamanhoObrigadoBotao) || 16;
+
   const CtaSection = () => (
     paginaObrigadoCtaTexto ? (
       <Button
@@ -177,7 +181,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           backgroundColor: corPrimaria, 
           color: buttonTextColor,
           borderRadius: `${parseInt(borderRadius) / 2}px`,
-          fontSize: `${Math.min((parseInt(fonteTamanhoBotoes) || 16) * 0.75, 14)}px`,
+          fontSize: `${Math.round(obrigadoBotaoSize * 0.5)}px`,
         }}
       >
         {paginaObrigadoCtaTexto}
