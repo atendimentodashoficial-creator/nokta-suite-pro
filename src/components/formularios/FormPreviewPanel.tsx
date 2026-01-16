@@ -34,6 +34,7 @@ interface FormPreviewPanelProps {
     titulo?: string;
     subtitulo?: string;
     tituloCor?: string;
+    subtituloCor?: string;
     fonteTamanhoTitulo?: string;
     fonteTamanhoSubtitulo?: string;
     fonteTamanhoPerguntas?: string;
@@ -120,6 +121,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     titulo = "",
     subtitulo = "",
     tituloCor = "#1f2937",
+    subtituloCor = "#6b7280",
     fonteTamanhoTitulo = "24px",
     fonteTamanhoSubtitulo = "16px",
     fonteTamanhoPerguntas = "16px",
@@ -566,8 +568,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               )}
               {subtitulo && (
                 <p style={{ 
-                  color: textColor, 
-                  opacity: 0.7,
+                  color: subtituloCor, 
                   fontSize: `${Math.min((parseInt(fonteTamanhoSubtitulo) || 16) * 0.6, 12)}px` 
                 }}>
                   {subtitulo}

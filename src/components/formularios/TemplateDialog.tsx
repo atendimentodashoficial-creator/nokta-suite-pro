@@ -463,6 +463,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [titulo, setTitulo] = useState("");
   const [subtitulo, setSubtitulo] = useState("");
   const [tituloCor, setTituloCor] = useState("#1f2937");
+  const [subtituloCor, setSubtituloCor] = useState("#6b7280");
   const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("24px");
   const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("16px");
   const [fonteTamanhoPerguntas, setFonteTamanhoPerguntas] = useState("16px");
@@ -578,6 +579,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setTitulo((template as any).titulo || "");
       setSubtitulo((template as any).subtitulo || "");
       setTituloCor((template as any).titulo_cor || "#1f2937");
+      setSubtituloCor((template as any).subtitulo_cor || "#6b7280");
       setFonteTamanhoTitulo((template as any).fonte_tamanho_titulo || "24px");
       setFonteTamanhoSubtitulo((template as any).fonte_tamanho_subtitulo || "16px");
       setFonteTamanhoPerguntas((template as any).fonte_tamanho_perguntas || "16px");
@@ -920,6 +922,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       titulo: titulo || null,
       subtitulo: subtitulo || null,
       titulo_cor: tituloCor,
+      subtitulo_cor: subtituloCor,
       fonte_tamanho_titulo: fonteTamanhoTitulo,
       fonte_tamanho_subtitulo: fonteTamanhoSubtitulo,
       fonte_tamanho_perguntas: fonteTamanhoPerguntas,
@@ -990,6 +993,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     titulo,
     subtitulo,
     tituloCor,
+    subtituloCor,
     fonteTamanhoTitulo,
     fonteTamanhoSubtitulo,
     fonteTamanhoPerguntas,
@@ -1269,6 +1273,59 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-3 pt-3">
+              {/* Linha 0: Título e Subtítulo cores */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tituloCor">Título</Label>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: tituloCor }}
+                      onClick={() => document.getElementById('tituloCor')?.click()}
+                    >
+                      <Input
+                        id="tituloCor"
+                        type="color"
+                        value={tituloCor}
+                        onChange={(e) => setTituloCor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      value={tituloCor}
+                      onChange={(e) => setTituloCor(e.target.value)}
+                      placeholder="#1f2937"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subtituloCor">Subtítulo</Label>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: subtituloCor }}
+                      onClick={() => document.getElementById('subtituloCor')?.click()}
+                    >
+                      <Input
+                        id="subtituloCor"
+                        type="color"
+                        value={subtituloCor}
+                        onChange={(e) => setSubtituloCor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      value={subtituloCor}
+                      onChange={(e) => setSubtituloCor(e.target.value)}
+                      placeholder="#6b7280"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Linha 1: Cor de Fundo, Cor do Card */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

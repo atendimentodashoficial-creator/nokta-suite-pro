@@ -2112,6 +2112,7 @@ export type Database = {
           slug: string | null
           status: string
           subtitulo: string | null
+          subtitulo_cor: string | null
           text_color: string | null
           titulo: string | null
           titulo_cor: string | null
@@ -2160,6 +2161,7 @@ export type Database = {
           slug?: string | null
           status?: string
           subtitulo?: string | null
+          subtitulo_cor?: string | null
           text_color?: string | null
           titulo?: string | null
           titulo_cor?: string | null
@@ -2208,6 +2210,7 @@ export type Database = {
           slug?: string | null
           status?: string
           subtitulo?: string | null
+          subtitulo_cor?: string | null
           text_color?: string | null
           titulo?: string | null
           titulo_cor?: string | null
