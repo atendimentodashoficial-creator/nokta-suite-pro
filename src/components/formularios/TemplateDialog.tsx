@@ -1181,8 +1181,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Opções Múltipla Escolha</Label>
-                      <Select value={fonteTamanhoTitulo} onValueChange={setFonteTamanhoTitulo}>
+                      <Label className="text-sm">Texto das Respostas</Label>
+                      <Select value={fonteTamanhoSubtitulo} onValueChange={setFonteTamanhoSubtitulo}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
@@ -1191,17 +1191,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Texto das Respostas</Label>
-                    <Select value={fonteTamanhoSubtitulo} onValueChange={setFonteTamanhoSubtitulo}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {FONT_SIZE_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </CollapsibleContent>
               </Collapsible>
