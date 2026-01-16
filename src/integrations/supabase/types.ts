@@ -2085,6 +2085,7 @@ export type Database = {
           descricao: string | null
           error_text_color: string | null
           font_family: string | null
+          fonte_tamanho_botoes: string | null
           fonte_tamanho_campos: string | null
           fonte_tamanho_obrigado_texto: string | null
           fonte_tamanho_obrigado_titulo: string | null
@@ -2134,6 +2135,7 @@ export type Database = {
           descricao?: string | null
           error_text_color?: string | null
           font_family?: string | null
+          fonte_tamanho_botoes?: string | null
           fonte_tamanho_campos?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
@@ -2183,6 +2185,7 @@ export type Database = {
           descricao?: string | null
           error_text_color?: string | null
           font_family?: string | null
+          fonte_tamanho_botoes?: string | null
           fonte_tamanho_campos?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
