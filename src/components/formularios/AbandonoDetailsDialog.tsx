@@ -153,11 +153,8 @@ export default function AbandonoDetailsDialog({ sessao, open, onOpenChange }: Ab
                     {dadosEtapa.length > 0 && (
                       <div className="mt-3 ml-8 space-y-2">
                         {dadosEtapa.map(({ key, label, value }) => (
-                          <div key={key} className="bg-muted/50 p-2 rounded text-sm">
-                            <span className="text-muted-foreground capitalize">{label.replace(/_/g, " ")}: </span>
-                            <span className="font-medium">
-                              {Array.isArray(value) ? value.join(", ") : String(value)}
-                            </span>
+                          <div key={key} className="bg-muted/50 p-2 rounded text-sm font-medium">
+                            {Array.isArray(value) ? value.join(", ") : String(value)}
                           </div>
                         ))}
                       </div>
