@@ -98,18 +98,17 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     setUploadingLogo(true);
     try {
       const fileExt = file.name.split(".").pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `formularios-logos/${fileName}`;
+      const fileName = `formularios/${crypto.randomUUID()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("public-assets")
-        .upload(filePath, file);
+        .from("logos")
+        .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
-        .from("public-assets")
-        .getPublicUrl(filePath);
+        .from("logos")
+        .getPublicUrl(fileName);
 
       setLogoUrl(urlData.publicUrl);
       toast.success("Logo enviada com sucesso!");
