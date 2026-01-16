@@ -171,18 +171,41 @@ export default function FormulariosAbandonos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sessoes?.map((sessao) => {
+                {sessoes?.map((sessao) => {
                     const totalEtapas = sessao.formularios_templates?.formularios_etapas?.length || 1;
                     const progresso = Math.round((sessao.etapa_atual / totalEtapas) * 100);
                     const tempoSessao = sessao.abandoned_at 
                       ? differenceInSeconds(new Date(sessao.abandoned_at), new Date(sessao.started_at))
                       : 0;
                     
-                    // Extrair nome, e-mail e telefone dos dados parciais
+                    // Extrair nome, e-mail e telefone dos dados parciais baseado no tipo da etapa
                     const dadosParciais = sessao.dados_parciais as Record<string, any> || {};
-                    const nome = dadosParciais.nome || dadosParciais.name || "-";
-                    const email = dadosParciais.email || dadosParciais.e_mail || "-";
-                    const telefone = dadosParciais.telefone || dadosParciais.phone || dadosParciais.whatsapp || "-";
+                    const etapas = sessao.formularios_templates?.formularios_etapas as FormularioEtapa[] || [];
+                    
+                    // Encontrar valores por tipo de etapa ou título
+                    let nome = "-";
+                    let email = "-";
+                    let telefone = "-";
+                    
+                    for (const etapa of etapas) {
+                      const valor = dadosParciais[etapa.id];
+                      if (!valor) continue;
+                      
+                      const tipoLower = etapa.tipo?.toLowerCase() || "";
+                      const tituloLower = etapa.titulo?.toLowerCase() || "";
+                      
+                      // Identificar por tipo
+                      if (tipoLower === "email") {
+                        email = valor;
+                      } else if (tipoLower === "telefone") {
+                        telefone = valor;
+                      } else if (tipoLower === "texto" || tipoLower === "nome") {
+                        // Verificar se o título indica que é um campo de nome
+                        if (tituloLower.includes("nome") || tituloLower.includes("name")) {
+                          nome = valor;
+                        }
+                      }
+                    }
                     
                     return (
                       <TableRow key={sessao.id}>
