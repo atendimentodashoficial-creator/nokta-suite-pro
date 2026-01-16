@@ -39,6 +39,10 @@ interface FormPreviewPanelProps {
     fonteTamanhoCampos?: string;
     fonteTamanhoObrigadoTitulo?: string;
     fonteTamanhoObrigadoTexto?: string;
+    // Media styling
+    fonteTamanhoMidiaTitulo?: string;
+    fonteTamanhoMidiaSubtitulo?: string;
+    fonteMidia?: string;
   };
   showThankYou?: boolean;
 }
@@ -113,6 +117,10 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     fonteTamanhoCampos = "14px",
     fonteTamanhoObrigadoTitulo = "28px",
     fonteTamanhoObrigadoTexto = "16px",
+    // Media styling
+    fonteTamanhoMidiaTitulo = "18px",
+    fonteTamanhoMidiaSubtitulo = "14px",
+    fonteMidia = "Inter",
   } = config;
 
   const validImagens = imagens.filter(i => i.url);
@@ -154,18 +162,36 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     ) : null
   );
 
+  const mediaTitleSize = parseInt(fonteTamanhoMidiaTitulo) || 18;
+  const mediaSubtitleSize = parseInt(fonteTamanhoMidiaSubtitulo) || 14;
+
   const ImagensSection = () => (
     validImagens.length > 0 ? (
       <div className="space-y-3 w-full">
         {validImagens.map((img, idx) => (
           <div key={`img-${idx}`} className="flex flex-col items-center space-y-1 w-full">
             {img.titulo && (
-              <span className="text-[10px] font-medium text-center" style={{ color: textColor }}>
+              <span 
+                className="font-medium text-center" 
+                style={{ 
+                  color: textColor, 
+                  fontFamily: fonteMidia,
+                  fontSize: `${Math.min(mediaTitleSize * 0.6, 14)}px` 
+                }}
+              >
                 {img.titulo}
               </span>
             )}
             {img.subtitulo && (
-              <span className="text-[8px] text-center" style={{ color: textColor, opacity: 0.7 }}>
+              <span 
+                className="text-center" 
+                style={{ 
+                  color: textColor, 
+                  opacity: 0.7, 
+                  fontFamily: fonteMidia,
+                  fontSize: `${Math.min(mediaSubtitleSize * 0.6, 11)}px` 
+                }}
+              >
                 {img.subtitulo}
               </span>
             )}
@@ -196,12 +222,27 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
         {validVideos.map((vid, idx) => (
           <div key={`vid-${idx}`} className="space-y-1">
             {vid.titulo && (
-              <h3 className="text-sm font-semibold text-center" style={{ color: textColor }}>
+              <h3 
+                className="font-semibold text-center" 
+                style={{ 
+                  color: textColor, 
+                  fontFamily: fonteMidia,
+                  fontSize: `${Math.min(mediaTitleSize * 0.7, 14)}px` 
+                }}
+              >
                 {vid.titulo}
               </h3>
             )}
             {vid.subtitulo && (
-              <p className="text-xs text-center" style={{ color: textColor, opacity: 0.7 }}>
+              <p 
+                className="text-center" 
+                style={{ 
+                  color: textColor, 
+                  opacity: 0.7, 
+                  fontFamily: fonteMidia,
+                  fontSize: `${Math.min(mediaSubtitleSize * 0.7, 11)}px` 
+                }}
+              >
                 {vid.subtitulo}
               </p>
             )}

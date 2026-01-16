@@ -468,6 +468,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [fonteTamanhoCampos, setFonteTamanhoCampos] = useState("14px");
   const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("28px");
   const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("16px");
+  const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("18px");
+  const [fonteTamanhoMidiaSubtitulo, setFonteTamanhoMidiaSubtitulo] = useState("14px");
+  const [fonteMidia, setFonteMidia] = useState("Inter");
   
   // Collapsible states
   const [colorsOpen, setColorsOpen] = useState(false);
@@ -977,6 +980,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     fonteTamanhoCampos,
     fonteTamanhoObrigadoTitulo,
     fonteTamanhoObrigadoTexto,
+    // Media styling
+    fonteTamanhoMidiaTitulo,
+    fonteTamanhoMidiaSubtitulo,
+    fonteMidia,
   };
 
   return (
@@ -1568,6 +1575,43 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         </Select>
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Título das Mídias</Label>
+                        <Select value={fonteTamanhoMidiaTitulo} onValueChange={setFonteTamanhoMidiaTitulo}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {FONT_SIZE_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Subtítulo das Mídias</Label>
+                        <Select value={fonteTamanhoMidiaSubtitulo} onValueChange={setFonteTamanhoMidiaSubtitulo}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {FONT_SIZE_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Fonte das Mídias</Label>
+                      <Select value={fonteMidia} onValueChange={setFonteMidia}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_OPTIONS.map((font) => (
+                            <SelectItem key={font.value} value={font.value}>
+                              <span style={{ fontFamily: font.value }}>{font.label}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Cores */}
@@ -1683,40 +1727,21 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Borda do Card</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
-                            onChange={(e) => setCardBorderColor(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={cardBorderColor}
-                            onChange={(e) => setCardBorderColor(e.target.value)}
-                            placeholder="transparent"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor de Progresso</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={progressBackgroundColor}
-                            onChange={(e) => setProgressBackgroundColor(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={progressBackgroundColor}
-                            onChange={(e) => setProgressBackgroundColor(e.target.value)}
-                            placeholder="#e5e5e5"
-                            className="flex-1"
-                          />
-                        </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Borda do Card</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="color"
+                          value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                          onChange={(e) => setCardBorderColor(e.target.value)}
+                          className="w-10 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          value={cardBorderColor}
+                          onChange={(e) => setCardBorderColor(e.target.value)}
+                          placeholder="transparent"
+                          className="flex-1"
+                        />
                       </div>
                     </div>
                   </div>
