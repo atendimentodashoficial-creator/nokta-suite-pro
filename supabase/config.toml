@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.disparos-cron]
 verify_jwt = false
+
+[functions.formulario-whatsapp-notify]
+verify_jwt = false
