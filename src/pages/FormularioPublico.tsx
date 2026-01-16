@@ -146,25 +146,48 @@ export default function FormularioPublico() {
     loadForm();
   }, [templateId, isPreview]);
 
-  // Handle session abandonment
+  // Handle session abandonment using sendBeacon for reliability
   useEffect(() => {
     if (!sessionId || isPreview) return;
 
-    const handleBeforeUnload = async () => {
-      if (!submitted) {
-        await supabase
-          .from("formularios_sessoes")
-          .update({ 
-            abandoned_at: new Date().toISOString(),
-            etapa_atual: currentStep,
-            dados_parciais: formData,
-          })
-          .eq("id", sessionId);
+    const markAsAbandoned = () => {
+      if (submitted) return;
+      
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      // Use edge function endpoint that accepts POST (sendBeacon only works with POST)
+      const url = `${supabaseUrl}/functions/v1/formulario-abandono`;
+      const body = JSON.stringify({
+        session_id: sessionId,
+        etapa_atual: currentStep,
+        dados_parciais: formData,
+      });
+      
+      // sendBeacon is most reliable for page unload
+      const blob = new Blob([body], { type: 'application/json' });
+      navigator.sendBeacon(url, blob);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && !submitted) {
+        markAsAbandoned();
       }
     };
 
+    const handleBeforeUnload = () => {
+      markAsAbandoned();
+    };
+
+    // visibilitychange is more reliable on mobile
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handleBeforeUnload);
+    
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handleBeforeUnload);
+    };
   }, [sessionId, currentStep, formData, submitted, isPreview]);
 
   const validateField = (tipo: string, value: string, obrigatorio: boolean): string | null => {
