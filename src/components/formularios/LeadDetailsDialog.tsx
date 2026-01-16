@@ -40,14 +40,14 @@ export default function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDeta
     updateStatus.mutate({ id: lead.id, status });
   };
 
-  // Criar mapa de ID -> Label baseado nas etapas do formulário
-  const buildFieldLabelsMap = (): Record<string, string> => {
-    const labelsMap: Record<string, string> = {};
+  // Criar mapa de ID -> { label, ordem } baseado nas etapas do formulário
+  const buildFieldLabelsMap = (): Record<string, { label: string; ordem: number }> => {
+    const labelsMap: Record<string, { label: string; ordem: number }> = {};
     const etapas = lead.formularios_templates?.formularios_etapas || [];
     
     etapas.forEach(etapa => {
       // Cada etapa pode ser um campo único (ID da etapa é a chave)
-      labelsMap[etapa.id] = etapa.titulo;
+      labelsMap[etapa.id] = { label: etapa.titulo, ordem: etapa.ordem };
       
       // Ou pode ter múltiplos campos na configuração
       const config = etapa.configuracao as { 
@@ -55,8 +55,11 @@ export default function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDeta
       } | null;
       
       if (config?.campos) {
-        config.campos.forEach(campo => {
-          labelsMap[campo.id] = campo.label || campo.nome || campo.id;
+        config.campos.forEach((campo, index) => {
+          labelsMap[campo.id] = { 
+            label: campo.label || campo.nome || campo.id, 
+            ordem: etapa.ordem + (index * 0.01) // Sub-ordem para campos dentro da mesma etapa
+          };
         });
       }
     });
@@ -67,8 +70,17 @@ export default function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDeta
   const fieldLabels = buildFieldLabelsMap();
 
   const getFieldLabel = (key: string): string => {
-    return fieldLabels[key] || key.replace(/_/g, " ");
+    return fieldLabels[key]?.label || key.replace(/_/g, " ");
   };
+
+  const getFieldOrder = (key: string): number => {
+    return fieldLabels[key]?.ordem ?? 9999;
+  };
+
+  // Ordenar os dados pela ordem das etapas
+  const sortedDados = lead.dados 
+    ? Object.entries(lead.dados).sort((a, b) => getFieldOrder(a[0]) - getFieldOrder(b[0]))
+    : [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -126,13 +138,13 @@ export default function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDeta
             </div>
           </div>
 
-          {lead.dados && Object.keys(lead.dados).length > 0 && (
+          {sortedDados.length > 0 && (
             <>
               <Separator />
               <div>
                 <h4 className="font-semibold mb-3">Dados Capturados</h4>
                 <div className="grid grid-cols-1 gap-3">
-                  {Object.entries(lead.dados).map(([key, value]) => (
+                  {sortedDados.map(([key, value]) => (
                     <div key={key} className="bg-muted p-3 rounded-lg">
                       <p className="text-sm text-muted-foreground">{getFieldLabel(key)}</p>
                       <p className="font-medium">
