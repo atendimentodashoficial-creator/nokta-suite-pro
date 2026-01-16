@@ -33,6 +33,7 @@ interface TemplateConfig {
   user_id: string;
   nome: string;
   status: string;
+  layout_tipo: string;
   cor_primaria: string;
   background_color: string | null;
   card_color: string | null;
@@ -425,6 +426,95 @@ export default function FormularioPublico() {
     }
   };
 
+  const handleSubmitSinglePage = async () => {
+    // Validate all fields
+    const newErrors: Record<string, string> = {};
+    for (const etapa of etapas) {
+      const value = formData[etapa.id];
+      if (etapa.obrigatorio) {
+        if (etapa.tipo === "multipla_escolha") {
+          if (!value || (Array.isArray(value) && value.length === 0)) {
+            newErrors[etapa.id] = "Selecione pelo menos uma opção";
+          }
+        } else if (!value || (typeof value === "string" && !value.trim())) {
+          newErrors[etapa.id] = "Campo obrigatório";
+        }
+      }
+      // Email validation
+      if (etapa.tipo === "email" && value) {
+        try {
+          z.string().email().parse(value);
+        } catch {
+          newErrors[etapa.id] = "E-mail inválido";
+        }
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      setError("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    // Submit
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const tempoTotal = Math.floor((Date.now() - (startTime ? new Date(startTime).getTime() : Date.now())) / 1000);
+
+      let nome: string | null = null;
+      let email: string | null = null;
+      let telefone: string | null = null;
+
+      etapas.forEach((etapa) => {
+        if (etapa.tipo === "texto" && etapa.titulo.toLowerCase().includes("nome") && !nome) {
+          nome = formData[etapa.id] as string;
+        }
+        if (etapa.tipo === "email" && !email) {
+          email = formData[etapa.id] as string;
+        }
+        if (etapa.tipo === "telefone" && !telefone) {
+          const raw = formData[etapa.id] as string;
+          telefone = raw ? `${countryCode}${raw.replace(/\D/g, "")}` : null;
+        }
+      });
+
+      const { error: leadError } = await supabase
+        .from("formularios_leads")
+        .insert({
+          template_id: config.id,
+          user_id: config.user_id,
+          sessao_id: sessionId,
+          nome,
+          email,
+          telefone,
+          dados: formData,
+          tempo_total_segundos: tempoTotal,
+          status: "novo",
+        });
+
+      if (leadError) throw leadError;
+
+      if (sessionId) {
+        await supabase
+          .from("formularios_sessoes")
+          .update({ 
+            completed_at: new Date().toISOString(),
+            dados_parciais: formData,
+          })
+          .eq("id", sessionId);
+      }
+
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Erro ao enviar formulário:", err);
+      setError("Erro ao enviar dados. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleChange = (fieldId: string, value: string | string[], tipo?: string) => {
     if (tipo === "telefone") {
       const stripped = stripCountryCode(String(value), countryCode);
@@ -540,6 +630,47 @@ export default function FormularioPublico() {
                 </div>
               ))}
             </RadioGroup>
+            {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
+          </div>
+        );
+
+      case "multipla_escolha":
+        const opcoesMultipla = configuracao?.opcoes || [];
+        const selectedValues = (value as string[]) || [];
+        return (
+          <div className="space-y-3">
+            {opcoesMultipla.map((opcao, idx) => {
+              const isChecked = selectedValues.includes(opcao);
+              return (
+                <div 
+                  key={idx} 
+                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80 bg-white"
+                  style={{ 
+                    border: `1px solid ${customStyles?.borderColor || "rgba(255,255,255,0.2)"}`,
+                  }}
+                  onClick={() => {
+                    const newValues = isChecked 
+                      ? selectedValues.filter(v => v !== opcao)
+                      : [...selectedValues, opcao];
+                    handleChange(id, newValues);
+                  }}
+                >
+                  <Checkbox 
+                    id={`${id}-${idx}`} 
+                    checked={isChecked}
+                    onCheckedChange={(checked) => {
+                      const newValues = checked 
+                        ? [...selectedValues, opcao]
+                        : selectedValues.filter(v => v !== opcao);
+                      handleChange(id, newValues);
+                    }}
+                  />
+                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.answerColor || "#1f2937" }}>
+                    {opcao}
+                  </Label>
+                </div>
+              );
+            })}
             {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
           </div>
         );
@@ -756,6 +887,95 @@ export default function FormularioPublico() {
   const backButtonTextColor = config.back_button_text_color || "#ffffff";
   const answerTextColor = config.answer_text_color || "#1f2937";
 
+  const isSinglePage = config.layout_tipo === "single_page";
+
+  // Single page layout
+  if (isSinglePage) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ 
+          backgroundColor: bgColor,
+          fontFamily: `${fontFamily}, sans-serif`,
+        }}
+      >
+        <Card 
+          className="w-full max-w-md [&_input]:text-[var(--answer-color)] [&_textarea]:text-[var(--answer-color)] [&_select]:text-[var(--answer-color)]"
+          style={{ 
+            backgroundColor: cardColor,
+            borderRadius: `${borderRadiusValue}px`,
+            color: textColor,
+            border: cardBorderColor && cardBorderColor !== "transparent" ? `1px solid ${cardBorderColor}` : undefined,
+            "--answer-color": answerTextColor,
+          } as React.CSSProperties}
+        >
+          <CardHeader className="space-y-4">
+            {config.logo_url && (
+              <div className="flex justify-center pt-2">
+                <img 
+                  src={config.logo_url} 
+                  alt="Logo" 
+                  className="h-16 w-auto max-w-48 object-contain"
+                />
+              </div>
+            )}
+            {isPreview && (
+              <div className="text-xs text-muted-foreground px-3 py-1.5 bg-yellow-500/10 rounded-lg text-center">
+                Modo Preview
+              </div>
+            )}
+            {config.nome && (
+              <div className="text-center pt-2">
+                <CardTitle className="text-xl" style={{ color: textColor }}>{config.nome}</CardTitle>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {etapas.map((etapa) => (
+              <div key={etapa.id} className="space-y-3">
+                <div>
+                  <Label className="text-base font-medium" style={{ color: textColor }}>
+                    {etapa.titulo}
+                    {etapa.obrigatorio && <span className="text-destructive ml-1">*</span>}
+                  </Label>
+                  {etapa.descricao && (
+                    <p className="text-sm mt-1" style={{ color: textColor, opacity: 0.7 }}>{etapa.descricao}</p>
+                  )}
+                </div>
+                {renderField(etapa, { 
+                  cardColor: cardColor, 
+                  textColor: textColor,
+                  borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "rgba(255,255,255,0.2)",
+                  answerColor: answerTextColor,
+                })}
+              </div>
+            ))}
+
+            {error && <p className="text-sm text-destructive text-center">{error}</p>}
+
+            <Button
+              type="button"
+              onClick={handleSubmitSinglePage}
+              disabled={submitting}
+              className="w-full"
+              style={{ 
+                backgroundColor: primaryColor, 
+                color: buttonTextColor,
+                borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+              }}
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Enviar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Multi-step layout (default)
   return (
     <div 
       className="min-h-screen flex items-center justify-center p-4"

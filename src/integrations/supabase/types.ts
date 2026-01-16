@@ -2085,6 +2085,7 @@ export type Database = {
           descricao: string | null
           font_family: string | null
           id: string
+          layout_tipo: string
           logo_url: string | null
           nome: string
           pagina_obrigado_cta_link: string | null
@@ -2114,6 +2115,7 @@ export type Database = {
           descricao?: string | null
           font_family?: string | null
           id?: string
+          layout_tipo?: string
           logo_url?: string | null
           nome: string
           pagina_obrigado_cta_link?: string | null
@@ -2143,6 +2145,7 @@ export type Database = {
           descricao?: string | null
           font_family?: string | null
           id?: string
+          layout_tipo?: string
           logo_url?: string | null
           nome?: string
           pagina_obrigado_cta_link?: string | null

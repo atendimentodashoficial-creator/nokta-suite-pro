@@ -101,7 +101,7 @@ export default function EtapaDialog({ open, onOpenChange, templateId, etapa, nex
 
     const configuracao: Record<string, unknown> = {};
     
-    if (tipo === "opcoes") {
+    if (tipo === "opcoes" || tipo === "multipla_escolha") {
       configuracao.opcoes = opcoes.filter(o => o.trim());
     }
     if (tipo === "multiplos_campos") {
@@ -165,6 +165,7 @@ export default function EtapaDialog({ open, onOpenChange, templateId, etapa, nex
                   <SelectItem value="textarea">Texto Longo</SelectItem>
                   <SelectItem value="numero">Número</SelectItem>
                   <SelectItem value="opcoes">Opções (escolha única)</SelectItem>
+                  <SelectItem value="multipla_escolha">Múltipla Escolha</SelectItem>
                   <SelectItem value="multiplos_campos">Múltiplos Campos</SelectItem>
                 </SelectContent>
               </Select>
@@ -193,7 +194,7 @@ export default function EtapaDialog({ open, onOpenChange, templateId, etapa, nex
             />
           </div>
 
-          {tipo === "opcoes" && (
+          {(tipo === "opcoes" || tipo === "multipla_escolha") && (
             <div className="space-y-3">
               <Label>Opções de Escolha</Label>
               {opcoes.map((opcao, index) => (
