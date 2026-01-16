@@ -1688,25 +1688,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               )}
 
-              {/* Barra de Progresso Visibility Toggle (apenas multi_step) */}
-              {layoutTipo === "multi_step" && (
-                <div className="flex items-center justify-between py-2 border-b">
-                  <div className="space-y-0.5">
-                    <Label>Exibir Barra de Progresso</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Mostra o progresso do formulário para o usuário
-                    </p>
-                  </div>
-                  <Switch
-                    checked={barraProgressoVisivel}
-                    onCheckedChange={setBarraProgressoVisivel}
-                  />
-                </div>
-              )}
-
-              {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso (apenas multi_step e visível) */}
+              {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso, Paginação (apenas multi_step e visível) */}
               {layoutTipo === "multi_step" && barraProgressoVisivel && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="progressColor">Barra de Progresso</Label>
                     <div className="flex items-center gap-2">
@@ -1733,7 +1717,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="progressBg">Fundo Barra de Progresso</Label>
+                    <Label htmlFor="progressBg">Fundo Barra</Label>
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
@@ -1752,6 +1736,31 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         value={progressBackgroundColor}
                         onChange={(e) => setProgressBackgroundColor(e.target.value)}
                         placeholder="#e5e5e5"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="corPaginacao">Paginação</Label>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: corIndicadorEtapa }}
+                        onClick={() => document.getElementById('corPaginacao')?.click()}
+                      >
+                        <Input
+                          id="corPaginacao"
+                          type="color"
+                          value={corIndicadorEtapa}
+                          onChange={(e) => setCorIndicadorEtapa(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
+                      <Input
+                        value={corIndicadorEtapa}
+                        onChange={(e) => setCorIndicadorEtapa(e.target.value)}
+                        placeholder="#6b7280"
                         className="flex-1"
                       />
                     </div>
@@ -1790,25 +1799,25 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="corIndicadorEtapa">Indicador (1/3)</Label>
+                  <Label htmlFor="errorColor">Mensagem de Erro</Label>
                   <div className="flex items-center gap-2">
                     <div 
                       className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                      style={{ backgroundColor: corIndicadorEtapa }}
-                      onClick={() => document.getElementById('corIndicadorEtapa')?.click()}
+                      style={{ backgroundColor: errorTextColor }}
+                      onClick={() => document.getElementById('errorColor')?.click()}
                     >
                       <Input
-                        id="corIndicadorEtapa"
+                        id="errorColor"
                         type="color"
-                        value={corIndicadorEtapa}
-                        onChange={(e) => setCorIndicadorEtapa(e.target.value)}
+                        value={errorTextColor}
+                        onChange={(e) => setErrorTextColor(e.target.value)}
                         className="opacity-0 w-full h-full cursor-pointer"
                       />
                     </div>
                     <Input
-                      value={corIndicadorEtapa}
-                      onChange={(e) => setCorIndicadorEtapa(e.target.value)}
-                      placeholder="#6b7280"
+                      value={errorTextColor}
+                      onChange={(e) => setErrorTextColor(e.target.value)}
+                      placeholder="#ef4444"
                       className="flex-1"
                     />
                   </div>
@@ -1833,6 +1842,22 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               </div>
                 </CollapsibleContent>
               </Collapsible>
+
+              {/* Exibir Barra de Progresso (apenas multi_step) */}
+              {layoutTipo === "multi_step" && (
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Exibir Barra de Progresso</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Mostra o progresso do formulário para o usuário
+                    </p>
+                  </div>
+                  <Switch
+                    checked={barraProgressoVisivel}
+                    onCheckedChange={setBarraProgressoVisivel}
+                  />
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
