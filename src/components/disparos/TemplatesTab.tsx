@@ -635,30 +635,30 @@ export function TemplatesTab() {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>;
   }
-  return <div className="space-y-4">
-      <div className="flex items-center justify-between">
+  return <div className="space-y-4 px-1 sm:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold">Templates de Mensagem</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="text-base sm:text-lg font-semibold">Templates de Mensagem</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Crie templates com blocos e variações para reutilizar nas campanhas.
           </p>
         </div>
-        <Button onClick={openCreateDialog}>
+        <Button onClick={openCreateDialog} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Novo Template
         </Button>
       </div>
 
       {templates.length === 0 ? <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">
+          <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12">
+            <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground text-center text-sm sm:text-base">
               Nenhum template criado ainda.
               <br />
               Crie seu primeiro template para usar nas campanhas.
             </p>
           </CardContent>
-        </Card> : <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        </Card> : <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map(template => {
         const {
           blocosCount,
@@ -673,79 +673,79 @@ export function TemplatesTab() {
         const firstTextVariation = template.variacoes?.find(v => v.mensagem);
         
         return <Card key={template.id} className="group hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
+                <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base font-semibold truncate">{template.nome}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <CardTitle className="text-sm sm:text-base font-semibold truncate">{template.nome}</CardTitle>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
                         Criado em {new Date(template.created_at).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openPreviewDialog(template)} title="Pré-visualizar">
-                        <Eye className="h-4 w-4" />
+                    <div className="flex gap-0.5 sm:gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => openPreviewDialog(template)} title="Pré-visualizar">
+                        <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(template)} title="Duplicar">
-                        <Copy className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => handleDuplicate(template)} title="Duplicar">
+                        <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(template)} title="Editar">
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => openEditDialog(template)} title="Editar">
+                        <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => {
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive" onClick={() => {
                   setTemplateToDelete(template.id);
                   setDeleteDialogOpen(true);
                 }} title="Excluir">
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="p-3 sm:p-4 pt-0 space-y-2 sm:space-y-3">
                   {/* Preview text */}
                   {firstTextVariation?.mensagem && (
-                    <p className="text-sm text-muted-foreground line-clamp-2 bg-muted/50 rounded-md p-2 italic">
+                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 bg-muted/50 rounded-md p-1.5 sm:p-2 italic">
                       "{firstTextVariation.mensagem}"
                     </p>
                   )}
                   
                   {/* Stats row */}
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="text-xs font-normal">
-                      <Layers className="h-3 w-3 mr-1" />
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs font-normal px-1.5 sm:px-2 py-0.5">
+                      <Layers className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                       {blocosCount} bloco{blocosCount !== 1 ? "s" : ""}
                     </Badge>
-                    <Badge variant="secondary" className="text-xs font-normal">
-                      <Shuffle className="h-3 w-3 mr-1" />
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs font-normal px-1.5 sm:px-2 py-0.5">
+                      <Shuffle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                       {variacoesCount} variação{variacoesCount !== 1 ? "ões" : ""}
                     </Badge>
-                    <Badge variant="secondary" className="text-xs font-normal">
-                      <Clock className="h-3 w-3 mr-1" />
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs font-normal px-1.5 sm:px-2 py-0.5">
+                      <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                       {template.delay_bloco_min}-{template.delay_bloco_max}s
                     </Badge>
                   </div>
                   
                   {/* Media types */}
-                  <div className="flex items-center gap-2 pt-1 border-t">
-                    <span className="text-xs text-muted-foreground">Tipos:</span>
-                    <div className="flex gap-1">
+                  <div className="flex items-center gap-1.5 sm:gap-2 pt-1 sm:pt-1 border-t">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">Tipos:</span>
+                    <div className="flex gap-0.5 sm:gap-1">
                       {mediaTypes.has("text") && (
-                        <div className="w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center" title="Texto">
-                          <MessageSquare className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center" title="Texto">
+                          <MessageSquare className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-600 dark:text-blue-400" />
                         </div>
                       )}
                       {mediaTypes.has("image") && (
-                        <div className="w-6 h-6 rounded bg-green-100 dark:bg-green-900/30 flex items-center justify-center" title="Imagem">
-                          <Image className="h-3 w-3 text-green-600 dark:text-green-400" />
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-green-100 dark:bg-green-900/30 flex items-center justify-center" title="Imagem">
+                          <Image className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-600 dark:text-green-400" />
                         </div>
                       )}
                       {mediaTypes.has("audio") && (
-                        <div className="w-6 h-6 rounded bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center" title="Áudio">
-                          <Music className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center" title="Áudio">
+                          <Music className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-600 dark:text-purple-400" />
                         </div>
                       )}
                       {mediaTypes.has("video") && (
-                        <div className="w-6 h-6 rounded bg-red-100 dark:bg-red-900/30 flex items-center justify-center" title="Vídeo">
-                          <Video className="h-3 w-3 text-red-600 dark:text-red-400" />
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-red-100 dark:bg-red-900/30 flex items-center justify-center" title="Vídeo">
+                          <Video className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-red-600 dark:text-red-400" />
                         </div>
                       )}
                       {mediaTypes.has("document") && (
