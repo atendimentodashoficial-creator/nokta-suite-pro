@@ -581,12 +581,12 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setSubtitulo((template as any).subtitulo || "");
       setTituloCor((template as any).titulo_cor || "#1f2937");
       setSubtituloCor((template as any).subtitulo_cor || "#6b7280");
-      setFonteTamanhoTitulo((template as any).fonte_tamanho_titulo || "24px");
-      setFonteTamanhoSubtitulo((template as any).fonte_tamanho_subtitulo || "16px");
+      setFonteTamanhoTitulo((template as any).fonte_tamanho_titulo || "28px");
+      setFonteTamanhoSubtitulo((template as any).fonte_tamanho_subtitulo || "18px");
       setFonteTamanhoPerguntas((template as any).fonte_tamanho_perguntas || "16px");
       setFonteTamanhoCampos((template as any).fonte_tamanho_campos || "14px");
       setFonteTamanhoRespostas((template as any).fonte_tamanho_respostas || "14px");
-      setFonteTamanhoBotoes((template as any).fonte_tamanho_botoes || "16px");
+      setFonteTamanhoBotoes((template as any).fonte_tamanho_botoes || "18px");
       setFonteTamanhoObrigadoTitulo((template as any).fonte_tamanho_obrigado_titulo || "28px");
       setFonteTamanhoObrigadoTexto((template as any).fonte_tamanho_obrigado_texto || "16px");
       
