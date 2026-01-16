@@ -77,11 +77,21 @@ export default function FormularioPublico() {
         return;
       }
 
-      const { data, error } = await supabase
+      // Try to find by slug first, then by ID
+      let query = supabase
         .from("formularios_templates")
-        .select("*, formularios_etapas(*)")
-        .eq("id", templateId)
-        .single();
+        .select("*, formularios_etapas(*)");
+      
+      // Check if templateId looks like a UUID
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(templateId);
+      
+      if (isUUID) {
+        query = query.eq("id", templateId);
+      } else {
+        query = query.eq("slug", templateId);
+      }
+      
+      const { data, error } = await query.maybeSingle();
 
       if (error || !data) {
         setError("Formulário não encontrado");

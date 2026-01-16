@@ -39,8 +39,7 @@ const App = () => (
       <AuthProvider>
         <Routes>
           <Route path="/auth" element={<Auth />} />
-          <Route path="/f/:formId" element={<FormularioCaptura />} />
-          <Route path="/form/:templateId" element={<FormularioPublico />} />
+          <Route path="/f/:templateId" element={<FormularioPublico />} />
           <Route path="/conversao/:faturaId" element={<FormularioConversao />} />
           <Route
             path="/"
