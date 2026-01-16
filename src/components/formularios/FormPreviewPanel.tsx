@@ -29,7 +29,6 @@ interface FormPreviewPanelProps {
     // New title fields
     titulo?: string;
     subtitulo?: string;
-    tituloVisivel?: boolean;
     tituloCor?: string;
     fonteTamanhoTitulo?: string;
     fonteTamanhoSubtitulo?: string;
@@ -102,7 +101,6 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     // New title fields with defaults
     titulo = "",
     subtitulo = "",
-    tituloVisivel = true,
     tituloCor = "#1f2937",
     fonteTamanhoTitulo = "24px",
     fonteTamanhoSubtitulo = "16px",
@@ -360,8 +358,8 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             </div>
           )}
           
-          {/* Title and Subtitle */}
-          {tituloVisivel && (titulo || subtitulo) && (
+          {/* Title and Subtitle - only show if filled */}
+          {(titulo || subtitulo) && (
             <div className="space-y-1 text-center">
               {titulo && (
                 <h2 className="font-bold" style={{ 
