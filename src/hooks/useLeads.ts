@@ -81,34 +81,46 @@ export const useLeads = (status?: LeadStatus) => {
       
       const leadsData = data as Lead[];
       
-      // Fetch all WhatsApp chats + message presence (so "has chat" means "has messages")
+      // Fetch all WhatsApp chats (not deleted) + message presence (so "has chat" means "has messages")
       const { data: whatsappChats } = await supabase
         .from("whatsapp_chats")
         .select("id, normalized_number")
         .is("deleted_at", null);
 
+      // Get only chat_ids that belong to active (non-deleted) chats
+      const activeWhatsappChatIds = new Set((whatsappChats || []).map(c => c.id));
+
       const { data: whatsappMsgChatIds } = await supabase
         .from("whatsapp_messages")
         .select("chat_id");
 
+      // Only count messages from ACTIVE chats
       const waChatIdsWithMessages = new Set<string>();
       (whatsappMsgChatIds || []).forEach((m) => {
-        if (m.chat_id) waChatIdsWithMessages.add(m.chat_id);
+        if (m.chat_id && activeWhatsappChatIds.has(m.chat_id)) {
+          waChatIdsWithMessages.add(m.chat_id);
+        }
       });
 
-      // Fetch all Disparos chats + message presence
+      // Fetch all Disparos chats (not deleted) + message presence
       const { data: disparosChats } = await supabase
         .from("disparos_chats")
         .select("id, normalized_number")
         .is("deleted_at", null);
 
+      // Get only chat_ids that belong to active (non-deleted) disparos chats
+      const activeDisparosChatIds = new Set((disparosChats || []).map(c => c.id));
+
       const { data: disparosMsgChatIds } = await supabase
         .from("disparos_messages")
         .select("chat_id");
 
+      // Only count messages from ACTIVE chats
       const dispChatIdsWithMessages = new Set<string>();
       (disparosMsgChatIds || []).forEach((m) => {
-        if (m.chat_id) dispChatIdsWithMessages.add(m.chat_id);
+        if (m.chat_id && activeDisparosChatIds.has(m.chat_id)) {
+          dispChatIdsWithMessages.add(m.chat_id);
+        }
       });
 
       // Create sets of phone last8 digits that have chats WITH messages
