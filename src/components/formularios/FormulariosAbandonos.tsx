@@ -160,6 +160,9 @@ export default function FormulariosAbandonos() {
                   <TableRow>
                     <TableHead>Início</TableHead>
                     <TableHead>Abandono</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Telefone</TableHead>
                     <TableHead>Etapa Abandonada</TableHead>
                     <TableHead>Progresso</TableHead>
                     <TableHead>Tempo na Sessão</TableHead>
@@ -175,16 +178,31 @@ export default function FormulariosAbandonos() {
                       ? differenceInSeconds(new Date(sessao.abandoned_at), new Date(sessao.started_at))
                       : 0;
                     
+                    // Extrair nome, e-mail e telefone dos dados parciais
+                    const dadosParciais = sessao.dados_parciais as Record<string, any> || {};
+                    const nome = dadosParciais.nome || dadosParciais.name || "-";
+                    const email = dadosParciais.email || dadosParciais.e_mail || "-";
+                    const telefone = dadosParciais.telefone || dadosParciais.phone || dadosParciais.whatsapp || "-";
+                    
                     return (
                       <TableRow key={sessao.id}>
                         <TableCell className="whitespace-nowrap">
-                          {format(new Date(sessao.started_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          {format(new Date(sessao.started_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {sessao.abandoned_at 
-                            ? format(new Date(sessao.abandoned_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                            ? format(new Date(sessao.abandoned_at), "dd/MM/yy HH:mm", { locale: ptBR })
                             : "-"
                           }
+                        </TableCell>
+                        <TableCell className="max-w-[150px] truncate" title={nome}>
+                          {nome}
+                        </TableCell>
+                        <TableCell className="max-w-[180px] truncate" title={email}>
+                          {email}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {telefone}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
