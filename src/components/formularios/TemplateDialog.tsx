@@ -1074,172 +1074,74 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
             </TabsContent>
 
             <TabsContent value="obrigado" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="obrigadoTitulo">Título</Label>
-                <Input
-                  id="obrigadoTitulo"
-                  value={paginaObrigadoTitulo}
-                  onChange={(e) => setPaginaObrigadoTitulo(e.target.value)}
-                  placeholder="Obrigado!"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="obrigadoMensagem">Mensagem</Label>
-                <Textarea
-                  id="obrigadoMensagem"
-                  value={paginaObrigadoMensagem}
-                  onChange={(e) => setPaginaObrigadoMensagem(e.target.value)}
-                  placeholder="Recebemos suas informações..."
-                  rows={3}
-                />
-              </div>
-
-              {/* Font Sizes for Thank You Page */}
-              <Collapsible>
+              {/* Título e Mensagem - Collapsible */}
+              <Collapsible defaultOpen>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" type="button" className="w-full justify-between">
                     <span className="flex items-center gap-2">
                       <Type className="h-4 w-4" />
-                      Tamanhos de Fonte
+                      Título e Mensagem
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-3 pt-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Tamanho do Título</Label>
-                      <Select value={fonteTamanhoObrigadoTitulo} onValueChange={setFonteTamanhoObrigadoTitulo}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {FONT_SIZE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Tamanho do Texto</Label>
-                      <Select value={fonteTamanhoObrigadoTexto} onValueChange={setFonteTamanhoObrigadoTexto}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {FONT_SIZE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="obrigadoTitulo">Título</Label>
+                    <Input
+                      id="obrigadoTitulo"
+                      value={paginaObrigadoTitulo}
+                      onChange={(e) => setPaginaObrigadoTitulo(e.target.value)}
+                      placeholder="Obrigado!"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="obrigadoMensagem">Mensagem</Label>
+                    <Textarea
+                      id="obrigadoMensagem"
+                      value={paginaObrigadoMensagem}
+                      onChange={(e) => setPaginaObrigadoMensagem(e.target.value)}
+                      placeholder="Recebemos suas informações..."
+                      rows={3}
+                    />
                   </div>
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* Colors for Thank You Page */}
+              {/* Botão/Link CTA - Collapsible */}
               <Collapsible>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" type="button" className="w-full justify-between">
                     <span className="flex items-center gap-2">
-                      <Palette className="h-4 w-4" />
-                      Cores e Aparência
+                      <Settings2 className="h-4 w-4" />
+                      Botão de Ação (CTA)
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-3 pt-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Cor do Fundo</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="color"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="w-10 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          placeholder="#ffffff"
-                          className="flex-1"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Cor do Texto</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="color"
-                          value={textColor}
-                          onChange={(e) => setTextColor(e.target.value)}
-                          className="w-10 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          value={textColor}
-                          onChange={(e) => setTextColor(e.target.value)}
-                          placeholder="#1f2937"
-                          className="flex-1"
-                        />
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ctaTexto">Texto do Botão</Label>
+                    <Input
+                      id="ctaTexto"
+                      value={paginaObrigadoCtaTexto}
+                      onChange={(e) => setPaginaObrigadoCtaTexto(e.target.value)}
+                      placeholder="Ex: Voltar ao Site"
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Cor Primária (Botão)</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="color"
-                          value={corPrimaria}
-                          onChange={(e) => setCorPrimaria(e.target.value)}
-                          className="w-10 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          value={corPrimaria}
-                          onChange={(e) => setCorPrimaria(e.target.value)}
-                          placeholder="#8B5CF6"
-                          className="flex-1"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Texto do Botão</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="color"
-                          value={buttonTextColor}
-                          onChange={(e) => setButtonTextColor(e.target.value)}
-                          className="w-10 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          value={buttonTextColor}
-                          onChange={(e) => setButtonTextColor(e.target.value)}
-                          placeholder="#ffffff"
-                          className="flex-1"
-                        />
-                      </div>
-                    </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="ctaLink">Link do Botão</Label>
+                    <Input
+                      id="ctaLink"
+                      value={paginaObrigadoCtaLink}
+                      onChange={(e) => setPaginaObrigadoCtaLink(e.target.value)}
+                      placeholder="https://exemplo.com"
+                    />
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-
-              <div className="space-y-2">
-                <Label htmlFor="ctaTexto">Texto do Botão (opcional)</Label>
-                <Input
-                  id="ctaTexto"
-                  value={paginaObrigadoCtaTexto}
-                  onChange={(e) => setPaginaObrigadoCtaTexto(e.target.value)}
-                  placeholder="Ex: Voltar ao Site"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ctaLink">Link do Botão (opcional)</Label>
-                <Input
-                  id="ctaLink"
-                  value={paginaObrigadoCtaLink}
-                  onChange={(e) => setPaginaObrigadoCtaLink(e.target.value)}
-                  placeholder="https://exemplo.com"
-                />
-              </div>
 
               {/* Multiple Images Section - Collapsible */}
               <Collapsible>
@@ -1508,6 +1410,200 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   <p className="text-xs text-muted-foreground">
                     Escolha se as imagens e vídeos aparecem antes ou depois do título
                   </p>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Personalização Completa - Collapsible */}
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Palette className="h-4 w-4" />
+                      Personalização Visual
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-3">
+                  {/* Tamanhos de Fonte */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Tamanhos de Fonte</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Título Principal</Label>
+                        <Select value={fonteTamanhoObrigadoTitulo} onValueChange={setFonteTamanhoObrigadoTitulo}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {FONT_SIZE_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Mensagem</Label>
+                        <Select value={fonteTamanhoObrigadoTexto} onValueChange={setFonteTamanhoObrigadoTexto}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {FONT_SIZE_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cores */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Cores</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor do Fundo</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={backgroundColor}
+                            onChange={(e) => setBackgroundColor(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={backgroundColor}
+                            onChange={(e) => setBackgroundColor(e.target.value)}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor do Texto</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={textColor}
+                            onChange={(e) => setTextColor(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={textColor}
+                            onChange={(e) => setTextColor(e.target.value)}
+                            placeholder="#1f2937"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor do Botão</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={corPrimaria}
+                            onChange={(e) => setCorPrimaria(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={corPrimaria}
+                            onChange={(e) => setCorPrimaria(e.target.value)}
+                            placeholder="#8B5CF6"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Texto do Botão</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={buttonTextColor}
+                            onChange={(e) => setButtonTextColor(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={buttonTextColor}
+                            onChange={(e) => setButtonTextColor(e.target.value)}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Estilos de Mídia */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Estilos de Mídia</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Arredondamento</Label>
+                        <Select value={borderRadius} onValueChange={setBorderRadius}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">Sem arredondamento</SelectItem>
+                            <SelectItem value="4">Leve (4px)</SelectItem>
+                            <SelectItem value="8">Médio (8px)</SelectItem>
+                            <SelectItem value="12">Padrão (12px)</SelectItem>
+                            <SelectItem value="16">Grande (16px)</SelectItem>
+                            <SelectItem value="24">Extra Grande (24px)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor do Card</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={cardColor}
+                            onChange={(e) => setCardColor(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={cardColor}
+                            onChange={(e) => setCardColor(e.target.value)}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Borda do Card</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                            onChange={(e) => setCardBorderColor(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={cardBorderColor}
+                            onChange={(e) => setCardBorderColor(e.target.value)}
+                            placeholder="transparent"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor de Progresso</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={progressBackgroundColor}
+                            onChange={(e) => setProgressBackgroundColor(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={progressBackgroundColor}
+                            onChange={(e) => setProgressBackgroundColor(e.target.value)}
+                            placeholder="#e5e5e5"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </CollapsibleContent>
               </Collapsible>
 
