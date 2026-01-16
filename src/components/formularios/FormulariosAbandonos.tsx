@@ -89,12 +89,18 @@ export default function FormulariosAbandonos() {
   };
 
   const handleBulkDelete = async () => {
-    for (const id of selectedSessoes) {
-      await deleteSessao.mutateAsync(id);
+    const count = selectedSessoes.length;
+    try {
+      for (const id of selectedSessoes) {
+        await deleteSessao.mutateAsync(id);
+      }
+      toast.success(`${count} registro(s) excluído(s) com sucesso`);
+    } catch (error) {
+      toast.error("Erro ao excluir alguns registros");
+    } finally {
+      setSelectedSessoes([]);
+      setBulkDeleteDialogOpen(false);
     }
-    setSelectedSessoes([]);
-    setBulkDeleteDialogOpen(false);
-    toast.success(`${selectedSessoes.length} registro(s) excluído(s) com sucesso`);
   };
 
   // Pagination logic
