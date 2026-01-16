@@ -1688,9 +1688,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               )}
 
-              {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso, Paginação (apenas multi_step e visível) */}
+              {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso (apenas multi_step e visível) */}
               {layoutTipo === "multi_step" && barraProgressoVisivel && (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="progressColor">Barra de Progresso</Label>
                     <div className="flex items-center gap-2">
@@ -1740,7 +1740,12 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       />
                     </div>
                   </div>
+                </div>
+              )}
 
+              {/* Linha 6: Cor da Paginação (apenas multi_step e visível) */}
+              {layoutTipo === "multi_step" && barraProgressoVisivel && (
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="corPaginacao">Paginação</Label>
                     <div className="flex items-center gap-2">
