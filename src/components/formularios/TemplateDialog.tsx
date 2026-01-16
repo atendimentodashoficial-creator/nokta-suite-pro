@@ -1327,7 +1327,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Paginação</Label>
+                      <Label className="text-sm">Etapas (X de Y)</Label>
                       <Select value={fonteTamanhoIndicadorEtapa} onValueChange={setFonteTamanhoIndicadorEtapa}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
