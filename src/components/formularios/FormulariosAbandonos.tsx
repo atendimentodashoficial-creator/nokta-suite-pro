@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, differenceInSeconds } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Eye, AlertTriangle, Clock, Target, Trash2 } from "lucide-react";
+import { Eye, AlertTriangle, Clock, Target, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,8 @@ export default function FormulariosAbandonos() {
   const [sessaoToDelete, setSessaoToDelete] = useState<string | null>(null);
   const [selectedSessoes, setSelectedSessoes] = useState<string[]>([]);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   
   const { periodFilter, dateStart, dateEnd, setPeriodFilter, setDateStart, setDateEnd } = usePeriodFilter();
   
@@ -93,6 +95,19 @@ export default function FormulariosAbandonos() {
     setSelectedSessoes([]);
     setBulkDeleteDialogOpen(false);
     toast.success(`${selectedSessoes.length} registro(s) excluído(s) com sucesso`);
+  };
+
+  // Pagination logic
+  const totalItems = sessoes?.length || 0;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedSessoes = sessoes?.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
   };
 
   return (
@@ -207,8 +222,14 @@ export default function FormulariosAbandonos() {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedSessoes.length === sessoes?.length && sessoes?.length > 0}
-                        onCheckedChange={handleSelectAll}
+                        checked={selectedSessoes.length === paginatedSessoes?.length && paginatedSessoes?.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedSessoes(paginatedSessoes?.map(s => s.id) || []);
+                          } else {
+                            setSelectedSessoes([]);
+                          }
+                        }}
                       />
                     </TableHead>
                     <TableHead>Início</TableHead>
@@ -224,7 +245,7 @@ export default function FormulariosAbandonos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                {sessoes?.map((sessao) => {
+                {paginatedSessoes?.map((sessao) => {
                     const totalEtapas = sessao.formularios_templates?.formularios_etapas?.length || 1;
                     // Para abandonos, mostramos etapas completadas (etapa_atual - 1), pois o usuário estava NA etapa mas não a completou
                     const etapasCompletadas = Math.max(0, sessao.etapa_atual - 1);
@@ -327,6 +348,50 @@ export default function FormulariosAbandonos() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {totalItems > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Itens por página:</span>
+                <Select value={String(itemsPerPage)} onValueChange={handleItemsPerPageChange}>
+                  <SelectTrigger className="w-[80px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                    <SelectItem value="200">200</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  {startIndex + 1}-{Math.min(endIndex, totalItems)} de {totalItems}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm">
+                  Página {currentPage} de {totalPages || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
