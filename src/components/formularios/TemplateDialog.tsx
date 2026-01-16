@@ -72,7 +72,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   // New title fields
   const [titulo, setTitulo] = useState("");
   const [subtitulo, setSubtitulo] = useState("");
-  const [tituloVisivel, setTituloVisivel] = useState(true);
   const [tituloCor, setTituloCor] = useState("#1f2937");
   const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("24px");
   const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("16px");
@@ -154,7 +153,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       // New title fields
       setTitulo((template as any).titulo || "");
       setSubtitulo((template as any).subtitulo || "");
-      setTituloVisivel((template as any).titulo_visivel !== false);
       setTituloCor((template as any).titulo_cor || "#1f2937");
       setFonteTamanhoTitulo((template as any).fonte_tamanho_titulo || "24px");
       setFonteTamanhoSubtitulo((template as any).fonte_tamanho_subtitulo || "16px");
@@ -201,7 +199,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       // Reset new title fields
       setTitulo("");
       setSubtitulo("");
-      setTituloVisivel(true);
       setTituloCor("#1f2937");
       setFonteTamanhoTitulo("24px");
       setFonteTamanhoSubtitulo("16px");
@@ -408,7 +405,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       // New title fields
       titulo: titulo || null,
       subtitulo: subtitulo || null,
-      titulo_visivel: tituloVisivel,
       titulo_cor: tituloCor,
       fonte_tamanho_titulo: fonteTamanhoTitulo,
       fonte_tamanho_subtitulo: fonteTamanhoSubtitulo,
@@ -473,7 +469,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     // New title fields
     titulo,
     subtitulo,
-    tituloVisivel,
     tituloCor,
     fonteTamanhoTitulo,
     fonteTamanhoSubtitulo,
@@ -532,17 +527,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
               {/* Title & Subtitle Section */}
               <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold">Título e Subtítulo</Label>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="tituloVisivel" className="text-sm text-muted-foreground">Visível</Label>
-                    <Switch
-                      id="tituloVisivel"
-                      checked={tituloVisivel}
-                      onCheckedChange={setTituloVisivel}
-                    />
-                  </div>
-                </div>
+                <Label className="text-base font-semibold">Título e Subtítulo</Label>
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Aparece no formulário apenas se preenchido
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="titulo" className="text-sm">Título</Label>
@@ -979,6 +967,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </p>
                 </div>
               </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -1015,6 +1005,45 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   rows={3}
                 />
               </div>
+
+              {/* Font Sizes for Thank You Page */}
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Type className="h-4 w-4" />
+                      Tamanhos de Fonte
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Tamanho do Título</Label>
+                      <Select value={fonteTamanhoObrigadoTitulo} onValueChange={setFonteTamanhoObrigadoTitulo}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Tamanho do Texto</Label>
+                      <Select value={fonteTamanhoObrigadoTexto} onValueChange={setFonteTamanhoObrigadoTexto}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               <div className="space-y-2">
                 <Label htmlFor="ctaTexto">Texto do Botão (opcional)</Label>
