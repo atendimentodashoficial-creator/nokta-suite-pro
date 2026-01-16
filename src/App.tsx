@@ -24,8 +24,10 @@ import GoogleAdsMetrics from "./pages/GoogleAdsMetrics";
 import Disparos from "./pages/Disparos";
 import Extrator from "./pages/Extrator";
 import Instagram from "./pages/Instagram";
+import Formularios from "./pages/Formularios";
 import FormularioCaptura from "./pages/FormularioCaptura";
 import FormularioConversao from "./pages/FormularioConversao";
+import FormularioPublico from "./pages/FormularioPublico";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +40,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/f/:formId" element={<FormularioCaptura />} />
+          <Route path="/form/:templateId" element={<FormularioPublico />} />
           <Route path="/conversao/:faturaId" element={<FormularioConversao />} />
           <Route
             path="/"
@@ -60,6 +63,7 @@ const App = () => (
             <Route path="disparos" element={<Disparos />} />
             <Route path="extrator" element={<Extrator />} />
             <Route path="instagram" element={<Instagram />} />
+            <Route path="formularios" element={<Formularios />} />
             <Route path="financeiro" element={<Dashboard />} />
             <Route path="metricas-campanhas" element={<MetricasCampanhas />} />
             <Route path="google-ads" element={<GoogleAdsMetrics />} />
