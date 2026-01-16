@@ -34,6 +34,7 @@ interface TemplateConfig {
   nome: string;
   status: string;
   cor_primaria: string;
+  background_color: string | null;
   logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
@@ -573,9 +574,13 @@ export default function FormularioPublico() {
 
   if (submitted && config) {
     const primaryColor = config.cor_primaria || "#8B5CF6";
+    const bgColor = config.background_color || "#ffffff";
     
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div 
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ backgroundColor: bgColor }}
+      >
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
             <div 
@@ -657,9 +662,13 @@ export default function FormularioPublico() {
   }
 
   const primaryColor = config.cor_primaria || "#8B5CF6";
+  const bgColor = config.background_color || "#ffffff";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ backgroundColor: bgColor }}
+    >
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4">
           {config.logo_url && (

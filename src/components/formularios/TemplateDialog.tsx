@@ -23,6 +23,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [descricao, setDescricao] = useState("");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [corPrimaria, setCorPrimaria] = useState("#8B5CF6");
+  const [backgroundColor, setBackgroundColor] = useState("#ffffff");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -62,6 +63,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setDescricao(template.descricao || "");
       setStatus(template.status as "ativo" | "inativo");
       setCorPrimaria(template.cor_primaria || "#8B5CF6");
+      setBackgroundColor(template.background_color || "#ffffff");
       setLogoUrl(template.logo_url || null);
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
@@ -73,6 +75,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setDescricao("");
       setStatus("ativo");
       setCorPrimaria("#8B5CF6");
+      setBackgroundColor("#ffffff");
       setLogoUrl(null);
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
@@ -133,6 +136,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       descricao: descricao || null,
       status,
       cor_primaria: corPrimaria,
+      background_color: backgroundColor,
       logo_url: logoUrl,
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
@@ -255,22 +259,43 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="cor">Cor Primária</Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="cor"
-                    type="color"
-                    value={corPrimaria}
-                    onChange={(e) => setCorPrimaria(e.target.value)}
-                    className="w-16 h-10 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={corPrimaria}
-                    onChange={(e) => setCorPrimaria(e.target.value)}
-                    placeholder="#8B5CF6"
-                    className="flex-1"
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="cor">Cor Primária</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="cor"
+                      type="color"
+                      value={corPrimaria}
+                      onChange={(e) => setCorPrimaria(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={corPrimaria}
+                      onChange={(e) => setCorPrimaria(e.target.value)}
+                      placeholder="#8B5CF6"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bg">Cor de Fundo</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="bg"
+                      type="color"
+                      value={backgroundColor}
+                      onChange={(e) => setBackgroundColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={backgroundColor}
+                      onChange={(e) => setBackgroundColor(e.target.value)}
+                      placeholder="#ffffff"
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
               </div>
 
