@@ -366,7 +366,8 @@ export default function MetricasCampanhas() {
         setDateEnd(endOfMonthBrasilia(lastMonth));
         break;
       case "max":
-        setDateStart(new Date(2020, 0, 1));
+        // Facebook Ads API limita insights a ~37 meses, usar 3 anos como limite seguro
+        setDateStart(subMonths(now, 36));
         setDateEnd(now);
         break;
       case "custom":
