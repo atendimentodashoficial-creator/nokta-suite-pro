@@ -414,35 +414,60 @@ export default function Leads() {
                   <LeadCampaignBadge lead={lead} />
 
                   {/* Show all presences (instances where this contact appeared) */}
-                  {lead.allPresences && lead.allPresences.length > 0 && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <div className="flex flex-wrap gap-1">
-                        {lead.allPresences.map((presence, idx) => {
-                          // For WhatsApp origin without instance, show "WhatsApp"
-                          // For Disparos, show instance name or "Disparos" if no name
-                          const label = presence.origem?.toLowerCase() === "whatsapp"
-                            ? "WhatsApp"
-                            : presence.instancia_nome || "Disparos";
-                          
-                          const isWhatsApp = presence.origem?.toLowerCase() === "whatsapp";
-                          
-                          return (
+                  {(() => {
+                    // Build presence badges - include current tab's presence if lead is "extra"
+                    const presences = lead.allPresences || [];
+                    const hasWhatsAppPresence = presences.some(p => p.origem?.toLowerCase() === "whatsapp");
+                    const hasDisparosPresence = presences.some(p => p.origem?.toLowerCase() !== "whatsapp");
+                    
+                    // If this is an "extra" lead, ensure the current tab's presence is shown
+                    const shouldAddWhatsAppBadge = isExtra && origemFilter === "whatsapp" && !hasWhatsAppPresence && lead.hasWhatsAppChat;
+                    const shouldAddDisparosBadge = isExtra && origemFilter === "disparos" && !hasDisparosPresence && lead.hasDisparosChat;
+                    
+                    const allBadges: Array<{ label: string; isWhatsApp: boolean; date?: string }> = [];
+                    
+                    // Add existing presences
+                    presences.forEach((presence) => {
+                      const label = presence.origem?.toLowerCase() === "whatsapp"
+                        ? "WhatsApp"
+                        : presence.instancia_nome || "Disparos";
+                      allBadges.push({
+                        label,
+                        isWhatsApp: presence.origem?.toLowerCase() === "whatsapp",
+                        date: presence.created_at
+                      });
+                    });
+                    
+                    // Add missing badges for extra leads
+                    if (shouldAddWhatsAppBadge) {
+                      allBadges.push({ label: "WhatsApp", isWhatsApp: true });
+                    }
+                    if (shouldAddDisparosBadge) {
+                      allBadges.push({ label: "Disparos", isWhatsApp: false });
+                    }
+                    
+                    if (allBadges.length === 0) return null;
+                    
+                    return (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="flex flex-wrap gap-1">
+                          {allBadges.map((badge, idx) => (
                             <span
-                              key={`${presence.origem}-${presence.instancia_nome}-${idx}`}
+                              key={`${badge.label}-${idx}`}
                               className={`text-xs px-2 py-0.5 rounded ${
-                                isWhatsApp
+                                badge.isWhatsApp
                                   ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                                   : "bg-accent text-accent-foreground"
                               }`}
-                              title={`Primeiro contato: ${new Date(presence.created_at).toLocaleDateString('pt-BR')}`}
+                              title={badge.date ? `Primeiro contato: ${new Date(badge.date).toLocaleDateString('pt-BR')}` : undefined}
                             >
-                              {label}
+                              {badge.label}
                             </span>
-                          );
-                        })}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 <div className="flex-1" />
