@@ -1162,94 +1162,194 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label>Imagens (opcional)</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addImagem}>
-                    <Plus className="h-4 w-4 mr-1" /> Adicionar Imagem
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {imagens.length > 1 && (
+                      <Select value={imagensLayout} onValueChange={(v: "horizontal" | "vertical") => setImagensLayout(v)}>
+                        <SelectTrigger className="w-[180px] h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="horizontal">Lado a lado</SelectItem>
+                          <SelectItem value="vertical">Vertical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Button type="button" variant="outline" size="sm" onClick={addImagem}>
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar
+                    </Button>
+                  </div>
                 </div>
                 
-                {imagens.map((img, index) => (
-                  <div key={index} className="border rounded-lg p-3 space-y-2 relative">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
-                      onClick={() => removeImagem(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                {imagensLayout === "horizontal" && imagens.length > 0 ? (
+                  /* Horizontal Layout - Single card with shared title/subtitle */
+                  <div className="border rounded-lg p-3 space-y-3">
+                    <Input
+                      placeholder="Título das imagens (opcional)"
+                      value={imagens[0]?.titulo || ""}
+                      onChange={(e) => updateImagem(0, "titulo", e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Subtítulo das imagens (opcional)"
+                      value={imagens[0]?.subtitulo || ""}
+                      onChange={(e) => updateImagem(0, "subtitulo", e.target.value)}
+                      className="text-sm"
+                    />
                     
-                    <div className="flex items-center gap-3">
-                      {img.url ? (
-                        <div className="relative">
-                          <img src={img.url} alt={`Imagem ${index + 1}`} className="h-16 w-auto max-w-24 object-contain rounded border" />
-                          <button
-                            type="button"
-                            onClick={() => updateImagem(index, "url", "")}
-                            className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
-                          >
-                            <X className="h-2.5 w-2.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => imagemInputRefs.current[index]?.click()}
-                          disabled={uploadingImagemIndex === index}
-                        >
-                          {uploadingImagemIndex === index ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {imagens.map((img, index) => (
+                        <div key={index} className="relative group">
+                          {img.url ? (
+                            <>
+                              <img 
+                                src={img.url} 
+                                alt={`Imagem ${index + 1}`} 
+                                className="h-16 w-auto max-w-20 object-contain rounded border" 
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeImagem(index)}
+                                className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
+                              >
+                                <X className="h-2.5 w-2.5" />
+                              </button>
+                              {/* Reorder buttons */}
+                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {index > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newImagens = [...imagens];
+                                      [newImagens[index - 1], newImagens[index]] = [newImagens[index], newImagens[index - 1]];
+                                      setImagens(newImagens);
+                                    }}
+                                    className="bg-muted text-muted-foreground rounded p-0.5 hover:bg-muted/80 text-[10px]"
+                                  >
+                                    ←
+                                  </button>
+                                )}
+                                {index < imagens.length - 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newImagens = [...imagens];
+                                      [newImagens[index], newImagens[index + 1]] = [newImagens[index + 1], newImagens[index]];
+                                      setImagens(newImagens);
+                                    }}
+                                    className="bg-muted text-muted-foreground rounded p-0.5 hover:bg-muted/80 text-[10px]"
+                                  >
+                                    →
+                                  </button>
+                                )}
+                              </div>
+                            </>
                           ) : (
-                            <Upload className="h-3 w-3 mr-1" />
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => imagemInputRefs.current[index]?.click()}
+                                disabled={uploadingImagemIndex === index}
+                                className="h-16 w-16"
+                              >
+                                {uploadingImagemIndex === index ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Upload className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() => removeImagem(index)}
+                                className="text-destructive hover:text-destructive/80"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
                           )}
-                          Upload
-                        </Button>
-                      )}
-                      <input
-                        ref={(el) => (imagemInputRefs.current[index] = el)}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleMultiImageUpload(e, index)}
-                        className="hidden"
+                          <input
+                            ref={(el) => (imagemInputRefs.current[index] = el)}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleMultiImageUpload(e, index)}
+                            className="hidden"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* Vertical Layout - Separate cards for each image */
+                  imagens.map((img, index) => (
+                    <div key={index} className="border rounded-lg p-3 space-y-2 relative">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={() => removeImagem(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      
+                      <div className="flex items-center gap-3">
+                        {img.url ? (
+                          <div className="relative">
+                            <img src={img.url} alt={`Imagem ${index + 1}`} className="h-16 w-auto max-w-24 object-contain rounded border" />
+                            <button
+                              type="button"
+                              onClick={() => updateImagem(index, "url", "")}
+                              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => imagemInputRefs.current[index]?.click()}
+                            disabled={uploadingImagemIndex === index}
+                          >
+                            {uploadingImagemIndex === index ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Upload className="h-3 w-3 mr-1" />
+                            )}
+                            Upload
+                          </Button>
+                        )}
+                        <input
+                          ref={(el) => (imagemInputRefs.current[index] = el)}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleMultiImageUpload(e, index)}
+                          className="hidden"
+                        />
+                      </div>
+                      
+                      <Input
+                        placeholder="Título da imagem (opcional)"
+                        value={img.titulo}
+                        onChange={(e) => updateImagem(index, "titulo", e.target.value)}
+                        className="text-sm"
+                      />
+                      <Input
+                        placeholder="Subtítulo da imagem (opcional)"
+                        value={img.subtitulo}
+                        onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
+                        className="text-sm"
                       />
                     </div>
-                    
-                    <Input
-                      placeholder="Título da imagem (opcional)"
-                      value={img.titulo}
-                      onChange={(e) => updateImagem(index, "titulo", e.target.value)}
-                      className="text-sm"
-                    />
-                    <Input
-                      placeholder="Subtítulo da imagem (opcional)"
-                      value={img.subtitulo}
-                      onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                ))}
+                  ))
+                )}
                 
                 {imagens.length === 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Clique em "Adicionar Imagem" para incluir imagens na página de obrigado
+                    Clique em "Adicionar" para incluir imagens na página de obrigado
                   </p>
-                )}
-                
-                {imagens.length > 1 && (
-                  <div className="space-y-2">
-                    <Label className="text-sm">Layout das Imagens</Label>
-                    <Select value={imagensLayout} onValueChange={(v: "horizontal" | "vertical") => setImagensLayout(v)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="horizontal">Lado a lado (Horizontal)</SelectItem>
-                        <SelectItem value="vertical">Uma abaixo da outra (Vertical)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 )}
               </div>
 
