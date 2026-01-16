@@ -24,7 +24,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, userId, email, password, fullName, expiryDate, displayOrder, redirectTo } = await req.json();
+    const { action, userId, email, password, fullName, expiryDate, displayOrder, redirectTo, permissions } = await req.json();
 
     switch (action) {
       case 'create': {
@@ -164,9 +164,7 @@ serve(async (req) => {
 
       case 'update_permissions': {
         // Atualizar permissões de features do usuário
-        const { permissions } = await req.json().catch(() => ({ permissions: [] }));
-        const body = await req.clone().json();
-        const userPermissions = body.permissions || [];
+        const userPermissions = permissions || [];
 
         // Deletar permissões existentes
         const { error: deleteError } = await supabase
