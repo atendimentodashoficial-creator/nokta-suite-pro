@@ -7,10 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateTemplate, useUpdateTemplate, FormularioTemplate } from "@/hooks/useFormularios";
+import { useCreateTemplate, useUpdateTemplate, FormularioTemplate, MediaItem } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload, X, Loader2 } from "lucide-react";
+import { Upload, X, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const FONT_OPTIONS = [
@@ -66,6 +66,12 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [paginaObrigadoImagemUrl, setPaginaObrigadoImagemUrl] = useState<string | null>(null);
   const [uploadingObrigadoImagem, setUploadingObrigadoImagem] = useState(false);
   const obrigadoImageInputRef = useRef<HTMLInputElement>(null);
+  
+  // Arrays for multiple images/videos
+  const [imagens, setImagens] = useState<MediaItem[]>([]);
+  const [videos, setVideos] = useState<MediaItem[]>([]);
+  const [uploadingImagemIndex, setUploadingImagemIndex] = useState<number | null>(null);
+  const imagemInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const generateSlug = (text: string) => {
     return text
@@ -121,6 +127,13 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoVideoSubtitulo((template as any).pagina_obrigado_video_subtitulo || "");
       setPaginaObrigadoVideoPosicao((template as any).pagina_obrigado_video_posicao || "abaixo");
       setPaginaObrigadoImagemUrl(template.pagina_obrigado_imagem_url || null);
+      
+      // Load arrays - parse from JSON if needed
+      const loadedImagens = (template as any).pagina_obrigado_imagens;
+      setImagens(Array.isArray(loadedImagens) ? loadedImagens : []);
+      
+      const loadedVideos = (template as any).pagina_obrigado_videos;
+      setVideos(Array.isArray(loadedVideos) ? loadedVideos : []);
     } else {
       setNome("");
       setSlug("");
@@ -150,8 +163,81 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoVideoSubtitulo("");
       setPaginaObrigadoVideoPosicao("abaixo");
       setPaginaObrigadoImagemUrl(null);
+      setImagens([]);
+      setVideos([]);
     }
   }, [template, open]);
+
+  // Handle multiple image upload
+  const handleMultiImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por favor, selecione uma imagem válida");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 5MB");
+      return;
+    }
+
+    setUploadingImagemIndex(index);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const userId = user?.id || "anonymous";
+      const fileName = `${userId}/obrigado-img-${crypto.randomUUID()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("logos")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("logos")
+        .getPublicUrl(fileName);
+
+      const newImagens = [...imagens];
+      newImagens[index] = { ...newImagens[index], url: urlData.publicUrl };
+      setImagens(newImagens);
+      toast.success("Imagem enviada com sucesso!");
+    } catch (error) {
+      console.error("Erro ao enviar imagem:", error);
+      toast.error("Erro ao enviar imagem");
+    } finally {
+      setUploadingImagemIndex(null);
+    }
+  };
+
+  const addImagem = () => {
+    setImagens([...imagens, { url: "", titulo: "", subtitulo: "" }]);
+  };
+
+  const removeImagem = (index: number) => {
+    setImagens(imagens.filter((_, i) => i !== index));
+  };
+
+  const updateImagem = (index: number, field: keyof MediaItem, value: string) => {
+    const newImagens = [...imagens];
+    newImagens[index] = { ...newImagens[index], [field]: value };
+    setImagens(newImagens);
+  };
+
+  const addVideo = () => {
+    setVideos([...videos, { url: "", titulo: "", subtitulo: "" }]);
+  };
+
+  const removeVideo = (index: number) => {
+    setVideos(videos.filter((_, i) => i !== index));
+  };
+
+  const updateVideo = (index: number, field: keyof MediaItem, value: string) => {
+    const newVideos = [...videos];
+    newVideos[index] = { ...newVideos[index], [field]: value };
+    setVideos(newVideos);
+  };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -273,6 +359,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       pagina_obrigado_video_subtitulo: paginaObrigadoVideoSubtitulo || null,
       pagina_obrigado_video_posicao: paginaObrigadoVideoPosicao,
       pagina_obrigado_imagem_url: paginaObrigadoImagemUrl,
+      pagina_obrigado_imagens: imagens.filter(img => img.url),
+      pagina_obrigado_videos: videos.filter(vid => vid.url),
     };
 
     try {
@@ -725,122 +813,167 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Imagem (opcional)</Label>
-                <div className="flex items-center gap-4">
-                  {paginaObrigadoImagemUrl ? (
-                    <div className="relative">
-                      <img 
-                        src={paginaObrigadoImagemUrl} 
-                        alt="Imagem de obrigado" 
-                        className="h-24 w-auto max-w-48 object-contain rounded border"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleRemoveObrigadoImagem}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
+              {/* Multiple Images Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Imagens (opcional)</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addImagem}>
+                    <Plus className="h-4 w-4 mr-1" /> Adicionar Imagem
+                  </Button>
+                </div>
+                
+                {imagens.map((img, index) => (
+                  <div key={index} className="border rounded-lg p-3 space-y-2 relative">
                     <Button
                       type="button"
-                      variant="outline"
-                      onClick={() => obrigadoImageInputRef.current?.click()}
-                      disabled={uploadingObrigadoImagem}
-                      className="h-16"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      onClick={() => removeImagem(index)}
                     >
-                      {uploadingObrigadoImagem ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="h-4 w-4 mr-2" />
-                      )}
-                      Enviar Imagem
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  )}
-                  <input
-                    ref={obrigadoImageInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleObrigadoImagemUpload}
-                    className="hidden"
-                  />
+                    
+                    <div className="flex items-center gap-3">
+                      {img.url ? (
+                        <div className="relative">
+                          <img src={img.url} alt={`Imagem ${index + 1}`} className="h-16 w-auto max-w-24 object-contain rounded border" />
+                          <button
+                            type="button"
+                            onClick={() => updateImagem(index, "url", "")}
+                            className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => imagemInputRefs.current[index]?.click()}
+                          disabled={uploadingImagemIndex === index}
+                        >
+                          {uploadingImagemIndex === index ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Upload className="h-3 w-3 mr-1" />
+                          )}
+                          Upload
+                        </Button>
+                      )}
+                      <input
+                        ref={(el) => (imagemInputRefs.current[index] = el)}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleMultiImageUpload(e, index)}
+                        className="hidden"
+                      />
+                    </div>
+                    
+                    <Input
+                      placeholder="Título da imagem (opcional)"
+                      value={img.titulo}
+                      onChange={(e) => updateImagem(index, "titulo", e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Subtítulo da imagem (opcional)"
+                      value={img.subtitulo}
+                      onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
+                      className="text-sm"
+                    />
+                  </div>
+                ))}
+                
+                {imagens.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Clique em "Adicionar Imagem" para incluir imagens na página de obrigado
+                  </p>
+                )}
+              </div>
+
+              {/* Multiple Videos Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Vídeos (opcional)</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addVideo}>
+                    <Plus className="h-4 w-4 mr-1" /> Adicionar Vídeo
+                  </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Imagem até 5MB. Será exibida na página de obrigado.
-                </p>
+                
+                {videos.map((video, index) => (
+                  <div key={index} className="border rounded-lg p-3 space-y-2 relative">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      onClick={() => removeVideo(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    
+                    <Input
+                      placeholder="URL do vídeo (YouTube ou Vimeo)"
+                      value={video.url}
+                      onChange={(e) => updateVideo(index, "url", e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Título do vídeo (opcional)"
+                      value={video.titulo}
+                      onChange={(e) => updateVideo(index, "titulo", e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="Subtítulo do vídeo (opcional)"
+                      value={video.subtitulo}
+                      onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
+                      className="text-sm"
+                    />
+                  </div>
+                ))}
+                
+                {videos.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Clique em "Adicionar Vídeo" para incluir vídeos do YouTube ou Vimeo
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="videoUrl">URL do Vídeo (opcional)</Label>
-                <Input
-                  id="videoUrl"
-                  value={paginaObrigadoVideoUrl}
-                  onChange={(e) => setPaginaObrigadoVideoUrl(e.target.value)}
-                  placeholder="https://youtube.com/watch?v=... ou https://vimeo.com/..."
-                />
+                <Label>Posição da Mídia</Label>
+                <Select value={paginaObrigadoVideoPosicao} onValueChange={(v: "acima" | "abaixo") => setPaginaObrigadoVideoPosicao(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="acima">Acima do "Obrigado"</SelectItem>
+                    <SelectItem value="abaixo">Abaixo do "Obrigado"</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
-                  Cole o link de um vídeo do YouTube ou Vimeo
+                  Escolha se as imagens e vídeos aparecem antes ou depois do título
                 </p>
               </div>
-
-              {paginaObrigadoVideoUrl && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="videoTitulo">Título do Vídeo (opcional)</Label>
-                    <Input
-                      id="videoTitulo"
-                      value={paginaObrigadoVideoTitulo}
-                      onChange={(e) => setPaginaObrigadoVideoTitulo(e.target.value)}
-                      placeholder="Ex: Assista o vídeo abaixo"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="videoSubtitulo">Subtítulo do Vídeo (opcional)</Label>
-                    <Input
-                      id="videoSubtitulo"
-                      value={paginaObrigadoVideoSubtitulo}
-                      onChange={(e) => setPaginaObrigadoVideoSubtitulo(e.target.value)}
-                      placeholder="Ex: Instruções importantes para você"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Posição do Vídeo</Label>
-                    <Select value={paginaObrigadoVideoPosicao} onValueChange={(v: "acima" | "abaixo") => setPaginaObrigadoVideoPosicao(v)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="acima">Acima do "Obrigado"</SelectItem>
-                        <SelectItem value="abaixo">Abaixo do "Obrigado"</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Escolha se o vídeo aparece antes ou depois do título de obrigado
-                    </p>
-                  </div>
-                </>
-              )}
 
               <div className="p-4 bg-muted rounded-lg">
                 <h4 className="font-medium mb-2">Preview</h4>
                 <div className="text-center space-y-3">
-                  {paginaObrigadoImagemUrl && (
-                    <img 
-                      src={paginaObrigadoImagemUrl} 
-                      alt="Preview" 
-                      className="h-20 w-auto mx-auto object-contain rounded"
-                    />
-                  )}
-                  {paginaObrigadoVideoUrl && (
-                    <div className="text-xs text-muted-foreground bg-background/50 p-2 rounded">
-                      🎬 Vídeo será exibido aqui
+                  {imagens.filter(i => i.url).length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {imagens.filter(i => i.url).map((img, idx) => (
+                        <img key={idx} src={img.url} alt={`Preview ${idx}`} className="h-12 w-auto object-contain rounded" />
+                      ))}
                     </div>
                   )}
-                  {!paginaObrigadoImagemUrl && !paginaObrigadoVideoUrl && (
+                  {videos.filter(v => v.url).length > 0 && (
+                    <div className="text-xs text-muted-foreground bg-background/50 p-2 rounded">
+                      🎬 {videos.filter(v => v.url).length} vídeo(s) configurado(s)
+                    </div>
+                  )}
+                  {imagens.filter(i => i.url).length === 0 && videos.filter(v => v.url).length === 0 && (
                     <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center" style={{ backgroundColor: corPrimaria + "20" }}>
                       <svg className="w-8 h-8" style={{ color: corPrimaria }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

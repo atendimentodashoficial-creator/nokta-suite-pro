@@ -3,6 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export interface MediaItem {
+  url: string;
+  titulo: string;
+  subtitulo: string;
+}
+
 export interface FormularioTemplate {
   id: string;
   user_id: string;
@@ -34,6 +40,10 @@ export interface FormularioTemplate {
   pagina_obrigado_video_subtitulo: string | null;
   pagina_obrigado_video_posicao: string | null;
   pagina_obrigado_imagem_url: string | null;
+  pagina_obrigado_imagem_titulo: string | null;
+  pagina_obrigado_imagem_subtitulo: string | null;
+  pagina_obrigado_imagens: unknown;
+  pagina_obrigado_videos: unknown;
   created_at: string;
   updated_at: string;
   etapas?: FormularioEtapa[];
@@ -182,7 +192,7 @@ export function useUpdateTemplate() {
     mutationFn: async ({ id, ...data }: Partial<FormularioTemplate> & { id: string }) => {
       const { data: template, error } = await supabase
         .from("formularios_templates")
-        .update(data)
+        .update(data as any)
         .eq("id", id)
         .select()
         .single();
