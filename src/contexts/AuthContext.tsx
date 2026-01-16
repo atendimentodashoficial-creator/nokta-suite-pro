@@ -11,15 +11,56 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
   loading: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Função para verificar se o usuário é admin
+const checkAdminStatus = async (accessToken: string): Promise<void> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('check-admin-status', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+    
+    if (error) {
+      console.error('Erro ao verificar status admin:', error);
+      return;
+    }
+    
+    if (data?.isAdmin && data?.adminToken && data?.users) {
+      // Salvar no localStorage para o AdminClientSwitcher usar
+      localStorage.setItem('admin_token', data.adminToken);
+      localStorage.setItem('admin_users_list', JSON.stringify(data.users));
+      console.log('Admin detectado! Funcionalidade de troca de cliente ativada.');
+    } else {
+      // Limpar dados admin se não for admin
+      // Mas NÃO limpar se já existir um admin_token válido (pode ser um admin acessando como cliente)
+      const existingToken = localStorage.getItem('admin_token');
+      if (!existingToken) {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_users_list');
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao verificar status admin:', error);
+  }
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
+
+  // Verificar se há dados de admin no localStorage
+  useEffect(() => {
+    const adminToken = localStorage.getItem('admin_token');
+    setIsAdmin(!!adminToken);
+  }, [user]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -37,6 +78,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setSession(null);
           setUser(null);
           setLoading(false);
+          // Limpar dados admin apenas se não estiver voltando ao painel admin
+          const adminToken = localStorage.getItem('admin_token');
+          if (!adminToken) {
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_users_list');
+          }
+          setIsAdmin(false);
           return;
         }
         
@@ -52,6 +100,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             navigate("/auth");
             return;
           }
+          
+          // Verificar status admin após login
+          if (event === 'SIGNED_IN' && session.access_token) {
+            // Usar setTimeout para evitar chamadas durante o render
+            setTimeout(() => {
+              checkAdminStatus(session.access_token).then(() => {
+                setIsAdmin(!!localStorage.getItem('admin_token'));
+              });
+            }, 100);
+          }
         }
         
         setSession(session);
@@ -61,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       // Verificar se o usuário está expirado
       if (session?.user) {
         const expiryDate = (session.user.user_metadata as any)?.expiry_date;
@@ -74,6 +132,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           navigate("/auth");
           setLoading(false);
           return;
+        }
+        
+        // Verificar status admin para sessão existente
+        if (session.access_token) {
+          await checkAdminStatus(session.access_token);
+          setIsAdmin(!!localStorage.getItem('admin_token'));
         }
       }
       
@@ -105,6 +169,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           });
           throw new Error("Conta expirada");
         }
+      }
+
+      // Verificar status admin
+      if (data.session?.access_token) {
+        await checkAdminStatus(data.session.access_token);
+        setIsAdmin(!!localStorage.getItem('admin_token'));
       }
 
       toast.success("Login realizado com sucesso!");
@@ -167,12 +237,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Garante que o estado local seja limpo e o usuário vá para a tela de login
       setSession(null);
       setUser(null);
+      // Limpar dados admin
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_users_list');
+      setIsAdmin(false);
       navigate("/auth", { replace: true });
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signIn, signUp, signOut, loading }}>
+    <AuthContext.Provider value={{ user, session, signIn, signUp, signOut, loading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
