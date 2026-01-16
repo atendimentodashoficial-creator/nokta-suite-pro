@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, Eye, Pencil, Trash2, Download, MoreHorizontal } from "lucide-react";
+import { Search, Eye, Pencil, Trash2, Download, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ export default function FormulariosLeads() {
   const [selectedLead, setSelectedLead] = useState<FormularioLead | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   
   const { periodFilter, dateStart, dateEnd, setPeriodFilter, setDateStart, setDateEnd } = usePeriodFilter();
   
@@ -121,6 +123,19 @@ export default function FormulariosLeads() {
       setLeadToDelete(null);
       setDeleteDialogOpen(false);
     }
+  };
+
+  // Pagination logic
+  const totalItems = filteredLeads?.length || 0;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedLeads = filteredLeads?.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
   };
 
   return (
@@ -213,8 +228,14 @@ export default function FormulariosLeads() {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedLeads.length === filteredLeads?.length && filteredLeads?.length > 0}
-                        onCheckedChange={handleSelectAll}
+                        checked={selectedLeads.length === paginatedLeads?.length && paginatedLeads?.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedLeads(paginatedLeads?.map(l => l.id) || []);
+                          } else {
+                            setSelectedLeads([]);
+                          }
+                        }}
                       />
                     </TableHead>
                     <TableHead>Data/Hora</TableHead>
@@ -227,7 +248,7 @@ export default function FormulariosLeads() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLeads?.map((lead) => (
+                  {paginatedLeads?.map((lead) => (
                     <TableRow key={lead.id}>
                       <TableCell>
                         <Checkbox
@@ -276,6 +297,50 @@ export default function FormulariosLeads() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {totalItems > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Itens por página:</span>
+                <Select value={String(itemsPerPage)} onValueChange={handleItemsPerPageChange}>
+                  <SelectTrigger className="w-[80px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                    <SelectItem value="200">200</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  {startIndex + 1}-{Math.min(endIndex, totalItems)} de {totalItems}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm">
+                  Página {currentPage} de {totalPages || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
