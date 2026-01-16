@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useCreateTemplate, useUpdateTemplate, useFormularioTemplate, FormularioTemplate, MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload, X, Loader2, Plus, Trash2, ChevronDown, Palette, Type, Link2, Film, ImageIcon, GripVertical, Settings2 } from "lucide-react";
+import { Upload, X, Loader2, Plus, Trash2, ChevronDown, Palette, Type, Link2, Film, ImageIcon, GripVertical, Settings2, Heading } from "lucide-react";
 import { toast } from "sonner";
 import FormPreviewPanel from "./FormPreviewPanel";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -1119,14 +1119,16 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
               {/* Title & Subtitle Section - Collapsible */}
               <Collapsible>
-                <CollapsibleTrigger className="flex items-center justify-between w-full border rounded-lg p-3 bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Type className="h-4 w-4" />
-                    <span className="font-medium">Título e Subtítulo</span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Heading className="h-4 w-4" />
+                      Título e Subtítulo
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="border border-t-0 rounded-b-lg p-4 space-y-3 bg-muted/20">
+                <CollapsibleContent className="space-y-3 pt-3">
                   <p className="text-xs text-muted-foreground">
                     Aparece no formulário apenas se preenchido
                   </p>
