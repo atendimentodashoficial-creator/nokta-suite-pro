@@ -606,6 +606,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           {/* Button */}
           {hasEtapas && (
             <Button
+              type="button"
               className="w-full"
               size="sm"
               style={{ 
