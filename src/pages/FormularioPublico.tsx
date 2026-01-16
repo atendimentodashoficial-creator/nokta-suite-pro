@@ -64,9 +64,13 @@ export default function FormularioPublico() {
   const [startTime, setStartTime] = useState<Date>(new Date());
   const stepStartTime = useRef<Date>(new Date());
 
-  const etapas = config?.formularios_etapas?.filter(e => e.ativo).sort((a, b) => a.ordem - b.ordem) || [];
+  // Etapas ativas ordenadas; a navegação usa o índice (1..N), não o campo `ordem`
+  // Isso evita "tela branca" caso existam ordens duplicadas/gaps.
+  const etapas = (config?.formularios_etapas || [])
+    .filter((e) => e.ativo)
+    .sort((a, b) => a.ordem - b.ordem);
   const totalSteps = etapas.length;
-  const currentEtapa = etapas.find(e => e.ordem === currentStep);
+  const currentEtapa = etapas[currentStep - 1];
   const progress = totalSteps > 0 ? (currentStep / totalSteps) * 100 : 0;
 
   // Load form config
@@ -155,7 +159,7 @@ export default function FormularioPublico() {
 
   // Handle session abandonment (unload/hidden) - use fetch keepalive with anon key
   useEffect(() => {
-    if (!sessionId || isPreview) return;
+    if (!sessionId || !sessionToken || isPreview) return;
 
     const markAsAbandoned = () => {
       if (submitted) return;
@@ -185,7 +189,7 @@ export default function FormularioPublico() {
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && !submitted) {
+      if (document.visibilityState === "hidden" && !submitted) {
         markAsAbandoned();
       }
     };
@@ -198,13 +202,14 @@ export default function FormularioPublico() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("pagehide", handleBeforeUnload);
-    
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("pagehide", handleBeforeUnload);
     };
-  }, [sessionId, currentStep, formData, submitted, isPreview]);
+  }, [sessionId, sessionToken, currentStep, formData, submitted, isPreview]);
+
 
   const validateField = (tipo: string, value: string, obrigatorio: boolean): string | null => {
     if (obrigatorio && !value?.trim()) {
@@ -591,7 +596,43 @@ export default function FormularioPublico() {
     );
   }
 
-  if (!config || !currentEtapa) return null;
+  if (!config) return null;
+
+  // Evita "tela branca" quando o template está sem etapas ativas ou o índice saiu do range.
+  if (totalSteps === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+            <AlertCircle className="h-10 w-10 text-destructive" />
+            <p className="text-lg font-medium">Formulário sem etapas</p>
+            <p className="text-sm text-muted-foreground">
+              Ative pelo menos 1 etapa para publicar este formulário.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentEtapa) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+            <AlertCircle className="h-10 w-10 text-destructive" />
+            <p className="text-lg font-medium">Etapa não encontrada</p>
+            <p className="text-sm text-muted-foreground">
+              Parece haver um problema na ordem das etapas. Vamos voltar para a primeira etapa.
+            </p>
+            <Button variant="outline" onClick={() => setCurrentStep(1)}>
+              Voltar ao início
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const primaryColor = config.cor_primaria || "#8B5CF6";
 
