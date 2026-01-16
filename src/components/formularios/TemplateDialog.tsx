@@ -471,6 +471,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("18px");
   const [fonteTamanhoMidiaSubtitulo, setFonteTamanhoMidiaSubtitulo] = useState("14px");
   const [fonteMidia, setFonteMidia] = useState("Inter");
+  // Independent colors for thank you page
+  const [corTituloPrincipal, setCorTituloPrincipal] = useState("#1f2937");
+  const [corMensagem, setCorMensagem] = useState("#6b7280");
+  const [corTituloMidia, setCorTituloMidia] = useState("#1f2937");
+  const [corSubtituloMidia, setCorSubtituloMidia] = useState("#6b7280");
   
   // Collapsible states
   const [colorsOpen, setColorsOpen] = useState(false);
@@ -984,6 +989,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     fonteTamanhoMidiaTitulo,
     fonteTamanhoMidiaSubtitulo,
     fonteMidia,
+    // Independent colors
+    corTituloPrincipal,
+    corMensagem,
+    corTituloMidia,
+    corSubtituloMidia,
   };
 
   return (
@@ -1614,9 +1624,91 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     </div>
                   </div>
 
-                  {/* Cores */}
+                  {/* Cores do Título e Mensagem */}
                   <div className="space-y-3">
-                    <Label className="text-sm font-medium">Cores</Label>
+                    <Label className="text-sm font-medium">Cores - Título e Mensagem</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor do Título Principal</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={corTituloPrincipal}
+                            onChange={(e) => setCorTituloPrincipal(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={corTituloPrincipal}
+                            onChange={(e) => setCorTituloPrincipal(e.target.value)}
+                            placeholder="#1f2937"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor da Mensagem</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={corMensagem}
+                            onChange={(e) => setCorMensagem(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={corMensagem}
+                            onChange={(e) => setCorMensagem(e.target.value)}
+                            placeholder="#6b7280"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cores das Mídias */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Cores - Mídias</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor do Título da Mídia</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={corTituloMidia}
+                            onChange={(e) => setCorTituloMidia(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={corTituloMidia}
+                            onChange={(e) => setCorTituloMidia(e.target.value)}
+                            placeholder="#1f2937"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cor do Subtítulo da Mídia</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={corSubtituloMidia}
+                            onChange={(e) => setCorSubtituloMidia(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={corSubtituloMidia}
+                            onChange={(e) => setCorSubtituloMidia(e.target.value)}
+                            placeholder="#6b7280"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cores Gerais */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Cores - Gerais</Label>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">Cor do Fundo</Label>
@@ -1636,25 +1728,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor do Texto</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={textColor}
-                            onChange={(e) => setTextColor(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={textColor}
-                            onChange={(e) => setTextColor(e.target.value)}
-                            placeholder="#1f2937"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">Cor do Botão</Label>
                         <div className="flex items-center gap-2">
                           <Input
@@ -1671,22 +1744,22 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                           />
                         </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Texto do Botão</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={buttonTextColor}
-                            onChange={(e) => setButtonTextColor(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={buttonTextColor}
-                            onChange={(e) => setButtonTextColor(e.target.value)}
-                            placeholder="#ffffff"
-                            className="flex-1"
-                          />
-                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Texto do Botão</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="color"
+                          value={buttonTextColor}
+                          onChange={(e) => setButtonTextColor(e.target.value)}
+                          className="w-10 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          value={buttonTextColor}
+                          onChange={(e) => setButtonTextColor(e.target.value)}
+                          placeholder="#ffffff"
+                          className="flex-1"
+                        />
                       </div>
                     </div>
                   </div>

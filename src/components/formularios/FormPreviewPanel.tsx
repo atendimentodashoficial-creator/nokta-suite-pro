@@ -43,6 +43,11 @@ interface FormPreviewPanelProps {
     fonteTamanhoMidiaTitulo?: string;
     fonteTamanhoMidiaSubtitulo?: string;
     fonteMidia?: string;
+    // Independent colors
+    corTituloPrincipal?: string;
+    corMensagem?: string;
+    corTituloMidia?: string;
+    corSubtituloMidia?: string;
   };
   showThankYou?: boolean;
 }
@@ -121,6 +126,11 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     fonteTamanhoMidiaTitulo = "18px",
     fonteTamanhoMidiaSubtitulo = "14px",
     fonteMidia = "Inter",
+    // Independent colors
+    corTituloPrincipal = "#1f2937",
+    corMensagem = "#6b7280",
+    corTituloMidia = "#1f2937",
+    corSubtituloMidia = "#6b7280",
   } = config;
 
   const validImagens = imagens.filter(i => i.url);
@@ -136,11 +146,11 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
         >
           <CheckCircle2 className="h-4 w-4" style={{ color: corPrimaria }} />
         </div>
-        <h2 className="font-bold" style={{ color: textColor, fontSize: `${Math.min(obrigadoTituloSize * 0.6, 20)}px` }}>
+        <h2 className="font-bold" style={{ color: corTituloPrincipal, fontSize: `${Math.min(obrigadoTituloSize * 0.6, 20)}px` }}>
           {paginaObrigadoTitulo || "Obrigado!"}
         </h2>
       </div>
-      <p className="text-center" style={{ color: textColor, opacity: 0.7, fontSize: `${Math.min(obrigadoTextoSize * 0.7, 12)}px` }}>
+      <p className="text-center" style={{ color: corMensagem, fontSize: `${Math.min(obrigadoTextoSize * 0.7, 12)}px` }}>
         {paginaObrigadoMensagem || "Recebemos suas informações."}
       </p>
     </>
@@ -174,7 +184,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               <span 
                 className="font-medium text-center" 
                 style={{ 
-                  color: textColor, 
+                  color: corTituloMidia, 
                   fontFamily: fonteMidia,
                   fontSize: `${Math.min(mediaTitleSize * 0.6, 14)}px` 
                 }}
@@ -186,8 +196,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               <span 
                 className="text-center" 
                 style={{ 
-                  color: textColor, 
-                  opacity: 0.7, 
+                  color: corSubtituloMidia, 
                   fontFamily: fonteMidia,
                   fontSize: `${Math.min(mediaSubtitleSize * 0.6, 11)}px` 
                 }}
@@ -225,7 +234,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               <h3 
                 className="font-semibold text-center" 
                 style={{ 
-                  color: textColor, 
+                  color: corTituloMidia, 
                   fontFamily: fonteMidia,
                   fontSize: `${Math.min(mediaTitleSize * 0.7, 14)}px` 
                 }}
@@ -237,8 +246,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               <p 
                 className="text-center" 
                 style={{ 
-                  color: textColor, 
-                  opacity: 0.7, 
+                  color: corSubtituloMidia, 
                   fontFamily: fonteMidia,
                   fontSize: `${Math.min(mediaSubtitleSize * 0.7, 11)}px` 
                 }}
