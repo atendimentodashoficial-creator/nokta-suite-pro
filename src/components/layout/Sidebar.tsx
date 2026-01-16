@@ -82,16 +82,11 @@ export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse
               alt="Logo" 
               className="h-8 w-auto object-contain transition-all brightness-0 invert"
             />
-          )}
+        )}
         </div>
 
         {/* Admin Client Switcher - só aparece quando admin está logado como cliente */}
-        <div className={cn(
-          "border-b border-sidebar-border",
-          collapsed ? "px-2 py-2 flex justify-center" : "px-3 py-2"
-        )}>
-          <AdminClientSwitcher collapsed={collapsed} />
-        </div>
+        <AdminClientSwitcher collapsed={collapsed} />
 
         {/* Navigation */}
         <nav className={cn(
