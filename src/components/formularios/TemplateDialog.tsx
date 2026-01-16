@@ -1170,8 +1170,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <CollapsibleContent className="space-y-3 pt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Tamanho das Opções de Escolha</Label>
-                      <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
+                      <Label className="text-sm">Títulos das Perguntas</Label>
+                      <Select value={fonteTamanhoTitulo} onValueChange={setFonteTamanhoTitulo}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
@@ -1181,8 +1181,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Texto das Respostas</Label>
-                      <Select value={fonteTamanhoSubtitulo} onValueChange={setFonteTamanhoSubtitulo}>
+                      <Label className="text-sm">Opções de Escolha</Label>
+                      <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
@@ -1191,6 +1191,17 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Texto das Respostas</Label>
+                    <Select value={fonteTamanhoSubtitulo} onValueChange={setFonteTamanhoSubtitulo}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FONT_SIZE_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CollapsibleContent>
               </Collapsible>
