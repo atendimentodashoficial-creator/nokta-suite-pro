@@ -490,6 +490,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [corTituloMidia, setCorTituloMidia] = useState("#1f2937");
   const [corSubtituloMidia, setCorSubtituloMidia] = useState("#6b7280");
   
+  // Progress bar visibility
+  const [barraProgressoVisivel, setBarraProgressoVisivel] = useState(true);
+  
   // Collapsible states
   const [colorsOpen, setColorsOpen] = useState(false);
   const [fontsOpen, setFontsOpen] = useState(false);
@@ -608,6 +611,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoDescricaoEtapa((template as any).fonte_tamanho_descricao_etapa || "14px");
       setCorDescricaoEtapa((template as any).cor_descricao_etapa || "#6b7280");
       setCorIndicadorEtapa((template as any).cor_indicador_etapa || "#6b7280");
+      setBarraProgressoVisivel((template as any).barra_progresso_visivel !== false);
       
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
@@ -669,6 +673,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoDescricaoEtapa("14px");
       setCorDescricaoEtapa("#6b7280");
       setCorIndicadorEtapa("#6b7280");
+      setBarraProgressoVisivel(true);
       
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
@@ -993,6 +998,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       fonte_tamanho_descricao_etapa: fonteTamanhoDescricaoEtapa,
       cor_descricao_etapa: corDescricaoEtapa,
       cor_indicador_etapa: corIndicadorEtapa,
+      barra_progresso_visivel: barraProgressoVisivel,
       
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
@@ -1676,8 +1682,24 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               )}
 
-              {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso (apenas multi_step) */}
+              {/* Barra de Progresso Visibility Toggle (apenas multi_step) */}
               {layoutTipo === "multi_step" && (
+                <div className="flex items-center justify-between py-2 border-b">
+                  <div className="space-y-0.5">
+                    <Label>Exibir Barra de Progresso</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Mostra o progresso do formulário para o usuário
+                    </p>
+                  </div>
+                  <Switch
+                    checked={barraProgressoVisivel}
+                    onCheckedChange={setBarraProgressoVisivel}
+                  />
+                </div>
+              )}
+
+              {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso (apenas multi_step e visível) */}
+              {layoutTipo === "multi_step" && barraProgressoVisivel && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="progressColor">Barra de Progresso</Label>
