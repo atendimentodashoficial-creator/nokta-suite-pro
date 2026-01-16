@@ -2085,8 +2085,10 @@ export type Database = {
           nome: string
           pagina_obrigado_cta_link: string | null
           pagina_obrigado_cta_texto: string | null
+          pagina_obrigado_imagem_url: string | null
           pagina_obrigado_mensagem: string | null
           pagina_obrigado_titulo: string | null
+          pagina_obrigado_video_url: string | null
           slug: string | null
           status: string
           text_color: string | null
@@ -2107,8 +2109,10 @@ export type Database = {
           nome: string
           pagina_obrigado_cta_link?: string | null
           pagina_obrigado_cta_texto?: string | null
+          pagina_obrigado_imagem_url?: string | null
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
+          pagina_obrigado_video_url?: string | null
           slug?: string | null
           status?: string
           text_color?: string | null
@@ -2129,8 +2133,10 @@ export type Database = {
           nome?: string
           pagina_obrigado_cta_link?: string | null
           pagina_obrigado_cta_texto?: string | null
+          pagina_obrigado_imagem_url?: string | null
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
+          pagina_obrigado_video_url?: string | null
           slug?: string | null
           status?: string
           text_color?: string | null
