@@ -2083,6 +2083,7 @@ export type Database = {
           cor_primaria: string | null
           created_at: string
           descricao: string | null
+          error_text_color: string | null
           font_family: string | null
           id: string
           layout_tipo: string
@@ -2113,6 +2114,7 @@ export type Database = {
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
+          error_text_color?: string | null
           font_family?: string | null
           id?: string
           layout_tipo?: string
@@ -2143,6 +2145,7 @@ export type Database = {
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
+          error_text_color?: string | null
           font_family?: string | null
           id?: string
           layout_tipo?: string

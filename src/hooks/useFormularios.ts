@@ -23,6 +23,7 @@ export interface FormularioTemplate {
   back_button_color: string | null;
   back_button_text_color: string | null;
   answer_text_color: string | null;
+  error_text_color: string | null;
   logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;

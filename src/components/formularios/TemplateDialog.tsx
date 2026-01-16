@@ -49,6 +49,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [backButtonColor, setBackButtonColor] = useState("#6b7280");
   const [backButtonTextColor, setBackButtonTextColor] = useState("#ffffff");
   const [answerTextColor, setAnswerTextColor] = useState("#1f2937");
+  const [errorTextColor, setErrorTextColor] = useState("#ef4444");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -104,6 +105,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setBackButtonColor((template as any).back_button_color || "#6b7280");
       setBackButtonTextColor((template as any).back_button_text_color || "#ffffff");
       setAnswerTextColor((template as any).answer_text_color || "#1f2937");
+      setErrorTextColor((template as any).error_text_color || "#ef4444");
       setLogoUrl(template.logo_url || null);
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
@@ -129,6 +131,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setBackButtonColor("#6b7280");
       setBackButtonTextColor("#ffffff");
       setAnswerTextColor("#1f2937");
+      setErrorTextColor("#ef4444");
       setLogoUrl(null);
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
@@ -246,6 +249,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       back_button_color: backButtonColor,
       back_button_text_color: backButtonTextColor,
       answer_text_color: answerTextColor,
+      error_text_color: errorTextColor,
       logo_url: logoUrl,
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
@@ -603,26 +607,50 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="answerTextColor">Cor do Texto das Respostas</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="answerTextColor"
-                    type="color"
-                    value={answerTextColor}
-                    onChange={(e) => setAnswerTextColor(e.target.value)}
-                    className="w-12 h-10 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={answerTextColor}
-                    onChange={(e) => setAnswerTextColor(e.target.value)}
-                    placeholder="#1f2937"
-                    className="flex-1"
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="answerTextColor">Cor do Texto das Respostas</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="answerTextColor"
+                      type="color"
+                      value={answerTextColor}
+                      onChange={(e) => setAnswerTextColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={answerTextColor}
+                      onChange={(e) => setAnswerTextColor(e.target.value)}
+                      placeholder="#1f2937"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Cor do texto digitado
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Cor do texto digitado nos campos de formulário
-                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="errorTextColor">Cor das Mensagens de Erro</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="errorTextColor"
+                      type="color"
+                      value={errorTextColor}
+                      onChange={(e) => setErrorTextColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={errorTextColor}
+                      onChange={(e) => setErrorTextColor(e.target.value)}
+                      placeholder="#ef4444"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Cor dos erros de validação
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-center justify-between">

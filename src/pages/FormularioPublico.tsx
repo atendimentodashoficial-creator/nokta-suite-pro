@@ -46,6 +46,7 @@ interface TemplateConfig {
   back_button_color: string | null;
   back_button_text_color: string | null;
   answer_text_color: string | null;
+  error_text_color: string | null;
   logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
@@ -558,9 +559,10 @@ export default function FormularioPublico() {
     }
   };
 
-  const renderField = (etapa: EtapaConfig, customStyles?: { cardColor?: string; textColor?: string; borderColor?: string; answerColor?: string }) => {
+  const renderField = (etapa: EtapaConfig, customStyles?: { cardColor?: string; textColor?: string; borderColor?: string; answerColor?: string; errorColor?: string }) => {
     const { tipo, id, titulo, descricao, configuracao, obrigatorio } = etapa;
     const value = formData[id];
+    const errorStyle = customStyles?.errorColor ? { color: customStyles.errorColor } : {};
 
     switch (tipo) {
       case "texto":
@@ -573,7 +575,7 @@ export default function FormularioPublico() {
               onChange={(e) => handleChange(id, e.target.value)}
               className={fieldErrors[id] ? "border-destructive" : ""}
             />
-            {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
+            {fieldErrors[id] && <p className="text-xs" style={errorStyle}>{fieldErrors[id]}</p>}
           </div>
         );
 
@@ -588,7 +590,7 @@ export default function FormularioPublico() {
               onChange={(e) => handleChange(id, e.target.value)}
               className={fieldErrors[id] ? "border-destructive" : ""}
             />
-            {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
+            {fieldErrors[id] && <p className="text-xs" style={errorStyle}>{fieldErrors[id]}</p>}
           </div>
         );
 
@@ -602,7 +604,7 @@ export default function FormularioPublico() {
               onPhoneChange={(v) => handleChange(id, v, "telefone")}
               placeholder={getPhonePlaceholder(countryCode)}
             />
-            {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
+            {fieldErrors[id] && <p className="text-xs" style={errorStyle}>{fieldErrors[id]}</p>}
           </div>
         );
 
@@ -617,7 +619,7 @@ export default function FormularioPublico() {
               rows={4}
               className={fieldErrors[id] ? "border-destructive" : ""}
             />
-            {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
+            {fieldErrors[id] && <p className="text-xs" style={errorStyle}>{fieldErrors[id]}</p>}
           </div>
         );
 
@@ -632,7 +634,7 @@ export default function FormularioPublico() {
               onChange={(e) => handleChange(id, e.target.value)}
               className={fieldErrors[id] ? "border-destructive" : ""}
             />
-            {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
+            {fieldErrors[id] && <p className="text-xs" style={errorStyle}>{fieldErrors[id]}</p>}
           </div>
         );
 
@@ -663,7 +665,7 @@ export default function FormularioPublico() {
                 </div>
               );
             })}
-            {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
+            {fieldErrors[id] && <p className="text-xs" style={errorStyle}>{fieldErrors[id]}</p>}
           </div>
         );
 
@@ -704,7 +706,7 @@ export default function FormularioPublico() {
                 </div>
               );
             })}
-            {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
+            {fieldErrors[id] && <p className="text-xs" style={errorStyle}>{fieldErrors[id]}</p>}
           </div>
         );
 
@@ -735,7 +737,7 @@ export default function FormularioPublico() {
                     className={fieldErrors[campo.id] ? "border-destructive" : ""}
                   />
                 )}
-                {fieldErrors[campo.id] && <p className="text-xs text-destructive">{fieldErrors[campo.id]}</p>}
+                {fieldErrors[campo.id] && <p className="text-xs" style={errorStyle}>{fieldErrors[campo.id]}</p>}
               </div>
             ))}
           </div>
@@ -919,6 +921,7 @@ export default function FormularioPublico() {
   const backButtonColor = config.back_button_color || "#6b7280";
   const backButtonTextColor = config.back_button_text_color || "#ffffff";
   const answerTextColor = config.answer_text_color || "#1f2937";
+  const errorTextColor = config.error_text_color || "#ef4444";
 
   const isSinglePage = config.layout_tipo === "single_page";
 
@@ -969,7 +972,7 @@ export default function FormularioPublico() {
                 <div>
                   <Label className="text-base font-medium" style={{ color: textColor }}>
                     {etapa.titulo}
-                    {etapa.obrigatorio && <span className="text-destructive ml-1">*</span>}
+                    {etapa.obrigatorio && <span style={{ color: errorTextColor }} className="ml-1">*</span>}
                   </Label>
                   {etapa.descricao && (
                     <p className="text-sm mt-1" style={{ color: textColor, opacity: 0.7 }}>{etapa.descricao}</p>
@@ -980,11 +983,12 @@ export default function FormularioPublico() {
                   textColor: textColor,
                   borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "rgba(255,255,255,0.2)",
                   answerColor: answerTextColor,
+                  errorColor: errorTextColor,
                 })}
               </div>
             ))}
 
-            {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            {error && <p className="text-sm text-center" style={{ color: errorTextColor }}>{error}</p>}
 
             <Button
               type="button"
@@ -1069,9 +1073,10 @@ export default function FormularioPublico() {
             textColor: textColor,
             borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "rgba(255,255,255,0.2)",
             answerColor: answerTextColor,
+            errorColor: errorTextColor,
           })}
 
-          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+          {error && <p className="text-sm text-center" style={{ color: errorTextColor }}>{error}</p>}
 
           <div className="flex gap-3">
             {currentStep > 1 && (
