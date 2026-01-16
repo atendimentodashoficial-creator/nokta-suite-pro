@@ -1490,6 +1490,34 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="corDescricaoEtapa">Descrição da Pergunta</Label>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: corDescricaoEtapa }}
+                      onClick={() => document.getElementById('corDescricaoEtapa')?.click()}
+                    >
+                      <Input
+                        id="corDescricaoEtapa"
+                        type="color"
+                        value={corDescricaoEtapa}
+                        onChange={(e) => setCorDescricaoEtapa(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      value={corDescricaoEtapa}
+                      onChange={(e) => setCorDescricaoEtapa(e.target.value)}
+                      placeholder="#6b7280"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Linha: Respostas, Mensagem de Erro */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="answerTextColor">Respostas</Label>
                   <div className="flex items-center gap-2">
                     <div 
@@ -1509,34 +1537,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       value={answerTextColor}
                       onChange={(e) => setAnswerTextColor(e.target.value)}
                       placeholder="#1f2937"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Linha: Descrição Etapa, Indicador Etapa */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="corDescricaoEtapa">Descrição Etapa</Label>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                      style={{ backgroundColor: corDescricaoEtapa }}
-                      onClick={() => document.getElementById('corDescricaoEtapa')?.click()}
-                    >
-                      <Input
-                        id="corDescricaoEtapa"
-                        type="color"
-                        value={corDescricaoEtapa}
-                        onChange={(e) => setCorDescricaoEtapa(e.target.value)}
-                        className="opacity-0 w-full h-full cursor-pointer"
-                      />
-                    </div>
-                    <Input
-                      value={corDescricaoEtapa}
-                      onChange={(e) => setCorDescricaoEtapa(e.target.value)}
-                      placeholder="#6b7280"
                       className="flex-1"
                     />
                   </div>
