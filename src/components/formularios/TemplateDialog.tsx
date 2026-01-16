@@ -1143,30 +1143,14 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="tituloCor" className="text-sm">Cor do Título</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="color"
-                          value={tituloCor}
-                          onChange={(e) => setTituloCor(e.target.value)}
-                          className="w-10 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          value={tituloCor}
-                          onChange={(e) => setTituloCor(e.target.value)}
-                          className="flex-1"
-                        />
-                      </div>
+                      <Label htmlFor="subtitulo" className="text-sm">Subtítulo</Label>
+                      <Input
+                        id="subtitulo"
+                        value={subtitulo}
+                        onChange={(e) => setSubtitulo(e.target.value)}
+                        placeholder="Ex: É rápido e fácil"
+                      />
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="subtitulo" className="text-sm">Subtítulo</Label>
-                    <Input
-                      id="subtitulo"
-                      value={subtitulo}
-                      onChange={(e) => setSubtitulo(e.target.value)}
-                      placeholder="Ex: É rápido e fácil"
-                    />
                   </div>
                 </CollapsibleContent>
               </Collapsible>
