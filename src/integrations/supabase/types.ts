@@ -2080,6 +2080,8 @@ export type Database = {
           button_text_color: string | null
           card_border_color: string | null
           card_color: string | null
+          cor_descricao_etapa: string | null
+          cor_indicador_etapa: string | null
           cor_primaria: string | null
           created_at: string
           descricao: string | null
@@ -2087,6 +2089,7 @@ export type Database = {
           font_family: string | null
           fonte_tamanho_botoes: string | null
           fonte_tamanho_campos: string | null
+          fonte_tamanho_descricao_etapa: string | null
           fonte_tamanho_obrigado_botao: string | null
           fonte_tamanho_obrigado_texto: string | null
           fonte_tamanho_obrigado_titulo: string | null
@@ -2136,6 +2139,8 @@ export type Database = {
           button_text_color?: string | null
           card_border_color?: string | null
           card_color?: string | null
+          cor_descricao_etapa?: string | null
+          cor_indicador_etapa?: string | null
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
@@ -2143,6 +2148,7 @@ export type Database = {
           font_family?: string | null
           fonte_tamanho_botoes?: string | null
           fonte_tamanho_campos?: string | null
+          fonte_tamanho_descricao_etapa?: string | null
           fonte_tamanho_obrigado_botao?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
@@ -2192,6 +2198,8 @@ export type Database = {
           button_text_color?: string | null
           card_border_color?: string | null
           card_color?: string | null
+          cor_descricao_etapa?: string | null
+          cor_indicador_etapa?: string | null
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
@@ -2199,6 +2207,7 @@ export type Database = {
           font_family?: string | null
           fonte_tamanho_botoes?: string | null
           fonte_tamanho_campos?: string | null
+          fonte_tamanho_descricao_etapa?: string | null
           fonte_tamanho_obrigado_botao?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
