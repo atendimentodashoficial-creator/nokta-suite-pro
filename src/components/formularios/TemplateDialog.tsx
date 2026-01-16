@@ -1341,7 +1341,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               {/* Linha 2: Cor Primária (Botão), Cor do Texto (Botão) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cor">Cor Primária (Botão)</Label>
+                  <Label htmlFor="cor">Botão Principal</Label>
                   <div className="flex items-center gap-2">
                     <div 
                       className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
