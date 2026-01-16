@@ -31,6 +31,17 @@ export interface FormularioTemplate {
   answer_text_color: string | null;
   error_text_color: string | null;
   logo_url: string | null;
+  // New title fields
+  titulo: string | null;
+  subtitulo: string | null;
+  titulo_visivel: boolean;
+  titulo_cor: string | null;
+  fonte_tamanho_titulo: string | null;
+  fonte_tamanho_subtitulo: string | null;
+  fonte_tamanho_campos: string | null;
+  fonte_tamanho_obrigado_titulo: string | null;
+  fonte_tamanho_obrigado_texto: string | null;
+  // Thank you page
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
   pagina_obrigado_cta_texto: string | null;

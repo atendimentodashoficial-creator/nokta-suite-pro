@@ -2085,6 +2085,11 @@ export type Database = {
           descricao: string | null
           error_text_color: string | null
           font_family: string | null
+          fonte_tamanho_campos: string | null
+          fonte_tamanho_obrigado_texto: string | null
+          fonte_tamanho_obrigado_titulo: string | null
+          fonte_tamanho_subtitulo: string | null
+          fonte_tamanho_titulo: string | null
           id: string
           layout_tipo: string
           logo_url: string | null
@@ -2105,7 +2110,11 @@ export type Database = {
           progress_background_color: string | null
           slug: string | null
           status: string
+          subtitulo: string | null
           text_color: string | null
+          titulo: string | null
+          titulo_cor: string | null
+          titulo_visivel: boolean | null
           updated_at: string
           user_id: string
         }
@@ -2123,6 +2132,11 @@ export type Database = {
           descricao?: string | null
           error_text_color?: string | null
           font_family?: string | null
+          fonte_tamanho_campos?: string | null
+          fonte_tamanho_obrigado_texto?: string | null
+          fonte_tamanho_obrigado_titulo?: string | null
+          fonte_tamanho_subtitulo?: string | null
+          fonte_tamanho_titulo?: string | null
           id?: string
           layout_tipo?: string
           logo_url?: string | null
@@ -2143,7 +2157,11 @@ export type Database = {
           progress_background_color?: string | null
           slug?: string | null
           status?: string
+          subtitulo?: string | null
           text_color?: string | null
+          titulo?: string | null
+          titulo_cor?: string | null
+          titulo_visivel?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -2161,6 +2179,11 @@ export type Database = {
           descricao?: string | null
           error_text_color?: string | null
           font_family?: string | null
+          fonte_tamanho_campos?: string | null
+          fonte_tamanho_obrigado_texto?: string | null
+          fonte_tamanho_obrigado_titulo?: string | null
+          fonte_tamanho_subtitulo?: string | null
+          fonte_tamanho_titulo?: string | null
           id?: string
           layout_tipo?: string
           logo_url?: string | null
@@ -2181,7 +2204,11 @@ export type Database = {
           progress_background_color?: string | null
           slug?: string | null
           status?: string
+          subtitulo?: string | null
           text_color?: string | null
+          titulo?: string | null
+          titulo_cor?: string | null
+          titulo_visivel?: boolean | null
           updated_at?: string
           user_id?: string
         }
