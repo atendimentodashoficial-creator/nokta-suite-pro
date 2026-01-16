@@ -38,6 +38,8 @@ interface FormPreviewPanelProps {
     fonteTamanhoSubtitulo?: string;
     fonteTamanhoPerguntas?: string;
     fonteTamanhoCampos?: string;
+    fonteTamanhoRespostas?: string;
+    fonteTamanhoBotoes?: string;
     fonteTamanhoObrigadoTitulo?: string;
     fonteTamanhoObrigadoTexto?: string;
     // Media styling
@@ -122,6 +124,8 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     fonteTamanhoSubtitulo = "16px",
     fonteTamanhoPerguntas = "16px",
     fonteTamanhoCampos = "14px",
+    fonteTamanhoRespostas = "14px",
+    fonteTamanhoBotoes = "16px",
     fonteTamanhoObrigadoTitulo = "28px",
     fonteTamanhoObrigadoTexto = "16px",
     // Media styling
@@ -167,6 +171,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           backgroundColor: corPrimaria, 
           color: buttonTextColor,
           borderRadius: `${parseInt(borderRadius) / 2}px`,
+          fontSize: `${Math.min((parseInt(fonteTamanhoBotoes) || 16) * 0.75, 14)}px`,
         }}
       >
         {paginaObrigadoCtaTexto}
@@ -435,16 +440,21 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     }
 
     // For text/email/phone types
+    const respostaSize = parseInt(fonteTamanhoRespostas) || 14;
     return (
       <div 
-        className="w-full h-8 rounded-md border px-2 flex items-center text-xs"
+        className="w-full h-8 rounded-md border px-2 flex items-center"
         style={{ 
           backgroundColor: "#ffffff",
           borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
           borderRadius: `${parseInt(borderRadius) / 2}px`,
         }}
       >
-        <span style={{ color: answerTextColor, opacity: 0.5 }}>{placeholder}</span>
+        <span style={{ 
+          color: answerTextColor, 
+          opacity: 0.5,
+          fontSize: `${Math.min(respostaSize * 0.75, 12)}px`,
+        }}>{placeholder}</span>
       </div>
     );
   };
@@ -601,6 +611,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 backgroundColor: corPrimaria, 
                 color: buttonTextColor,
                 borderRadius: `${parseInt(borderRadius) / 2}px`,
+                fontSize: `${Math.min((parseInt(fonteTamanhoBotoes) || 16) * 0.75, 14)}px`,
               }}
             >
               {layoutTipo === "multi_step" ? "Próximo" : "Enviar"}

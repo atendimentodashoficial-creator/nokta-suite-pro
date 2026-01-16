@@ -467,6 +467,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("16px");
   const [fonteTamanhoPerguntas, setFonteTamanhoPerguntas] = useState("16px");
   const [fonteTamanhoCampos, setFonteTamanhoCampos] = useState("14px");
+  const [fonteTamanhoRespostas, setFonteTamanhoRespostas] = useState("14px");
+  const [fonteTamanhoBotoes, setFonteTamanhoBotoes] = useState("16px");
   const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("28px");
   const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("16px");
   const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("18px");
@@ -580,6 +582,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoSubtitulo((template as any).fonte_tamanho_subtitulo || "16px");
       setFonteTamanhoPerguntas((template as any).fonte_tamanho_perguntas || "16px");
       setFonteTamanhoCampos((template as any).fonte_tamanho_campos || "14px");
+      setFonteTamanhoRespostas((template as any).fonte_tamanho_respostas || "14px");
+      setFonteTamanhoBotoes((template as any).fonte_tamanho_botoes || "16px");
       setFonteTamanhoObrigadoTitulo((template as any).fonte_tamanho_obrigado_titulo || "28px");
       setFonteTamanhoObrigadoTexto((template as any).fonte_tamanho_obrigado_texto || "16px");
       
@@ -920,6 +924,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       fonte_tamanho_subtitulo: fonteTamanhoSubtitulo,
       fonte_tamanho_perguntas: fonteTamanhoPerguntas,
       fonte_tamanho_campos: fonteTamanhoCampos,
+      fonte_tamanho_respostas: fonteTamanhoRespostas,
+      fonte_tamanho_botoes: fonteTamanhoBotoes,
       fonte_tamanho_obrigado_titulo: fonteTamanhoObrigadoTitulo,
       fonte_tamanho_obrigado_texto: fonteTamanhoObrigadoTexto,
       
@@ -988,6 +994,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     fonteTamanhoSubtitulo,
     fonteTamanhoPerguntas,
     fonteTamanhoCampos,
+    fonteTamanhoRespostas,
+    fonteTamanhoBotoes,
     fonteTamanhoObrigadoTitulo,
     fonteTamanhoObrigadoTexto,
     // Media styling
@@ -1212,6 +1220,30 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     <div className="space-y-1.5">
                       <Label className="text-sm">Opções de Escolha</Label>
                       <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Respostas</Label>
+                      <Select value={fonteTamanhoRespostas} onValueChange={setFonteTamanhoRespostas}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Título dos Botões</Label>
+                      <Select value={fonteTamanhoBotoes} onValueChange={setFonteTamanhoBotoes}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
