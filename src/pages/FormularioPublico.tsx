@@ -63,8 +63,8 @@ interface TemplateConfig {
   pagina_obrigado_video_subtitulo: string | null;
   pagina_obrigado_video_posicao: string | null;
   pagina_obrigado_imagem_url: string | null;
-  pagina_obrigado_imagens: MediaItem[] | null;
-  pagina_obrigado_videos: MediaItem[] | null;
+  pagina_obrigado_imagens: unknown;
+  pagina_obrigado_videos: unknown;
   formularios_etapas: EtapaConfig[];
 }
 
