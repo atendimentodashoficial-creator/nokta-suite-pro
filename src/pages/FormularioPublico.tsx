@@ -439,7 +439,7 @@ export default function FormularioPublico() {
     }
   };
 
-  const renderField = (etapa: EtapaConfig, customStyles?: { cardColor?: string; textColor?: string; borderColor?: string }) => {
+  const renderField = (etapa: EtapaConfig, customStyles?: { cardColor?: string; textColor?: string; borderColor?: string; answerColor?: string }) => {
     const { tipo, id, titulo, descricao, configuracao, obrigatorio } = etapa;
     const value = formData[id];
 
@@ -532,11 +532,11 @@ export default function FormularioPublico() {
                   style={{ 
                     backgroundColor: customStyles?.cardColor || "transparent",
                     border: `1px solid ${customStyles?.borderColor || "rgba(255,255,255,0.2)"}`,
-                    color: customStyles?.textColor,
+                    color: customStyles?.answerColor || customStyles?.textColor,
                   }}
                 >
                   <RadioGroupItem value={opcao} id={`${id}-${idx}`} />
-                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.textColor }}>
+                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.answerColor || customStyles?.textColor }}>
                     {opcao}
                   </Label>
                 </div>
@@ -819,6 +819,7 @@ export default function FormularioPublico() {
             cardColor: cardColor, 
             textColor: textColor,
             borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "rgba(255,255,255,0.2)",
+            answerColor: answerTextColor,
           })}
 
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
