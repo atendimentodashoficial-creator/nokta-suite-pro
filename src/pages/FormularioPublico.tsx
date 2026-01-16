@@ -65,6 +65,7 @@ interface TemplateConfig {
   pagina_obrigado_imagem_url: string | null;
   pagina_obrigado_imagens: unknown;
   pagina_obrigado_videos: unknown;
+  imagens_layout: string | null;
   formularios_etapas: EtapaConfig[];
 }
 
@@ -819,18 +820,22 @@ export default function FormularioPublico() {
               // Get arrays from config
               const imagens: MediaItem[] = Array.isArray(config.pagina_obrigado_imagens) ? config.pagina_obrigado_imagens : [];
               const videosArr: MediaItem[] = Array.isArray(config.pagina_obrigado_videos) ? config.pagina_obrigado_videos : [];
+              const imagensLayout = config.imagens_layout || "horizontal";
               
               const mediaSection = (
                 <div className="w-full space-y-4">
-                  {/* Multiple Images - displayed horizontally */}
+                  {/* Multiple Images - displayed based on layout setting */}
                   {imagens.filter(img => img.url).length > 0 && (
-                    <div className="flex flex-wrap justify-center gap-4">
+                    <div className={imagensLayout === "horizontal" ? "flex flex-wrap justify-center gap-4" : "space-y-4"}>
                       {imagens.filter(img => img.url).map((img, idx) => (
-                        <div key={`img-${idx}`} className="flex flex-col items-center space-y-2">
+                        <div key={`img-${idx}`} className={`flex flex-col items-center space-y-2 ${imagensLayout === "horizontal" ? "" : "w-full"}`}>
                           <img 
                             src={img.url} 
                             alt={img.titulo || `Imagem ${idx + 1}`} 
-                            className="h-24 md:h-32 w-auto max-w-[120px] md:max-w-[150px] object-contain rounded-lg" 
+                            className={imagensLayout === "horizontal"
+                              ? "h-24 md:h-32 w-auto max-w-[120px] md:max-w-[150px] object-contain rounded-lg"
+                              : "max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto"
+                            } 
                           />
                           {img.titulo && (
                             <h3 className="text-sm md:text-base font-semibold text-center" style={{ color: textColor }}>

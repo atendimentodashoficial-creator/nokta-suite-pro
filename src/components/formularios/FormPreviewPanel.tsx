@@ -25,6 +25,7 @@ interface FormPreviewPanelProps {
     paginaObrigadoVideoPosicao: "acima" | "abaixo";
     imagens: MediaItem[];
     videos: MediaItem[];
+    imagensLayout?: "horizontal" | "vertical";
     etapas: FormularioEtapa[];
     // New title fields
     titulo?: string;
@@ -97,6 +98,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     paginaObrigadoVideoPosicao,
     imagens,
     videos,
+    imagensLayout = "horizontal",
     etapas,
     // New title fields with defaults
     titulo = "",
@@ -116,15 +118,18 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
 
   const MediaSection = () => (
     <div className="w-full space-y-3">
-      {/* Images displayed horizontally */}
+      {/* Images displayed based on layout setting */}
       {validImagens.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className={imagensLayout === "horizontal" ? "flex flex-wrap justify-center gap-2" : "space-y-3"}>
           {validImagens.map((img, idx) => (
-            <div key={`img-${idx}`} className="flex flex-col items-center space-y-1">
+            <div key={`img-${idx}`} className={`flex flex-col items-center space-y-1 ${imagensLayout === "horizontal" ? "" : "w-full"}`}>
               <img 
                 src={img.url} 
                 alt={img.titulo || `Imagem ${idx + 1}`} 
-                className="h-16 w-auto max-w-[80px] object-contain rounded" 
+                className={imagensLayout === "horizontal" 
+                  ? "h-16 w-auto max-w-[80px] object-contain rounded" 
+                  : "max-w-full h-auto max-h-20 object-contain rounded mx-auto"
+                } 
               />
               {img.titulo && (
                 <span className="text-[10px] font-medium text-center" style={{ color: textColor }}>

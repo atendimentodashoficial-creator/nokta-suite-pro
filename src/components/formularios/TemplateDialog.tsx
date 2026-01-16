@@ -99,6 +99,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   // Arrays for multiple images/videos
   const [imagens, setImagens] = useState<MediaItem[]>([]);
   const [videos, setVideos] = useState<MediaItem[]>([]);
+  const [imagensLayout, setImagensLayout] = useState<"horizontal" | "vertical">("horizontal");
   const [uploadingImagemIndex, setUploadingImagemIndex] = useState<number | null>(null);
   const imagemInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -176,6 +177,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       
       const loadedVideos = (template as any).pagina_obrigado_videos;
       setVideos(Array.isArray(loadedVideos) ? loadedVideos : []);
+      
+      setImagensLayout((template as any).imagens_layout || "horizontal");
     } else {
       setNome("");
       setSlug("");
@@ -217,6 +220,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoImagemUrl(null);
       setImagens([]);
       setVideos([]);
+      setImagensLayout("horizontal");
     }
   }, [template, open]);
 
@@ -423,6 +427,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       pagina_obrigado_imagem_url: paginaObrigadoImagemUrl,
       pagina_obrigado_imagens: imagens.filter(img => img.url),
       pagina_obrigado_videos: videos.filter(vid => vid.url),
+      imagens_layout: imagensLayout,
     };
 
     try {
@@ -465,6 +470,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     paginaObrigadoVideoPosicao,
     imagens,
     videos,
+    imagensLayout,
     etapas,
     // New title fields
     titulo,
@@ -1229,6 +1235,21 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   <p className="text-xs text-muted-foreground">
                     Clique em "Adicionar Imagem" para incluir imagens na página de obrigado
                   </p>
+                )}
+                
+                {imagens.length > 1 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm">Layout das Imagens</Label>
+                    <Select value={imagensLayout} onValueChange={(v: "horizontal" | "vertical") => setImagensLayout(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="horizontal">Lado a lado (Horizontal)</SelectItem>
+                        <SelectItem value="vertical">Uma abaixo da outra (Vertical)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
               </div>
 
