@@ -1788,6 +1788,333 @@ export type Database = {
         }
         Relationships: []
       }
+      formularios_config: {
+        Row: {
+          created_at: string
+          email_notificacao: string | null
+          ga4_enabled: boolean | null
+          ga4_evento: string | null
+          ga4_measurement_id: string | null
+          google_ads_conversion_id: string | null
+          google_ads_conversion_label: string | null
+          google_ads_enabled: boolean | null
+          id: string
+          meta_pixel_enabled: boolean | null
+          meta_pixel_evento: string | null
+          meta_pixel_id: string | null
+          scripts_customizados: string | null
+          timeout_minutos: number | null
+          updated_at: string
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_notificacao?: string | null
+          ga4_enabled?: boolean | null
+          ga4_evento?: string | null
+          ga4_measurement_id?: string | null
+          google_ads_conversion_id?: string | null
+          google_ads_conversion_label?: string | null
+          google_ads_enabled?: boolean | null
+          id?: string
+          meta_pixel_enabled?: boolean | null
+          meta_pixel_evento?: string | null
+          meta_pixel_id?: string | null
+          scripts_customizados?: string | null
+          timeout_minutos?: number | null
+          updated_at?: string
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_notificacao?: string | null
+          ga4_enabled?: boolean | null
+          ga4_evento?: string | null
+          ga4_measurement_id?: string | null
+          google_ads_conversion_id?: string | null
+          google_ads_conversion_label?: string | null
+          google_ads_enabled?: boolean | null
+          id?: string
+          meta_pixel_enabled?: boolean | null
+          meta_pixel_evento?: string | null
+          meta_pixel_id?: string | null
+          scripts_customizados?: string | null
+          timeout_minutos?: number | null
+          updated_at?: string
+          user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      formularios_etapas: {
+        Row: {
+          ativo: boolean
+          configuracao: Json | null
+          created_at: string
+          descricao: string | null
+          id: string
+          obrigatorio: boolean
+          ordem: number
+          template_id: string
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          configuracao?: Json | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          obrigatorio?: boolean
+          ordem?: number
+          template_id: string
+          tipo: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          configuracao?: Json | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          obrigatorio?: boolean
+          ordem?: number
+          template_id?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formularios_etapas_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "formularios_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formularios_leads: {
+        Row: {
+          created_at: string
+          dados: Json | null
+          email: string | null
+          id: string
+          nome: string | null
+          sessao_id: string | null
+          status: string
+          telefone: string | null
+          template_id: string
+          tempo_total_segundos: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dados?: Json | null
+          email?: string | null
+          id?: string
+          nome?: string | null
+          sessao_id?: string | null
+          status?: string
+          telefone?: string | null
+          template_id: string
+          tempo_total_segundos?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dados?: Json | null
+          email?: string | null
+          id?: string
+          nome?: string | null
+          sessao_id?: string | null
+          status?: string
+          telefone?: string | null
+          template_id?: string
+          tempo_total_segundos?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formularios_leads_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "formularios_sessoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formularios_leads_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "formularios_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formularios_leads_historico: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          observacao: string | null
+          status_anterior: string | null
+          status_novo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          observacao?: string | null
+          status_anterior?: string | null
+          status_novo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          observacao?: string | null
+          status_anterior?: string | null
+          status_novo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formularios_leads_historico_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "formularios_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formularios_sessoes: {
+        Row: {
+          abandoned_at: string | null
+          completed_at: string | null
+          dados_parciais: Json | null
+          etapa_atual: number
+          fbclid: string | null
+          gclid: string | null
+          id: string
+          ip_address: string | null
+          last_activity_at: string
+          session_token: string
+          started_at: string
+          template_id: string
+          tempo_por_etapa: Json | null
+          user_agent: string | null
+          user_id: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          abandoned_at?: string | null
+          completed_at?: string | null
+          dados_parciais?: Json | null
+          etapa_atual?: number
+          fbclid?: string | null
+          gclid?: string | null
+          id?: string
+          ip_address?: string | null
+          last_activity_at?: string
+          session_token: string
+          started_at?: string
+          template_id: string
+          tempo_por_etapa?: Json | null
+          user_agent?: string | null
+          user_id: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          abandoned_at?: string | null
+          completed_at?: string | null
+          dados_parciais?: Json | null
+          etapa_atual?: number
+          fbclid?: string | null
+          gclid?: string | null
+          id?: string
+          ip_address?: string | null
+          last_activity_at?: string
+          session_token?: string
+          started_at?: string
+          template_id?: string
+          tempo_por_etapa?: Json | null
+          user_agent?: string | null
+          user_id?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formularios_sessoes_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "formularios_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formularios_templates: {
+        Row: {
+          cor_primaria: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          pagina_obrigado_cta_link: string | null
+          pagina_obrigado_cta_texto: string | null
+          pagina_obrigado_mensagem: string | null
+          pagina_obrigado_titulo: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cor_primaria?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          pagina_obrigado_cta_link?: string | null
+          pagina_obrigado_cta_texto?: string | null
+          pagina_obrigado_mensagem?: string | null
+          pagina_obrigado_titulo?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cor_primaria?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          pagina_obrigado_cta_link?: string | null
+          pagina_obrigado_cta_texto?: string | null
+          pagina_obrigado_mensagem?: string | null
+          pagina_obrigado_titulo?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       google_ads_accounts: {
         Row: {
           account_name: string | null
