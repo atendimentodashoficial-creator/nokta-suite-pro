@@ -50,27 +50,30 @@ serve(async (req) => {
 
     const normalizedEmail = (user.email ?? "").trim().toLowerCase();
 
-    // Verificar se o email do usuário existe na tabela admin_users (case-insensitive)
-    const { data: adminUser, error: adminError } = await supabaseAdmin
+    // Buscar admins e validar em memória (evita problemas de case/espacos)
+    const { data: adminUsers, error: adminListError } = await supabaseAdmin
       .from('admin_users')
-      .select('id, email')
-      .ilike('email', normalizedEmail)
-      .maybeSingle();
-    
-    if (adminError) {
-      console.error('Erro ao verificar admin:', adminError);
+      .select('id, email');
+
+    if (adminListError) {
+      console.error('Erro ao buscar admins:', adminListError);
       return new Response(
         JSON.stringify({ isAdmin: false }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
+
+    const adminUser = (adminUsers || []).find(a => (a.email || '').trim().toLowerCase() === normalizedEmail);
+
     if (!adminUser) {
       return new Response(
         JSON.stringify({ isAdmin: false }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('[check-admin-status] admin OK:', normalizedEmail);
+
     
     // Usuário é admin! Buscar lista de todos os usuários
     const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
@@ -84,11 +87,7 @@ serve(async (req) => {
     }
     
     // Filtrar e formatar usuários (excluindo admins da lista)
-    const { data: adminEmails } = await supabaseAdmin
-      .from('admin_users')
-      .select('email');
-
-    const adminEmailSet = new Set((adminEmails || []).map(a => (a.email || '').trim().toLowerCase()));
+    const adminEmailSet = new Set((adminUsers || []).map(a => (a.email || '').trim().toLowerCase()));
 
     const filteredUsers = usersData.users
       .filter(u => !adminEmailSet.has((u.email || '').trim().toLowerCase()))
