@@ -1029,19 +1029,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               </div>
 
               <div className="space-y-2">
-                <Label>Layout do Formulário</Label>
-                <Select value={layoutTipo} onValueChange={(v: "multi_step" | "single_page") => setLayoutTipo(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="multi_step">Multi-etapas (uma pergunta por vez)</SelectItem>
-                    <SelectItem value="single_page">Página única (todas as perguntas juntas)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="slug">Link do Formulário *</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
@@ -1055,6 +1042,66 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Layout do Formulário</Label>
+                <Select value={layoutTipo} onValueChange={(v: "multi_step" | "single_page") => setLayoutTipo(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="multi_step">Multi-etapas (uma pergunta por vez)</SelectItem>
+                    <SelectItem value="single_page">Página única (todas as perguntas juntas)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Logo do Formulário</Label>
+                <div className="flex items-center gap-4">
+                  {logoUrl ? (
+                    <div className="relative">
+                      <img 
+                        src={logoUrl} 
+                        alt="Logo" 
+                        className="h-16 w-auto max-w-32 object-contain rounded border"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                      className="h-16"
+                    >
+                      {uploadingLogo ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Enviar Logo
+                    </Button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Imagem até 2MB. Será exibida no topo do formulário.
+                </p>
               </div>
 
               {/* Title & Subtitle Section - Collapsible */}
@@ -1108,54 +1155,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-
-
-              <div className="space-y-2">
-                <Label>Logo do Formulário</Label>
-                <div className="flex items-center gap-4">
-                  {logoUrl ? (
-                    <div className="relative">
-                      <img 
-                        src={logoUrl} 
-                        alt="Logo" 
-                        className="h-16 w-auto max-w-32 object-contain rounded border"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleRemoveLogo}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingLogo}
-                      className="h-16"
-                    >
-                      {uploadingLogo ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="h-4 w-4 mr-2" />
-                      )}
-                      Enviar Logo
-                    </Button>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Imagem até 2MB. Será exibida no topo do formulário.
-                </p>
-              </div>
 
               {/* Font Sizes Collapsible */}
               <Collapsible open={fontsOpen} onOpenChange={setFontsOpen}>
