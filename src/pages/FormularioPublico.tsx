@@ -66,7 +66,8 @@ interface TemplateConfig {
   pagina_obrigado_imagens: unknown;
   pagina_obrigado_videos: unknown;
   imagens_layout: string | null;
-  fonte_tamanho_titulo: string | null;
+  fonte_tamanho_titulo?: string | null;
+  fonte_tamanho_perguntas?: string | null;
   formularios_etapas: EtapaConfig[];
 }
 
@@ -1017,7 +1018,7 @@ export default function FormularioPublico() {
   const backButtonTextColor = config.back_button_text_color || "#ffffff";
   const answerTextColor = config.answer_text_color || "#1f2937";
   const errorTextColor = config.error_text_color || "#ef4444";
-  const questionTitleSize = config.fonte_tamanho_titulo || "16px";
+  const questionTitleSize = config.fonte_tamanho_perguntas || "16px";
 
   const isSinglePage = config.layout_tipo === "single_page";
 

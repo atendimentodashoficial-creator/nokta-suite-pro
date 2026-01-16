@@ -36,6 +36,7 @@ interface FormPreviewPanelProps {
     tituloCor?: string;
     fonteTamanhoTitulo?: string;
     fonteTamanhoSubtitulo?: string;
+    fonteTamanhoPerguntas?: string;
     fonteTamanhoCampos?: string;
     fonteTamanhoObrigadoTitulo?: string;
     fonteTamanhoObrigadoTexto?: string;
@@ -119,6 +120,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     tituloCor = "#1f2937",
     fonteTamanhoTitulo = "24px",
     fonteTamanhoSubtitulo = "16px",
+    fonteTamanhoPerguntas = "16px",
     fonteTamanhoCampos = "14px",
     fonteTamanhoObrigadoTitulo = "28px",
     fonteTamanhoObrigadoTexto = "16px",
@@ -571,7 +573,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 <div key={etapa.id} className="space-y-1">
                   <label style={{ 
                     color: textColor, 
-                    fontSize: `${Math.min((parseInt(fonteTamanhoTitulo) || 16) * 0.75, 14)}px`,
+                    fontSize: `${Math.min((parseInt(fonteTamanhoPerguntas) || 16) * 0.75, 14)}px`,
                     fontWeight: 500,
                   }}>
                     {etapa.titulo} {etapa.obrigatorio && <span style={{ color: "#ef4444" }}>*</span>}
