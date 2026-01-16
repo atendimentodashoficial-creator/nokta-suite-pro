@@ -1313,7 +1313,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cardColor">Cor do Card</Label>
+                  <Label htmlFor="cardColor">Card</Label>
                   <div className="flex items-center gap-2">
                     <div 
                       className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
