@@ -50,6 +50,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [paginaObrigadoMensagem, setPaginaObrigadoMensagem] = useState("Recebemos suas informações. Em breve entraremos em contato.");
   const [paginaObrigadoCtaTexto, setPaginaObrigadoCtaTexto] = useState("");
   const [paginaObrigadoCtaLink, setPaginaObrigadoCtaLink] = useState("");
+  const [paginaObrigadoVideoUrl, setPaginaObrigadoVideoUrl] = useState("");
+  const [paginaObrigadoImagemUrl, setPaginaObrigadoImagemUrl] = useState<string | null>(null);
+  const [uploadingObrigadoImagem, setUploadingObrigadoImagem] = useState(false);
+  const obrigadoImageInputRef = useRef<HTMLInputElement>(null);
 
   const generateSlug = (text: string) => {
     return text
@@ -93,6 +97,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
       setPaginaObrigadoCtaTexto(template.pagina_obrigado_cta_texto || "");
       setPaginaObrigadoCtaLink(template.pagina_obrigado_cta_link || "");
+      setPaginaObrigadoVideoUrl(template.pagina_obrigado_video_url || "");
+      setPaginaObrigadoImagemUrl(template.pagina_obrigado_imagem_url || null);
     } else {
       setNome("");
       setSlug("");
@@ -110,6 +116,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
       setPaginaObrigadoCtaTexto("");
       setPaginaObrigadoCtaLink("");
+      setPaginaObrigadoVideoUrl("");
+      setPaginaObrigadoImagemUrl(null);
     }
   }, [template, open]);
 
@@ -156,6 +164,49 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     setLogoUrl(null);
   };
 
+  const handleObrigadoImagemUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por favor, selecione uma imagem válida");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 5MB");
+      return;
+    }
+
+    setUploadingObrigadoImagem(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `formularios/obrigado/${crypto.randomUUID()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("logos")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("logos")
+        .getPublicUrl(fileName);
+
+      setPaginaObrigadoImagemUrl(urlData.publicUrl);
+      toast.success("Imagem enviada com sucesso!");
+    } catch (error) {
+      console.error("Erro ao enviar imagem:", error);
+      toast.error("Erro ao enviar imagem");
+    } finally {
+      setUploadingObrigadoImagem(false);
+    }
+  };
+
+  const handleRemoveObrigadoImagem = () => {
+    setPaginaObrigadoImagemUrl(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -176,6 +227,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
       pagina_obrigado_cta_texto: paginaObrigadoCtaTexto || null,
       pagina_obrigado_cta_link: paginaObrigadoCtaLink || null,
+      pagina_obrigado_video_url: paginaObrigadoVideoUrl || null,
+      pagina_obrigado_imagem_url: paginaObrigadoImagemUrl,
     };
 
     try {
@@ -484,14 +537,88 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label>Imagem (opcional)</Label>
+                <div className="flex items-center gap-4">
+                  {paginaObrigadoImagemUrl ? (
+                    <div className="relative">
+                      <img 
+                        src={paginaObrigadoImagemUrl} 
+                        alt="Imagem de obrigado" 
+                        className="h-24 w-auto max-w-48 object-contain rounded border"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveObrigadoImagem}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => obrigadoImageInputRef.current?.click()}
+                      disabled={uploadingObrigadoImagem}
+                      className="h-16"
+                    >
+                      {uploadingObrigadoImagem ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Enviar Imagem
+                    </Button>
+                  )}
+                  <input
+                    ref={obrigadoImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleObrigadoImagemUpload}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Imagem até 5MB. Será exibida na página de obrigado.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="videoUrl">URL do Vídeo (opcional)</Label>
+                <Input
+                  id="videoUrl"
+                  value={paginaObrigadoVideoUrl}
+                  onChange={(e) => setPaginaObrigadoVideoUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=... ou https://vimeo.com/..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Cole o link de um vídeo do YouTube ou Vimeo
+                </p>
+              </div>
+
               <div className="p-4 bg-muted rounded-lg">
                 <h4 className="font-medium mb-2">Preview</h4>
-                <div className="text-center space-y-2">
-                  <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center" style={{ backgroundColor: corPrimaria + "20" }}>
-                    <svg className="w-8 h-8" style={{ color: corPrimaria }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
+                <div className="text-center space-y-3">
+                  {paginaObrigadoImagemUrl && (
+                    <img 
+                      src={paginaObrigadoImagemUrl} 
+                      alt="Preview" 
+                      className="h-20 w-auto mx-auto object-contain rounded"
+                    />
+                  )}
+                  {paginaObrigadoVideoUrl && (
+                    <div className="text-xs text-muted-foreground bg-background/50 p-2 rounded">
+                      🎬 Vídeo será exibido aqui
+                    </div>
+                  )}
+                  {!paginaObrigadoImagemUrl && !paginaObrigadoVideoUrl && (
+                    <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center" style={{ backgroundColor: corPrimaria + "20" }}>
+                      <svg className="w-8 h-8" style={{ color: corPrimaria }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
                   <h3 className="text-xl font-bold">{paginaObrigadoTitulo || "Obrigado!"}</h3>
                   <p className="text-muted-foreground text-sm">{paginaObrigadoMensagem}</p>
                   {paginaObrigadoCtaTexto && (

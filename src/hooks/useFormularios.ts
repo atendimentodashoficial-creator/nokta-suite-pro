@@ -22,6 +22,8 @@ export interface FormularioTemplate {
   pagina_obrigado_mensagem: string | null;
   pagina_obrigado_cta_texto: string | null;
   pagina_obrigado_cta_link: string | null;
+  pagina_obrigado_video_url: string | null;
+  pagina_obrigado_imagem_url: string | null;
   created_at: string;
   updated_at: string;
   etapas?: FormularioEtapa[];
