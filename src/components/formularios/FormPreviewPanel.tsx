@@ -116,25 +116,30 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
 
   const MediaSection = () => (
     <div className="w-full space-y-3">
-      {validImagens.map((img, idx) => (
-        <div key={`img-${idx}`} className="space-y-1">
-          {img.titulo && (
-            <h3 className="text-sm font-semibold text-center" style={{ color: textColor }}>
-              {img.titulo}
-            </h3>
-          )}
-          {img.subtitulo && (
-            <p className="text-xs text-center" style={{ color: textColor, opacity: 0.7 }}>
-              {img.subtitulo}
-            </p>
-          )}
-          <img 
-            src={img.url} 
-            alt={img.titulo || `Imagem ${idx + 1}`} 
-            className="max-w-full h-auto max-h-20 object-contain rounded mx-auto" 
-          />
+      {/* Images displayed horizontally */}
+      {validImagens.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {validImagens.map((img, idx) => (
+            <div key={`img-${idx}`} className="flex flex-col items-center space-y-1">
+              <img 
+                src={img.url} 
+                alt={img.titulo || `Imagem ${idx + 1}`} 
+                className="h-16 w-auto max-w-[80px] object-contain rounded" 
+              />
+              {img.titulo && (
+                <span className="text-[10px] font-medium text-center" style={{ color: textColor }}>
+                  {img.titulo}
+                </span>
+              )}
+              {img.subtitulo && (
+                <span className="text-[8px] text-center" style={{ color: textColor, opacity: 0.7 }}>
+                  {img.subtitulo}
+                </span>
+              )}
+            </div>
+          ))}
         </div>
-      ))}
+      )}
       
       {validVideos.map((vid, idx) => (
         <div key={`vid-${idx}`} className="space-y-1">
