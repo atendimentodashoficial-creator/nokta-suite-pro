@@ -2076,6 +2076,7 @@ export type Database = {
           back_button_color: string | null
           back_button_text_color: string | null
           background_color: string | null
+          barra_progresso_visivel: boolean
           border_radius: string | null
           button_text_color: string | null
           card_border_color: string | null
@@ -2135,6 +2136,7 @@ export type Database = {
           back_button_color?: string | null
           back_button_text_color?: string | null
           background_color?: string | null
+          barra_progresso_visivel?: boolean
           border_radius?: string | null
           button_text_color?: string | null
           card_border_color?: string | null
@@ -2194,6 +2196,7 @@ export type Database = {
           back_button_color?: string | null
           back_button_text_color?: string | null
           background_color?: string | null
+          barra_progresso_visivel?: boolean
           border_radius?: string | null
           button_text_color?: string | null
           card_border_color?: string | null
