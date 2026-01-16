@@ -1760,6 +1760,31 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               {/* Linha 6: Cor da Borda do Card, Cor das Mensagens de Erro */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label htmlFor="corIndicadorEtapa">Etapas (1/3)</Label>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: corIndicadorEtapa }}
+                      onClick={() => document.getElementById('corIndicadorEtapa')?.click()}
+                    >
+                      <Input
+                        id="corIndicadorEtapa"
+                        type="color"
+                        value={corIndicadorEtapa}
+                        onChange={(e) => setCorIndicadorEtapa(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      value={corIndicadorEtapa}
+                      onChange={(e) => setCorIndicadorEtapa(e.target.value)}
+                      placeholder="#6b7280"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="cardBorder">Borda do Card</Label>
                   <div className="flex items-center gap-2">
                     <div 
@@ -1785,31 +1810,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   <p className="text-xs text-muted-foreground">
                     Use "transparent" para sem borda
                   </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="corIndicadorEtapa">Etapas (1/3)</Label>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                      style={{ backgroundColor: corIndicadorEtapa }}
-                      onClick={() => document.getElementById('corIndicadorEtapa')?.click()}
-                    >
-                      <Input
-                        id="corIndicadorEtapa"
-                        type="color"
-                        value={corIndicadorEtapa}
-                        onChange={(e) => setCorIndicadorEtapa(e.target.value)}
-                        className="opacity-0 w-full h-full cursor-pointer"
-                      />
-                    </div>
-                    <Input
-                      value={corIndicadorEtapa}
-                      onChange={(e) => setCorIndicadorEtapa(e.target.value)}
-                      placeholder="#6b7280"
-                      className="flex-1"
-                    />
-                  </div>
                 </div>
               </div>
 
