@@ -710,8 +710,13 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
     return { adsetSpendByName, adSpendByName };
   }, [adsSpendData.adsets, adsSpendData.ads]);
 
-  const formatBRL = (value: number) =>
-    value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const currencySymbol = accountCurrency === 'USD' ? 'US$' : 'R$';
+  const currencyCode = accountCurrency === 'USD' ? 'USD' : 'BRL';
+  
+  const formatCurrency = (value: number) =>
+    value.toLocaleString("pt-BR", { style: "currency", currency: currencyCode });
+  
+  const formatBRL = formatCurrency; // Alias para compatibilidade
 
   const loadStoredReport = async () => {
     if (!selectedAccount || !user) return;
@@ -1220,21 +1225,21 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
         if (data.campaigns?.length > 0) {
           addText("Campanhas:", 10, true);
           data.campaigns.forEach((item, i) => {
-            addText(`  ${i + 1}. ${item.name} - ${item.value} (R$ ${(item.spend || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`, 9);
+            addText(`  ${i + 1}. ${item.name} - ${item.value} (${currencySymbol} ${(item.spend || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`, 9);
           });
         }
         
         if (data.adsets?.length > 0) {
           addText("Conjuntos:", 10, true);
           data.adsets.forEach((item, i) => {
-            addText(`  ${i + 1}. ${item.name} - ${item.value} (R$ ${(item.spend || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`, 9);
+            addText(`  ${i + 1}. ${item.name} - ${item.value} (${currencySymbol} ${(item.spend || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`, 9);
           });
         }
         
         if (data.ads?.length > 0) {
           addText("Anúncios:", 10, true);
           data.ads.forEach((item, i) => {
-            addText(`  ${i + 1}. ${item.name} - ${item.value} (R$ ${(item.spend || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`, 9);
+            addText(`  ${i + 1}. ${item.name} - ${item.value} (${currencySymbol} ${(item.spend || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`, 9);
           });
         }
         yPos += 4;
