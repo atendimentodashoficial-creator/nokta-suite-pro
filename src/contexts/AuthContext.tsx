@@ -39,9 +39,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { data, error } = await supabase.functions.invoke("check-admin-status", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          // debug temporário para identificarmos por que está retornando isAdmin:false
-          "x-debug": "1",
         },
+        // debug temporário (via body para não quebrar CORS)
+        body: { debug: true },
       });
 
       if (data?.debug) {
