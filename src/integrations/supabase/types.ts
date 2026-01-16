@@ -2094,6 +2094,9 @@ export type Database = {
           pagina_obrigado_imagem_url: string | null
           pagina_obrigado_mensagem: string | null
           pagina_obrigado_titulo: string | null
+          pagina_obrigado_video_posicao: string | null
+          pagina_obrigado_video_subtitulo: string | null
+          pagina_obrigado_video_titulo: string | null
           pagina_obrigado_video_url: string | null
           progress_background_color: string | null
           slug: string | null
@@ -2125,6 +2128,9 @@ export type Database = {
           pagina_obrigado_imagem_url?: string | null
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
+          pagina_obrigado_video_posicao?: string | null
+          pagina_obrigado_video_subtitulo?: string | null
+          pagina_obrigado_video_titulo?: string | null
           pagina_obrigado_video_url?: string | null
           progress_background_color?: string | null
           slug?: string | null
@@ -2156,6 +2162,9 @@ export type Database = {
           pagina_obrigado_imagem_url?: string | null
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
+          pagina_obrigado_video_posicao?: string | null
+          pagina_obrigado_video_subtitulo?: string | null
+          pagina_obrigado_video_titulo?: string | null
           pagina_obrigado_video_url?: string | null
           progress_background_color?: string | null
           slug?: string | null
