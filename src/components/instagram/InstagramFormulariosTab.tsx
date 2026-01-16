@@ -331,7 +331,7 @@ export function InstagramFormulariosTab() {
     }
   };
   const getFormUrl = (formId: string) => {
-    return `${window.location.origin}/f/${formId}`;
+    return `${window.location.origin}/formulario/${formId}`;
   };
   const copyFormUrl = (formId: string) => {
     navigator.clipboard.writeText(getFormUrl(formId));

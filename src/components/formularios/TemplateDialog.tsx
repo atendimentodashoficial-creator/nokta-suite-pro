@@ -130,7 +130,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <Label htmlFor="slug">Link do Formulário *</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    {window.location.origin}/f/
+                    {window.location.origin}/formulario/
                   </span>
                   <Input
                     id="slug"
