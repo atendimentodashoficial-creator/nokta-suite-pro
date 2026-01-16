@@ -613,28 +613,31 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setDescricao("");
       setStatus("ativo");
       setLayoutTipo("multi_step");
-      setCorPrimaria("#8B5CF6");
-      setBackgroundColor("#ffffff");
+      setCorPrimaria("#00d5ff");
+      setBackgroundColor("#1A212B");
       setCardColor("#ffffff");
       setFontFamily("Inter");
       setTextColor("#1f2937");
       setButtonTextColor("#ffffff");
-      setBorderRadius("12");
-      setProgressBackgroundColor("#e5e5e5");
+      setBorderRadius("16");
+      setProgressBackgroundColor("#6b7280");
       setCardBorderColor("transparent");
-      setBackButtonColor("#6b7280");
+      setBackButtonColor("#2cb5e2");
       setBackButtonTextColor("#ffffff");
       setAnswerTextColor("#1f2937");
-      setErrorTextColor("#ef4444");
+      setErrorTextColor("#ff0000");
       setLogoUrl(null);
       // Reset new title fields
       setTitulo("");
       setSubtitulo("");
-      setTituloCor("#1f2937");
+      setTituloCor("#00d5ff");
+      setSubtituloCor("#6b7280");
       setFonteTamanhoTitulo("24px");
       setFonteTamanhoSubtitulo("16px");
       setFonteTamanhoPerguntas("16px");
       setFonteTamanhoCampos("14px");
+      setFonteTamanhoRespostas("14px");
+      setFonteTamanhoBotoes("16px");
       setFonteTamanhoObrigadoTitulo("28px");
       setFonteTamanhoObrigadoTexto("16px");
       
