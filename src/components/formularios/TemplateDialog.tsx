@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreateTemplate, useUpdateTemplate, FormularioTemplate } from "@/hooks/useFormularios";
+import { supabase } from "@/integrations/supabase/client";
+import { Upload, X, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface TemplateDialogProps {
   open: boolean;
@@ -20,6 +23,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [descricao, setDescricao] = useState("");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [corPrimaria, setCorPrimaria] = useState("#8B5CF6");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [paginaObrigadoTitulo, setPaginaObrigadoTitulo] = useState("Obrigado!");
   const [paginaObrigadoMensagem, setPaginaObrigadoMensagem] = useState("Recebemos suas informações. Em breve entraremos em contato.");
   const [paginaObrigadoCtaTexto, setPaginaObrigadoCtaTexto] = useState("");
@@ -56,6 +62,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setDescricao(template.descricao || "");
       setStatus(template.status as "ativo" | "inativo");
       setCorPrimaria(template.cor_primaria || "#8B5CF6");
+      setLogoUrl(template.logo_url || null);
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
       setPaginaObrigadoCtaTexto(template.pagina_obrigado_cta_texto || "");
@@ -66,12 +73,57 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setDescricao("");
       setStatus("ativo");
       setCorPrimaria("#8B5CF6");
+      setLogoUrl(null);
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
       setPaginaObrigadoCtaTexto("");
       setPaginaObrigadoCtaLink("");
     }
   }, [template, open]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por favor, selecione uma imagem válida");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 2MB");
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `formularios-logos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("public-assets")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("public-assets")
+        .getPublicUrl(filePath);
+
+      setLogoUrl(urlData.publicUrl);
+      toast.success("Logo enviada com sucesso!");
+    } catch (error) {
+      console.error("Erro ao enviar logo:", error);
+      toast.error("Erro ao enviar logo");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoUrl(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +134,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       descricao: descricao || null,
       status,
       cor_primaria: corPrimaria,
+      logo_url: logoUrl,
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
       pagina_obrigado_cta_texto: paginaObrigadoCtaTexto || null,
@@ -154,6 +207,53 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   placeholder="Descreva o propósito deste formulário..."
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Logo do Formulário</Label>
+                <div className="flex items-center gap-4">
+                  {logoUrl ? (
+                    <div className="relative">
+                      <img 
+                        src={logoUrl} 
+                        alt="Logo" 
+                        className="h-16 w-auto max-w-32 object-contain rounded border"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                      className="h-16"
+                    >
+                      {uploadingLogo ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Enviar Logo
+                    </Button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Imagem até 2MB. Será exibida no topo do formulário.
+                </p>
               </div>
 
               <div className="space-y-2">
