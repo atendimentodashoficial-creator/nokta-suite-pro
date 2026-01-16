@@ -106,9 +106,9 @@ export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherPr
           <Button
             variant="ghost"
             size="icon"
-            className="w-12 h-12 text-sidebar-foreground hover:bg-sidebar-accent"
+            className="w-10 h-10 text-sidebar-foreground hover:bg-sidebar-accent"
           >
-            <Users className="h-6 w-6 text-amber-500" />
+            <Users className="h-7 w-7 text-amber-500" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
