@@ -1285,46 +1285,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-3 pt-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cor">Cor Primária (Botões)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="cor"
-                      type="color"
-                      value={corPrimaria}
-                      onChange={(e) => setCorPrimaria(e.target.value)}
-                      className="w-12 h-10 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={corPrimaria}
-                      onChange={(e) => setCorPrimaria(e.target.value)}
-                      placeholder="#8B5CF6"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="buttonTextColor">Cor do Texto do Botão</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="buttonTextColor"
-                      type="color"
-                      value={buttonTextColor}
-                      onChange={(e) => setButtonTextColor(e.target.value)}
-                      className="w-12 h-10 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={buttonTextColor}
-                      onChange={(e) => setButtonTextColor(e.target.value)}
-                      placeholder="#ffffff"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              </div>
-
+              {/* Linha 1: Cor de Fundo, Cor do Card */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="bg">Cor de Fundo</Label>
@@ -1365,75 +1326,52 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="textColor">Cor das Perguntas</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="textColor"
-                    type="color"
-                    value={textColor}
-                    onChange={(e) => setTextColor(e.target.value)}
-                    className="w-12 h-10 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={textColor}
-                    onChange={(e) => setTextColor(e.target.value)}
-                    placeholder="#1f2937"
-                    className="flex-1"
-                  />
+              {/* Linha 2: Cor Primária (Botão), Cor do Texto (Botão) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="cor">Cor Primária (Botão)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="cor"
+                      type="color"
+                      value={corPrimaria}
+                      onChange={(e) => setCorPrimaria(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={corPrimaria}
+                      onChange={(e) => setCorPrimaria(e.target.value)}
+                      placeholder="#8B5CF6"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="buttonTextColor">Cor do Texto (Botão)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="buttonTextColor"
+                      type="color"
+                      value={buttonTextColor}
+                      onChange={(e) => setButtonTextColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={buttonTextColor}
+                      onChange={(e) => setButtonTextColor(e.target.value)}
+                      placeholder="#ffffff"
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
               </div>
 
-
+              {/* Linha 3: Botão Voltar, Texto Botão Voltar (apenas multi_step) */}
               {layoutTipo === "multi_step" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="progressBg">Fundo da Barra de Progresso</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="progressBg"
-                        type="color"
-                        value={progressBackgroundColor}
-                        onChange={(e) => setProgressBackgroundColor(e.target.value)}
-                        className="w-12 h-10 p-1 cursor-pointer"
-                      />
-                      <Input
-                        value={progressBackgroundColor}
-                        onChange={(e) => setProgressBackgroundColor(e.target.value)}
-                        placeholder="#e5e5e5"
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cardBorder">Cor da Borda do Card</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="cardBorder"
-                        type="color"
-                        value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
-                        onChange={(e) => setCardBorderColor(e.target.value)}
-                        className="w-12 h-10 p-1 cursor-pointer"
-                      />
-                      <Input
-                        value={cardBorderColor}
-                        onChange={(e) => setCardBorderColor(e.target.value)}
-                        placeholder="transparent"
-                        className="flex-1"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Use "transparent" para sem borda
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {layoutTipo === "multi_step" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="backButtonColor">Cor do Botão Voltar</Label>
+                    <Label htmlFor="backButtonColor">Botão Voltar</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="backButtonColor"
@@ -1452,7 +1390,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="backButtonTextColor">Texto do Botão Voltar</Label>
+                    <Label htmlFor="backButtonTextColor">Texto Botão Voltar</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="backButtonTextColor"
@@ -1472,7 +1410,95 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               )}
 
-              {layoutTipo === "single_page" && (
+              {/* Linha 4: Perguntas, Respostas */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="textColor">Perguntas</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="textColor"
+                      type="color"
+                      value={textColor}
+                      onChange={(e) => setTextColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={textColor}
+                      onChange={(e) => setTextColor(e.target.value)}
+                      placeholder="#1f2937"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="answerTextColor">Respostas</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="answerTextColor"
+                      type="color"
+                      value={answerTextColor}
+                      onChange={(e) => setAnswerTextColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={answerTextColor}
+                      onChange={(e) => setAnswerTextColor(e.target.value)}
+                      placeholder="#1f2937"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso (apenas multi_step) */}
+              {layoutTipo === "multi_step" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="progressColor">Barra de Progresso</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="progressColor"
+                        type="color"
+                        value={corPrimaria}
+                        onChange={(e) => setCorPrimaria(e.target.value)}
+                        className="w-12 h-10 p-1 cursor-pointer"
+                      />
+                      <Input
+                        value={corPrimaria}
+                        onChange={(e) => setCorPrimaria(e.target.value)}
+                        placeholder="#8B5CF6"
+                        className="flex-1"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Usa a cor primária
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="progressBg">Fundo Barra de Progresso</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="progressBg"
+                        type="color"
+                        value={progressBackgroundColor}
+                        onChange={(e) => setProgressBackgroundColor(e.target.value)}
+                        className="w-12 h-10 p-1 cursor-pointer"
+                      />
+                      <Input
+                        value={progressBackgroundColor}
+                        onChange={(e) => setProgressBackgroundColor(e.target.value)}
+                        placeholder="#e5e5e5"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Linha 6: Cor da Borda do Card, Cor das Mensagens de Erro */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cardBorder">Cor da Borda do Card</Label>
                   <div className="flex items-center gap-2">
@@ -1494,30 +1520,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     Use "transparent" para sem borda
                   </p>
                 </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="answerTextColor">Cor do Texto das Respostas</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="answerTextColor"
-                      type="color"
-                      value={answerTextColor}
-                      onChange={(e) => setAnswerTextColor(e.target.value)}
-                      className="w-12 h-10 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={answerTextColor}
-                      onChange={(e) => setAnswerTextColor(e.target.value)}
-                      placeholder="#1f2937"
-                      className="flex-1"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Cor do texto digitado
-                  </p>
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="errorTextColor">Cor das Mensagens de Erro</Label>
@@ -1536,9 +1538,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       className="flex-1"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Cor dos erros de validação
-                  </p>
                 </div>
               </div>
 
