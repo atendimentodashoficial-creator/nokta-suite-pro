@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useCreateTemplate, useUpdateTemplate, useFormularioTemplate, FormularioTemplate, MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload, X, Loader2, Plus, Trash2 } from "lucide-react";
+import { Upload, X, Loader2, Plus, Trash2, ChevronDown, Palette, Type, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import FormPreviewPanel from "./FormPreviewPanel";
 
@@ -25,6 +26,17 @@ const FONT_OPTIONS = [
   { value: "Raleway", label: "Raleway" },
   { value: "Source Sans Pro", label: "Source Sans Pro" },
   { value: "PT Sans", label: "PT Sans" },
+];
+
+const FONT_SIZE_OPTIONS = [
+  { value: "12px", label: "12px - Pequeno" },
+  { value: "14px", label: "14px - Normal" },
+  { value: "16px", label: "16px - Médio" },
+  { value: "18px", label: "18px - Grande" },
+  { value: "20px", label: "20px - Maior" },
+  { value: "24px", label: "24px - Extra Grande" },
+  { value: "28px", label: "28px - Título" },
+  { value: "32px", label: "32px - Destaque" },
 ];
 
 interface TemplateDialogProps {
@@ -56,6 +68,23 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // New title fields
+  const [titulo, setTitulo] = useState("");
+  const [subtitulo, setSubtitulo] = useState("");
+  const [tituloVisivel, setTituloVisivel] = useState(true);
+  const [tituloCor, setTituloCor] = useState("#1f2937");
+  const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("24px");
+  const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("16px");
+  const [fonteTamanhoCampos, setFonteTamanhoCampos] = useState("14px");
+  const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("28px");
+  const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("16px");
+  
+  // Collapsible states
+  const [colorsOpen, setColorsOpen] = useState(false);
+  const [fontsOpen, setFontsOpen] = useState(false);
+  const [buttonsOpen, setButtonsOpen] = useState(false);
+  
   const [paginaObrigadoTitulo, setPaginaObrigadoTitulo] = useState("Obrigado!");
   const [paginaObrigadoMensagem, setPaginaObrigadoMensagem] = useState("Recebemos suas informações. Em breve entraremos em contato.");
   const [paginaObrigadoCtaTexto, setPaginaObrigadoCtaTexto] = useState("");
@@ -122,6 +151,17 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setAnswerTextColor((template as any).answer_text_color || "#1f2937");
       setErrorTextColor((template as any).error_text_color || "#ef4444");
       setLogoUrl(template.logo_url || null);
+      // New title fields
+      setTitulo((template as any).titulo || "");
+      setSubtitulo((template as any).subtitulo || "");
+      setTituloVisivel((template as any).titulo_visivel !== false);
+      setTituloCor((template as any).titulo_cor || "#1f2937");
+      setFonteTamanhoTitulo((template as any).fonte_tamanho_titulo || "24px");
+      setFonteTamanhoSubtitulo((template as any).fonte_tamanho_subtitulo || "16px");
+      setFonteTamanhoCampos((template as any).fonte_tamanho_campos || "14px");
+      setFonteTamanhoObrigadoTitulo((template as any).fonte_tamanho_obrigado_titulo || "28px");
+      setFonteTamanhoObrigadoTexto((template as any).fonte_tamanho_obrigado_texto || "16px");
+      
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
       setPaginaObrigadoCtaTexto(template.pagina_obrigado_cta_texto || "");
@@ -158,6 +198,17 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setAnswerTextColor("#1f2937");
       setErrorTextColor("#ef4444");
       setLogoUrl(null);
+      // Reset new title fields
+      setTitulo("");
+      setSubtitulo("");
+      setTituloVisivel(true);
+      setTituloCor("#1f2937");
+      setFonteTamanhoTitulo("24px");
+      setFonteTamanhoSubtitulo("16px");
+      setFonteTamanhoCampos("14px");
+      setFonteTamanhoObrigadoTitulo("28px");
+      setFonteTamanhoObrigadoTexto("16px");
+      
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
       setPaginaObrigadoCtaTexto("");
@@ -354,6 +405,17 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       answer_text_color: answerTextColor,
       error_text_color: errorTextColor,
       logo_url: logoUrl,
+      // New title fields
+      titulo: titulo || null,
+      subtitulo: subtitulo || null,
+      titulo_visivel: tituloVisivel,
+      titulo_cor: tituloCor,
+      fonte_tamanho_titulo: fonteTamanhoTitulo,
+      fonte_tamanho_subtitulo: fonteTamanhoSubtitulo,
+      fonte_tamanho_campos: fonteTamanhoCampos,
+      fonte_tamanho_obrigado_titulo: fonteTamanhoObrigadoTitulo,
+      fonte_tamanho_obrigado_texto: fonteTamanhoObrigadoTexto,
+      
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
       pagina_obrigado_cta_texto: paginaObrigadoCtaTexto || null,
@@ -408,6 +470,16 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     imagens,
     videos,
     etapas,
+    // New title fields
+    titulo,
+    subtitulo,
+    tituloVisivel,
+    tituloCor,
+    fonteTamanhoTitulo,
+    fonteTamanhoSubtitulo,
+    fonteTamanhoCampos,
+    fonteTamanhoObrigadoTitulo,
+    fonteTamanhoObrigadoTexto,
   };
 
   return (
@@ -429,7 +501,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
             <TabsContent value="geral" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="nome">Nome do Template *</Label>
+                <Label htmlFor="nome">Nome do Template (interno) *</Label>
                 <Input
                   id="nome"
                   value={nome}
@@ -437,6 +509,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   placeholder="Ex: Formulário de Contato"
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Nome interno para identificação - não aparece no formulário
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -453,9 +528,57 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     required
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  URL amigável para compartilhar o formulário
-                </p>
+              </div>
+
+              {/* Title & Subtitle Section */}
+              <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Título e Subtítulo</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="tituloVisivel" className="text-sm text-muted-foreground">Visível</Label>
+                    <Switch
+                      id="tituloVisivel"
+                      checked={tituloVisivel}
+                      onCheckedChange={setTituloVisivel}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="titulo" className="text-sm">Título</Label>
+                    <Input
+                      id="titulo"
+                      value={titulo}
+                      onChange={(e) => setTitulo(e.target.value)}
+                      placeholder="Ex: Preencha seus dados"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="tituloCor" className="text-sm">Cor do Título</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="color"
+                        value={tituloCor}
+                        onChange={(e) => setTituloCor(e.target.value)}
+                        className="w-10 h-9 p-1 cursor-pointer"
+                      />
+                      <Input
+                        value={tituloCor}
+                        onChange={(e) => setTituloCor(e.target.value)}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="subtitulo" className="text-sm">Subtítulo</Label>
+                  <Input
+                    id="subtitulo"
+                    value={subtitulo}
+                    onChange={(e) => setSubtitulo(e.target.value)}
+                    placeholder="Ex: É rápido e fácil"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -532,6 +655,68 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </p>
               </div>
 
+              {/* Font Sizes Collapsible */}
+              <Collapsible open={fontsOpen} onOpenChange={setFontsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Type className="h-4 w-4" />
+                      Tamanhos de Fonte
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${fontsOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Tamanho Título</Label>
+                      <Select value={fonteTamanhoTitulo} onValueChange={setFonteTamanhoTitulo}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Tamanho Subtítulo</Label>
+                      <Select value={fonteTamanhoSubtitulo} onValueChange={setFonteTamanhoSubtitulo}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Tamanho Campos/Labels</Label>
+                    <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FONT_SIZE_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Colors Collapsible */}
+              <Collapsible open={colorsOpen} onOpenChange={setColorsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Palette className="h-4 w-4" />
+                      Cores e Aparência
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${colorsOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cor">Cor Primária (Botões)</Label>

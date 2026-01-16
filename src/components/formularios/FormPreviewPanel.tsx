@@ -26,6 +26,16 @@ interface FormPreviewPanelProps {
     imagens: MediaItem[];
     videos: MediaItem[];
     etapas: FormularioEtapa[];
+    // New title fields
+    titulo?: string;
+    subtitulo?: string;
+    tituloVisivel?: boolean;
+    tituloCor?: string;
+    fonteTamanhoTitulo?: string;
+    fonteTamanhoSubtitulo?: string;
+    fonteTamanhoCampos?: string;
+    fonteTamanhoObrigadoTitulo?: string;
+    fonteTamanhoObrigadoTexto?: string;
   };
   showThankYou?: boolean;
 }
@@ -89,6 +99,16 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     imagens,
     videos,
     etapas,
+    // New title fields with defaults
+    titulo = "",
+    subtitulo = "",
+    tituloVisivel = true,
+    tituloCor = "#1f2937",
+    fonteTamanhoTitulo = "24px",
+    fonteTamanhoSubtitulo = "16px",
+    fonteTamanhoCampos = "14px",
+    fonteTamanhoObrigadoTitulo = "28px",
+    fonteTamanhoObrigadoTexto = "16px",
   } = config;
 
   const validImagens = imagens.filter(i => i.url);
@@ -149,6 +169,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     const opcoes = (etapa.configuracao?.opcoes as string[]) || [];
     const campos = (etapa.configuracao?.campos as Array<{ label: string; placeholder?: string }>) || [];
     const placeholder = getPlaceholderForType(etapa.tipo, etapa.configuracao);
+    const fieldFontSize = parseInt(fonteTamanhoCampos) || 14;
 
     // For checkbox/radio types (multipla_escolha, selecao_unica, opcoes)
     if (etapa.tipo === "multipla_escolha" || etapa.tipo === "selecao_unica" || etapa.tipo === "opcoes") {
@@ -169,7 +190,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 className="h-3 w-3"
                 style={{ borderColor: corPrimaria }}
               />
-              <span className="text-xs" style={{ color: answerTextColor }}>{opcao}</span>
+              <span style={{ color: answerTextColor, fontSize: `${fieldFontSize}px` }}>{opcao}</span>
             </div>
           ))}
           {opcoes.length > 3 && (
@@ -230,6 +251,9 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
 
   // Thank you page preview
   if (showThankYou) {
+    const obrigadoTituloSize = parseInt(fonteTamanhoObrigadoTitulo) || 28;
+    const obrigadoTextoSize = parseInt(fonteTamanhoObrigadoTexto) || 16;
+    
     return (
       <div 
         className="h-full flex items-center justify-center p-4 rounded-lg"
@@ -257,12 +281,12 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               >
                 <CheckCircle2 className="h-4 w-4" style={{ color: corPrimaria }} />
               </div>
-              <h2 className="text-lg md:text-xl font-bold" style={{ color: textColor }}>
+              <h2 className="font-bold" style={{ color: textColor, fontSize: `${Math.min(obrigadoTituloSize * 0.6, 20)}px` }}>
                 {paginaObrigadoTitulo || "Obrigado!"}
               </h2>
             </div>
             
-            <p className="text-center text-xs" style={{ color: textColor, opacity: 0.7 }}>
+            <p className="text-center" style={{ color: textColor, opacity: 0.7, fontSize: `${Math.min(obrigadoTextoSize * 0.7, 12)}px` }}>
               {paginaObrigadoMensagem || "Recebemos suas informações."}
             </p>
 
@@ -336,11 +360,27 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             </div>
           )}
           
-          {/* Title */}
-          {nome && (
-            <h2 className="text-sm font-semibold text-center" style={{ color: textColor }}>
-              {nome}
-            </h2>
+          {/* Title and Subtitle */}
+          {tituloVisivel && (titulo || subtitulo) && (
+            <div className="space-y-1 text-center">
+              {titulo && (
+                <h2 className="font-bold" style={{ 
+                  color: tituloCor, 
+                  fontSize: `${Math.min((parseInt(fonteTamanhoTitulo) || 24) * 0.5, 16)}px` 
+                }}>
+                  {titulo}
+                </h2>
+              )}
+              {subtitulo && (
+                <p style={{ 
+                  color: textColor, 
+                  opacity: 0.7,
+                  fontSize: `${Math.min((parseInt(fonteTamanhoSubtitulo) || 16) * 0.6, 12)}px` 
+                }}>
+                  {subtitulo}
+                </p>
+              )}
+            </div>
           )}
           
           {/* Real fields from etapas */}
@@ -348,7 +388,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             <div className="space-y-3">
               {fieldsToShow.map((etapa) => (
                 <div key={etapa.id} className="space-y-1">
-                  <label className="text-xs font-medium" style={{ color: textColor }}>
+                  <label style={{ color: textColor, fontSize: `${Math.min((parseInt(fonteTamanhoCampos) || 14) * 0.75, 12)}px`, fontWeight: 500 }}>
                     {etapa.titulo} {etapa.obrigatorio && <span style={{ color: "#ef4444" }}>*</span>}
                   </label>
                   {renderField(etapa)}
