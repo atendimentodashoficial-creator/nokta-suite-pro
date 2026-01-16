@@ -11,6 +11,7 @@ export interface FormularioTemplate {
   slug: string | null;
   status: string;
   cor_primaria: string | null;
+  logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
   pagina_obrigado_cta_texto: string | null;

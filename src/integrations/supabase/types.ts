@@ -2076,6 +2076,7 @@ export type Database = {
           created_at: string
           descricao: string | null
           id: string
+          logo_url: string | null
           nome: string
           pagina_obrigado_cta_link: string | null
           pagina_obrigado_cta_texto: string | null
@@ -2091,6 +2092,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           id?: string
+          logo_url?: string | null
           nome: string
           pagina_obrigado_cta_link?: string | null
           pagina_obrigado_cta_texto?: string | null
@@ -2106,6 +2108,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           id?: string
+          logo_url?: string | null
           nome?: string
           pagina_obrigado_cta_link?: string | null
           pagina_obrigado_cta_texto?: string | null
