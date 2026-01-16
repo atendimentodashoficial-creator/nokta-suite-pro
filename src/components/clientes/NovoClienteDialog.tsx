@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
+import { normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, stripCountryCode } from "@/utils/phoneFormat";
 import {
   Dialog,
   DialogContent,
@@ -193,7 +193,7 @@ export function NovoClienteDialog() {
                         value={countryCode} 
                         onChange={setCountryCode}
                         phoneValue={formatPhoneByCountry(field.value, countryCode)}
-                        onPhoneChange={(val) => field.onChange(val.replace(/\D/g, ''))}
+                        onPhoneChange={(val) => field.onChange(stripCountryCode(val, countryCode))}
                         onPhoneBlur={() => {
                           field.onBlur();
                           handleTelefoneBlur();

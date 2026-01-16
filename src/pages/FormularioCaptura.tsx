@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
-import { formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
+import { formatPhoneByCountry, getPhonePlaceholder, stripCountryCode } from "@/utils/phoneFormat";
 
 interface CampoPersonalizado {
   id: string;
@@ -199,9 +199,10 @@ export default function FormularioCaptura() {
   };
 
   const handleChange = (campoId: string, value: FormValue) => {
-    // For phone field, format with country code and keep exactly (XX) XXXXX-XXXX / (XX) XXXX-XXXX
+    // For phone field, strip country code if present and format
     if (campoId === "telefone") {
-      const formattedPhone = formatPhoneByCountry(String(value ?? ""), countryCode);
+      const stripped = stripCountryCode(String(value ?? ""), countryCode);
+      const formattedPhone = formatPhoneByCountry(stripped, countryCode);
       setFormData((prev) => ({ ...prev, [campoId]: formattedPhone }));
     } else {
       setFormData((prev) => ({ ...prev, [campoId]: value }));

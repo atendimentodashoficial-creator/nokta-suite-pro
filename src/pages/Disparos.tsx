@@ -15,7 +15,7 @@ import { CampanhasTab } from "@/components/disparos/CampanhasTab";
 import { TemplatesTab } from "@/components/disparos/TemplatesTab";
 import { ChatAvatar } from "@/components/whatsapp/ChatAvatar";
 import { formatPhoneNumber, formatRelativeTime, truncateText, getInitials, normalizePhoneNumber, getLast8Digits, formatLastMessagePreview } from "@/utils/whatsapp";
-import { formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
+import { formatPhoneByCountry, getPhonePlaceholder, stripCountryCode } from "@/utils/phoneFormat";
 import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -1109,7 +1109,7 @@ export default function Disparos() {
                           value={newChatCountryCode} 
                           onChange={setNewChatCountryCode}
                           phoneValue={formatPhoneByCountry(newChatNumber, newChatCountryCode)}
-                          onPhoneChange={(val) => setNewChatNumber(val.replace(/\D/g, ''))}
+                          onPhoneChange={(val) => setNewChatNumber(stripCountryCode(val, newChatCountryCode))}
                           placeholder={getPhonePlaceholder(newChatCountryCode)}
                         />
                       </div>
