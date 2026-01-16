@@ -1560,7 +1560,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               {/* Linha 6: Cor da Borda do Card, Cor das Mensagens de Erro */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cardBorder">Cor da Borda do Card</Label>
+                  <Label htmlFor="cardBorder">Borda do Card</Label>
                   <div className="flex items-center gap-2">
                     <div 
                       className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
