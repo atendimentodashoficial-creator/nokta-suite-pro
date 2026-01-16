@@ -1171,7 +1171,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <CollapsibleContent className="space-y-3 pt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Tamanho Campos/Labels</Label>
+                      <Label className="text-sm">Tamanho das Opções de Escolha</Label>
                       <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
