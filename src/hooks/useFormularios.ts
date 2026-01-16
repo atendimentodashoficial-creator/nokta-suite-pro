@@ -10,6 +10,7 @@ export interface FormularioTemplate {
   descricao: string | null;
   slug: string | null;
   status: string;
+  layout_tipo: string;
   cor_primaria: string | null;
   background_color: string | null;
   card_color: string | null;

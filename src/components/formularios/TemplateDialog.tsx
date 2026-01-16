@@ -36,6 +36,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [slug, setSlug] = useState("");
   const [descricao, setDescricao] = useState("");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
+  const [layoutTipo, setLayoutTipo] = useState<"multi_step" | "single_page">("multi_step");
   const [corPrimaria, setCorPrimaria] = useState("#8B5CF6");
   const [backgroundColor, setBackgroundColor] = useState("#ffffff");
   const [cardColor, setCardColor] = useState("#ffffff");
@@ -90,6 +91,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setSlug(template.slug || "");
       setDescricao(template.descricao || "");
       setStatus(template.status as "ativo" | "inativo");
+      setLayoutTipo((template as any).layout_tipo || "multi_step");
       setCorPrimaria(template.cor_primaria || "#8B5CF6");
       setBackgroundColor(template.background_color || "#ffffff");
       setCardColor(template.card_color || "#ffffff");
@@ -114,6 +116,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setSlug("");
       setDescricao("");
       setStatus("ativo");
+      setLayoutTipo("multi_step");
       setCorPrimaria("#8B5CF6");
       setBackgroundColor("#ffffff");
       setCardColor("#ffffff");
@@ -230,6 +233,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       slug: slug || generateSlug(nome),
       descricao: descricao || null,
       status,
+      layout_tipo: layoutTipo,
       cor_primaria: corPrimaria,
       background_color: backgroundColor,
       card_color: cardColor,
@@ -305,6 +309,22 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
                 <p className="text-xs text-muted-foreground">
                   URL amigável para compartilhar o formulário
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Layout do Formulário</Label>
+                <Select value={layoutTipo} onValueChange={(v: "multi_step" | "single_page") => setLayoutTipo(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="multi_step">Multi-etapas (uma pergunta por vez)</SelectItem>
+                    <SelectItem value="single_page">Página única (todas as perguntas juntas)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Escolha como as etapas serão exibidas para o usuário
                 </p>
               </div>
 
