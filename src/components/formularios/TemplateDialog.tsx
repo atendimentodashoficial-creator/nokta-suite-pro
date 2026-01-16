@@ -99,7 +99,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   // Arrays for multiple images/videos
   const [imagens, setImagens] = useState<MediaItem[]>([]);
   const [videos, setVideos] = useState<MediaItem[]>([]);
-  const [imagensLayout, setImagensLayout] = useState<"horizontal" | "vertical">("horizontal");
+  const [imagensLayout, setImagensLayout] = useState<"horizontal" | "vertical">("vertical");
   const [uploadingImagemIndex, setUploadingImagemIndex] = useState<number | null>(null);
   const imagemInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -220,7 +220,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoImagemUrl(null);
       setImagens([]);
       setVideos([]);
-      setImagensLayout("horizontal");
+      setImagensLayout("vertical");
     }
   }, [template, open]);
 
