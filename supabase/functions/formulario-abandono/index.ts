@@ -12,11 +12,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { session_id, etapa_atual, dados_parciais } = await req.json();
+    const { session_id, session_token, etapa_atual, dados_parciais } = await req.json();
 
-    if (!session_id) {
+    if (!session_id || !session_token) {
       return new Response(
-        JSON.stringify({ error: "session_id is required" }),
+        JSON.stringify({ error: "session_id and session_token are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -25,14 +25,28 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Only mark as abandoned if not already completed
+    // Validate token + don't override completed sessions
     const { data: session } = await supabase
       .from("formularios_sessoes")
-      .select("completed_at")
+      .select("completed_at, session_token")
       .eq("id", session_id)
       .maybeSingle();
 
-    if (session?.completed_at) {
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: "session not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (session.session_token !== session_token) {
+      return new Response(
+        JSON.stringify({ error: "invalid session token" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (session.completed_at) {
       return new Response(
         JSON.stringify({ success: true, message: "Session already completed" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }

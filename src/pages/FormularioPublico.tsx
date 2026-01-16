@@ -60,6 +60,7 @@ export default function FormularioPublico() {
   const [countryCode, setCountryCode] = useState("55");
   const [currentStep, setCurrentStep] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const stepStartTime = useRef<Date>(new Date());
 
@@ -113,12 +114,14 @@ export default function FormularioPublico() {
       // Create session if not preview
       if (!isPreview) {
         const sessionToken = crypto.randomUUID();
+        setSessionToken(sessionToken);
         const urlParams = new URLSearchParams(window.location.search);
         
         const { data: session, error: sessionError } = await supabase
           .from("formularios_sessoes")
           .insert({
-            template_id: templateId,
+            // IMPORTANT: template_id must be the real UUID (data.id). The URL may be using slug.
+            template_id: data.id,
             user_id: data.user_id,
             session_token: sessionToken,
             etapa_atual: 1,
@@ -135,9 +138,13 @@ export default function FormularioPublico() {
             user_agent: navigator.userAgent,
           })
           .select()
-          .single();
+          .maybeSingle();
 
-        if (!sessionError && session) {
+        if (sessionError) {
+          console.error("Erro ao criar sessão do formulário:", sessionError);
+        }
+
+        if (session) {
           setSessionId(session.id);
         }
       }
@@ -159,6 +166,7 @@ export default function FormularioPublico() {
       const url = `${supabaseUrl}/functions/v1/formulario-abandono`;
       const body = JSON.stringify({
         session_id: sessionId,
+        session_token: sessionToken,
         etapa_atual: currentStep,
         dados_parciais: formData,
       });
