@@ -218,7 +218,7 @@ export default function FormulariosLeads() {
                     </TableHead>
                     <TableHead>Data/Hora</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>E-mail</TableHead>
                     <TableHead>Telefone</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Formulário</TableHead>
