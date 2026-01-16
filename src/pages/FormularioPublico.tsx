@@ -439,7 +439,7 @@ export default function FormularioPublico() {
     }
   };
 
-  const renderField = (etapa: EtapaConfig) => {
+  const renderField = (etapa: EtapaConfig, customStyles?: { cardColor?: string; textColor?: string; borderColor?: string }) => {
     const { tipo, id, titulo, descricao, configuracao, obrigatorio } = etapa;
     const value = formData[id];
 
@@ -526,9 +526,17 @@ export default function FormularioPublico() {
               onValueChange={(v) => handleChange(id, v)}
             >
               {opcoes.map((opcao, idx) => (
-                <div key={idx} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                <div 
+                  key={idx} 
+                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80"
+                  style={{ 
+                    backgroundColor: customStyles?.cardColor || "transparent",
+                    border: `1px solid ${customStyles?.borderColor || "rgba(255,255,255,0.2)"}`,
+                    color: customStyles?.textColor,
+                  }}
+                >
                   <RadioGroupItem value={opcao} id={`${id}-${idx}`} />
-                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer">
+                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.textColor }}>
                     {opcao}
                   </Label>
                 </div>
@@ -807,7 +815,11 @@ export default function FormularioPublico() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {renderField(currentEtapa)}
+          {renderField(currentEtapa, { 
+            cardColor: cardColor, 
+            textColor: textColor,
+            borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "rgba(255,255,255,0.2)",
+          })}
 
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
