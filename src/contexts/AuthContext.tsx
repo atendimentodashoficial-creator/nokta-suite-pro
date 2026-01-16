@@ -1,8 +1,17 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  user_metadata?: {
+    full_name?: string;
+    [key: string]: any;
+  };
+}
 
 interface AuthContextType {
   user: User | null;
@@ -12,55 +21,70 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   loading: boolean;
   isAdmin: boolean;
+  adminUsers: AdminUser[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Função para verificar se o usuário é admin
-const checkAdminStatus = async (accessToken: string): Promise<void> => {
-  try {
-    const { data, error } = await supabase.functions.invoke('check-admin-status', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
-    
-    if (error) {
-      console.error('Erro ao verificar status admin:', error);
-      return;
-    }
-    
-    if (data?.isAdmin && data?.adminToken && data?.users) {
-      // Salvar no localStorage para o AdminClientSwitcher usar
-      localStorage.setItem('admin_token', data.adminToken);
-      localStorage.setItem('admin_users_list', JSON.stringify(data.users));
-      console.log('Admin detectado! Funcionalidade de troca de cliente ativada.');
-    } else {
-      // Limpar dados admin se não for admin
-      // Mas NÃO limpar se já existir um admin_token válido (pode ser um admin acessando como cliente)
-      const existingToken = localStorage.getItem('admin_token');
-      if (!existingToken) {
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_users_list');
-      }
-    }
-  } catch (error) {
-    console.error('Erro ao verificar status admin:', error);
-  }
-};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const navigate = useNavigate();
 
-  // Verificar se há dados de admin no localStorage
+  const checkAndStoreAdminStatus = useCallback(async (accessToken: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("check-admin-status", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (error) {
+        console.error("Erro ao verificar status admin:", error);
+        return;
+      }
+
+      if (data?.isAdmin && data?.adminToken && Array.isArray(data?.users)) {
+        localStorage.setItem("admin_token", data.adminToken);
+        localStorage.setItem("admin_users_list", JSON.stringify(data.users));
+        setAdminUsers(data.users);
+        setIsAdmin(true);
+        console.log("Admin detectado! Funcionalidade de troca de cliente ativada.");
+        return;
+      }
+
+      // Limpar dados admin se não for admin (mas só se não houver token existente)
+      const existingToken = localStorage.getItem("admin_token");
+      if (!existingToken) {
+        localStorage.removeItem("admin_token");
+        localStorage.removeItem("admin_users_list");
+        setAdminUsers([]);
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error("Erro ao verificar status admin:", error);
+    }
+  }, []);
+
+  // Carregar estado admin persistido (para evitar race condition no primeiro render)
   useEffect(() => {
-    const adminToken = localStorage.getItem('admin_token');
-    setIsAdmin(!!adminToken);
-  }, [user]);
+    const adminToken = localStorage.getItem("admin_token");
+    const adminUsersData = localStorage.getItem("admin_users_list");
+
+    if (adminToken && adminUsersData) {
+      try {
+        const parsedUsers = JSON.parse(adminUsersData);
+        setAdminUsers(Array.isArray(parsedUsers) ? parsedUsers : []);
+        setIsAdmin(true);
+      } catch {
+        setAdminUsers([]);
+        setIsAdmin(!!adminToken);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -84,6 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.removeItem('admin_token');
             localStorage.removeItem('admin_users_list');
           }
+          setAdminUsers([]);
           setIsAdmin(false);
           return;
         }
@@ -105,9 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (event === 'SIGNED_IN' && session.access_token) {
             // Usar setTimeout para evitar chamadas durante o render
             setTimeout(() => {
-              checkAdminStatus(session.access_token).then(() => {
-                setIsAdmin(!!localStorage.getItem('admin_token'));
-              });
+              checkAndStoreAdminStatus(session.access_token);
             }, 100);
           }
         }
@@ -136,8 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         // Verificar status admin para sessão existente
         if (session.access_token) {
-          await checkAdminStatus(session.access_token);
-          setIsAdmin(!!localStorage.getItem('admin_token'));
+          await checkAndStoreAdminStatus(session.access_token);
         }
       }
       
@@ -147,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, checkAndStoreAdminStatus]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -173,8 +195,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Verificar status admin
       if (data.session?.access_token) {
-        await checkAdminStatus(data.session.access_token);
-        setIsAdmin(!!localStorage.getItem('admin_token'));
+        await checkAndStoreAdminStatus(data.session.access_token);
       }
 
       toast.success("Login realizado com sucesso!");
@@ -240,13 +261,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Limpar dados admin
       localStorage.removeItem('admin_token');
       localStorage.removeItem('admin_users_list');
+      setAdminUsers([]);
       setIsAdmin(false);
       navigate("/auth", { replace: true });
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signIn, signUp, signOut, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, session, signIn, signUp, signOut, loading, isAdmin, adminUsers }}>
       {children}
     </AuthContext.Provider>
   );

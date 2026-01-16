@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronDown, Users, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,31 +28,12 @@ interface AdminClientSwitcherProps {
 }
 
 export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherProps) => {
-  const { user } = useAuth();
+  const { user, isAdmin, adminUsers } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
 
-  useEffect(() => {
-    // Verificar se o admin está acessando como cliente
-    const adminToken = localStorage.getItem('admin_token');
-    const adminUsersData = localStorage.getItem('admin_users_list');
-    
-    if (adminToken && adminUsersData) {
-      try {
-        const parsedUsers = JSON.parse(adminUsersData);
-        setUsers(parsedUsers);
-        setIsAdmin(true);
-        setCurrentUserEmail(user?.email || "");
-      } catch (e) {
-        console.error("Erro ao parsear lista de usuários:", e);
-      }
-    } else {
-      setIsAdmin(false);
-    }
-  }, [user]);
+  const currentUserEmail = user?.email || "";
+  const users = (adminUsers as AdminUser[]) || [];
 
   const handleSwitchToUser = async (userEmail: string) => {
     if (userEmail === currentUserEmail) return;
@@ -96,7 +76,7 @@ export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherPr
     });
   };
 
-  // Não mostrar se não for admin acessando como cliente
+  // Não mostrar se não for admin
   if (!isAdmin || users.length === 0) {
     return null;
   }
