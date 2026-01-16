@@ -1527,7 +1527,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
-              {/* Linha: Respostas, Mensagem de Erro */}
+              {/* Linha: Respostas, Etapas (1/3) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="answerTextColor">Respostas</Label>
@@ -1555,25 +1555,25 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="errorTextColor">Mensagem de Erro</Label>
+                  <Label htmlFor="corIndicadorEtapa">Etapas (1/3)</Label>
                   <div className="flex items-center gap-2">
                     <div 
                       className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                      style={{ backgroundColor: errorTextColor }}
-                      onClick={() => document.getElementById('errorTextColor2')?.click()}
+                      style={{ backgroundColor: corIndicadorEtapa }}
+                      onClick={() => document.getElementById('corIndicadorEtapa')?.click()}
                     >
                       <Input
-                        id="errorTextColor2"
+                        id="corIndicadorEtapa"
                         type="color"
-                        value={errorTextColor}
-                        onChange={(e) => setErrorTextColor(e.target.value)}
+                        value={corIndicadorEtapa}
+                        onChange={(e) => setCorIndicadorEtapa(e.target.value)}
                         className="opacity-0 w-full h-full cursor-pointer"
                       />
                     </div>
                     <Input
-                      value={errorTextColor}
-                      onChange={(e) => setErrorTextColor(e.target.value)}
-                      placeholder="#ef4444"
+                      value={corIndicadorEtapa}
+                      onChange={(e) => setCorIndicadorEtapa(e.target.value)}
+                      placeholder="#6b7280"
                       className="flex-1"
                     />
                   </div>
@@ -1743,35 +1743,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               )}
 
-              {/* Linha 6: Cor da Paginação (apenas multi_step e visível) */}
-              {layoutTipo === "multi_step" && barraProgressoVisivel && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="corPaginacao">Paginação</Label>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                        style={{ backgroundColor: corIndicadorEtapa }}
-                        onClick={() => document.getElementById('corPaginacao')?.click()}
-                      >
-                        <Input
-                          id="corPaginacao"
-                          type="color"
-                          value={corIndicadorEtapa}
-                          onChange={(e) => setCorIndicadorEtapa(e.target.value)}
-                          className="opacity-0 w-full h-full cursor-pointer"
-                        />
-                      </div>
-                      <Input
-                        value={corIndicadorEtapa}
-                        onChange={(e) => setCorIndicadorEtapa(e.target.value)}
-                        placeholder="#6b7280"
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Linha 6: Cor da Borda do Card, Cor das Mensagens de Erro */}
               <div className="grid grid-cols-2 gap-4">
