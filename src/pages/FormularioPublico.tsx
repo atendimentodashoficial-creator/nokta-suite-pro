@@ -72,6 +72,9 @@ interface TemplateConfig {
   fonte_tamanho_campos?: string | null;
   fonte_tamanho_respostas?: string | null;
   fonte_tamanho_botoes?: string | null;
+  whatsapp_instancia_id?: string | null;
+  whatsapp_mensagem_sucesso?: string | null;
+  whatsapp_notificacao_ativa?: boolean | null;
   formularios_etapas: EtapaConfig[];
 }
 
@@ -454,6 +457,43 @@ export default function FormularioPublico() {
 
       setSubmitted(true);
 
+      // Send WhatsApp notification if configured
+      if (config.whatsapp_notificacao_ativa && config.whatsapp_instancia_id && config.whatsapp_mensagem_sucesso && telefone) {
+        try {
+          // Get instance config
+          const { data: instancia } = await supabase
+            .from("disparos_instancias")
+            .select("base_url, api_key")
+            .eq("id", config.whatsapp_instancia_id)
+            .single();
+
+          if (instancia) {
+            // Replace placeholders in message
+            let mensagem = config.whatsapp_mensagem_sucesso;
+            mensagem = mensagem.replace(/\{nome\}/gi, nome || "");
+            mensagem = mensagem.replace(/\{email\}/gi, email || "");
+            mensagem = mensagem.replace(/\{telefone\}/gi, telefone || "");
+
+            // Send message via UAZapi
+            const normalizedUrl = instancia.base_url.replace(/\/+$/, "");
+            await fetch(`${normalizedUrl}/chat/send-text`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "apikey": instancia.api_key,
+              },
+              body: JSON.stringify({
+                number: telefone,
+                text: mensagem,
+              }),
+            });
+          }
+        } catch (whatsappError) {
+          console.error("Erro ao enviar notificação WhatsApp:", whatsappError);
+          // Don't throw - form submission was successful
+        }
+      }
+
       // TODO: Trigger pixels here based on config
 
     } catch (err) {
@@ -574,6 +614,43 @@ export default function FormularioPublico() {
       }
 
       setSubmitted(true);
+
+      // Send WhatsApp notification if configured
+      if (config.whatsapp_notificacao_ativa && config.whatsapp_instancia_id && config.whatsapp_mensagem_sucesso && telefone) {
+        try {
+          // Get instance config
+          const { data: instancia } = await supabase
+            .from("disparos_instancias")
+            .select("base_url, api_key")
+            .eq("id", config.whatsapp_instancia_id)
+            .single();
+
+          if (instancia) {
+            // Replace placeholders in message
+            let mensagem = config.whatsapp_mensagem_sucesso;
+            mensagem = mensagem.replace(/\{nome\}/gi, nome || "");
+            mensagem = mensagem.replace(/\{email\}/gi, email || "");
+            mensagem = mensagem.replace(/\{telefone\}/gi, telefone || "");
+
+            // Send message via UAZapi
+            const normalizedUrl = instancia.base_url.replace(/\/+$/, "");
+            await fetch(`${normalizedUrl}/chat/send-text`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "apikey": instancia.api_key,
+              },
+              body: JSON.stringify({
+                number: telefone,
+                text: mensagem,
+              }),
+            });
+          }
+        } catch (whatsappError) {
+          console.error("Erro ao enviar notificação WhatsApp:", whatsappError);
+          // Don't throw - form submission was successful
+        }
+      }
     } catch (err) {
       console.error("Erro ao enviar formulário:", err);
       setError("Erro ao enviar dados. Tente novamente.");

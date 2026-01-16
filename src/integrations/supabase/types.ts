@@ -2122,6 +2122,9 @@ export type Database = {
           titulo_visivel: boolean | null
           updated_at: string
           user_id: string
+          whatsapp_instancia_id: string | null
+          whatsapp_mensagem_sucesso: string | null
+          whatsapp_notificacao_ativa: boolean | null
         }
         Insert: {
           answer_text_color?: string | null
@@ -2174,6 +2177,9 @@ export type Database = {
           titulo_visivel?: boolean | null
           updated_at?: string
           user_id: string
+          whatsapp_instancia_id?: string | null
+          whatsapp_mensagem_sucesso?: string | null
+          whatsapp_notificacao_ativa?: boolean | null
         }
         Update: {
           answer_text_color?: string | null
@@ -2226,8 +2232,19 @@ export type Database = {
           titulo_visivel?: boolean | null
           updated_at?: string
           user_id?: string
+          whatsapp_instancia_id?: string | null
+          whatsapp_mensagem_sucesso?: string | null
+          whatsapp_notificacao_ativa?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "formularios_templates_whatsapp_instancia_id_fkey"
+            columns: ["whatsapp_instancia_id"]
+            isOneToOne: false
+            referencedRelation: "disparos_instancias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       google_ads_accounts: {
         Row: {
