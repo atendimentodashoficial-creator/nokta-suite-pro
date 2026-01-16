@@ -609,27 +609,31 @@ export default function FormularioPublico() {
 
       case "opcoes":
         const opcoes = configuracao?.opcoes || [];
+        const selectedValue = (value as string) || "";
         return (
           <div className="space-y-3">
-            <RadioGroup
-              value={(value as string) || ""}
-              onValueChange={(v) => handleChange(id, v)}
-            >
-              {opcoes.map((opcao, idx) => (
+            {opcoes.map((opcao, idx) => {
+              const isSelected = selectedValue === opcao;
+              return (
                 <div 
                   key={idx} 
                   className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80 bg-white"
                   style={{ 
                     border: `1px solid ${customStyles?.borderColor || "rgba(255,255,255,0.2)"}`,
                   }}
+                  onClick={() => handleChange(id, opcao)}
                 >
-                  <RadioGroupItem value={opcao} id={`${id}-${idx}`} />
+                  <Checkbox 
+                    id={`${id}-${idx}`} 
+                    checked={isSelected}
+                    onCheckedChange={() => handleChange(id, opcao)}
+                  />
                   <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.answerColor || "#1f2937" }}>
                     {opcao}
                   </Label>
                 </div>
-              ))}
-            </RadioGroup>
+              );
+            })}
             {fieldErrors[id] && <p className="text-xs text-destructive">{fieldErrors[id]}</p>}
           </div>
         );
