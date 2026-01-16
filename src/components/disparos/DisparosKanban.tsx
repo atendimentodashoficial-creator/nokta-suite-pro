@@ -11,7 +11,6 @@ import {
   formatPhoneNumber,
   formatRelativeTime,
   formatLastMessagePreview,
-  truncateText,
 } from "@/utils/whatsapp";
 import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, Phone, Filter, CheckSquare, Square, XCircle } from "lucide-react";
 import {
@@ -881,7 +880,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                                 <span className="truncate">{chat.instancia_nome || instanciasMap[chat.instancia_id]?.nome}</span>
                               </div>
                             )}
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-normal break-words">
                               {formatLastMessagePreview(chat.last_message)}
                             </p>
                             {chat.last_message_time && (
@@ -996,7 +995,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                                     <span className="truncate">{chat.instancia_nome || instanciasMap[chat.instancia_id]?.nome}</span>
                                   </div>
                                 )}
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-normal break-words">
                                   {formatLastMessagePreview(chat.last_message)}
                                 </p>
                                 {chat.last_message_time && (
