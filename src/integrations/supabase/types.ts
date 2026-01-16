@@ -2089,6 +2089,8 @@ export type Database = {
           fonte_tamanho_campos: string | null
           fonte_tamanho_obrigado_texto: string | null
           fonte_tamanho_obrigado_titulo: string | null
+          fonte_tamanho_perguntas: string | null
+          fonte_tamanho_respostas: string | null
           fonte_tamanho_subtitulo: string | null
           fonte_tamanho_titulo: string | null
           id: string
@@ -2139,6 +2141,8 @@ export type Database = {
           fonte_tamanho_campos?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
+          fonte_tamanho_perguntas?: string | null
+          fonte_tamanho_respostas?: string | null
           fonte_tamanho_subtitulo?: string | null
           fonte_tamanho_titulo?: string | null
           id?: string
@@ -2189,6 +2193,8 @@ export type Database = {
           fonte_tamanho_campos?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
+          fonte_tamanho_perguntas?: string | null
+          fonte_tamanho_respostas?: string | null
           fonte_tamanho_subtitulo?: string | null
           fonte_tamanho_titulo?: string | null
           id?: string
