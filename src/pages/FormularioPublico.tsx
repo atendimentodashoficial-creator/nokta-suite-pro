@@ -666,8 +666,9 @@ export default function FormularioPublico() {
               return (
                 <div 
                   key={idx} 
-                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80 bg-white"
+                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80"
                   style={{ 
+                    backgroundColor: customStyles?.cardColor || "#ffffff",
                     border: `1px solid ${customStyles?.borderColor || "rgba(255,255,255,0.2)"}`,
                   }}
                   onClick={() => handleChange(id, opcao)}
@@ -697,8 +698,9 @@ export default function FormularioPublico() {
               return (
                 <div 
                   key={idx} 
-                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80 bg-white"
+                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80"
                   style={{ 
+                    backgroundColor: customStyles?.cardColor || "#ffffff",
                     border: `1px solid ${customStyles?.borderColor || "rgba(255,255,255,0.2)"}`,
                   }}
                   onClick={() => {
