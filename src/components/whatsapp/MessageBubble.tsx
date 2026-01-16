@@ -232,11 +232,11 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
     return (
       <Button
         variant="ghost"
-        className="flex items-center gap-2 p-3 h-auto w-full justify-start bg-black/10 hover:bg-black/20 rounded mb-2"
+        className="flex items-center gap-2 p-3 h-auto w-full max-w-full justify-start bg-black/10 hover:bg-black/20 rounded mb-2 overflow-hidden"
         onClick={loadMedia}
       >
-        {getMediaIcon()}
-        <span className="text-sm">Clique para carregar {getMediaLabel().toLowerCase()}</span>
+        <span className="flex-shrink-0">{getMediaIcon()}</span>
+        <span className="text-sm truncate">Clique para carregar {getMediaLabel().toLowerCase()}</span>
       </Button>
     );
   };
@@ -249,9 +249,9 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
 
     if (isLoadingMedia) {
       return (
-        <div className="flex items-center gap-2 p-3 bg-black/10 rounded mb-2">
-          {getMediaIcon()}
-          <span className="text-xs opacity-70">Carregando {getMediaLabel().toLowerCase()}...</span>
+        <div className="flex items-center gap-2 p-3 bg-black/10 rounded mb-2 overflow-hidden max-w-full">
+          <span className="flex-shrink-0">{getMediaIcon()}</span>
+          <span className="text-xs opacity-70 truncate">Carregando {getMediaLabel().toLowerCase()}...</span>
         </div>
       );
     }
@@ -260,11 +260,11 @@ export const MessageBubble = ({ message, fallbackAttribution, instanciaId }: Mes
       return (
         <Button
           variant="ghost"
-          className="flex items-center gap-2 p-3 h-auto w-full justify-start bg-black/10 hover:bg-black/20 rounded mb-2"
+          className="flex items-center gap-2 p-3 h-auto w-full max-w-full justify-start bg-black/10 hover:bg-black/20 rounded mb-2 overflow-hidden"
           onClick={loadMedia}
         >
-          {getMediaIcon()}
-          <span className="text-xs opacity-70">Falha ao carregar. Toque para tentar novamente</span>
+          <span className="flex-shrink-0">{getMediaIcon()}</span>
+          <span className="text-xs opacity-70 truncate">Falha ao carregar. Toque para tentar novamente</span>
         </Button>
       );
     }
