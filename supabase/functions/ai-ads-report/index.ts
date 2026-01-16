@@ -89,7 +89,7 @@ serve(async (req) => {
       }
     }
 
-    const { action, campaigns, adsets, ads, dateStart, dateEnd, accountId, compareWithPrevious, previousReport, funnelData } = await req.json();
+    const { action, campaigns, adsets, ads, dateStart, dateEnd, accountId, currency, compareWithPrevious, previousReport, funnelData } = await req.json();
 
     // Check API key action
     if (action === 'check_api_key') {
@@ -145,16 +145,21 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Generating AI report for ${filteredCampaigns.length} campaigns, ${filteredAdsets.length} adsets, ${filteredAds.length} ads. Compare: ${compareWithPrevious}`);
+      console.log(`Generating AI report for ${filteredCampaigns.length} campaigns, ${filteredAdsets.length} adsets, ${filteredAds.length} ads. Compare: ${compareWithPrevious}. Currency: ${currency || 'BRL'}`);
+
+      // Determine currency symbol based on account currency
+      const accountCurrency = currency || 'BRL';
+      const currencySymbol = accountCurrency === 'USD' ? 'US$' : 'R$';
+      const currencyName = accountCurrency === 'USD' ? 'dólares' : 'reais';
 
       // Generate top performers by metric (calculated in code, not by AI)
       const generateTopPerformersByMetric = () => {
         const metrics = [
           { key: 'results', label: 'Resultados', format: (v: number) => v.toString(), sortDesc: true },
           { key: 'ctr', label: 'CTR', format: (v: number) => `${v.toFixed(2)}%`, sortDesc: true },
-          { key: 'cpc', label: 'CPC', format: (v: number) => `R$ ${v.toFixed(2)}`, sortDesc: false },
-          { key: 'cpm', label: 'CPM', format: (v: number) => `R$ ${v.toFixed(2)}`, sortDesc: false },
-          { key: 'cost_per_result', label: 'Custo/Resultado', format: (v: number) => `R$ ${v.toFixed(2)}`, sortDesc: false },
+          { key: 'cpc', label: 'CPC', format: (v: number) => `${currencySymbol} ${v.toFixed(2)}`, sortDesc: false },
+          { key: 'cpm', label: 'CPM', format: (v: number) => `${currencySymbol} ${v.toFixed(2)}`, sortDesc: false },
+          { key: 'cost_per_result', label: 'Custo/Resultado', format: (v: number) => `${currencySymbol} ${v.toFixed(2)}`, sortDesc: false },
         ];
 
         const byMetric: Record<string, { campaigns: any[], adsets: any[], ads: any[] }> = {};
@@ -396,11 +401,11 @@ ${JSON.stringify(byCampaign.slice(0, 10).map((c: any) => ({
   taxa_conversao: c.leads > 0 ? ((c.clientes / c.leads) * 100).toFixed(1) + '%' : '0%'
 })), null, 2)}` : ''}
 
-ANÁLISE DE EFICIÊNCIA DO FUNIL:
-- Custo por Lead (CPL): R$ ${totalResults > 0 ? (totalSpend / totals.leadsTracked).toFixed(2) : '0.00'}
-- Custo por Agendamento: R$ ${totals.agendadosTracked > 0 ? (totalSpend / totals.agendadosTracked).toFixed(2) : '0.00'}
-- Custo por Comparecimento: R$ ${totals.compareceuTracked > 0 ? (totalSpend / totals.compareceuTracked).toFixed(2) : '0.00'}
-- CAC (Custo de Aquisição de Cliente): R$ ${totals.clientesTracked > 0 ? (totalSpend / totals.clientesTracked).toFixed(2) : '0.00'}
+ANÁLISE DE EFICIÊNCIA DO FUNIL (gastos em ${currencySymbol}):
+- Custo por Lead (CPL): ${currencySymbol} ${totalResults > 0 ? (totalSpend / totals.leadsTracked).toFixed(2) : '0.00'}
+- Custo por Agendamento: ${currencySymbol} ${totals.agendadosTracked > 0 ? (totalSpend / totals.agendadosTracked).toFixed(2) : '0.00'}
+- Custo por Comparecimento: ${currencySymbol} ${totals.compareceuTracked > 0 ? (totalSpend / totals.compareceuTracked).toFixed(2) : '0.00'}
+- CAC (Custo de Aquisição de Cliente): ${currencySymbol} ${totals.clientesTracked > 0 ? (totalSpend / totals.clientesTracked).toFixed(2) : '0.00'}
 - ROAS Real: ${totals.valorTracked > 0 && totalSpend > 0 ? (totals.valorTracked / totalSpend).toFixed(2) + 'x' : 'N/A'}
 `;
 
@@ -417,8 +422,11 @@ IMPORTANTE:
 2. Analise TODOS OS NÍVEIS: Campanhas, Conjuntos de Anúncios e Anúncios individuais.
 3. ${funnelData ? 'CRÍTICO: Analise também o FUNIL DE CONVERSÃO REAL (dados do CRM) para entender a qualidade dos leads e o retorno real do investimento.' : 'Foque no custo por resultado como métrica principal.'}
 4. Os rankings já foram calculados automaticamente. Seu foco é gerar INSIGHTS e RECOMENDAÇÕES.
+5. MOEDA: Os valores monetários estão em ${currencyName} (${currencySymbol}). Sempre use ${currencySymbol} ao mencionar valores monetários.
+6. NOMES: Use EXATAMENTE os nomes das campanhas, conjuntos e anúncios como estão nos dados. NÃO invente, resuma ou modifique os nomes.
 
 PERÍODO: ${dateStart} a ${dateEnd}
+MOEDA DA CONTA: ${accountCurrency} (${currencySymbol})
 
 ═══════════════════════════════════════════════════════════════
 RESUMO GERAL - MÉTRICAS DE ANÚNCIOS
@@ -426,30 +434,30 @@ RESUMO GERAL - MÉTRICAS DE ANÚNCIOS
 - Total de Campanhas com dados: ${filteredCampaigns.length}
 - Total de Conjuntos com dados: ${filteredAdsets.length}
 - Total de Anúncios com dados: ${filteredAds.length}
-- Gasto Total: R$ ${totalSpend.toFixed(2)}
+- Gasto Total: ${currencySymbol} ${totalSpend.toFixed(2)}
 - Resultados Totais (conversas iniciadas): ${totalResults}
-- CUSTO MÉDIO POR RESULTADO: R$ ${avgCostPerResult.toFixed(2)}
+- CUSTO MÉDIO POR RESULTADO: ${currencySymbol} ${avgCostPerResult.toFixed(2)}
 - CTR Médio: ${avgCTR.toFixed(2)}%
-- CPC Médio: R$ ${avgCPC.toFixed(2)}
+- CPC Médio: ${currencySymbol} ${avgCPC.toFixed(2)}
 ${funnelSection}
 ═══════════════════════════════════════════════════════════════
 ANÁLISE POR NÍVEL - CUSTO POR RESULTADO
 ═══════════════════════════════════════════════════════════════
 
 📊 CAMPANHAS (${filteredCampaigns.length} ativas):
-Média de Custo/Resultado: R$ ${avgCostPerResult.toFixed(2)}
+Média de Custo/Resultado: ${currencySymbol} ${avgCostPerResult.toFixed(2)}
 ${JSON.stringify(campaignsSummary.slice(0, 10), null, 2)}
 
 ${worstCampaignsByCostPerResult.length > 0 ? `⚠️ Campanhas com Custo/Resultado ACIMA DA MÉDIA (possível desperdício):
 ${JSON.stringify(worstCampaignsByCostPerResult, null, 2)}` : ''}
 
 📊 CONJUNTOS DE ANÚNCIOS (${filteredAdsets.length} ativos):
-Média de Custo/Resultado: R$ ${adsetAvgCostPerResult.toFixed(2)}
+Média de Custo/Resultado: ${currencySymbol} ${adsetAvgCostPerResult.toFixed(2)}
 Top 10 Melhores Conjuntos por Custo/Resultado:
 ${JSON.stringify(topAdsetsByCostPerResult, null, 2)}
 
 📊 ANÚNCIOS INDIVIDUAIS (${filteredAds.length} ativos):
-Média de Custo/Resultado: R$ ${adAvgCostPerResult.toFixed(2)}
+Média de Custo/Resultado: ${currencySymbol} ${adAvgCostPerResult.toFixed(2)}
 Top 10 Melhores Anúncios por Custo/Resultado:
 ${JSON.stringify(topAdsByCostPerResult, null, 2)}
 ${comparisonSection}
@@ -472,17 +480,22 @@ Retorne um JSON válido (sem markdown) com a seguinte estrutura:
 
 Forneça:
 - 10-14 insights relevantes, sendo OBRIGATÓRIO incluir:
-  * 2-3 insights sobre CAMPANHAS com melhor/pior custo por resultado
-  * 2-3 insights sobre CONJUNTOS DE ANÚNCIOS com melhor/pior custo por resultado
-  * 2-3 insights sobre ANÚNCIOS com melhor/pior custo por resultado${funnelInsightsInstructions}
+  * 2-3 insights sobre CAMPANHAS com melhor/pior custo por resultado (USE OS NOMES EXATOS DAS CAMPANHAS)
+  * 2-3 insights sobre CONJUNTOS DE ANÚNCIOS com melhor/pior custo por resultado (USE OS NOMES EXATOS DOS CONJUNTOS)
+  * 2-3 insights sobre ANÚNCIOS com melhor/pior custo por resultado (USE OS NOMES EXATOS DOS ANÚNCIOS)${funnelInsightsInstructions}
   * 1-2 insights gerais sobre tendências
 - 10-12 recomendações práticas e acionáveis focadas em:
   * Reduzir custo por resultado
-  * Escalar os melhores anúncios/conjuntos
-  * Pausar ou otimizar os piores performers
+  * Escalar os melhores anúncios/conjuntos (mencione pelo nome exato)
+  * Pausar ou otimizar os piores performers (mencione pelo nome exato)
   ${funnelData ? `* Melhorar taxas de conversão do funil (agendamento, comparecimento, fechamento)
   * Identificar quais campanhas trazem leads de melhor qualidade (que mais convertem em clientes)` : ''}
 ${compareWithPrevious ? '- 4-6 mudanças na seção de comparação' : ''}
+
+REGRAS CRÍTICAS:
+1. USE SEMPRE O SÍMBOLO ${currencySymbol} para valores monetários (a conta está em ${currencyName})
+2. USE SEMPRE OS NOMES EXATOS das campanhas, conjuntos e anúncios - NUNCA invente, resuma ou modifique os nomes
+3. Quando mencionar uma campanha, conjunto ou anúncio, use o nome EXATAMENTE como aparece nos dados fornecidos
 
 FOCO PRINCIPAL:
 1. Identificar os anúncios e conjuntos mais eficientes (menor custo por conversa)

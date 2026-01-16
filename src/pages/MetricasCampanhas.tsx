@@ -118,6 +118,7 @@ interface LinkedAccount {
   id: string;
   ad_account_id: string;
   account_name: string | null;
+  currency_type: string | null;
 }
 
 export default function MetricasCampanhas() {
@@ -394,7 +395,7 @@ export default function MetricasCampanhas() {
         // Carregar contas vinculadas
         const { data: accountsData, error: accountsError } = await supabase
           .from("facebook_ad_accounts")
-          .select("id, ad_account_id, account_name")
+          .select("id, ad_account_id, account_name, currency_type")
           .eq("user_id", user?.id)
           .order("created_at", { ascending: false });
 
@@ -1023,6 +1024,7 @@ export default function MetricasCampanhas() {
           <AIReportsTab
             campaigns={campaigns}
             selectedAccount={selectedAccount}
+            accountCurrency={linkedAccounts.find(a => a.ad_account_id === selectedAccount)?.currency_type}
           />
         </TabsContent>
       </Tabs>

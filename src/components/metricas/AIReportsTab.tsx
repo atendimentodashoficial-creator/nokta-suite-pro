@@ -88,6 +88,7 @@ interface AdData extends BaseMetrics {
 interface AIReportsTabProps {
   campaigns: CampaignData[];
   selectedAccount: string;
+  accountCurrency?: string | null;
 }
 
 interface ReportInsight {
@@ -146,7 +147,7 @@ interface StoredReport {
   created_at: string;
 }
 
-export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) {
+export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AIReportsTabProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { data: allLeads } = useLeads();
@@ -1022,6 +1023,7 @@ export function AIReportsTab({ campaigns, selectedAccount }: AIReportsTabProps) 
           dateStart: formattedDateStart,
           dateEnd: formattedDateEnd,
           accountId: selectedAccount,
+          currency: accountCurrency || "BRL",
           compareWithPrevious: compare,
           previousReport: compare ? storedReport?.report : null,
           // Include funnel data for comprehensive analysis
