@@ -1266,18 +1266,18 @@ export function NovaCampanhaDialog({
   const totalVariacoes = blocos.reduce((acc, b) => acc + b.variacoes.length, 0);
   return <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0">
-        <div className="flex flex-col lg:flex-row h-full max-h-[90vh]">
+      <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] sm:max-h-[90vh] overflow-hidden p-0">
+        <div className="flex flex-col lg:flex-row h-full max-h-[85vh] sm:max-h-[90vh]">
           {/* Form Section */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <DialogHeader className="p-6 pb-2">
-              <DialogTitle>Nova Campanha de Disparo</DialogTitle>
-              <DialogDescription>
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <DialogHeader className="p-4 sm:p-6 pb-2 flex-shrink-0">
+              <DialogTitle className="text-base sm:text-lg">Nova Campanha de Disparo</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
                 Configure uma campanha para enviar mensagens em massa
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex-1 overflow-y-auto px-6 pb-4">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-4 min-h-0">
               <div className="space-y-6 pt-4">
           {/* Instâncias para disparo */}
           {instancias.length > 0 && <div className="space-y-2">
@@ -1312,17 +1312,18 @@ export function NovaCampanhaDialog({
 
           {/* Blocos de Mensagem */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <Label>Blocos de Mensagem ({blocos.length})</Label>
+                <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Label className="text-sm">Blocos de Mensagem ({blocos.length})</Label>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {templates.length > 0 && <Popover open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
                         <FileDown className="h-4 w-4 mr-1" />
-                        Importar Template
+                        <span className="hidden xs:inline">Importar Template</span>
+                        <span className="xs:hidden">Template</span>
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-0" align="end">
@@ -1344,9 +1345,10 @@ export function NovaCampanhaDialog({
                       </ScrollArea>
                     </PopoverContent>
                   </Popover>}
-                <Button variant="outline" size="sm" onClick={addBloco}>
+                <Button variant="outline" size="sm" onClick={addBloco} className="flex-1 sm:flex-none">
                   <Plus className="h-4 w-4 mr-1" />
-                  Adicionar Bloco
+                  <span className="hidden xs:inline">Adicionar Bloco</span>
+                  <span className="xs:hidden">+ Bloco</span>
                 </Button>
               </div>
             </div>
@@ -1505,10 +1507,10 @@ export function NovaCampanhaDialog({
 
           {/* Timer/Delay entre contatos */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <Label>Intervalo entre contatos ({delayMin} a {delayMax} {delayUnit === "minutes" ? "min" : "seg"})</Label>
+                <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Label className="text-sm">Intervalo entre contatos ({delayMin} a {delayMax} {delayUnit === "minutes" ? "min" : "seg"})</Label>
               </div>
               <Select value={delayUnit} onValueChange={v => {
                       setDelayUnit(v as "seconds" | "minutes");
@@ -1520,7 +1522,7 @@ export function NovaCampanhaDialog({
                         setDelayMax(15);
                       }
                     }}>
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger className="w-full sm:w-[130px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1546,18 +1548,19 @@ export function NovaCampanhaDialog({
 
           {/* Contatos */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-2">
-                <List className="h-4 w-4 text-muted-foreground" />
-                <Label>Lista de Contatos ({contatos.length})</Label>
+                <List className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Label className="text-sm">Lista de Contatos ({contatos.length})</Label>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource}>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource} className="flex-1 sm:flex-none">
                   <Users className="h-4 w-4 mr-1" />
-                  Importar
+                  <span className="hidden xs:inline">Importar</span>
+                  <span className="xs:hidden">Import</span>
                 </Button>
 
-                <Button variant="outline" size="sm" onClick={async () => {
+                <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={async () => {
                   try {
                     const text = await navigator.clipboard.readText();
                     if (!text.trim()) {
@@ -1596,9 +1599,10 @@ export function NovaCampanhaDialog({
                   Colar
                 </Button>
 
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none">
                   <Upload className="h-4 w-4 mr-1" />
-                  CSV/TXT
+                  <span className="hidden xs:inline">CSV/TXT</span>
+                  <span className="xs:hidden">CSV</span>
                 </Button>
                 <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
               </div>
@@ -1615,25 +1619,27 @@ export function NovaCampanhaDialog({
             </div>
 
             {/* Add contact manually */}
-            <div className="flex gap-2">
-              <Input placeholder="Nome (opcional)" value={novoNome} onChange={e => setNovoNome(e.target.value)} className="flex-1" />
-              <Input placeholder="Número (ex: 5521999999999)" value={novoNumero} onChange={e => setNovoNumero(e.target.value)} onKeyDown={e => e.key === "Enter" && addContato()} className="flex-1" />
-              <Button onClick={addContato} variant="outline" size="icon">
-                <Plus className="h-4 w-4" />
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input placeholder="Nome (opcional)" value={novoNome} onChange={e => setNovoNome(e.target.value)} className="w-full sm:flex-1" />
+              <div className="flex gap-2">
+                <Input placeholder="Número (ex: 5521999999999)" value={novoNumero} onChange={e => setNovoNumero(e.target.value)} onKeyDown={e => e.key === "Enter" && addContato()} className="flex-1" />
+                <Button onClick={addContato} variant="outline" size="icon" className="flex-shrink-0">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Contact list */}
             {contatos.length > 0 && <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                   <span className="text-sm text-muted-foreground">
                     {selectedContacts.size} de {contatos.length} selecionado{selectedContacts.size !== 1 ? "s" : ""}
                   </span>
-                  <div className="flex gap-1">
-                    {contatos.length > 10 && <Button variant="ghost" size="sm" onClick={() => setShowAllContacts(true)}>
+                  <div className="flex flex-wrap gap-1">
+                    {contatos.length > 10 && <Button variant="ghost" size="sm" onClick={() => setShowAllContacts(true)} className="h-8 px-2">
                         Ver todos
                       </Button>}
-                    <Button variant="ghost" size="sm" onClick={() => {
+                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
                       if (contatos.length === 0) {
                         toast.error("Nenhum contato para copiar");
                         return;
@@ -1642,16 +1648,16 @@ export function NovaCampanhaDialog({
                       navigator.clipboard.writeText(text);
                       toast.success("Lista copiada para a área de transferência!");
                     }}>
-                      <Copy className="h-4 w-4 mr-1" />
-                      Copiar
+                      <Copy className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Copiar</span>
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={exportContatos}>
-                      <FileDown className="h-4 w-4 mr-1" />
-                      Exportar
+                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={exportContatos}>
+                      <FileDown className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Exportar</span>
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive">
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Limpar tudo
+                    <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive h-8 px-2">
+                      <Trash2 className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Limpar tudo</span>
                     </Button>
                   </div>
                 </div>
@@ -1696,7 +1702,7 @@ export function NovaCampanhaDialog({
           </div>
 
           {/* Submit */}
-          <div className="flex justify-end gap-2 pt-4 border-t px-6 pb-6">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t px-4 sm:px-6 pb-4 sm:pb-6 flex-shrink-0">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
