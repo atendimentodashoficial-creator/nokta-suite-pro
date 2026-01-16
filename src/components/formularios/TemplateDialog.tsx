@@ -442,19 +442,19 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [descricao, setDescricao] = useState("");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [layoutTipo, setLayoutTipo] = useState<"multi_step" | "single_page">("multi_step");
-  const [corPrimaria, setCorPrimaria] = useState("#8B5CF6");
-  const [backgroundColor, setBackgroundColor] = useState("#ffffff");
+  const [corPrimaria, setCorPrimaria] = useState("#00d5ff");
+  const [backgroundColor, setBackgroundColor] = useState("#1A212B");
   const [cardColor, setCardColor] = useState("#ffffff");
   const [fontFamily, setFontFamily] = useState("Inter");
   const [textColor, setTextColor] = useState("#1f2937");
   const [buttonTextColor, setButtonTextColor] = useState("#ffffff");
-  const [borderRadius, setBorderRadius] = useState("12");
-  const [progressBackgroundColor, setProgressBackgroundColor] = useState("#e5e5e5");
+  const [borderRadius, setBorderRadius] = useState("16");
+  const [progressBackgroundColor, setProgressBackgroundColor] = useState("#6b7280");
   const [cardBorderColor, setCardBorderColor] = useState("transparent");
-  const [backButtonColor, setBackButtonColor] = useState("#6b7280");
+  const [backButtonColor, setBackButtonColor] = useState("#2cb5e2");
   const [backButtonTextColor, setBackButtonTextColor] = useState("#ffffff");
   const [answerTextColor, setAnswerTextColor] = useState("#1f2937");
-  const [errorTextColor, setErrorTextColor] = useState("#ef4444");
+  const [errorTextColor, setErrorTextColor] = useState("#ff0000");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -462,7 +462,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   // New title fields
   const [titulo, setTitulo] = useState("");
   const [subtitulo, setSubtitulo] = useState("");
-  const [tituloCor, setTituloCor] = useState("#1f2937");
+  const [tituloCor, setTituloCor] = useState("#00d5ff");
   const [subtituloCor, setSubtituloCor] = useState("#6b7280");
   const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("24px");
   const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("16px");
