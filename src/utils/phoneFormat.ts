@@ -176,6 +176,16 @@ export const getMaxPhoneDigits = (dialCode: string): number => {
   return format.maxDigits;
 };
 
+// Remove o código do país do início do telefone (para uso com CountryCodeSelect)
+export const stripCountryCode = (phone: string, countryCode: string): string => {
+  const digits = phone.replace(/\D/g, '');
+  // Se começar com o código do país, remover
+  if (digits.startsWith(countryCode)) {
+    return digits.slice(countryCode.length);
+  }
+  return digits;
+};
+
 // Legacy function - formats assuming Brazilian number (for backwards compatibility)
 export const formatPhone = (value: string): string => {
   // Remove tudo que não é número

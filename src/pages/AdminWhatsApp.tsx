@@ -13,7 +13,7 @@ import { ChatAvatar } from "@/components/whatsapp/ChatAvatar";
 import { WhatsAppKanban } from "@/components/whatsapp/WhatsAppKanban";
 import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
 import { formatPhoneNumber, formatRelativeTime, truncateText, getInitials, normalizePhoneNumber, getLast8Digits, formatLastMessagePreview } from "@/utils/whatsapp";
-import { formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
+import { formatPhoneByCountry, getPhonePlaceholder, stripCountryCode } from "@/utils/phoneFormat";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
@@ -1532,7 +1532,7 @@ export default function AdminWhatsApp() {
                       value={newChatCountryCode} 
                       onChange={setNewChatCountryCode}
                       phoneValue={formatPhoneByCountry(newChatNumber, newChatCountryCode)}
-                      onPhoneChange={(val) => setNewChatNumber(val.replace(/\D/g, ''))}
+                      onPhoneChange={(val) => setNewChatNumber(stripCountryCode(val, newChatCountryCode))}
                       placeholder={getPhonePlaceholder(newChatCountryCode)}
                     />
                     <p className="text-xs text-muted-foreground">

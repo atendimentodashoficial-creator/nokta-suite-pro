@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, Check } from "lucide-react";
-import { formatPhone, normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, extractCountryCode } from "@/utils/phoneFormat";
+import { formatPhone, normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, extractCountryCode, stripCountryCode } from "@/utils/phoneFormat";
 import {
   Dialog,
   DialogContent,
@@ -856,7 +856,7 @@ export function NovoAgendamentoDialog({
                         value={countryCode} 
                         onChange={setCountryCode}
                         phoneValue={formatPhoneByCountry(field.value, countryCode)}
-                        onPhoneChange={(val) => field.onChange(val.replace(/\D/g, ''))}
+                        onPhoneChange={(val) => field.onChange(stripCountryCode(val, countryCode))}
                         onPhoneBlur={() => {
                           field.onBlur();
                           handleTelefoneBlur();

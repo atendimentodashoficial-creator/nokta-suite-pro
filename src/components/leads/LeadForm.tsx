@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
+import { normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, stripCountryCode } from "@/utils/phoneFormat";
 import {
   Dialog,
   DialogContent,
@@ -165,7 +165,7 @@ export function LeadForm() {
               value={countryCode} 
               onChange={setCountryCode}
               phoneValue={formatPhoneByCountry(telefone, countryCode)}
-              onPhoneChange={(val) => setTelefone(val.replace(/\D/g, ''))}
+              onPhoneChange={(val) => setTelefone(stripCountryCode(val, countryCode))}
               onPhoneBlur={handleTelefoneBlur}
               placeholder={getPhonePlaceholder(countryCode)}
             />
