@@ -1200,6 +1200,7 @@ export default function FormularioPublico() {
   const fieldsSize = config.fonte_tamanho_campos || "14px";
   const answersSize = config.fonte_tamanho_respostas || "14px";
   const buttonsSize = config.fonte_tamanho_botoes || "16px";
+  const titleSize = config.fonte_tamanho_titulo || "20px";
 
   const isSinglePage = config.layout_tipo === "single_page";
   // Multi-step uses +2px for question titles
@@ -1242,7 +1243,7 @@ export default function FormularioPublico() {
             )}
             {config.nome && (
               <div className="text-center pt-2">
-                <CardTitle className="text-xl" style={{ color: textColor }}>{config.nome}</CardTitle>
+                <CardTitle style={{ color: textColor, fontSize: titleSize }}>{config.nome}</CardTitle>
               </div>
             )}
           </CardHeader>

@@ -621,7 +621,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               {titulo && (
                 <h2 className="font-bold" style={{ 
                   color: tituloCor, 
-                  fontSize: `${Math.min((parseInt(fonteTamanhoTitulo) || 24) * 0.5, 16)}px` 
+                  fontSize: `${Math.round((parseInt(fonteTamanhoTitulo) || 24) * 0.5)}px` 
                 }}>
                   {titulo}
                 </h2>
@@ -629,7 +629,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               {subtitulo && (
                 <p style={{ 
                   color: subtituloCor, 
-                  fontSize: `${Math.min((parseInt(fonteTamanhoSubtitulo) || 16) * 0.6, 12)}px` 
+                  fontSize: `${Math.round((parseInt(fonteTamanhoSubtitulo) || 16) * 0.5)}px` 
                 }}>
                   {subtitulo}
                 </p>
