@@ -11,6 +11,7 @@ import {
   formatPhoneNumber,
   formatRelativeTime,
   formatLastMessagePreview,
+  truncateText,
 } from "@/utils/whatsapp";
 import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, Phone, Filter, CheckSquare, Square, XCircle } from "lucide-react";
 import {
@@ -848,7 +849,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                       draggable={!selectionMode}
                       onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
                       onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
-                      className={`p-3 cursor-pointer hover:shadow-md transition-all relative overflow-hidden rounded-xl ${
+                      className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${
                         selectedChatId === chat.id ? "ring-2 ring-primary" : ""
                       } ${selectedChats.has(chat.id) ? "ring-2 ring-destructive bg-destructive/5" : ""}`}
                     >
@@ -861,7 +862,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                           />
                         </div>
                       )}
-                      <div className={`flex flex-col w-full overflow-hidden ${selectionMode ? "pl-6" : ""}`}>
+                      <div className={`flex flex-col w-full ${selectionMode ? "pl-6" : ""}`}>
                         <div className="flex items-start gap-2 w-full">
                           <div className="flex-shrink-0">
                             <ChatAvatar chat={chat} size="md" />
@@ -880,8 +881,8 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                                 <span className="truncate">{chat.instancia_nome || instanciasMap[chat.instancia_id]?.nome}</span>
                               </div>
                             )}
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                              {formatLastMessagePreview(chat.last_message)}
+                            <p className="text-xs text-muted-foreground mt-1 whitespace-normal break-words">
+                              {truncateText(formatLastMessagePreview(chat.last_message), 90)}
                             </p>
                             {chat.last_message_time && (
                               <span className="text-xs text-muted-foreground mt-2 block">
@@ -963,7 +964,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                           draggable={!selectionMode}
                           onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
                           onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
-                          className={`p-3 cursor-pointer hover:shadow-md transition-all relative overflow-hidden rounded-xl ${
+                          className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${
                             selectedChatId === chat.id ? "ring-2 ring-primary" : ""
                           } ${selectedChats.has(chat.id) ? "ring-2 ring-destructive bg-destructive/5" : ""}`}
                         >
@@ -976,7 +977,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                               />
                             </div>
                           )}
-                          <div className={`flex flex-col w-full overflow-hidden ${selectionMode ? "pl-6" : ""}`}>
+                          <div className={`flex flex-col w-full ${selectionMode ? "pl-6" : ""}`}>
                             <div className="flex items-start gap-2 w-full">
                               <div className="flex-shrink-0">
                                 <ChatAvatar chat={chat} size="md" />
@@ -995,8 +996,8 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                                     <span className="truncate">{chat.instancia_nome || instanciasMap[chat.instancia_id]?.nome}</span>
                                   </div>
                                 )}
-                                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                                  {formatLastMessagePreview(chat.last_message)}
+                                <p className="text-xs text-muted-foreground mt-1 whitespace-normal break-words">
+                                  {truncateText(formatLastMessagePreview(chat.last_message), 90)}
                                 </p>
                                 {chat.last_message_time && (
                                   <span className="text-xs text-muted-foreground mt-2 block">

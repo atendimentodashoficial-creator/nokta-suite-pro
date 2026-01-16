@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatAvatar } from "./ChatAvatar";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPhoneNumber, formatRelativeTime, formatLastMessagePreview } from "@/utils/whatsapp";
+import { formatPhoneNumber, formatRelativeTime, formatLastMessagePreview, truncateText } from "@/utils/whatsapp";
 import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, CheckSquare, Square, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -861,7 +861,7 @@ export function WhatsAppKanban({
                       onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)} 
                       className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${selectedChatId === chat.id ? "ring-2 ring-primary" : ""} ${selectedChats.has(chat.id) ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : ""}`}
                     >
-                      <div className="flex flex-col w-full overflow-hidden">
+                      <div className="flex flex-col w-full">
                         <div className="flex items-start gap-2 w-full">
                           {selectionMode && (
                             <Checkbox
@@ -881,9 +881,9 @@ export function WhatsAppKanban({
                             <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                               {formatPhoneNumber(chat.contact_number)}
                             </p>
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                                {formatLastMessagePreview(chat.last_message)}
-                              </p>
+                            <p className="text-xs text-muted-foreground mt-1 whitespace-normal break-words">
+                              {truncateText(formatLastMessagePreview(chat.last_message), 90)}
+                            </p>
                             {chat.last_message_time && <span className="text-xs text-muted-foreground mt-2 block">
                                 {formatRelativeTime(chat.last_message_time)}
                               </span>}
@@ -944,7 +944,7 @@ export function WhatsAppKanban({
                           onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)} 
                           className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${selectedChatId === chat.id ? "ring-2 ring-primary" : ""} ${selectedChats.has(chat.id) ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : ""}`}
                         >
-                          <div className="flex flex-col w-full overflow-hidden">
+                          <div className="flex flex-col w-full">
                             <div className="flex items-start gap-2 w-full">
                               {selectionMode && (
                                 <Checkbox
@@ -964,9 +964,9 @@ export function WhatsAppKanban({
                                 <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                                   {formatPhoneNumber(chat.contact_number)}
                                 </p>
-                                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                                    {formatLastMessagePreview(chat.last_message)}
-                                  </p>
+                                <p className="text-xs text-muted-foreground mt-1 whitespace-normal break-words">
+                                  {truncateText(formatLastMessagePreview(chat.last_message), 90)}
+                                </p>
                                 {chat.last_message_time && <span className="text-xs text-muted-foreground mt-2 block">
                                     {formatRelativeTime(chat.last_message_time)}
                                   </span>}
