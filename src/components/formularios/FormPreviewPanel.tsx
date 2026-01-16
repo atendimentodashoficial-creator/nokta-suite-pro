@@ -120,30 +120,53 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     <div className="w-full space-y-3">
       {/* Images displayed based on layout setting */}
       {validImagens.length > 0 && (
-        <div className={imagensLayout === "horizontal" ? "flex flex-wrap justify-center gap-2" : "space-y-3"}>
-          {validImagens.map((img, idx) => (
-            <div key={`img-${idx}`} className={`flex flex-col items-center space-y-1 ${imagensLayout === "horizontal" ? "" : "w-full"}`}>
-              {img.titulo && (
-                <span className="text-[10px] font-medium text-center" style={{ color: textColor }}>
-                  {img.titulo}
-                </span>
-              )}
-              {img.subtitulo && (
-                <span className="text-[8px] text-center" style={{ color: textColor, opacity: 0.7 }}>
-                  {img.subtitulo}
-                </span>
-              )}
-              <img 
-                src={img.url} 
-                alt={img.titulo || `Imagem ${idx + 1}`} 
-                className={imagensLayout === "horizontal" 
-                  ? "h-16 w-auto max-w-[80px] object-contain rounded" 
-                  : "max-w-full h-auto max-h-20 object-contain rounded mx-auto"
-                } 
-              />
+        imagensLayout === "horizontal" ? (
+          <div className="flex flex-col items-center space-y-2">
+            {/* Single title/subtitle for all images */}
+            {validImagens[0]?.titulo && (
+              <span className="text-[10px] font-medium text-center" style={{ color: textColor }}>
+                {validImagens[0].titulo}
+              </span>
+            )}
+            {validImagens[0]?.subtitulo && (
+              <span className="text-[8px] text-center" style={{ color: textColor, opacity: 0.7 }}>
+                {validImagens[0].subtitulo}
+              </span>
+            )}
+            <div className="flex flex-wrap justify-center gap-2">
+              {validImagens.map((img, idx) => (
+                <img 
+                  key={`img-${idx}`}
+                  src={img.url} 
+                  alt={img.titulo || `Imagem ${idx + 1}`} 
+                  className="h-16 w-auto max-w-[80px] object-contain rounded" 
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {validImagens.map((img, idx) => (
+              <div key={`img-${idx}`} className="flex flex-col items-center space-y-1 w-full">
+                {img.titulo && (
+                  <span className="text-[10px] font-medium text-center" style={{ color: textColor }}>
+                    {img.titulo}
+                  </span>
+                )}
+                {img.subtitulo && (
+                  <span className="text-[8px] text-center" style={{ color: textColor, opacity: 0.7 }}>
+                    {img.subtitulo}
+                  </span>
+                )}
+                <img 
+                  src={img.url} 
+                  alt={img.titulo || `Imagem ${idx + 1}`} 
+                  className="max-w-full h-auto max-h-20 object-contain rounded mx-auto" 
+                />
+              </div>
+            ))}
+          </div>
+        )
       )}
       
       {validVideos.map((vid, idx) => (

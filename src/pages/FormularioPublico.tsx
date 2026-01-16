@@ -826,30 +826,53 @@ export default function FormularioPublico() {
                 <div className="w-full space-y-4">
                   {/* Multiple Images - displayed based on layout setting */}
                   {imagens.filter(img => img.url).length > 0 && (
-                    <div className={imagensLayout === "horizontal" ? "flex flex-wrap justify-center gap-4" : "space-y-4"}>
-                      {imagens.filter(img => img.url).map((img, idx) => (
-                        <div key={`img-${idx}`} className={`flex flex-col items-center space-y-2 ${imagensLayout === "horizontal" ? "" : "w-full"}`}>
-                          {img.titulo && (
-                            <h3 className="text-sm md:text-base font-semibold text-center" style={{ color: textColor }}>
-                              {img.titulo}
-                            </h3>
-                          )}
-                          {img.subtitulo && (
-                            <p className="text-xs text-center" style={{ color: textColor, opacity: 0.7 }}>
-                              {img.subtitulo}
-                            </p>
-                          )}
-                          <img 
-                            src={img.url} 
-                            alt={img.titulo || `Imagem ${idx + 1}`} 
-                            className={imagensLayout === "horizontal"
-                              ? "h-24 md:h-32 w-auto max-w-[120px] md:max-w-[150px] object-contain rounded-lg"
-                              : "max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto"
-                            } 
-                          />
+                    imagensLayout === "horizontal" ? (
+                      <div className="flex flex-col items-center space-y-3">
+                        {/* Single title/subtitle for all images */}
+                        {imagens[0]?.titulo && (
+                          <h3 className="text-sm md:text-base font-semibold text-center" style={{ color: textColor }}>
+                            {imagens[0].titulo}
+                          </h3>
+                        )}
+                        {imagens[0]?.subtitulo && (
+                          <p className="text-xs text-center" style={{ color: textColor, opacity: 0.7 }}>
+                            {imagens[0].subtitulo}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap justify-center gap-4">
+                          {imagens.filter(img => img.url).map((img, idx) => (
+                            <img 
+                              key={`img-${idx}`}
+                              src={img.url} 
+                              alt={img.titulo || `Imagem ${idx + 1}`} 
+                              className="h-24 md:h-32 w-auto max-w-[120px] md:max-w-[150px] object-contain rounded-lg" 
+                            />
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {imagens.filter(img => img.url).map((img, idx) => (
+                          <div key={`img-${idx}`} className="flex flex-col items-center space-y-2 w-full">
+                            {img.titulo && (
+                              <h3 className="text-sm md:text-base font-semibold text-center" style={{ color: textColor }}>
+                                {img.titulo}
+                              </h3>
+                            )}
+                            {img.subtitulo && (
+                              <p className="text-xs text-center" style={{ color: textColor, opacity: 0.7 }}>
+                                {img.subtitulo}
+                              </p>
+                            )}
+                            <img 
+                              src={img.url} 
+                              alt={img.titulo || `Imagem ${idx + 1}`} 
+                              className="max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto" 
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )
                   )}
                   
                   {/* Multiple Videos */}
