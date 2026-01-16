@@ -488,7 +488,11 @@ export default function Leads() {
                       className="text-green-600 hover:text-green-700 hover:bg-green-50"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigateToChat(navigate, lead.telefone, lead.origem);
+                        // Se for lead "extra", usar a origem da aba atual, não a origem original
+                        const chatOrigem = isExtra 
+                          ? (origemFilter === "disparos" ? "disparos" : "whatsapp")
+                          : lead.origem;
+                        navigateToChat(navigate, lead.telefone, chatOrigem);
                       }}
                     >
                       <MessageCircle className="h-4 w-4" />
