@@ -1220,8 +1220,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Opções de Escolha</Label>
-                      <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
+                      <Label className="text-sm">Respostas</Label>
+                      <Select value={fonteTamanhoRespostas} onValueChange={setFonteTamanhoRespostas}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
@@ -1233,8 +1233,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Respostas</Label>
-                      <Select value={fonteTamanhoRespostas} onValueChange={setFonteTamanhoRespostas}>
+                      <Label className="text-sm">Opções de Escolha</Label>
+                      <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
