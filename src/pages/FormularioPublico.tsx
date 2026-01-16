@@ -411,13 +411,26 @@ export default function FormularioPublico() {
       // Extract nome, email, telefone from formData
       let nome = (formData["nome"] as string) || null;
       let email = (formData["email"] as string) || null;
-      let telefone: string | null = (formData["telefone"] as string) || null;
+
+      // IMPORTANT: keep the phone as "raw" (possibly masked) while we search for it,
+      // and normalize only once at the end to avoid double country code.
+      let telefoneRaw: string | null = (formData["telefone"] as string) || null;
 
       const normalizeTelefone = (raw: string | null | undefined) => {
-        const digits = (raw || "").replace(/\D/g, "");
+        let digits = String(raw || "").replace(/\D/g, "");
         if (!digits) return null;
+
+        // Handle common international prefix
+        if (digits.startsWith("00")) digits = digits.slice(2);
+
         const cc = String(countryCode || "").replace(/\D/g, "");
-        return cc ? `${cc}${digits}` : digits;
+        if (!cc) return digits;
+
+        // If the user pasted a number that already contains the country code,
+        // don't prepend it again.
+        if (digits.startsWith(cc)) return digits;
+
+        return `${cc}${digits}`;
       };
 
       // Check in etapas (including multiplos_campos) for these fields
@@ -434,8 +447,8 @@ export default function FormularioPublico() {
             if (!email && campo.tipo === "email") {
               email = value || null;
             }
-            if (!telefone && campo.tipo === "telefone") {
-              telefone = normalizeTelefone(value);
+            if (!telefoneRaw && campo.tipo === "telefone") {
+              telefoneRaw = value || null;
             }
           });
         }
@@ -446,13 +459,12 @@ export default function FormularioPublico() {
         if (etapa.tipo === "email" && !email) {
           email = (formData[etapa.id] as string) || null;
         }
-        if (etapa.tipo === "telefone" && !telefone) {
-          telefone = normalizeTelefone(formData[etapa.id] as string);
+        if (etapa.tipo === "telefone" && !telefoneRaw) {
+          telefoneRaw = (formData[etapa.id] as string) || null;
         }
       });
 
-      // Ensure phone is normalized if it came from a direct key
-      telefone = normalizeTelefone(telefone);
+      const telefone = normalizeTelefone(telefoneRaw);
 
       // Create lead
       const { error: leadError } = await supabase

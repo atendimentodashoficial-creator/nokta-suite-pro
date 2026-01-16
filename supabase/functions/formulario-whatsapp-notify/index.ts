@@ -11,7 +11,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { template_id, nome, email, telefone } = await req.json();
+    const payload = await req.json();
+    const template_id = payload?.template_id;
+    const nome = payload?.nome;
+    const email = payload?.email;
+
+    // Normalize phone to digits-only; try to avoid duplicated country code (common issue)
+    let telefone = String(payload?.telefone || "");
+    telefone = telefone.replace(/\D/g, "");
+    if (telefone.startsWith("00")) telefone = telefone.slice(2);
+    if (telefone.startsWith("5555")) telefone = telefone.slice(2);
 
     if (!template_id || !telefone) {
       return new Response(
