@@ -285,17 +285,25 @@ export default function FormularioPublico() {
   }, [sessionId, sessionToken, currentStep, formData, submitted, isPreview]);
 
 
-  const validateField = (tipo: string, value: string, obrigatorio: boolean): string | null => {
-    if (obrigatorio && !value?.trim()) {
+  const validateField = (tipo: string, value: unknown, obrigatorio: boolean): string | null => {
+    // Multi-select values are arrays; their required validation is handled by the step validator.
+    if (Array.isArray(value)) {
+      if (obrigatorio && value.length === 0) return "Campo obrigatório";
+      return null;
+    }
+
+    const str = typeof value === "string" ? value : "";
+
+    if (obrigatorio && !str.trim()) {
       return "Campo obrigatório";
     }
-    if (!value?.trim()) return null;
+    if (!str.trim()) return null;
 
     try {
       if (tipo === "email") {
-        emailSchema.parse(value);
+        emailSchema.parse(str);
       } else if (tipo === "telefone") {
-        phoneSchema.parse(value);
+        phoneSchema.parse(str);
       }
       return null;
     } catch (err) {
@@ -313,18 +321,27 @@ export default function FormularioPublico() {
 
     if (currentEtapa.tipo === "multiplos_campos") {
       const campos = currentEtapa.configuracao?.campos || [];
-      campos.forEach(campo => {
-        const value = formData[campo.id] as string || "";
+      campos.forEach((campo) => {
+        const value = (formData[campo.id] as string) || "";
         const error = validateField(campo.tipo, value, campo.obrigatorio);
         if (error) errors[campo.id] = error;
       });
-    } else if (currentEtapa.tipo === "opcoes") {
-      const value = formData[currentEtapa.id];
-      if (currentEtapa.obrigatorio && (!value || (Array.isArray(value) && value.length === 0))) {
+    } else if (currentEtapa.tipo === "multipla_escolha") {
+      const raw = formData[currentEtapa.id];
+      const values = Array.isArray(raw) ? raw : raw ? [String(raw)] : [];
+
+      if (currentEtapa.obrigatorio && values.length === 0) {
+        errors[currentEtapa.id] = "Selecione pelo menos uma opção";
+      }
+    } else if (currentEtapa.tipo === "selecao_unica" || currentEtapa.tipo === "opcoes") {
+      const raw = formData[currentEtapa.id];
+      const selected = Array.isArray(raw) ? raw[0] : (raw as string | undefined);
+
+      if (currentEtapa.obrigatorio && (!selected || !String(selected).trim())) {
         errors[currentEtapa.id] = "Selecione uma opção";
       }
     } else {
-      const value = formData[currentEtapa.id] as string || "";
+      const value = (formData[currentEtapa.id] as string) || "";
       const error = validateField(currentEtapa.tipo, value, currentEtapa.obrigatorio);
       if (error) errors[currentEtapa.id] = error;
     }
@@ -338,23 +355,23 @@ export default function FormularioPublico() {
 
     // Calculate time spent on this step
     const timeSpent = Math.round((new Date().getTime() - stepStartTime.current.getTime()) / 1000);
-    
+
     if (currentStep < totalSteps) {
       // Update session progress
       if (sessionId && !isPreview) {
         const updatedTempo = { ...tempoPorEtapaState };
         updatedTempo[currentStep.toString()] = timeSpent;
-        
+
         await supabase
           .from("formularios_sessoes")
-          .update({ 
+          .update({
             etapa_atual: currentStep + 1,
             dados_parciais: formData,
             tempo_por_etapa: updatedTempo,
             last_activity_at: new Date().toISOString(),
           })
           .eq("id", sessionId);
-        
+
         setTempoPorEtapaState(updatedTempo);
       }
 
@@ -362,7 +379,7 @@ export default function FormularioPublico() {
       stepStartTime.current = new Date();
     } else {
       // Submit form
-      handleSubmit();
+      await handleSubmit();
     }
   };
 
