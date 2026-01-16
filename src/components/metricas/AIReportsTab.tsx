@@ -1412,6 +1412,7 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
             <Button 
               onClick={handleGenerateClick} 
               disabled={loading || !selectedAccount}
+              className="h-10 min-w-[180px]"
             >
               {loading ? (
                 <>
