@@ -2091,6 +2091,7 @@ export type Database = {
           fonte_tamanho_botoes: string | null
           fonte_tamanho_campos: string | null
           fonte_tamanho_descricao_etapa: string | null
+          fonte_tamanho_indicador_etapa: string | null
           fonte_tamanho_obrigado_botao: string | null
           fonte_tamanho_obrigado_texto: string | null
           fonte_tamanho_obrigado_titulo: string | null
@@ -2151,6 +2152,7 @@ export type Database = {
           fonte_tamanho_botoes?: string | null
           fonte_tamanho_campos?: string | null
           fonte_tamanho_descricao_etapa?: string | null
+          fonte_tamanho_indicador_etapa?: string | null
           fonte_tamanho_obrigado_botao?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
@@ -2211,6 +2213,7 @@ export type Database = {
           fonte_tamanho_botoes?: string | null
           fonte_tamanho_campos?: string | null
           fonte_tamanho_descricao_etapa?: string | null
+          fonte_tamanho_indicador_etapa?: string | null
           fonte_tamanho_obrigado_botao?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
