@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, Eye, Trash2, Download, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import { Search, Eye, Trash2, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import LeadDetailsDialog from "./LeadDetailsDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
+import WhatsAppInstanceSelector from "./WhatsAppInstanceSelector";
 
 const statusColors: Record<string, string> = {
   novo: "bg-blue-500/10 text-blue-500 border-blue-500/20",
@@ -271,17 +272,7 @@ export default function FormulariosLeads() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           {lead.telefone && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                const phone = lead.telefone?.replace(/\D/g, "");
-                                window.open(`https://wa.me/${phone}`, "_blank");
-                              }}
-                              className="text-green-600 hover:text-green-700"
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                            </Button>
+                            <WhatsAppInstanceSelector telefone={lead.telefone} />
                           )}
                           <Button
                             variant="ghost"
