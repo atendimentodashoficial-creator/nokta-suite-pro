@@ -167,14 +167,29 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               {vid.subtitulo}
             </p>
           )}
-          <div className="w-full aspect-video rounded overflow-hidden">
-            <iframe
-              src={getVideoEmbedUrl(vid.url)!}
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title={vid.titulo || `Video ${idx + 1}`}
-            />
+          {/* Main video and side videos displayed in a grid */}
+          <div className={`grid gap-2 ${vid.sideVideos?.filter(s => s.url && getVideoEmbedUrl(s.url)).length ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className="w-full aspect-video rounded overflow-hidden">
+              <iframe
+                src={getVideoEmbedUrl(vid.url)!}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={vid.titulo || `Video ${idx + 1}`}
+              />
+            </div>
+            {/* Side videos */}
+            {vid.sideVideos?.filter(s => s.url && getVideoEmbedUrl(s.url)).map((sideVid, sideIdx) => (
+              <div key={`side-vid-${idx}-${sideIdx}`} className="w-full aspect-video rounded overflow-hidden">
+                <iframe
+                  src={getVideoEmbedUrl(sideVid.url)!}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={`Video ${idx + 1}.${sideIdx + 1}`}
+                />
+              </div>
+            ))}
           </div>
         </div>
       ))}

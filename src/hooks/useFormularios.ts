@@ -7,11 +7,16 @@ export interface SideImage {
   url: string;
 }
 
+export interface SideVideo {
+  url: string;
+}
+
 export interface MediaItem {
   url: string;
   titulo: string;
   subtitulo: string;
   sideImages?: SideImage[];
+  sideVideos?: SideVideo[];
 }
 
 export interface FormularioTemplate {
