@@ -43,6 +43,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [textColor, setTextColor] = useState("#1f2937");
   const [buttonTextColor, setButtonTextColor] = useState("#ffffff");
   const [borderRadius, setBorderRadius] = useState("12");
+  const [progressBackgroundColor, setProgressBackgroundColor] = useState("#e5e5e5");
+  const [cardBorderColor, setCardBorderColor] = useState("transparent");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +94,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setTextColor(template.text_color || "#1f2937");
       setButtonTextColor(template.button_text_color || "#ffffff");
       setBorderRadius(template.border_radius || "12");
+      setProgressBackgroundColor((template as any).progress_background_color || "#e5e5e5");
+      setCardBorderColor((template as any).card_border_color || "transparent");
       setLogoUrl(template.logo_url || null);
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
@@ -111,6 +115,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setTextColor("#1f2937");
       setButtonTextColor("#ffffff");
       setBorderRadius("12");
+      setProgressBackgroundColor("#e5e5e5");
+      setCardBorderColor("transparent");
       setLogoUrl(null);
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
@@ -222,6 +228,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       text_color: textColor,
       button_text_color: buttonTextColor,
       border_radius: borderRadius,
+      progress_background_color: progressBackgroundColor,
+      card_border_color: cardBorderColor,
       logo_url: logoUrl,
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
@@ -477,6 +485,49 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Quadrado</span>
                   <span>Arredondado</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="progressBg">Fundo da Barra de Progresso</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="progressBg"
+                      type="color"
+                      value={progressBackgroundColor}
+                      onChange={(e) => setProgressBackgroundColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={progressBackgroundColor}
+                      onChange={(e) => setProgressBackgroundColor(e.target.value)}
+                      placeholder="#e5e5e5"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cardBorder">Cor da Borda do Card</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="cardBorder"
+                      type="color"
+                      value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                      onChange={(e) => setCardBorderColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={cardBorderColor}
+                      onChange={(e) => setCardBorderColor(e.target.value)}
+                      placeholder="transparent"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use "transparent" para sem borda
+                  </p>
                 </div>
               </div>
 

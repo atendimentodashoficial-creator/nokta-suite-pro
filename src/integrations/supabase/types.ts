@@ -2075,6 +2075,7 @@ export type Database = {
           background_color: string | null
           border_radius: string | null
           button_text_color: string | null
+          card_border_color: string | null
           card_color: string | null
           cor_primaria: string | null
           created_at: string
@@ -2089,6 +2090,7 @@ export type Database = {
           pagina_obrigado_mensagem: string | null
           pagina_obrigado_titulo: string | null
           pagina_obrigado_video_url: string | null
+          progress_background_color: string | null
           slug: string | null
           status: string
           text_color: string | null
@@ -2099,6 +2101,7 @@ export type Database = {
           background_color?: string | null
           border_radius?: string | null
           button_text_color?: string | null
+          card_border_color?: string | null
           card_color?: string | null
           cor_primaria?: string | null
           created_at?: string
@@ -2113,6 +2116,7 @@ export type Database = {
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
           pagina_obrigado_video_url?: string | null
+          progress_background_color?: string | null
           slug?: string | null
           status?: string
           text_color?: string | null
@@ -2123,6 +2127,7 @@ export type Database = {
           background_color?: string | null
           border_radius?: string | null
           button_text_color?: string | null
+          card_border_color?: string | null
           card_color?: string | null
           cor_primaria?: string | null
           created_at?: string
@@ -2137,6 +2142,7 @@ export type Database = {
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
           pagina_obrigado_video_url?: string | null
+          progress_background_color?: string | null
           slug?: string | null
           status?: string
           text_color?: string | null
