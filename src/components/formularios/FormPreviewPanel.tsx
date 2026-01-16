@@ -1,7 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
-import { MediaItem } from "@/hooks/useFormularios";
+import { MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface FormPreviewPanelProps {
   config: {
@@ -24,6 +25,7 @@ interface FormPreviewPanelProps {
     paginaObrigadoVideoPosicao: "acima" | "abaixo";
     imagens: MediaItem[];
     videos: MediaItem[];
+    etapas: FormularioEtapa[];
   };
   showThankYou?: boolean;
 }
@@ -44,6 +46,25 @@ function getVideoEmbedUrl(url: string): string | null {
   }
   
   return null;
+}
+
+// Helper to get placeholder based on field type
+function getPlaceholderForType(tipo: string, configuracao?: Record<string, unknown>): string {
+  switch (tipo) {
+    case "nome":
+      return "Digite seu nome...";
+    case "email":
+      return "seu@email.com";
+    case "telefone":
+      return "(00) 00000-0000";
+    case "texto":
+      return (configuracao?.placeholder as string) || "Digite aqui...";
+    case "multipla_escolha":
+    case "selecao_unica":
+      return "";
+    default:
+      return "Digite aqui...";
+  }
 }
 
 export default function FormPreviewPanel({ config, showThankYou = false }: FormPreviewPanelProps) {
@@ -67,6 +88,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     paginaObrigadoVideoPosicao,
     imagens,
     videos,
+    etapas,
   } = config;
 
   const validImagens = imagens.filter(i => i.url);
@@ -121,6 +143,56 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
       ))}
     </div>
   );
+
+  // Render a single field based on its type
+  const renderField = (etapa: FormularioEtapa) => {
+    const opcoes = (etapa.configuracao?.opcoes as string[]) || [];
+    const placeholder = getPlaceholderForType(etapa.tipo, etapa.configuracao);
+
+    // For checkbox/radio types
+    if (etapa.tipo === "multipla_escolha" || etapa.tipo === "selecao_unica") {
+      return (
+        <div className="space-y-1.5">
+          {opcoes.slice(0, 3).map((opcao, idx) => (
+            <div 
+              key={idx}
+              className="flex items-center gap-2 p-2 rounded-md border"
+              style={{ 
+                borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
+                backgroundColor: cardColor,
+              }}
+            >
+              <Checkbox 
+                disabled 
+                className="h-3 w-3"
+                style={{ borderColor: corPrimaria }}
+              />
+              <span className="text-xs" style={{ color: answerTextColor }}>{opcao}</span>
+            </div>
+          ))}
+          {opcoes.length > 3 && (
+            <p className="text-xs opacity-50" style={{ color: textColor }}>
+              +{opcoes.length - 3} opções...
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // For text/email/phone types
+    return (
+      <div 
+        className="w-full h-8 rounded-md border px-2 flex items-center text-xs"
+        style={{ 
+          backgroundColor: cardColor,
+          borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
+          borderRadius: `${parseInt(borderRadius) / 2}px`,
+        }}
+      >
+        <span style={{ color: answerTextColor, opacity: 0.5 }}>{placeholder}</span>
+      </div>
+    );
+  };
 
   // Thank you page preview
   if (showThankYou) {
@@ -181,20 +253,16 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     );
   }
 
-  // Form preview
-  const sampleFields = layoutTipo === "single_page" 
-    ? [
-        { label: "Qual seu nome?", placeholder: "Digite seu nome..." },
-        { label: "Qual seu e-mail?", placeholder: "Digite seu e-mail..." },
-        { label: "Qual seu telefone?", placeholder: "(00) 00000-0000" },
-      ]
-    : [
-        { label: "Qual seu nome?", placeholder: "Digite seu nome..." },
-      ];
+  // Determine which fields to show
+  const fieldsToShow = etapas.length > 0 
+    ? (layoutTipo === "single_page" ? etapas : etapas.slice(0, 1))
+    : []; // No fallback - only show real etapas
+
+  const hasEtapas = fieldsToShow.length > 0;
 
   return (
     <div 
-      className="h-full flex items-center justify-center p-4 rounded-lg overflow-auto"
+      className="h-full flex items-start justify-center p-4 rounded-lg overflow-auto"
       style={{ 
         backgroundColor,
         fontFamily: `${fontFamily}, sans-serif`,
@@ -209,7 +277,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           border: cardBorderColor && cardBorderColor !== "transparent" ? `1px solid ${cardBorderColor}` : undefined,
         }}
       >
-        <CardContent className="py-4 px-4 space-y-4">
+        <CardContent className="py-4 px-4 space-y-3">
           {/* Logo */}
           {logoUrl && (
             <div className="flex justify-center">
@@ -222,12 +290,12 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           )}
           
           {/* Progress bar (multi-step only) */}
-          {layoutTipo === "multi_step" && (
+          {layoutTipo === "multi_step" && hasEtapas && (
             <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: progressBackgroundColor }}>
               <div 
                 className="h-full rounded-full transition-all"
                 style={{ 
-                  width: "33%",
+                  width: `${Math.round(100 / etapas.length)}%`,
                   backgroundColor: corPrimaria 
                 }}
               />
@@ -241,40 +309,42 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             </h2>
           )}
           
-          {/* Sample fields */}
-          <div className="space-y-3">
-            {sampleFields.map((field, idx) => (
-              <div key={idx} className="space-y-1">
-                <label className="text-xs font-medium" style={{ color: textColor }}>
-                  {field.label} <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <div 
-                  className="w-full h-9 rounded-md border px-3 flex items-center text-xs"
-                  style={{ 
-                    backgroundColor: cardColor,
-                    borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
-                    color: answerTextColor,
-                    borderRadius: `${parseInt(borderRadius) / 2}px`,
-                  }}
-                >
-                  <span style={{ color: answerTextColor, opacity: 0.5 }}>{field.placeholder}</span>
+          {/* Real fields from etapas */}
+          {hasEtapas ? (
+            <div className="space-y-3">
+              {fieldsToShow.map((etapa) => (
+                <div key={etapa.id} className="space-y-1">
+                  <label className="text-xs font-medium" style={{ color: textColor }}>
+                    {etapa.titulo} {etapa.obrigatorio && <span style={{ color: "#ef4444" }}>*</span>}
+                  </label>
+                  {renderField(etapa)}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-xs opacity-50" style={{ color: textColor }}>
+                Nenhuma etapa cadastrada ainda.
+                <br />
+                Adicione etapas para visualizar a preview.
+              </p>
+            </div>
+          )}
           
           {/* Button */}
-          <Button
-            className="w-full"
-            size="sm"
-            style={{ 
-              backgroundColor: corPrimaria, 
-              color: buttonTextColor,
-              borderRadius: `${parseInt(borderRadius) / 2}px`,
-            }}
-          >
-            {layoutTipo === "multi_step" ? "Próximo" : "Enviar"}
-          </Button>
+          {hasEtapas && (
+            <Button
+              className="w-full"
+              size="sm"
+              style={{ 
+                backgroundColor: corPrimaria, 
+                color: buttonTextColor,
+                borderRadius: `${parseInt(borderRadius) / 2}px`,
+              }}
+            >
+              {layoutTipo === "multi_step" ? "Próximo" : "Enviar"}
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>
