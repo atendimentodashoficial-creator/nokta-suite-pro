@@ -314,6 +314,15 @@ export default function AdminDashboard() {
   const handleLoginAsUser = async (userEmail: string) => {
     try {
       const adminToken = localStorage.getItem('admin_token');
+      
+      // Salvar a lista de usuários para o switcher no sidebar
+      const usersForSwitcher = users.map(u => ({
+        id: u.id,
+        email: u.email,
+        user_metadata: u.user_metadata
+      }));
+      localStorage.setItem('admin_users_list', JSON.stringify(usersForSwitcher));
+      
       const {
         data,
         error

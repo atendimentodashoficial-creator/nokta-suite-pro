@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Sidebar, SidebarContent } from "@/components/layout/Sidebar";
+import { AdminClientSwitcher } from "@/components/layout/AdminClientSwitcher";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useDisparosCampaignScheduler } from "@/hooks/useDisparosCampaignScheduler";
@@ -37,6 +38,10 @@ export default function Layout() {
           alt="Logo" 
           className="h-7 w-auto object-contain ml-3 brightness-0 invert"
         />
+        {/* Admin Client Switcher for Mobile */}
+        <div className="ml-auto">
+          <AdminClientSwitcher collapsed={true} />
+        </div>
       </div>
 
       <div className={cn(
