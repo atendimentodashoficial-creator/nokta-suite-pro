@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatAvatar } from "./ChatAvatar";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPhoneNumber, formatRelativeTime, formatLastMessagePreview } from "@/utils/whatsapp";
+import { formatPhoneNumber, formatRelativeTime, formatLastMessagePreview, truncateText } from "@/utils/whatsapp";
 import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, CheckSquare, Square, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -882,7 +882,7 @@ export function WhatsAppKanban({
                               {formatPhoneNumber(chat.contact_number)}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-normal break-words">
-                              {formatLastMessagePreview(chat.last_message)}
+                              {truncateText(formatLastMessagePreview(chat.last_message), 160)}
                             </p>
                             {chat.last_message_time && <span className="text-xs text-muted-foreground mt-2 block">
                                 {formatRelativeTime(chat.last_message_time)}
@@ -964,9 +964,9 @@ export function WhatsAppKanban({
                                 <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                                   {formatPhoneNumber(chat.contact_number)}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-normal break-words">
-                                  {formatLastMessagePreview(chat.last_message)}
-                                </p>
+                                 <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-normal break-words">
+                                   {truncateText(formatLastMessagePreview(chat.last_message), 160)}
+                                 </p>
                                 {chat.last_message_time && <span className="text-xs text-muted-foreground mt-2 block">
                                     {formatRelativeTime(chat.last_message_time)}
                                   </span>}
