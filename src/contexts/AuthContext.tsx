@@ -247,14 +247,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     try {
-      // Tenta fazer signOut completo (revoga sessão no backend e limpa storage)
-      const { error } = await supabase.auth.signOut();
+      // Logout local (não depende de a sessão ainda existir no backend)
+      const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) {
-        console.error("Error signing out from backend:", error);
+        console.error("Error signing out (local):", error);
       }
     } catch (error: any) {
       console.error("Error calling signOut:", error);
     } finally {
+      // Fallback: garantir que qualquer token do auth no storage seja removido
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith("sb-") && k.endsWith("-auth-token"))
+          .forEach((k) => localStorage.removeItem(k));
+      } catch {
+        // ignore
+      }
+
       // Garante que o estado local seja limpo e o usuário vá para a tela de login
       setSession(null);
       setUser(null);
