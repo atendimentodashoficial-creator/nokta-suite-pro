@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, X, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import FormPreviewPanel from "./FormPreviewPanel";
 
 const FONT_OPTIONS = [
   { value: "Inter", label: "Inter" },
@@ -375,19 +376,46 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     }
   };
 
+  const [activeTab, setActiveTab] = useState("geral");
+
+  const previewConfig = {
+    nome,
+    logoUrl,
+    corPrimaria,
+    backgroundColor,
+    cardColor,
+    fontFamily,
+    textColor,
+    buttonTextColor,
+    borderRadius,
+    progressBackgroundColor,
+    cardBorderColor,
+    answerTextColor,
+    layoutTipo,
+    paginaObrigadoTitulo,
+    paginaObrigadoMensagem,
+    paginaObrigadoCtaTexto,
+    paginaObrigadoVideoPosicao,
+    imagens,
+    videos,
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Editar Template" : "Novo Template"}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
+        <div className="flex flex-col lg:flex-row h-full max-h-[90vh]">
+          {/* Form Settings Panel */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <DialogHeader className="mb-4">
+              <DialogTitle>{isEditing ? "Editar Template" : "Novo Template"}</DialogTitle>
+            </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <Tabs defaultValue="geral" className="w-full">
-            <TabsList className="w-full">
-              <TabsTrigger value="geral" className="flex-1">Informações Gerais</TabsTrigger>
-              <TabsTrigger value="obrigado" className="flex-1">Página de Obrigado</TabsTrigger>
-            </TabsList>
+            <form onSubmit={handleSubmit}>
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="w-full">
+                  <TabsTrigger value="geral" className="flex-1">Informações Gerais</TabsTrigger>
+                  <TabsTrigger value="obrigado" className="flex-1">Página de Obrigado</TabsTrigger>
+                </TabsList>
 
             <TabsContent value="geral" className="space-y-4 mt-4">
               <div className="space-y-2">
@@ -1005,6 +1033,26 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
             </Button>
           </DialogFooter>
         </form>
+          </div>
+
+          {/* Live Preview Panel - Desktop only */}
+          <div className="hidden lg:flex flex-col w-[380px] border-l bg-muted/30">
+            <div className="p-4 border-b bg-muted/50">
+              <h3 className="font-medium text-sm text-center">
+                Preview em tempo real
+              </h3>
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                {activeTab === "obrigado" ? "Página de Obrigado" : "Formulário"}
+              </p>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <FormPreviewPanel 
+                config={previewConfig} 
+                showThankYou={activeTab === "obrigado"}
+              />
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
