@@ -1289,39 +1289,51 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="bg">Cor de Fundo</Label>
-                  <div 
-                    className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: backgroundColor }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: backgroundColor }}
+                      onClick={() => document.getElementById('bg')?.click()}
+                    >
+                      <Input
+                        id="bg"
+                        type="color"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
                     <Input
-                      id="bg"
-                      type="color"
                       value={backgroundColor}
                       onChange={(e) => setBackgroundColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      placeholder="#ffffff"
+                      className="flex-1"
                     />
-                    <span className="flex-1 text-center text-xs font-medium" style={{ color: backgroundColor === '#ffffff' || backgroundColor === '#fff' ? '#374151' : '#ffffff' }}>
-                      {backgroundColor}
-                    </span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="cardColor">Cor do Card</Label>
-                  <div 
-                    className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: cardColor }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: cardColor }}
+                      onClick={() => document.getElementById('cardColor')?.click()}
+                    >
+                      <Input
+                        id="cardColor"
+                        type="color"
+                        value={cardColor}
+                        onChange={(e) => setCardColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
                     <Input
-                      id="cardColor"
-                      type="color"
                       value={cardColor}
                       onChange={(e) => setCardColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      placeholder="#ffffff"
+                      className="flex-1"
                     />
-                    <span className="flex-1 text-center text-xs font-medium" style={{ color: cardColor === '#ffffff' || cardColor === '#fff' ? '#374151' : '#ffffff' }}>
-                      {cardColor}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -1330,39 +1342,51 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cor">Cor Primária (Botão)</Label>
-                  <div 
-                    className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: corPrimaria }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: corPrimaria }}
+                      onClick={() => document.getElementById('cor')?.click()}
+                    >
+                      <Input
+                        id="cor"
+                        type="color"
+                        value={corPrimaria}
+                        onChange={(e) => setCorPrimaria(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
                     <Input
-                      id="cor"
-                      type="color"
                       value={corPrimaria}
                       onChange={(e) => setCorPrimaria(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      placeholder="#8B5CF6"
+                      className="flex-1"
                     />
-                    <span className="flex-1 text-center text-xs font-medium text-white">
-                      {corPrimaria}
-                    </span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="buttonTextColor">Cor do Texto (Botão)</Label>
-                  <div 
-                    className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: buttonTextColor }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: buttonTextColor }}
+                      onClick={() => document.getElementById('buttonTextColor')?.click()}
+                    >
+                      <Input
+                        id="buttonTextColor"
+                        type="color"
+                        value={buttonTextColor}
+                        onChange={(e) => setButtonTextColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
                     <Input
-                      id="buttonTextColor"
-                      type="color"
                       value={buttonTextColor}
                       onChange={(e) => setButtonTextColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      placeholder="#ffffff"
+                      className="flex-1"
                     />
-                    <span className="flex-1 text-center text-xs font-medium" style={{ color: buttonTextColor === '#ffffff' || buttonTextColor === '#fff' ? '#374151' : '#ffffff' }}>
-                      {buttonTextColor}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -1372,39 +1396,51 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="backButtonColor">Botão Voltar</Label>
-                    <div 
-                      className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                      style={{ backgroundColor: backButtonColor }}
-                    >
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: backButtonColor }}
+                        onClick={() => document.getElementById('backButtonColor')?.click()}
+                      >
+                        <Input
+                          id="backButtonColor"
+                          type="color"
+                          value={backButtonColor}
+                          onChange={(e) => setBackButtonColor(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
                       <Input
-                        id="backButtonColor"
-                        type="color"
                         value={backButtonColor}
                         onChange={(e) => setBackButtonColor(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        placeholder="#6b7280"
+                        className="flex-1"
                       />
-                      <span className="flex-1 text-center text-xs font-medium text-white">
-                        {backButtonColor}
-                      </span>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="backButtonTextColor">Texto Botão Voltar</Label>
-                    <div 
-                      className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                      style={{ backgroundColor: backButtonTextColor }}
-                    >
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: backButtonTextColor }}
+                        onClick={() => document.getElementById('backButtonTextColor')?.click()}
+                      >
+                        <Input
+                          id="backButtonTextColor"
+                          type="color"
+                          value={backButtonTextColor}
+                          onChange={(e) => setBackButtonTextColor(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
                       <Input
-                        id="backButtonTextColor"
-                        type="color"
                         value={backButtonTextColor}
                         onChange={(e) => setBackButtonTextColor(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        placeholder="#ffffff"
+                        className="flex-1"
                       />
-                      <span className="flex-1 text-center text-xs font-medium" style={{ color: backButtonTextColor === '#ffffff' || backButtonTextColor === '#fff' ? '#374151' : '#ffffff' }}>
-                        {backButtonTextColor}
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -1414,39 +1450,51 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="textColor">Perguntas</Label>
-                  <div 
-                    className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: textColor }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: textColor }}
+                      onClick={() => document.getElementById('textColor')?.click()}
+                    >
+                      <Input
+                        id="textColor"
+                        type="color"
+                        value={textColor}
+                        onChange={(e) => setTextColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
                     <Input
-                      id="textColor"
-                      type="color"
                       value={textColor}
                       onChange={(e) => setTextColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      placeholder="#1f2937"
+                      className="flex-1"
                     />
-                    <span className="flex-1 text-center text-xs font-medium text-white">
-                      {textColor}
-                    </span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="answerTextColor">Respostas</Label>
-                  <div 
-                    className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: answerTextColor }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: answerTextColor }}
+                      onClick={() => document.getElementById('answerTextColor')?.click()}
+                    >
+                      <Input
+                        id="answerTextColor"
+                        type="color"
+                        value={answerTextColor}
+                        onChange={(e) => setAnswerTextColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
                     <Input
-                      id="answerTextColor"
-                      type="color"
                       value={answerTextColor}
                       onChange={(e) => setAnswerTextColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      placeholder="#1f2937"
+                      className="flex-1"
                     />
-                    <span className="flex-1 text-center text-xs font-medium text-white">
-                      {answerTextColor}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -1456,20 +1504,26 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="progressColor">Barra de Progresso</Label>
-                    <div 
-                      className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                      style={{ backgroundColor: corPrimaria }}
-                    >
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: corPrimaria }}
+                        onClick={() => document.getElementById('progressColor')?.click()}
+                      >
+                        <Input
+                          id="progressColor"
+                          type="color"
+                          value={corPrimaria}
+                          onChange={(e) => setCorPrimaria(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
                       <Input
-                        id="progressColor"
-                        type="color"
                         value={corPrimaria}
                         onChange={(e) => setCorPrimaria(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        placeholder="#8B5CF6"
+                        className="flex-1"
                       />
-                      <span className="flex-1 text-center text-xs font-medium text-white">
-                        {corPrimaria}
-                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Usa a cor primária
@@ -1478,20 +1532,26 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
                   <div className="space-y-2">
                     <Label htmlFor="progressBg">Fundo Barra de Progresso</Label>
-                    <div 
-                      className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                      style={{ backgroundColor: progressBackgroundColor }}
-                    >
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: progressBackgroundColor }}
+                        onClick={() => document.getElementById('progressBg')?.click()}
+                      >
+                        <Input
+                          id="progressBg"
+                          type="color"
+                          value={progressBackgroundColor}
+                          onChange={(e) => setProgressBackgroundColor(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
                       <Input
-                        id="progressBg"
-                        type="color"
                         value={progressBackgroundColor}
                         onChange={(e) => setProgressBackgroundColor(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        placeholder="#e5e5e5"
+                        className="flex-1"
                       />
-                      <span className="flex-1 text-center text-xs font-medium" style={{ color: progressBackgroundColor === '#e5e5e5' || progressBackgroundColor.toLowerCase() === '#ffffff' ? '#374151' : '#ffffff' }}>
-                        {progressBackgroundColor}
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -1501,20 +1561,26 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cardBorder">Cor da Borda do Card</Label>
-                  <div 
-                    className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
+                      onClick={() => document.getElementById('cardBorder')?.click()}
+                    >
+                      <Input
+                        id="cardBorder"
+                        type="color"
+                        value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                        onChange={(e) => setCardBorderColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
                     <Input
-                      id="cardBorder"
-                      type="color"
-                      value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                      value={cardBorderColor}
                       onChange={(e) => setCardBorderColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      placeholder="transparent"
+                      className="flex-1"
                     />
-                    <span className="flex-1 text-center text-xs font-medium" style={{ color: cardBorderColor === "transparent" || cardBorderColor === '#ffffff' ? '#374151' : '#ffffff' }}>
-                      {cardBorderColor}
-                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Use "transparent" para sem borda
@@ -1523,20 +1589,26 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
                 <div className="space-y-2">
                   <Label htmlFor="errorTextColor">Cor das Mensagens de Erro</Label>
-                  <div 
-                    className="relative flex items-center h-10 rounded-md border cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: errorTextColor }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: errorTextColor }}
+                      onClick={() => document.getElementById('errorTextColor')?.click()}
+                    >
+                      <Input
+                        id="errorTextColor"
+                        type="color"
+                        value={errorTextColor}
+                        onChange={(e) => setErrorTextColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
                     <Input
-                      id="errorTextColor"
-                      type="color"
                       value={errorTextColor}
                       onChange={(e) => setErrorTextColor(e.target.value)}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      placeholder="#ef4444"
+                      className="flex-1"
                     />
-                    <span className="flex-1 text-center text-xs font-medium text-white">
-                      {errorTextColor}
-                    </span>
                   </div>
                 </div>
               </div>
