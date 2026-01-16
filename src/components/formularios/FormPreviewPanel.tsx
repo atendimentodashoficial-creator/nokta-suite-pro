@@ -158,11 +158,11 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
         >
           <CheckCircle2 className="h-4 w-4" style={{ color: corPrimaria }} />
         </div>
-        <h2 className="font-bold" style={{ color: corTituloPrincipal, fontSize: `${Math.min(obrigadoTituloSize * 0.6, 20)}px` }}>
+        <h2 className="font-bold" style={{ color: corTituloPrincipal, fontSize: `${Math.round(obrigadoTituloSize * 0.5)}px` }}>
           {paginaObrigadoTitulo || "Obrigado!"}
         </h2>
       </div>
-      <p className="text-center" style={{ color: corMensagem, fontSize: `${Math.min(obrigadoTextoSize * 0.7, 12)}px` }}>
+      <p className="text-center" style={{ color: corMensagem, fontSize: `${Math.round(obrigadoTextoSize * 0.5)}px` }}>
         {paginaObrigadoMensagem || "Recebemos suas informações."}
       </p>
     </>

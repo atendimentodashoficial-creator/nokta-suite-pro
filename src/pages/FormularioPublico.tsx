@@ -72,6 +72,8 @@ interface TemplateConfig {
   fonte_tamanho_campos?: string | null;
   fonte_tamanho_respostas?: string | null;
   fonte_tamanho_botoes?: string | null;
+  fonte_tamanho_obrigado_titulo?: string | null;
+  fonte_tamanho_obrigado_texto?: string | null;
   whatsapp_instancia_id?: string | null;
   whatsapp_mensagem_sucesso?: string | null;
   whatsapp_notificacao_ativa?: boolean | null;
@@ -1098,12 +1100,12 @@ export default function FormularioPublico() {
                     >
                       <CheckCircle2 className="h-5 w-5" style={{ color: primaryColor }} />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold" style={{ color: textColor }}>
+                    <h2 className="font-bold" style={{ color: textColor, fontSize: config.fonte_tamanho_obrigado_titulo || "28px" }}>
                       {config.pagina_obrigado_titulo || "Obrigado!"}
                     </h2>
                   </div>
                   
-                  <p className="text-center" style={{ color: textColor, opacity: 0.7 }}>
+                  <p className="text-center" style={{ color: textColor, opacity: 0.7, fontSize: config.fonte_tamanho_obrigado_texto || "16px" }}>
                     {config.pagina_obrigado_mensagem || "Recebemos suas informações."}
                   </p>
 
