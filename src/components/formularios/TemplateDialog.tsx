@@ -1091,8 +1091,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     corSubtituloMidia,
     // Step description styling
     fonteTamanhoDescricaoEtapa,
+    fonteTamanhoIndicadorEtapa,
     corDescricaoEtapa,
     corIndicadorEtapa,
+    barraProgressoVisivel,
   };
 
   return (
