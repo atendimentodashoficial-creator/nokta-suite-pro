@@ -1023,12 +1023,14 @@ export default function FormularioPublico() {
   const backButtonTextColor = config.back_button_text_color || "#ffffff";
   const answerTextColor = config.answer_text_color || "#1f2937";
   const errorTextColor = config.error_text_color || "#ef4444";
-  const questionTitleSize = config.fonte_tamanho_perguntas || "16px";
+  const baseQuestionSize = parseInt(config.fonte_tamanho_perguntas || "16") || 16;
   const fieldsSize = config.fonte_tamanho_campos || "14px";
   const answersSize = config.fonte_tamanho_respostas || "14px";
   const buttonsSize = config.fonte_tamanho_botoes || "16px";
 
   const isSinglePage = config.layout_tipo === "single_page";
+  // Multi-step uses +2px for question titles
+  const questionTitleSize = isSinglePage ? `${baseQuestionSize}px` : `${baseQuestionSize + 2}px`;
 
   // Single page layout
   if (isSinglePage) {
@@ -1168,7 +1170,7 @@ export default function FormularioPublico() {
               } as React.CSSProperties} 
             />
           </div>
-          <div className="text-center pt-2">
+          <div className="text-left pt-2">
             <CardTitle style={{ color: textColor, fontSize: questionTitleSize }}>{currentEtapa.titulo}</CardTitle>
             {currentEtapa.descricao && (
               <CardDescription className="mt-2" style={{ color: textColor, opacity: 0.7 }}>{currentEtapa.descricao}</CardDescription>
