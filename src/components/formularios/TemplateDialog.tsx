@@ -482,6 +482,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [fonteMidia, setFonteMidia] = useState("Inter");
   // Step description styling
   const [fonteTamanhoDescricaoEtapa, setFonteTamanhoDescricaoEtapa] = useState("14px");
+  const [fonteTamanhoIndicadorEtapa, setFonteTamanhoIndicadorEtapa] = useState("14px");
   const [corDescricaoEtapa, setCorDescricaoEtapa] = useState("#6b7280");
   const [corIndicadorEtapa, setCorIndicadorEtapa] = useState("#6b7280");
   // Independent colors for thank you page
@@ -609,6 +610,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoObrigadoBotao((template as any).fonte_tamanho_obrigado_botao || "16px");
       // Step description styling
       setFonteTamanhoDescricaoEtapa((template as any).fonte_tamanho_descricao_etapa || "14px");
+      setFonteTamanhoIndicadorEtapa((template as any).fonte_tamanho_indicador_etapa || "14px");
       setCorDescricaoEtapa((template as any).cor_descricao_etapa || "#6b7280");
       setCorIndicadorEtapa((template as any).cor_indicador_etapa || "#6b7280");
       setBarraProgressoVisivel((template as any).barra_progresso_visivel !== false);
@@ -672,6 +674,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       // Reset step description styling
       setFonteTamanhoDescricaoEtapa("14px");
       setCorDescricaoEtapa("#6b7280");
+      setFonteTamanhoIndicadorEtapa("14px");
       setCorIndicadorEtapa("#6b7280");
       setBarraProgressoVisivel(true);
       
@@ -996,6 +999,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       fonte_tamanho_obrigado_botao: fonteTamanhoObrigadoBotao,
       // Step description styling
       fonte_tamanho_descricao_etapa: fonteTamanhoDescricaoEtapa,
+      fonte_tamanho_indicador_etapa: fonteTamanhoIndicadorEtapa,
       cor_descricao_etapa: corDescricaoEtapa,
       cor_indicador_etapa: corIndicadorEtapa,
       barra_progresso_visivel: barraProgressoVisivel,
@@ -1322,7 +1326,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-sm">Paginação</Label>
-                      <Select value={fonteTamanhoDescricaoEtapa} onValueChange={setFonteTamanhoDescricaoEtapa}>
+                      <Select value={fonteTamanhoIndicadorEtapa} onValueChange={setFonteTamanhoIndicadorEtapa}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
