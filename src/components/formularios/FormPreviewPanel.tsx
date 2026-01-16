@@ -123,14 +123,6 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
         <div className={imagensLayout === "horizontal" ? "flex flex-wrap justify-center gap-2" : "space-y-3"}>
           {validImagens.map((img, idx) => (
             <div key={`img-${idx}`} className={`flex flex-col items-center space-y-1 ${imagensLayout === "horizontal" ? "" : "w-full"}`}>
-              <img 
-                src={img.url} 
-                alt={img.titulo || `Imagem ${idx + 1}`} 
-                className={imagensLayout === "horizontal" 
-                  ? "h-16 w-auto max-w-[80px] object-contain rounded" 
-                  : "max-w-full h-auto max-h-20 object-contain rounded mx-auto"
-                } 
-              />
               {img.titulo && (
                 <span className="text-[10px] font-medium text-center" style={{ color: textColor }}>
                   {img.titulo}
@@ -141,6 +133,14 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   {img.subtitulo}
                 </span>
               )}
+              <img 
+                src={img.url} 
+                alt={img.titulo || `Imagem ${idx + 1}`} 
+                className={imagensLayout === "horizontal" 
+                  ? "h-16 w-auto max-w-[80px] object-contain rounded" 
+                  : "max-w-full h-auto max-h-20 object-contain rounded mx-auto"
+                } 
+              />
             </div>
           ))}
         </div>

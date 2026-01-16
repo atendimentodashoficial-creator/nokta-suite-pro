@@ -829,14 +829,6 @@ export default function FormularioPublico() {
                     <div className={imagensLayout === "horizontal" ? "flex flex-wrap justify-center gap-4" : "space-y-4"}>
                       {imagens.filter(img => img.url).map((img, idx) => (
                         <div key={`img-${idx}`} className={`flex flex-col items-center space-y-2 ${imagensLayout === "horizontal" ? "" : "w-full"}`}>
-                          <img 
-                            src={img.url} 
-                            alt={img.titulo || `Imagem ${idx + 1}`} 
-                            className={imagensLayout === "horizontal"
-                              ? "h-24 md:h-32 w-auto max-w-[120px] md:max-w-[150px] object-contain rounded-lg"
-                              : "max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto"
-                            } 
-                          />
                           {img.titulo && (
                             <h3 className="text-sm md:text-base font-semibold text-center" style={{ color: textColor }}>
                               {img.titulo}
@@ -847,6 +839,14 @@ export default function FormularioPublico() {
                               {img.subtitulo}
                             </p>
                           )}
+                          <img 
+                            src={img.url} 
+                            alt={img.titulo || `Imagem ${idx + 1}`} 
+                            className={imagensLayout === "horizontal"
+                              ? "h-24 md:h-32 w-auto max-w-[120px] md:max-w-[150px] object-contain rounded-lg"
+                              : "max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto"
+                            } 
+                          />
                         </div>
                       ))}
                     </div>
