@@ -1733,214 +1733,292 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </SortableContext>
               </DndContext>
 
-              {/* Personalização Visual - Always at the end */}
+              {/* Tamanhos de Fonte Collapsible */}
               <Collapsible>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" type="button" className="w-full justify-between">
                     <span className="flex items-center gap-2">
-                      <Palette className="h-4 w-4" />
-                      Personalização Visual
+                      <Type className="h-4 w-4" />
+                      Tamanhos de Fonte
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-4 pt-3">
-                  {/* Tamanhos de Fonte */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Tamanhos de Fonte</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Título Principal</Label>
-                        <Select value={fonteTamanhoObrigadoTitulo} onValueChange={setFonteTamanhoObrigadoTitulo}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {FONT_SIZE_OPTIONS.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Mensagem</Label>
-                        <Select value={fonteTamanhoObrigadoTexto} onValueChange={setFonteTamanhoObrigadoTexto}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {FONT_SIZE_OPTIONS.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Título das Mídias</Label>
-                        <Select value={fonteTamanhoMidiaTitulo} onValueChange={setFonteTamanhoMidiaTitulo}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {FONT_SIZE_OPTIONS.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Subtítulo das Mídias</Label>
-                        <Select value={fonteTamanhoMidiaSubtitulo} onValueChange={setFonteTamanhoMidiaSubtitulo}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {FONT_SIZE_OPTIONS.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Fonte das Mídias</Label>
-                      <Select value={fonteMidia} onValueChange={setFonteMidia}>
+                      <Label className="text-sm">Título Principal</Label>
+                      <Select value={fonteTamanhoObrigadoTitulo} onValueChange={setFonteTamanhoObrigadoTitulo}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {FONT_OPTIONS.map((font) => (
-                            <SelectItem key={font.value} value={font.value}>
-                              <span style={{ fontFamily: font.value }}>{font.label}</span>
-                            </SelectItem>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Mensagem</Label>
+                      <Select value={fonteTamanhoObrigadoTexto} onValueChange={setFonteTamanhoObrigadoTexto}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-
-                  {/* Cores do Título e Mensagem */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Cores - Título e Mensagem</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor do Título Principal</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={corTituloPrincipal}
-                            onChange={(e) => setCorTituloPrincipal(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={corTituloPrincipal}
-                            onChange={(e) => setCorTituloPrincipal(e.target.value)}
-                            placeholder="#1f2937"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor da Mensagem</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={corMensagem}
-                            onChange={(e) => setCorMensagem(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={corMensagem}
-                            onChange={(e) => setCorMensagem(e.target.value)}
-                            placeholder="#6b7280"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cores das Mídias */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Cores - Mídias</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor do Título da Mídia</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={corTituloMidia}
-                            onChange={(e) => setCorTituloMidia(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={corTituloMidia}
-                            onChange={(e) => setCorTituloMidia(e.target.value)}
-                            placeholder="#1f2937"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor do Subtítulo da Mídia</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={corSubtituloMidia}
-                            onChange={(e) => setCorSubtituloMidia(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={corSubtituloMidia}
-                            onChange={(e) => setCorSubtituloMidia(e.target.value)}
-                            placeholder="#6b7280"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cores Gerais */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Cores - Gerais</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor do Fundo</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={backgroundColor}
-                            onChange={(e) => setBackgroundColor(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={backgroundColor}
-                            onChange={(e) => setBackgroundColor(e.target.value)}
-                            placeholder="#ffffff"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor do Botão</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            value={corPrimaria}
-                            onChange={(e) => setCorPrimaria(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={corPrimaria}
-                            onChange={(e) => setCorPrimaria(e.target.value)}
-                            placeholder="#8B5CF6"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Título Mídias</Label>
+                      <Select value={fonteTamanhoMidiaTitulo} onValueChange={setFonteTamanhoMidiaTitulo}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Texto do Botão</Label>
+                      <Label className="text-sm">Subtítulo Mídias</Label>
+                      <Select value={fonteTamanhoMidiaSubtitulo} onValueChange={setFonteTamanhoMidiaSubtitulo}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Fonte das Mídias</Label>
+                    <Select value={fonteMidia} onValueChange={setFonteMidia}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FONT_OPTIONS.map((font) => (
+                          <SelectItem key={font.value} value={font.value}>
+                            <span style={{ fontFamily: font.value }}>{font.label}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Cores e Aparência Collapsible */}
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Palette className="h-4 w-4" />
+                      Cores e Aparência
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  {/* Linha 1: Background e Card */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-bg">Background</Label>
                       <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: backgroundColor }}
+                          onClick={() => document.getElementById('obrigado-bg')?.click()}
+                        >
+                          <Input
+                            id="obrigado-bg"
+                            type="color"
+                            value={backgroundColor}
+                            onChange={(e) => setBackgroundColor(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
                         <Input
-                          type="color"
-                          value={buttonTextColor}
-                          onChange={(e) => setButtonTextColor(e.target.value)}
-                          className="w-10 h-9 p-1 cursor-pointer"
+                          value={backgroundColor}
+                          onChange={(e) => setBackgroundColor(e.target.value)}
+                          placeholder="#ffffff"
+                          className="flex-1"
                         />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-card">Card</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: cardColor }}
+                          onClick={() => document.getElementById('obrigado-card')?.click()}
+                        >
+                          <Input
+                            id="obrigado-card"
+                            type="color"
+                            value={cardColor}
+                            onChange={(e) => setCardColor(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
+                        <Input
+                          value={cardColor}
+                          onChange={(e) => setCardColor(e.target.value)}
+                          placeholder="#ffffff"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Linha 2: Título Principal e Mensagem */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-titulo-cor">Título Principal</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: corTituloPrincipal }}
+                          onClick={() => document.getElementById('obrigado-titulo-cor')?.click()}
+                        >
+                          <Input
+                            id="obrigado-titulo-cor"
+                            type="color"
+                            value={corTituloPrincipal}
+                            onChange={(e) => setCorTituloPrincipal(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
+                        <Input
+                          value={corTituloPrincipal}
+                          onChange={(e) => setCorTituloPrincipal(e.target.value)}
+                          placeholder="#1f2937"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-mensagem-cor">Mensagem</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: corMensagem }}
+                          onClick={() => document.getElementById('obrigado-mensagem-cor')?.click()}
+                        >
+                          <Input
+                            id="obrigado-mensagem-cor"
+                            type="color"
+                            value={corMensagem}
+                            onChange={(e) => setCorMensagem(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
+                        <Input
+                          value={corMensagem}
+                          onChange={(e) => setCorMensagem(e.target.value)}
+                          placeholder="#6b7280"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Linha 3: Título Mídia e Subtítulo Mídia */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-midia-titulo">Título Mídia</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: corTituloMidia }}
+                          onClick={() => document.getElementById('obrigado-midia-titulo')?.click()}
+                        >
+                          <Input
+                            id="obrigado-midia-titulo"
+                            type="color"
+                            value={corTituloMidia}
+                            onChange={(e) => setCorTituloMidia(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
+                        <Input
+                          value={corTituloMidia}
+                          onChange={(e) => setCorTituloMidia(e.target.value)}
+                          placeholder="#1f2937"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-midia-subtitulo">Subtítulo Mídia</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: corSubtituloMidia }}
+                          onClick={() => document.getElementById('obrigado-midia-subtitulo')?.click()}
+                        >
+                          <Input
+                            id="obrigado-midia-subtitulo"
+                            type="color"
+                            value={corSubtituloMidia}
+                            onChange={(e) => setCorSubtituloMidia(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
+                        <Input
+                          value={corSubtituloMidia}
+                          onChange={(e) => setCorSubtituloMidia(e.target.value)}
+                          placeholder="#6b7280"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Linha 4: Botão e Texto Botão */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-botao">Botão</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: corPrimaria }}
+                          onClick={() => document.getElementById('obrigado-botao')?.click()}
+                        >
+                          <Input
+                            id="obrigado-botao"
+                            type="color"
+                            value={corPrimaria}
+                            onChange={(e) => setCorPrimaria(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
+                        <Input
+                          value={corPrimaria}
+                          onChange={(e) => setCorPrimaria(e.target.value)}
+                          placeholder="#8B5CF6"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-botao-texto">Texto Botão</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: buttonTextColor }}
+                          onClick={() => document.getElementById('obrigado-botao-texto')?.click()}
+                        >
+                          <Input
+                            id="obrigado-botao-texto"
+                            type="color"
+                            value={buttonTextColor}
+                            onChange={(e) => setButtonTextColor(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
                         <Input
                           value={buttonTextColor}
                           onChange={(e) => setButtonTextColor(e.target.value)}
@@ -1951,50 +2029,37 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     </div>
                   </div>
 
-                  {/* Estilos de Mídia */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Estilos de Mídia</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Cor do Card</Label>
-                        <div className="flex items-center gap-2">
+                  {/* Linha 5: Borda do Card */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="obrigado-borda">Borda do Card</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor }}
+                          onClick={() => document.getElementById('obrigado-borda')?.click()}
+                        >
                           <Input
-                            type="color"
-                            value={cardColor}
-                            onChange={(e) => setCardColor(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={cardColor}
-                            onChange={(e) => setCardColor(e.target.value)}
-                            placeholder="#ffffff"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Borda do Card</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
+                            id="obrigado-borda"
                             type="color"
                             value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
                             onChange={(e) => setCardBorderColor(e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={cardBorderColor}
-                            onChange={(e) => setCardBorderColor(e.target.value)}
-                            placeholder="transparent"
-                            className="flex-1"
+                            className="opacity-0 w-full h-full cursor-pointer"
                           />
                         </div>
+                        <Input
+                          value={cardBorderColor}
+                          onChange={(e) => setCardBorderColor(e.target.value)}
+                          placeholder="transparent"
+                          className="flex-1"
+                        />
                       </div>
                     </div>
                   </div>
 
                   {/* Arredondamento */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Arredondamento dos Cantos: {borderRadius}px</Label>
+                    <Label className="text-sm font-medium">Arredondamento: {borderRadius}px</Label>
                     <Input
                       type="range"
                       min="0"
