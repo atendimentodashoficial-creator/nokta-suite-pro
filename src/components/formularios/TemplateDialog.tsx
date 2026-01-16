@@ -480,6 +480,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("18px");
   const [fonteTamanhoMidiaSubtitulo, setFonteTamanhoMidiaSubtitulo] = useState("14px");
   const [fonteMidia, setFonteMidia] = useState("Inter");
+  // Step description styling
+  const [fonteTamanhoDescricaoEtapa, setFonteTamanhoDescricaoEtapa] = useState("14px");
+  const [corDescricaoEtapa, setCorDescricaoEtapa] = useState("#6b7280");
+  const [corIndicadorEtapa, setCorIndicadorEtapa] = useState("#6b7280");
   // Independent colors for thank you page
   const [corTituloPrincipal, setCorTituloPrincipal] = useState("#1f2937");
   const [corMensagem, setCorMensagem] = useState("#6b7280");
@@ -600,6 +604,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoObrigadoTitulo((template as any).fonte_tamanho_obrigado_titulo || "28px");
       setFonteTamanhoObrigadoTexto((template as any).fonte_tamanho_obrigado_texto || "16px");
       setFonteTamanhoObrigadoBotao((template as any).fonte_tamanho_obrigado_botao || "16px");
+      // Step description styling
+      setFonteTamanhoDescricaoEtapa((template as any).fonte_tamanho_descricao_etapa || "14px");
+      setCorDescricaoEtapa((template as any).cor_descricao_etapa || "#6b7280");
+      setCorIndicadorEtapa((template as any).cor_indicador_etapa || "#6b7280");
       
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
@@ -657,6 +665,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoBotoes("18px");
       setFonteTamanhoObrigadoTitulo("28px");
       setFonteTamanhoObrigadoTexto("16px");
+      // Reset step description styling
+      setFonteTamanhoDescricaoEtapa("14px");
+      setCorDescricaoEtapa("#6b7280");
+      setCorIndicadorEtapa("#6b7280");
       
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
@@ -977,6 +989,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       fonte_tamanho_obrigado_titulo: fonteTamanhoObrigadoTitulo,
       fonte_tamanho_obrigado_texto: fonteTamanhoObrigadoTexto,
       fonte_tamanho_obrigado_botao: fonteTamanhoObrigadoBotao,
+      // Step description styling
+      fonte_tamanho_descricao_etapa: fonteTamanhoDescricaoEtapa,
+      cor_descricao_etapa: corDescricaoEtapa,
+      cor_indicador_etapa: corIndicadorEtapa,
       
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
@@ -1063,6 +1079,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     corMensagem,
     corTituloMidia,
     corSubtituloMidia,
+    // Step description styling
+    fonteTamanhoDescricaoEtapa,
+    corDescricaoEtapa,
+    corIndicadorEtapa,
   };
 
   return (
@@ -1294,6 +1314,17 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Descrição Etapa</Label>
+                      <Select value={fonteTamanhoDescricaoEtapa} onValueChange={setFonteTamanhoDescricaoEtapa}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Fonte</Label>
@@ -1478,6 +1509,59 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       value={answerTextColor}
                       onChange={(e) => setAnswerTextColor(e.target.value)}
                       placeholder="#1f2937"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Linha: Descrição Etapa, Indicador Etapa */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="corDescricaoEtapa">Descrição Etapa</Label>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: corDescricaoEtapa }}
+                      onClick={() => document.getElementById('corDescricaoEtapa')?.click()}
+                    >
+                      <Input
+                        id="corDescricaoEtapa"
+                        type="color"
+                        value={corDescricaoEtapa}
+                        onChange={(e) => setCorDescricaoEtapa(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      value={corDescricaoEtapa}
+                      onChange={(e) => setCorDescricaoEtapa(e.target.value)}
+                      placeholder="#6b7280"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="corIndicadorEtapa">Indicador (1/3)</Label>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: corIndicadorEtapa }}
+                      onClick={() => document.getElementById('corIndicadorEtapa')?.click()}
+                    >
+                      <Input
+                        id="corIndicadorEtapa"
+                        type="color"
+                        value={corIndicadorEtapa}
+                        onChange={(e) => setCorIndicadorEtapa(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      value={corIndicadorEtapa}
+                      onChange={(e) => setCorIndicadorEtapa(e.target.value)}
+                      placeholder="#6b7280"
                       className="flex-1"
                     />
                   </div>

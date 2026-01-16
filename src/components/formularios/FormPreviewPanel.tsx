@@ -54,6 +54,10 @@ interface FormPreviewPanelProps {
     corMensagem?: string;
     corTituloMidia?: string;
     corSubtituloMidia?: string;
+    // Step description styling
+    fonteTamanhoDescricaoEtapa?: string;
+    corDescricaoEtapa?: string;
+    corIndicadorEtapa?: string;
   };
   showThankYou?: boolean;
 }
@@ -142,6 +146,10 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     corMensagem = "#6b7280",
     corTituloMidia = "#1f2937",
     corSubtituloMidia = "#6b7280",
+    // Step description styling
+    fonteTamanhoDescricaoEtapa = "14px",
+    corDescricaoEtapa = "#6b7280",
+    corIndicadorEtapa = "#6b7280",
   } = config;
 
   const validImagens = imagens.filter(i => i.url);
@@ -671,9 +679,8 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   {/* Descrição da etapa */}
                   {etapa.descricao && (
                     <p style={{ 
-                      color: textColor, 
-                      opacity: 0.7,
-                      fontSize: `${Math.min((parseInt(fonteTamanhoPerguntas) || 16) * 0.6, 11)}px`,
+                      color: corDescricaoEtapa,
+                      fontSize: `${Math.min((parseInt(fonteTamanhoDescricaoEtapa) || 14) * 0.7, 11)}px`,
                     }}>
                       {etapa.descricao}
                     </p>
@@ -710,7 +717,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 <ChevronLeft className="h-3 w-3 mr-1" />
                 Voltar
               </Button>
-              <span className="text-xs" style={{ color: textColor, opacity: 0.6 }}>
+              <span className="text-xs" style={{ color: corIndicadorEtapa }}>
                 {currentEtapaIndex + 1}/{etapas.length}
               </span>
               <Button

@@ -79,6 +79,9 @@ interface TemplateConfig {
   fonte_tamanho_obrigado_titulo?: string | null;
   fonte_tamanho_obrigado_texto?: string | null;
   fonte_tamanho_obrigado_botao?: string | null;
+  fonte_tamanho_descricao_etapa?: string | null;
+  cor_descricao_etapa?: string | null;
+  cor_indicador_etapa?: string | null;
   whatsapp_instancia_id?: string | null;
   whatsapp_mensagem_sucesso?: string | null;
   whatsapp_notificacao_ativa?: boolean | null;
@@ -1271,7 +1274,10 @@ export default function FormularioPublico() {
                     {etapa.obrigatorio && <span style={{ color: errorTextColor }} className="ml-1">*</span>}
                   </Label>
                   {etapa.descricao && (
-                    <p className="text-sm mt-1" style={{ color: textColor, opacity: 0.7 }}>{etapa.descricao}</p>
+                    <p className="text-sm mt-1" style={{ 
+                      color: config.cor_descricao_etapa || "#6b7280",
+                      fontSize: config.fonte_tamanho_descricao_etapa || "14px"
+                    }}>{etapa.descricao}</p>
                   )}
                 </div>
                 {renderField(etapa, { 
@@ -1356,7 +1362,7 @@ export default function FormularioPublico() {
             </div>
           )}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm" style={{ color: textColor, opacity: 0.7 }}>
+            <div className="flex items-center justify-between text-sm" style={{ color: config.cor_indicador_etapa || "#6b7280" }}>
               <span>Etapa {currentStep} de {totalSteps}</span>
               <span>{Math.round(progress)}%</span>
             </div>
@@ -1372,7 +1378,10 @@ export default function FormularioPublico() {
           <div className="text-left pt-2">
             <CardTitle style={{ color: textColor, fontSize: questionTitleSize }}>{currentEtapa.titulo}</CardTitle>
             {currentEtapa.descricao && (
-              <CardDescription className="mt-2" style={{ color: textColor, opacity: 0.7 }}>{currentEtapa.descricao}</CardDescription>
+              <CardDescription className="mt-2" style={{ 
+                color: config.cor_descricao_etapa || "#6b7280",
+                fontSize: config.fonte_tamanho_descricao_etapa || "14px"
+              }}>{currentEtapa.descricao}</CardDescription>
             )}
           </div>
         </CardHeader>
