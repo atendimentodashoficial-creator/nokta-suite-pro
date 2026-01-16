@@ -1109,16 +1109,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </CollapsibleContent>
               </Collapsible>
 
-              <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
-                <Textarea
-                  id="descricao"
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  placeholder="Descreva o propósito deste formulário..."
-                  rows={3}
-                />
-              </div>
 
               <div className="space-y-2">
                 <Label>Logo do Formulário</Label>
