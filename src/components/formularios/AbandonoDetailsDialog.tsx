@@ -72,10 +72,6 @@ export default function AbandonoDetailsDialog({ sessao, open, onOpenChange }: Ab
             <h4 className="font-semibold mb-3">Progresso das Etapas</h4>
             <div className="grid grid-cols-1 gap-3">
               {etapas.map((etapa) => {
-                const isCompleted = etapa.ordem < sessao.etapa_atual;
-                const isCurrent = etapa.ordem === sessao.etapa_atual;
-                const isAbandoned = isCurrent;
-                
                 // Buscar dados preenchidos desta etapa baseado na configuração
                 const etapaConfig = etapa.configuracao as { 
                   campos?: { id: string; label?: string; nome?: string }[];
@@ -97,6 +93,40 @@ export default function AbandonoDetailsDialog({ sessao, open, onOpenChange }: Ab
                     dadosEtapa = [{ key: etapa.id, value }];
                   }
                 }
+                
+                // Uma etapa é completada se tem dados preenchidos
+                const hasData = dadosEtapa.length > 0;
+                const isCompleted = hasData;
+                
+                // A etapa abandonada é aquela sem dados que está na posição atual ou posterior
+                // Encontrar a primeira etapa sem dados
+                const isAbandoned = !hasData && etapas
+                  .filter((e) => e.ordem < etapa.ordem)
+                  .every((e) => {
+                    // Verificar se etapas anteriores têm dados
+                    const config = e.configuracao as { campos?: { id: string }[] } | null;
+                    if (config?.campos && config.campos.length > 0) {
+                      return config.campos.some(c => {
+                        const val = dadosParciais[c.id];
+                        return val !== undefined && val !== null && val !== "";
+                      });
+                    }
+                    const val = dadosParciais[e.id];
+                    return val !== undefined && val !== null && val !== "";
+                  }) && etapas
+                  .filter((e) => e.ordem > etapa.ordem)
+                  .every((e) => {
+                    // Verificar se etapas posteriores NÃO têm dados
+                    const config = e.configuracao as { campos?: { id: string }[] } | null;
+                    if (config?.campos && config.campos.length > 0) {
+                      return !config.campos.some(c => {
+                        const val = dadosParciais[c.id];
+                        return val !== undefined && val !== null && val !== "";
+                      });
+                    }
+                    const val = dadosParciais[e.id];
+                    return val === undefined || val === null || val === "";
+                  });
                 
                 return (
                   <div
