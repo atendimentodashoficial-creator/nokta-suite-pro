@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -455,7 +456,7 @@ export default function Extrator() {
     setShowSaveDialog(true);
   };
 
-  const [activeTab, setActiveTab] = useState("extrator");
+  const [activeTab, setActiveTab] = useTabPersistence("tab", "extrator");
 
   return (
     <div className="space-y-6">

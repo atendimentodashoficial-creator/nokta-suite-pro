@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 import { Plus, Pencil, Trash2, Play, Pause, Mic, Square, Upload, Volume2, FolderPlus, Folder, GripVertical, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -415,6 +416,9 @@ export default function MensagensPredefinidas() {
     isCreating: isCreatingAudio,
     isUpdating: isUpdatingAudio,
   } = useAudiosPredefinidos();
+
+  // Tab persistente para sub-tab de mensagens
+  const [activeMsgTab, setActiveMsgTab] = useTabPersistence("msgtab", "texto");
 
   // Text message state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -847,7 +851,7 @@ export default function MensagensPredefinidas() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="texto" className="space-y-4">
+      <Tabs value={activeMsgTab} onValueChange={setActiveMsgTab} className="space-y-4">
         <TabsList className="h-8">
           <TabsTrigger value="texto" className="text-xs px-3 h-7">Mensagens de Texto</TabsTrigger>
           <TabsTrigger value="audio" className="text-xs px-3 h-7">Mensagens de Áudio</TabsTrigger>

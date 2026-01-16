@@ -27,10 +27,11 @@ import { navigateToChat } from "@/utils/chatRouting";
 import { AvisosTab } from "@/components/whatsapp/AvisosTab";
 import { HistoricoAvisosTab } from "@/components/whatsapp/HistoricoAvisosTab";
 import { DateRangeCalendars } from "@/components/filters/CalendarWithMonthSelect";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 
 export default function Agenda() {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("agendamentos");
+  const [activeTab, setActiveTab] = useTabPersistence("tab", "agendamentos");
   const [clienteParaFatura, setClienteParaFatura] = useState<{
     id: string;
     nome: string;

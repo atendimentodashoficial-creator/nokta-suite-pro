@@ -20,6 +20,8 @@ import { EditarFaturaDialog } from "@/components/clientes/EditarFaturaDialog";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
+
 const statusConfig = {
   agendado: {
     label: "Agendado",
@@ -76,7 +78,7 @@ export default function ClienteDetalhes() {
   } = useParams();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState("proximos");
+  const [activeTab, setActiveTab] = useTabPersistence("tab", "proximos");
   const [editarClienteOpen, setEditarClienteOpen] = useState(false);
   const [novoAgendamentoOpen, setNovoAgendamentoOpen] = useState(false);
   const [novaFaturaOpen, setNovaFaturaOpen] = useState(false);

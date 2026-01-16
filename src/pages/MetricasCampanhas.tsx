@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,6 +136,9 @@ export default function MetricasCampanhas() {
     updateVisibleCards,
     updateSelectedPreset,
   } = useMetricasPreferencias();
+  
+  // Tab persistente
+  const [activeMetaTab, setActiveMetaTab] = useTabPersistence("tab", "accounts");
   
   const [loading, setLoading] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
@@ -560,7 +564,7 @@ export default function MetricasCampanhas() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="accounts" className="space-y-6">
+      <Tabs value={activeMetaTab} onValueChange={setActiveMetaTab} className="space-y-6">
         <TabsList className="h-8">
           <TabsTrigger value="accounts" className="gap-1.5 text-xs px-3 h-7">
             <Wallet className="h-3.5 w-3.5" />

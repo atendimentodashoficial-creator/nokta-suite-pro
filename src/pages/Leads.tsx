@@ -18,12 +18,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { LeadCampaignBadge } from "@/components/leads/LeadCampaignBadge";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 
 export default function Leads() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [origemFilter, setOrigemFilter] = useState<"whatsapp" | "disparos">("whatsapp");
+  const [origemFilter, setOrigemFilter] = useTabPersistence("origem", "whatsapp");
   
   // Period filter
   const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd, filterByPeriod } = usePeriodFilter("max");

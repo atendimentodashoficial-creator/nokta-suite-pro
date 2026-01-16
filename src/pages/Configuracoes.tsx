@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +11,7 @@ import Produtos from "./Produtos";
 import Conexoes from "./Conexoes";
 import TiposAgendamento from "./TiposAgendamento";
 import { ResetDataConfig } from "@/components/configuracoes/ResetDataConfig";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 
 const tabOptions = [
   { value: "procedimentos", label: "Procedimentos" },
@@ -26,7 +26,7 @@ const tabOptions = [
 ];
 
 export default function Configuracoes() {
-  const [activeTab, setActiveTab] = useState("procedimentos");
+  const [activeTab, setActiveTab] = useTabPersistence("tab", "procedimentos");
   const isMobile = useIsMobile();
   const isTablet = typeof window !== 'undefined' && window.innerWidth < 1024 && window.innerWidth >= 768;
   const useDropdown = isMobile || isTablet;
