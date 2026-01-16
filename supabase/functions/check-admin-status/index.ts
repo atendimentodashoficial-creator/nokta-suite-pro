@@ -11,11 +11,13 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const debugEnabled = req.headers.get('x-debug') === '1';
+
   try {
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({ isAdmin: false }),
+        JSON.stringify({ isAdmin: false, ...(debugEnabled ? { debug: { reason: 'missing_auth' } } : {}) }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -40,7 +42,7 @@ serve(async (req) => {
     
     if (userError || !user) {
       return new Response(
-        JSON.stringify({ isAdmin: false }),
+        JSON.stringify({ isAdmin: false, ...(debugEnabled ? { debug: { reason: 'user_not_found', userError: userError?.message } } : {}) }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -58,7 +60,7 @@ serve(async (req) => {
     if (adminListError) {
       console.error('Erro ao buscar admins:', adminListError);
       return new Response(
-        JSON.stringify({ isAdmin: false }),
+        JSON.stringify({ isAdmin: false, ...(debugEnabled ? { debug: { reason: 'admin_list_error', adminListError: adminListError.message } } : {}) }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -67,7 +69,19 @@ serve(async (req) => {
 
     if (!adminUser) {
       return new Response(
-        JSON.stringify({ isAdmin: false }),
+        JSON.stringify({
+          isAdmin: false,
+          ...(debugEnabled
+            ? {
+                debug: {
+                  reason: 'email_not_admin',
+                  normalizedEmail,
+                  adminUsersCount: (adminUsers || []).length,
+                  hasExactAdminNokta: (adminUsers || []).some(a => (a.email || '').trim().toLowerCase() === 'admin@nokta.com'),
+                },
+              }
+            : {}),
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
