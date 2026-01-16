@@ -118,17 +118,24 @@ export default function FormularioPublico() {
 
       // Create session if not preview
       if (!isPreview) {
-        const sessionToken = crypto.randomUUID();
-        setSessionToken(sessionToken);
+        const newSessionId = crypto.randomUUID();
+        const newSessionToken = crypto.randomUUID();
+
+        setSessionToken(newSessionToken);
         const urlParams = new URLSearchParams(window.location.search);
-        
-        const { data: session, error: sessionError } = await supabase
+
+        // Importante: não usamos `.select()` aqui.
+        // Em navegadores anônimos/sem login, o INSERT pode ser permitido por RLS,
+        // mas o RETURNING/SELECT pode ser bloqueado — e aí não recebemos o id.
+        // Gerando o UUID no client, conseguimos rastrear a sessão sem depender de SELECT.
+        const { error: sessionError } = await supabase
           .from("formularios_sessoes")
           .insert({
+            id: newSessionId,
             // IMPORTANT: template_id must be the real UUID (data.id). The URL may be using slug.
             template_id: data.id,
             user_id: data.user_id,
-            session_token: sessionToken,
+            session_token: newSessionToken,
             etapa_atual: 1,
             dados_parciais: {},
             tempo_por_etapa: {},
@@ -141,16 +148,12 @@ export default function FormularioPublico() {
             gclid: urlParams.get("gclid"),
             ip_address: null,
             user_agent: navigator.userAgent,
-          })
-          .select()
-          .maybeSingle();
+          });
 
         if (sessionError) {
           console.error("Erro ao criar sessão do formulário:", sessionError);
-        }
-
-        if (session) {
-          setSessionId(session.id);
+        } else {
+          setSessionId(newSessionId);
         }
       }
     }
