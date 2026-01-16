@@ -465,6 +465,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [tituloCor, setTituloCor] = useState("#1f2937");
   const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("24px");
   const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("16px");
+  const [fonteTamanhoPerguntas, setFonteTamanhoPerguntas] = useState("16px");
   const [fonteTamanhoCampos, setFonteTamanhoCampos] = useState("14px");
   const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("28px");
   const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("16px");
@@ -577,6 +578,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setTituloCor((template as any).titulo_cor || "#1f2937");
       setFonteTamanhoTitulo((template as any).fonte_tamanho_titulo || "24px");
       setFonteTamanhoSubtitulo((template as any).fonte_tamanho_subtitulo || "16px");
+      setFonteTamanhoPerguntas((template as any).fonte_tamanho_perguntas || "16px");
       setFonteTamanhoCampos((template as any).fonte_tamanho_campos || "14px");
       setFonteTamanhoObrigadoTitulo((template as any).fonte_tamanho_obrigado_titulo || "28px");
       setFonteTamanhoObrigadoTexto((template as any).fonte_tamanho_obrigado_texto || "16px");
@@ -625,6 +627,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setTituloCor("#1f2937");
       setFonteTamanhoTitulo("24px");
       setFonteTamanhoSubtitulo("16px");
+      setFonteTamanhoPerguntas("16px");
       setFonteTamanhoCampos("14px");
       setFonteTamanhoObrigadoTitulo("28px");
       setFonteTamanhoObrigadoTexto("16px");
@@ -915,6 +918,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       titulo_cor: tituloCor,
       fonte_tamanho_titulo: fonteTamanhoTitulo,
       fonte_tamanho_subtitulo: fonteTamanhoSubtitulo,
+      fonte_tamanho_perguntas: fonteTamanhoPerguntas,
       fonte_tamanho_campos: fonteTamanhoCampos,
       fonte_tamanho_obrigado_titulo: fonteTamanhoObrigadoTitulo,
       fonte_tamanho_obrigado_texto: fonteTamanhoObrigadoTexto,
@@ -982,6 +986,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     tituloCor,
     fonteTamanhoTitulo,
     fonteTamanhoSubtitulo,
+    fonteTamanhoPerguntas,
     fonteTamanhoCampos,
     fonteTamanhoObrigadoTitulo,
     fonteTamanhoObrigadoTexto,
@@ -1144,30 +1149,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Tamanho do Título</Label>
-                      <Select value={fonteTamanhoTitulo} onValueChange={setFonteTamanhoTitulo}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {FONT_SIZE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Tamanho do Subtítulo</Label>
-                      <Select value={fonteTamanhoSubtitulo} onValueChange={setFonteTamanhoSubtitulo}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {FONT_SIZE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="subtitulo" className="text-sm">Subtítulo</Label>
                     <Input
@@ -1194,8 +1175,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <CollapsibleContent className="space-y-3 pt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Opções de Escolha</Label>
-                      <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
+                      <Label className="text-sm">Título Principal</Label>
+                      <Select value={fonteTamanhoTitulo} onValueChange={setFonteTamanhoTitulo}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
@@ -1205,8 +1186,32 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Texto das Respostas</Label>
+                      <Label className="text-sm">Subtítulo Principal</Label>
                       <Select value={fonteTamanhoSubtitulo} onValueChange={setFonteTamanhoSubtitulo}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Títulos das Perguntas</Label>
+                      <Select value={fonteTamanhoPerguntas} onValueChange={setFonteTamanhoPerguntas}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Opções de Escolha</Label>
+                      <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
