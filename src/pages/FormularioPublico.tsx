@@ -871,12 +871,12 @@ export default function FormularioPublico() {
                       )}
                       
                       {validImages.length === 1 ? (
-                        /* Single image - full width */
-                        <div className="w-full aspect-video rounded-lg overflow-hidden">
+                        /* Single image - full width, no cropping */
+                        <div className="w-full rounded-lg overflow-hidden">
                           <img 
                             src={validImages[0].url} 
                             alt={validImages[0].titulo || "Imagem"} 
-                            className="w-full h-full object-cover" 
+                            className="w-full h-auto object-contain" 
                           />
                         </div>
                       ) : (
@@ -906,11 +906,11 @@ export default function FormularioPublico() {
                                 key={`img-${idx}`} 
                                 className="flex-shrink-0 w-full snap-center"
                               >
-                                <div className="w-full aspect-video rounded-lg overflow-hidden">
+                                <div className="w-full rounded-lg overflow-hidden">
                                   <img 
                                     src={img.url} 
                                     alt={img.titulo || `Imagem ${idx + 1}`} 
-                                    className="w-full h-full object-cover" 
+                                    className="w-full h-auto object-contain" 
                                   />
                                 </div>
                               </div>

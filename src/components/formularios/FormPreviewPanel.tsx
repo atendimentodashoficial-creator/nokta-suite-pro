@@ -218,12 +218,12 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
         )}
         
         {validImagens.length === 1 ? (
-          /* Single image - full width */
-          <div className="w-full aspect-video rounded overflow-hidden">
+          /* Single image - full width, no cropping */
+          <div className="w-full rounded overflow-hidden">
             <img 
               src={validImagens[0].url} 
               alt={validImagens[0].titulo || "Imagem"} 
-              className="w-full h-full object-cover" 
+              className="w-full h-auto object-contain" 
             />
           </div>
         ) : (
@@ -253,11 +253,11 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   key={`img-${idx}`} 
                   className="flex-shrink-0 w-full snap-center"
                 >
-                  <div className="w-full aspect-video rounded overflow-hidden">
+                  <div className="w-full rounded overflow-hidden">
                     <img 
                       src={img.url} 
                       alt={img.titulo || `Imagem ${idx + 1}`} 
-                      className="w-full h-full object-cover" 
+                      className="w-full h-auto object-contain" 
                     />
                   </div>
                 </div>
