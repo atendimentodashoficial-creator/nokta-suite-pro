@@ -77,15 +77,36 @@ export default function AbandonoDetailsDialog({ sessao, open, onOpenChange }: Ab
                 const isAbandoned = isCurrent;
                 
                 // Buscar dados preenchidos desta etapa baseado na configuração
-                const etapaConfig = etapa.configuracao as { campos?: { nome: string; label?: string }[] } | null;
-                const camposEtapa = etapaConfig?.campos || [];
-                const dadosEtapa = camposEtapa
-                  .map(campo => ({
-                    key: campo.nome,
-                    label: campo.label || campo.nome,
-                    value: dadosParciais[campo.nome]
-                  }))
-                  .filter(d => d.value !== undefined && d.value !== null && d.value !== "");
+                // A configuração pode ter: { campos: [{ id, label }] } ou { opcoes: [...] }
+                const etapaConfig = etapa.configuracao as { 
+                  campos?: { id: string; label?: string; nome?: string }[];
+                  opcoes?: string[];
+                } | null;
+                
+                let dadosEtapa: { key: string; label: string; value: unknown }[] = [];
+                
+                if (etapaConfig?.campos && etapaConfig.campos.length > 0) {
+                  // Etapa com múltiplos campos
+                  dadosEtapa = etapaConfig.campos
+                    .map(campo => ({
+                      key: campo.id,
+                      label: campo.label || campo.nome || campo.id,
+                      value: dadosParciais[campo.id]
+                    }))
+                    .filter(d => d.value !== undefined && d.value !== null && d.value !== "");
+                } else if (etapaConfig?.opcoes) {
+                  // Etapa de seleção única (radio/select) - o ID da etapa é a chave
+                  const value = dadosParciais[etapa.id];
+                  if (value !== undefined && value !== null && value !== "") {
+                    dadosEtapa = [{ key: etapa.id, label: etapa.titulo, value }];
+                  }
+                } else {
+                  // Etapa de campo único (texto, telefone, email) - o ID da etapa é a chave
+                  const value = dadosParciais[etapa.id];
+                  if (value !== undefined && value !== null && value !== "") {
+                    dadosEtapa = [{ key: etapa.id, label: etapa.titulo, value }];
+                  }
+                }
                 
                 return (
                   <div
