@@ -34,6 +34,7 @@ interface TemplateConfig {
   nome: string;
   status: string;
   cor_primaria: string;
+  logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
   pagina_obrigado_cta_texto: string | null;
@@ -661,6 +662,15 @@ export default function FormularioPublico() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4">
+          {config.logo_url && (
+            <div className="flex justify-center pt-2">
+              <img 
+                src={config.logo_url} 
+                alt="Logo" 
+                className="h-16 w-auto max-w-48 object-contain"
+              />
+            </div>
+          )}
           {isPreview && (
             <div className="text-xs text-muted-foreground px-3 py-1.5 bg-yellow-500/10 rounded-lg text-center">
               Modo Preview
