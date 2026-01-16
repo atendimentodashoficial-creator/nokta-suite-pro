@@ -146,26 +146,34 @@ export default function FormularioPublico() {
     loadForm();
   }, [templateId, isPreview]);
 
-  // Handle session abandonment using sendBeacon for reliability
+  // Handle session abandonment (unload/hidden) - use fetch keepalive with anon key
   useEffect(() => {
     if (!sessionId || isPreview) return;
 
     const markAsAbandoned = () => {
       if (submitted) return;
-      
+
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      
-      // Use edge function endpoint that accepts POST (sendBeacon only works with POST)
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
       const url = `${supabaseUrl}/functions/v1/formulario-abandono`;
       const body = JSON.stringify({
         session_id: sessionId,
         etapa_atual: currentStep,
         dados_parciais: formData,
       });
-      
-      // sendBeacon is most reliable for page unload
-      const blob = new Blob([body], { type: 'application/json' });
-      navigator.sendBeacon(url, blob);
+
+      // sendBeacon cannot set required headers; fetch(keepalive) can.
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body,
+        keepalive: true,
+      }).catch(() => {});
     };
 
     const handleVisibilityChange = () => {
