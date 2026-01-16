@@ -8,11 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { useFormulariosSessoes, useFormulariosTemplates, useDeleteSessao, FormularioSessao, FormularioEtapa } from "@/hooks/useFormularios";
 import { Skeleton } from "@/components/ui/skeleton";
 import AbandonoDetailsDialog from "./AbandonoDetailsDialog";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +30,8 @@ export default function FormulariosAbandonos() {
   const [templateFilter, setTemplateFilter] = useState<string>("all");
   const [selectedSessao, setSelectedSessao] = useState<FormularioSessao | null>(null);
   const [sessaoToDelete, setSessaoToDelete] = useState<string | null>(null);
+  const [selectedSessoes, setSelectedSessoes] = useState<string[]>([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   
   const { periodFilter, dateStart, dateEnd, setPeriodFilter, setDateStart, setDateEnd } = usePeriodFilter();
   
@@ -65,6 +69,31 @@ export default function FormulariosAbandonos() {
         }, 0) / sessoes.length
       )
     : 0;
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedSessoes(sessoes?.map(s => s.id) || []);
+    } else {
+      setSelectedSessoes([]);
+    }
+  };
+
+  const handleSelectSessao = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedSessoes([...selectedSessoes, id]);
+    } else {
+      setSelectedSessoes(selectedSessoes.filter(i => i !== id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    for (const id of selectedSessoes) {
+      await deleteSessao.mutateAsync(id);
+    }
+    setSelectedSessoes([]);
+    setBulkDeleteDialogOpen(false);
+    toast.success(`${selectedSessoes.length} registro(s) excluído(s) com sucesso`);
+  };
 
   return (
     <div className="space-y-6">
@@ -122,6 +151,23 @@ export default function FormulariosAbandonos() {
         <CardHeader>
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <CardTitle>Formulários Abandonados</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              {selectedSessoes.length > 0 && (
+                <>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir ({selectedSessoes.length})
+                  </Button>
+                  <span className="text-sm text-muted-foreground self-center">
+                    {selectedSessoes.length} selecionado(s)
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -159,6 +205,12 @@ export default function FormulariosAbandonos() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedSessoes.length === sessoes?.length && sessoes?.length > 0}
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Início</TableHead>
                     <TableHead>Abandono</TableHead>
                     <TableHead>Nome</TableHead>
@@ -210,6 +262,12 @@ export default function FormulariosAbandonos() {
                     
                     return (
                       <TableRow key={sessao.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedSessoes.includes(sessao.id)}
+                            onCheckedChange={(checked) => handleSelectSessao(sessao.id, !!checked)}
+                          />
+                        </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {format(new Date(sessao.started_at), "dd/MM/yy HH:mm", { locale: ptBR })}
                         </TableCell>
@@ -298,6 +356,26 @@ export default function FormulariosAbandonos() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedSessoes.length} registro(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todos os registros selecionados serão permanentemente removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir todos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
