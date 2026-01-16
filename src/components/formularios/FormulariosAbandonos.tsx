@@ -12,6 +12,7 @@ import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter
 import { useFormulariosSessoes, useFormulariosTemplates, useDeleteSessao, FormularioSessao, FormularioEtapa } from "@/hooks/useFormularios";
 import { Skeleton } from "@/components/ui/skeleton";
 import AbandonoDetailsDialog from "./AbandonoDetailsDialog";
+import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -225,7 +226,7 @@ export default function FormulariosAbandonos() {
                           {email}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {telefone}
+                          {telefone !== "-" ? formatPhoneDisplay(telefone) : "-"}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">

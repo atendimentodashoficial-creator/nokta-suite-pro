@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import LeadDetailsDialog from "./LeadDetailsDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { formatPhoneDisplay } from "@/utils/phoneFormat";
 
 const statusColors: Record<string, string> = {
   novo: "bg-blue-500/10 text-blue-500 border-blue-500/20",
@@ -239,7 +240,7 @@ export default function FormulariosLeads() {
                       </TableCell>
                       <TableCell>{lead.nome || "-"}</TableCell>
                       <TableCell>{lead.email || "-"}</TableCell>
-                      <TableCell>{lead.telefone || "-"}</TableCell>
+                      <TableCell>{lead.telefone ? formatPhoneDisplay(lead.telefone) : "-"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={statusColors[lead.status]}>
                           {statusLabels[lead.status] || lead.status}
