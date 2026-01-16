@@ -159,7 +159,8 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               className="flex items-center gap-2 p-2 rounded-md border"
               style={{ 
                 borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
-                backgroundColor: cardColor,
+                backgroundColor: "#ffffff",
+                borderRadius: `${parseInt(borderRadius) / 2}px`,
               }}
             >
               <Checkbox 
@@ -184,7 +185,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
       <div 
         className="w-full h-8 rounded-md border px-2 flex items-center text-xs"
         style={{ 
-          backgroundColor: cardColor,
+          backgroundColor: "#ffffff",
           borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
           borderRadius: `${parseInt(borderRadius) / 2}px`,
         }}
