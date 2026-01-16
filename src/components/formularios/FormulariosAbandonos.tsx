@@ -1,22 +1,32 @@
 import { useState } from "react";
 import { format, differenceInSeconds } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, Eye, AlertTriangle, Clock, Target } from "lucide-react";
+import { Eye, AlertTriangle, Clock, Target, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
-import { useFormulariosSessoes, useFormulariosTemplates, FormularioSessao, FormularioEtapa } from "@/hooks/useFormularios";
+import { useFormulariosSessoes, useFormulariosTemplates, useDeleteSessao, FormularioSessao, FormularioEtapa } from "@/hooks/useFormularios";
 import { Skeleton } from "@/components/ui/skeleton";
 import AbandonoDetailsDialog from "./AbandonoDetailsDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function FormulariosAbandonos() {
   const [templateFilter, setTemplateFilter] = useState<string>("all");
   const [selectedSessao, setSelectedSessao] = useState<FormularioSessao | null>(null);
+  const [sessaoToDelete, setSessaoToDelete] = useState<string | null>(null);
   
   const { periodFilter, dateStart, dateEnd, setPeriodFilter, setDateStart, setDateEnd } = usePeriodFilter();
   
@@ -26,6 +36,7 @@ export default function FormulariosAbandonos() {
     dateStart,
     dateEnd,
   });
+  const deleteSessao = useDeleteSessao();
 
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;
@@ -191,13 +202,23 @@ export default function FormulariosAbandonos() {
                         <TableCell>{formatDuration(tempoSessao)}</TableCell>
                         <TableCell>{sessao.formularios_templates?.nome || "-"}</TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedSessao(sessao)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSelectedSessao(sessao)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSessaoToDelete(sessao.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -214,6 +235,31 @@ export default function FormulariosAbandonos() {
         open={!!selectedSessao}
         onOpenChange={(open) => !open && setSelectedSessao(null)}
       />
+
+      <AlertDialog open={!!sessaoToDelete} onOpenChange={(open) => !open && setSessaoToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir registro de abandono?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O registro será permanentemente removido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (sessaoToDelete) {
+                  deleteSessao.mutate(sessaoToDelete);
+                  setSessaoToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

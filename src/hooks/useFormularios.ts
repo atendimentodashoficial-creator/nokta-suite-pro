@@ -429,6 +429,29 @@ export function useFormulariosSessoes(filters?: { templateId?: string; dateStart
   });
 }
 
+export function useDeleteSessao() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("formularios_sessoes")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["formularios-sessoes"] });
+      queryClient.invalidateQueries({ queryKey: ["formularios-dashboard"] });
+      toast.success("Registro de abandono excluído");
+    },
+    onError: () => {
+      toast.error("Erro ao excluir registro");
+    },
+  });
+}
+
 // Dashboard Stats
 export function useFormulariosDashboard(dateStart?: Date, dateEnd?: Date) {
   const { user } = useAuth();
