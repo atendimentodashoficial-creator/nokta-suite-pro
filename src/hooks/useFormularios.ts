@@ -307,7 +307,7 @@ export function useFormulariosLeads(filters?: { status?: string; templateId?: st
     queryFn: async () => {
       let query = supabase
         .from("formularios_leads")
-        .select("*, formularios_templates(nome)")
+        .select("*, formularios_templates(nome, formularios_etapas(*))")
         .order("created_at", { ascending: false });
       
       if (filters?.status) {
@@ -325,7 +325,7 @@ export function useFormulariosLeads(filters?: { status?: string; templateId?: st
       
       const { data, error } = await query;
       if (error) throw error;
-      return data as (FormularioLead & { formularios_templates: { nome: string } | null })[];
+      return data as (FormularioLead & { formularios_templates: { nome: string; formularios_etapas: FormularioEtapa[] } | null })[];
     },
     enabled: !!user,
   });
