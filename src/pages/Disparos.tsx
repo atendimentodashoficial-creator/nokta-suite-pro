@@ -26,6 +26,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card } from "@/components/ui/card";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 
 interface DisparosInstancia {
   id: string;
@@ -39,7 +40,7 @@ export default function Disparos() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState("conversas");
+  const [activeTab, setActiveTab] = useTabPersistence("tab", "conversas");
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [chats, setChats] = useState<any[]>([]);
   const [chatsLoaded, setChatsLoaded] = useState(false);

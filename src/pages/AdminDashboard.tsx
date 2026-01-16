@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -196,6 +197,7 @@ const SortableUserCard = ({ user, onEdit, onBlock, onUnblock, onLogin }: Sortabl
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [activeAdminTab, setActiveAdminTab] = useTabPersistence("tab", "metrics");
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -589,7 +591,7 @@ export default function AdminDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="metrics" className="w-full">
+        <Tabs value={activeAdminTab} onValueChange={setActiveAdminTab} className="w-full">
           <TabsList className="h-8 mx-auto mb-8">
             <TabsTrigger value="metrics" className="text-xs px-3 h-7">Métricas</TabsTrigger>
             <TabsTrigger value="dashboard" className="text-xs px-3 h-7">Dashboard</TabsTrigger>

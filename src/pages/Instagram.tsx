@@ -1,12 +1,12 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Zap, BarChart3, FileText, Instagram as InstagramIcon } from "lucide-react";
 import { InstagramGatilhosTab } from "@/components/instagram/InstagramGatilhosTab";
 import { InstagramHistoricoTab } from "@/components/instagram/InstagramHistoricoTab";
 import { InstagramFormulariosTab } from "@/components/instagram/InstagramFormulariosTab";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 
 export default function Instagram() {
-  const [activeTab, setActiveTab] = useState("gatilhos");
+  const [activeTab, setActiveTab] = useTabPersistence("tab", "gatilhos");
 
   return (
     <div className="space-y-6">

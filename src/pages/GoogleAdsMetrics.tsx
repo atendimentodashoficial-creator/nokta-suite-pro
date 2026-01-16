@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +80,9 @@ type SortColumn = "campaign_name" | "status" | "impressions" | "clicks" | "ctr" 
 export default function GoogleAdsMetrics() {
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Tab persistente
+  const [activeGoogleTab, setActiveGoogleTab] = useTabPersistence("tab", "accounts");
   
   const [loading, setLoading] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
@@ -472,7 +476,7 @@ export default function GoogleAdsMetrics() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="accounts" className="space-y-6">
+      <Tabs value={activeGoogleTab} onValueChange={setActiveGoogleTab} className="space-y-6">
         <TabsList className="h-8">
           <TabsTrigger value="accounts" className="gap-1.5 text-xs px-3 h-7">
             <Wallet className="h-3.5 w-3.5" />
