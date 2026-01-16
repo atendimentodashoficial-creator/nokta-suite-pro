@@ -69,93 +69,67 @@ export default function AbandonoDetailsDialog({ sessao, open, onOpenChange }: Ab
           <Separator />
 
           <div>
-            <h4 className="font-semibold mb-4">Progresso das Etapas</h4>
-            <div className="space-y-3">
+            <h4 className="font-semibold mb-3">Progresso das Etapas</h4>
+            <div className="grid grid-cols-1 gap-3">
               {etapas.map((etapa) => {
                 const isCompleted = etapa.ordem < sessao.etapa_atual;
                 const isCurrent = etapa.ordem === sessao.etapa_atual;
                 const isAbandoned = isCurrent;
                 
                 // Buscar dados preenchidos desta etapa baseado na configuração
-                // A configuração pode ter: { campos: [{ id, label }] } ou { opcoes: [...] }
                 const etapaConfig = etapa.configuracao as { 
                   campos?: { id: string; label?: string; nome?: string }[];
                   opcoes?: string[];
                 } | null;
                 
-                let dadosEtapa: { key: string; label: string; value: unknown }[] = [];
+                let dadosEtapa: { key: string; value: unknown }[] = [];
                 
                 if (etapaConfig?.campos && etapaConfig.campos.length > 0) {
-                  // Etapa com múltiplos campos
                   dadosEtapa = etapaConfig.campos
                     .map(campo => ({
                       key: campo.id,
-                      label: campo.label || campo.nome || campo.id,
                       value: dadosParciais[campo.id]
                     }))
                     .filter(d => d.value !== undefined && d.value !== null && d.value !== "");
-                } else if (etapaConfig?.opcoes) {
-                  // Etapa de seleção única (radio/select) - o ID da etapa é a chave
-                  const value = dadosParciais[etapa.id];
-                  if (value !== undefined && value !== null && value !== "") {
-                    dadosEtapa = [{ key: etapa.id, label: etapa.titulo, value }];
-                  }
                 } else {
-                  // Etapa de campo único (texto, telefone, email) - o ID da etapa é a chave
                   const value = dadosParciais[etapa.id];
                   if (value !== undefined && value !== null && value !== "") {
-                    dadosEtapa = [{ key: etapa.id, label: etapa.titulo, value }];
+                    dadosEtapa = [{ key: etapa.id, value }];
                   }
                 }
                 
                 return (
                   <div
                     key={etapa.id}
-                    className={`p-3 rounded-lg border ${
+                    className={`bg-muted p-3 rounded-lg ${
                       isAbandoned 
-                        ? "border-destructive/50 bg-destructive/5" 
+                        ? "border-l-4 border-l-destructive" 
                         : isCompleted 
-                          ? "border-green-500/50 bg-green-500/5"
-                          : "border-muted"
+                          ? "border-l-4 border-l-green-500"
+                          : ""
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5">
-                        {isCompleted ? (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        ) : isAbandoned ? (
-                          <XCircle className="h-5 w-5 text-destructive" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">Etapa {etapa.ordem}: {etapa.titulo}</p>
-                          {isAbandoned && (
-                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
-                              Abandonou aqui
-                            </Badge>
-                          )}
-                        </div>
-                        {etapa.descricao && (
-                          <p className="text-sm text-muted-foreground">{etapa.descricao}</p>
-                        )}
-                        {tempoPorEtapa[etapa.ordem.toString()] && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Tempo: {formatDuration(tempoPorEtapa[etapa.ordem.toString()])}
-                          </p>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      {isCompleted ? (
+                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      ) : isAbandoned ? (
+                        <XCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      )}
+                      <p className="text-sm text-muted-foreground">{etapa.titulo}</p>
+                      {isAbandoned && (
+                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-xs ml-auto">
+                          Abandonou aqui
+                        </Badge>
+                      )}
                     </div>
-                    
-                    {/* Dados preenchidos nesta etapa */}
                     {dadosEtapa.length > 0 && (
-                      <div className="mt-3 ml-8 space-y-2">
-                        {dadosEtapa.map(({ key, label, value }) => (
-                          <div key={key} className="bg-muted/50 p-2 rounded text-sm font-medium">
+                      <div className="mt-1 ml-6">
+                        {dadosEtapa.map(({ key, value }) => (
+                          <p key={key} className="font-medium">
                             {Array.isArray(value) ? value.join(", ") : String(value)}
-                          </div>
+                          </p>
                         ))}
                       </div>
                     )}
