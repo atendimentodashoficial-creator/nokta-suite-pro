@@ -66,6 +66,7 @@ interface TemplateConfig {
   pagina_obrigado_imagens: unknown;
   pagina_obrigado_videos: unknown;
   imagens_layout: string | null;
+  fonte_tamanho_titulo: string | null;
   formularios_etapas: EtapaConfig[];
 }
 
@@ -1016,6 +1017,7 @@ export default function FormularioPublico() {
   const backButtonTextColor = config.back_button_text_color || "#ffffff";
   const answerTextColor = config.answer_text_color || "#1f2937";
   const errorTextColor = config.error_text_color || "#ef4444";
+  const questionTitleSize = config.fonte_tamanho_titulo || "16px";
 
   const isSinglePage = config.layout_tipo === "single_page";
 
@@ -1064,7 +1066,7 @@ export default function FormularioPublico() {
             {etapas.map((etapa) => (
               <div key={etapa.id} className="space-y-3">
                 <div>
-                  <Label className="text-base font-medium" style={{ color: textColor }}>
+                  <Label className="font-medium" style={{ color: textColor, fontSize: questionTitleSize }}>
                     {etapa.titulo}
                     {etapa.obrigatorio && <span style={{ color: errorTextColor }} className="ml-1">*</span>}
                   </Label>
@@ -1155,7 +1157,7 @@ export default function FormularioPublico() {
             />
           </div>
           <div className="text-center pt-2">
-            <CardTitle className="text-xl" style={{ color: textColor }}>{currentEtapa.titulo}</CardTitle>
+            <CardTitle style={{ color: textColor, fontSize: questionTitleSize }}>{currentEtapa.titulo}</CardTitle>
             {currentEtapa.descricao && (
               <CardDescription className="mt-2" style={{ color: textColor, opacity: 0.7 }}>{currentEtapa.descricao}</CardDescription>
             )}

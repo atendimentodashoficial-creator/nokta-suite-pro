@@ -1300,7 +1300,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="textColor">Cor do Texto</Label>
+                  <Label htmlFor="textColor">Cor das Perguntas</Label>
                   <div className="flex items-center gap-2">
                     <Input
                       id="textColor"
