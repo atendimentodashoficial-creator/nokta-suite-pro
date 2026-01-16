@@ -63,6 +63,7 @@ export default function FormularioPublico() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const stepStartTime = useRef<Date>(new Date());
+  const abandonWarmupDone = useRef(false);
 
   // Etapas ativas ordenadas; a navegação usa o índice (1..N), não o campo `ordem`
   // Isso evita "tela branca" caso existam ordens duplicadas/gaps.
@@ -157,17 +158,35 @@ export default function FormularioPublico() {
     loadForm();
   }, [templateId, isPreview]);
 
-  // Handle session abandonment (unload/hidden) - use fetch keepalive with anon key
+  // Handle session abandonment (unload/hidden)
+  // Nota: browsers “novos” (guia anônima / celular) podem falhar no abandono se a 1ª chamada
+  // para a função acontecer apenas no unload (por causa do preflight/CORS). Fazemos um “warmup”
+  // assim que a sessão é criada para garantir que o abandono funcione em seguida.
   useEffect(() => {
     if (!sessionId || !sessionToken || isPreview) return;
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const url = `${supabaseUrl}/functions/v1/formulario-abandono`;
+
+    // Warmup: dispara uma chamada leve enquanto a página ainda está ativa
+    // (evita depender da 1ª requisição acontecer durante o fechamento/"pagehide").
+    if (!abandonWarmupDone.current) {
+      abandonWarmupDone.current = true;
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({ action: "ping" }),
+      }).catch(() => {});
+    }
 
     const markAsAbandoned = () => {
       if (submitted) return;
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-      const url = `${supabaseUrl}/functions/v1/formulario-abandono`;
       const body = JSON.stringify({
         session_id: sessionId,
         session_token: sessionToken,
@@ -175,7 +194,6 @@ export default function FormularioPublico() {
         dados_parciais: formData,
       });
 
-      // sendBeacon cannot set required headers; fetch(keepalive) can.
       fetch(url, {
         method: "POST",
         headers: {
@@ -198,7 +216,7 @@ export default function FormularioPublico() {
       markAsAbandoned();
     };
 
-    // visibilitychange is more reliable on mobile
+    // visibilitychange é mais confiável no mobile
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("pagehide", handleBeforeUnload);
