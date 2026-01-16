@@ -1,3 +1,4 @@
+import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
@@ -143,6 +144,9 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
 
   const validImagens = imagens.filter(i => i.url);
   const validVideos = videos.filter(v => v.url && getVideoEmbedUrl(v.url));
+  
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const imageCarouselRef = useRef<HTMLDivElement>(null);
 
   // Sections render functions for thank you page
   const TituloSection = ({ obrigadoTituloSize, obrigadoTextoSize }: { obrigadoTituloSize: number, obrigadoTextoSize: number }) => (
@@ -186,50 +190,106 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
 
   const ImagensSection = () => (
     validImagens.length > 0 ? (
-      <div className="space-y-3 w-full">
-        {validImagens.map((img, idx) => (
-          <div key={`img-${idx}`} className="flex flex-col items-center space-y-1 w-full">
-            {img.titulo && (
-              <span 
-                className="font-medium text-center" 
-                style={{ 
-                  color: corTituloMidia, 
-                  fontFamily: fonteMidia,
-                  fontSize: `${Math.min(mediaTitleSize * 0.6, 14)}px` 
-                }}
-              >
-                {img.titulo}
-              </span>
-            )}
-            {img.subtitulo && (
-              <span 
-                className="text-center" 
-                style={{ 
-                  color: corSubtituloMidia, 
-                  fontFamily: fonteMidia,
-                  fontSize: `${Math.min(mediaSubtitleSize * 0.6, 11)}px` 
-                }}
-              >
-                {img.subtitulo}
-              </span>
-            )}
-            <div className="flex flex-wrap justify-center gap-2">
-              <img 
-                src={img.url} 
-                alt={img.titulo || `Imagem ${idx + 1}`} 
-                className="h-16 w-auto max-w-[80px] object-contain rounded" 
-              />
-              {img.sideImages?.filter(s => s.url).map((sideImg, sideIdx) => (
-                <img 
-                  key={`side-${idx}-${sideIdx}`}
-                  src={sideImg.url} 
-                  alt={`Imagem ${idx + 1}.${sideIdx + 1}`} 
-                  className="h-16 w-auto max-w-[80px] object-contain rounded" 
+      <div className="w-full space-y-2">
+        {/* Title/subtitle from first image */}
+        {validImagens[0]?.titulo && (
+          <span 
+            className="font-medium text-center block" 
+            style={{ 
+              color: corTituloMidia, 
+              fontFamily: fonteMidia,
+              fontSize: `${Math.min(mediaTitleSize * 0.6, 14)}px` 
+            }}
+          >
+            {validImagens[0].titulo}
+          </span>
+        )}
+        {validImagens[0]?.subtitulo && (
+          <span 
+            className="text-center block" 
+            style={{ 
+              color: corSubtituloMidia, 
+              fontFamily: fonteMidia,
+              fontSize: `${Math.min(mediaSubtitleSize * 0.6, 11)}px` 
+            }}
+          >
+            {validImagens[0].subtitulo}
+          </span>
+        )}
+        
+        {validImagens.length === 1 ? (
+          /* Single image - full width */
+          <div className="w-full aspect-video rounded overflow-hidden">
+            <img 
+              src={validImagens[0].url} 
+              alt={validImagens[0].titulo || "Imagem"} 
+              className="w-full h-full object-cover" 
+            />
+          </div>
+        ) : (
+          /* Multiple images - horizontal carousel */
+          <div className="relative w-full">
+            <div 
+              ref={imageCarouselRef}
+              className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
+              style={{ 
+                scrollbarWidth: "none", 
+                msOverflowStyle: "none",
+                WebkitOverflowScrolling: "touch",
+              }}
+              onScroll={(e) => {
+                const container = e.currentTarget;
+                const scrollLeft = container.scrollLeft;
+                const itemWidth = container.offsetWidth;
+                const newIndex = Math.round(scrollLeft / itemWidth);
+                if (newIndex !== activeImageIndex && newIndex >= 0 && newIndex < validImagens.length) {
+                  setActiveImageIndex(newIndex);
+                }
+              }}
+            >
+              <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+              {validImagens.map((img, idx) => (
+                <div 
+                  key={`img-${idx}`} 
+                  className="flex-shrink-0 w-full snap-center"
+                >
+                  <div className="w-full aspect-video rounded overflow-hidden">
+                    <img 
+                      src={img.url} 
+                      alt={img.titulo || `Imagem ${idx + 1}`} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Dot indicators */}
+            <div className="flex justify-center gap-1 mt-1">
+              {validImagens.map((_, idx) => (
+                <button 
+                  key={`dot-${idx}`}
+                  type="button"
+                  onClick={() => {
+                    if (imageCarouselRef.current) {
+                      const itemWidth = imageCarouselRef.current.offsetWidth;
+                      imageCarouselRef.current.scrollTo({
+                        left: idx * itemWidth,
+                        behavior: "smooth"
+                      });
+                    }
+                    setActiveImageIndex(idx);
+                  }}
+                  className="w-1.5 h-1.5 rounded-full transition-all"
+                  style={{ 
+                    backgroundColor: corPrimaria, 
+                    opacity: idx === activeImageIndex ? 1 : 0.3,
+                    transform: idx === activeImageIndex ? "scale(1.2)" : "scale(1)"
+                  }}
                 />
               ))}
             </div>
           </div>
-        ))}
+        )}
       </div>
     ) : null
   );
