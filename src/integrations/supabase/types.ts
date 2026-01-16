@@ -2091,6 +2091,7 @@ export type Database = {
           fonte_tamanho_subtitulo: string | null
           fonte_tamanho_titulo: string | null
           id: string
+          imagens_layout: string | null
           layout_tipo: string
           logo_url: string | null
           nome: string
@@ -2138,6 +2139,7 @@ export type Database = {
           fonte_tamanho_subtitulo?: string | null
           fonte_tamanho_titulo?: string | null
           id?: string
+          imagens_layout?: string | null
           layout_tipo?: string
           logo_url?: string | null
           nome: string
@@ -2185,6 +2187,7 @@ export type Database = {
           fonte_tamanho_subtitulo?: string | null
           fonte_tamanho_titulo?: string | null
           id?: string
+          imagens_layout?: string | null
           layout_tipo?: string
           logo_url?: string | null
           nome?: string
