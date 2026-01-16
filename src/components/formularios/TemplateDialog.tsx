@@ -16,6 +16,7 @@ interface TemplateDialogProps {
 
 export default function TemplateDialog({ open, onOpenChange, template }: TemplateDialogProps) {
   const [nome, setNome] = useState("");
+  const [slug, setSlug] = useState("");
   const [descricao, setDescricao] = useState("");
   const [status, setStatus] = useState<"ativo" | "inativo">("ativo");
   const [corPrimaria, setCorPrimaria] = useState("#8B5CF6");
@@ -23,6 +24,24 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [paginaObrigadoMensagem, setPaginaObrigadoMensagem] = useState("Recebemos suas informações. Em breve entraremos em contato.");
   const [paginaObrigadoCtaTexto, setPaginaObrigadoCtaTexto] = useState("");
   const [paginaObrigadoCtaLink, setPaginaObrigadoCtaLink] = useState("");
+
+  const generateSlug = (text: string) => {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9\-]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+  };
+
+  const handleNomeChange = (value: string) => {
+    setNome(value);
+    if (!template) {
+      setSlug(generateSlug(value));
+    }
+  };
   
   const createTemplate = useCreateTemplate();
   const updateTemplate = useUpdateTemplate();
@@ -33,6 +52,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   useEffect(() => {
     if (template) {
       setNome(template.nome);
+      setSlug(template.slug || "");
       setDescricao(template.descricao || "");
       setStatus(template.status as "ativo" | "inativo");
       setCorPrimaria(template.cor_primaria || "#8B5CF6");
@@ -42,6 +62,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoCtaLink(template.pagina_obrigado_cta_link || "");
     } else {
       setNome("");
+      setSlug("");
       setDescricao("");
       setStatus("ativo");
       setCorPrimaria("#8B5CF6");
@@ -57,6 +78,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     
     const data = {
       nome,
+      slug: slug || generateSlug(nome),
       descricao: descricao || null,
       status,
       cor_primaria: corPrimaria,
@@ -98,10 +120,29 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <Input
                   id="nome"
                   value={nome}
-                  onChange={(e) => setNome(e.target.value)}
+                  onChange={(e) => handleNomeChange(e.target.value)}
                   placeholder="Ex: Formulário de Contato"
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="slug">Link do Formulário *</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {window.location.origin}/f/
+                  </span>
+                  <Input
+                    id="slug"
+                    value={slug}
+                    onChange={(e) => setSlug(generateSlug(e.target.value))}
+                    placeholder="meu-formulario"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  URL amigável para compartilhar o formulário
+                </p>
               </div>
 
               <div className="space-y-2">

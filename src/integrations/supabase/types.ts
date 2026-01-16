@@ -2081,6 +2081,7 @@ export type Database = {
           pagina_obrigado_cta_texto: string | null
           pagina_obrigado_mensagem: string | null
           pagina_obrigado_titulo: string | null
+          slug: string | null
           status: string
           updated_at: string
           user_id: string
@@ -2095,6 +2096,7 @@ export type Database = {
           pagina_obrigado_cta_texto?: string | null
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
+          slug?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -2109,6 +2111,7 @@ export type Database = {
           pagina_obrigado_cta_texto?: string | null
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
+          slug?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -4124,6 +4127,7 @@ export type Database = {
               status: string
             }[]
           }
+      generate_slug: { Args: { input_text: string }; Returns: string }
       increment_disparos_chat_unread: {
         Args: {
           p_chat_id: string

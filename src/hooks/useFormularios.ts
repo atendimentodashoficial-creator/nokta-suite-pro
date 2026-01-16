@@ -8,6 +8,7 @@ export interface FormularioTemplate {
   user_id: string;
   nome: string;
   descricao: string | null;
+  slug: string | null;
   status: string;
   cor_primaria: string | null;
   pagina_obrigado_titulo: string | null;

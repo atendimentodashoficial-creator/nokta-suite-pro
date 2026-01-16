@@ -46,8 +46,9 @@ export default function FormulariosTemplates() {
     }
   };
 
-  const handleCopyLink = (templateId: string) => {
-    const url = `${window.location.origin}/f/${templateId}`;
+  const handleCopyLink = (template: FormularioTemplate) => {
+    const slug = template.slug || template.id;
+    const url = `${window.location.origin}/f/${slug}`;
     navigator.clipboard.writeText(url);
     toast.success("Link copiado para a área de transferência!");
   };
@@ -60,8 +61,9 @@ export default function FormulariosTemplates() {
     }
   };
 
-  const handlePreview = (templateId: string) => {
-    window.open(`/f/${templateId}?preview=true`, "_blank");
+  const handlePreview = (template: FormularioTemplate) => {
+    const slug = template.slug || template.id;
+    window.open(`/f/${slug}?preview=true`, "_blank");
   };
 
   if (managingEtapas) {
@@ -124,11 +126,11 @@ export default function FormulariosTemplates() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handlePreview(template.id)}>
+                      <DropdownMenuItem onClick={() => handlePreview(template)}>
                         <Eye className="h-4 w-4 mr-2" />
                         Visualizar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleCopyLink(template.id)}>
+                      <DropdownMenuItem onClick={() => handleCopyLink(template)}>
                         <Link2 className="h-4 w-4 mr-2" />
                         Copiar Link
                       </DropdownMenuItem>
