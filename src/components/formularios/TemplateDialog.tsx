@@ -41,6 +41,7 @@ const FONT_SIZE_OPTIONS = [
   { value: "24px", label: "24px - Extra Grande" },
   { value: "28px", label: "28px - Título" },
   { value: "32px", label: "32px - Destaque" },
+  { value: "34px", label: "34px - Impacto" },
 ];
 
 interface TemplateDialogProps {
