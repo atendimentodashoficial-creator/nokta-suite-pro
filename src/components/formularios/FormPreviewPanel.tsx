@@ -181,10 +181,20 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     );
   }
 
-  // Form preview (first step simulation)
+  // Form preview
+  const sampleFields = layoutTipo === "single_page" 
+    ? [
+        { label: "Qual seu nome?", placeholder: "Digite seu nome..." },
+        { label: "Qual seu e-mail?", placeholder: "Digite seu e-mail..." },
+        { label: "Qual seu telefone?", placeholder: "(00) 00000-0000" },
+      ]
+    : [
+        { label: "Qual seu nome?", placeholder: "Digite seu nome..." },
+      ];
+
   return (
     <div 
-      className="h-full flex items-center justify-center p-4 rounded-lg"
+      className="h-full flex items-center justify-center p-4 rounded-lg overflow-auto"
       style={{ 
         backgroundColor,
         fontFamily: `${fontFamily}, sans-serif`,
@@ -231,21 +241,26 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             </h2>
           )}
           
-          {/* Sample field */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium" style={{ color: textColor }}>
-              Qual seu nome? <span style={{ color: "#ef4444" }}>*</span>
-            </label>
-            <div 
-              className="w-full h-9 rounded-md border px-3 flex items-center text-xs"
-              style={{ 
-                backgroundColor: cardColor,
-                borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
-                color: answerTextColor,
-              }}
-            >
-              <span className="opacity-50">Digite seu nome...</span>
-            </div>
+          {/* Sample fields */}
+          <div className="space-y-3">
+            {sampleFields.map((field, idx) => (
+              <div key={idx} className="space-y-1">
+                <label className="text-xs font-medium" style={{ color: textColor }}>
+                  {field.label} <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div 
+                  className="w-full h-9 rounded-md border px-3 flex items-center text-xs"
+                  style={{ 
+                    backgroundColor: cardColor,
+                    borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
+                    color: answerTextColor,
+                    borderRadius: `${parseInt(borderRadius) / 2}px`,
+                  }}
+                >
+                  <span style={{ color: answerTextColor, opacity: 0.5 }}>{field.placeholder}</span>
+                </div>
+              </div>
+            ))}
           </div>
           
           {/* Button */}
