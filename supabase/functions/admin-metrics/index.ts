@@ -78,24 +78,29 @@ serve(async (req) => {
 
     // Buscar métricas gerais (apenas de usuários visíveis no painel)
     const [
-      { count: totalUsers },
       { count: totalLeads },
       { count: totalClientes },
       { count: totalAgendamentos },
       { count: totalFaturas },
       { count: totalFaturasFechadas },
-      { count: totalFaturasNegociacao },
-      { data: recentUsers }
+      { count: totalFaturasNegociacao }
     ] = await Promise.all([
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).in('id', visibleUserIds),
       leadsQuery,
       clientesQuery,
       agendamentosQuery,
       faturasQuery,
       faturasFechadasQuery,
-      faturasNegociacaoQuery,
-      supabase.from('profiles').select('*').in('id', visibleUserIds).order('created_at', { ascending: false })
+      faturasNegociacaoQuery
     ]);
+    
+    // Usar dados diretamente do auth em vez da tabela profiles
+    // para garantir que todos os usuários apareçam, mesmo sem registro em profiles
+    const recentUsers = filteredAuthUsers?.map(authUser => ({
+      id: authUser.id,
+      email: authUser.email,
+      full_name: authUser.user_metadata?.full_name || null,
+      created_at: authUser.created_at
+    })).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) || [];
 
     // Criar mapa de auth users para acesso rápido
     const authUsersMap = new Map(filteredAuthUsers?.map(u => [u.id, u]) || []);
@@ -165,7 +170,7 @@ serve(async (req) => {
     );
 
     console.log('[ADMIN_METRICS] Results:', {
-      totalUsers,
+      totalUsers: usersWithStats.length,
       totalLeads,
       totalClientes,
       totalAgendamentos,
