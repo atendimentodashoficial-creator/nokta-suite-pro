@@ -2072,6 +2072,9 @@ export type Database = {
       }
       formularios_templates: {
         Row: {
+          answer_text_color: string | null
+          back_button_color: string | null
+          back_button_text_color: string | null
           background_color: string | null
           border_radius: string | null
           button_text_color: string | null
@@ -2098,6 +2101,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          answer_text_color?: string | null
+          back_button_color?: string | null
+          back_button_text_color?: string | null
           background_color?: string | null
           border_radius?: string | null
           button_text_color?: string | null
@@ -2124,6 +2130,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          answer_text_color?: string | null
+          back_button_color?: string | null
+          back_button_text_color?: string | null
           background_color?: string | null
           border_radius?: string | null
           button_text_color?: string | null
