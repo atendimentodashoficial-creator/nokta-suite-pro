@@ -42,6 +42,9 @@ interface TemplateConfig {
   border_radius: string | null;
   progress_background_color: string | null;
   card_border_color: string | null;
+  back_button_color: string | null;
+  back_button_text_color: string | null;
+  answer_text_color: string | null;
   logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
@@ -745,6 +748,9 @@ export default function FormularioPublico() {
   const borderRadiusValue = config.border_radius || "12";
   const progressBgColor = config.progress_background_color || "#e5e5e5";
   const cardBorderColor = config.card_border_color || "transparent";
+  const backButtonColor = config.back_button_color || "#6b7280";
+  const backButtonTextColor = config.back_button_text_color || "#ffffff";
+  const answerTextColor = config.answer_text_color || "#1f2937";
 
   return (
     <div 
@@ -755,13 +761,14 @@ export default function FormularioPublico() {
       }}
     >
         <Card 
-          className="w-full max-w-md"
+          className="w-full max-w-md [&_input]:text-[var(--answer-color)] [&_textarea]:text-[var(--answer-color)] [&_select]:text-[var(--answer-color)]"
           style={{ 
             backgroundColor: cardColor,
             borderRadius: `${borderRadiusValue}px`,
             color: textColor,
             border: cardBorderColor && cardBorderColor !== "transparent" ? `1px solid ${cardBorderColor}` : undefined,
-          }}
+            "--answer-color": answerTextColor,
+          } as React.CSSProperties}
         >
         <CardHeader className="space-y-4">
           {config.logo_url && (
@@ -811,7 +818,12 @@ export default function FormularioPublico() {
                 variant="outline"
                 onClick={handlePrev}
                 className="flex-1"
-                style={{ borderRadius: `${parseInt(borderRadiusValue) / 2}px` }}
+                style={{ 
+                  backgroundColor: backButtonColor, 
+                  color: backButtonTextColor,
+                  borderColor: backButtonColor,
+                  borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+                }}
               >
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Voltar

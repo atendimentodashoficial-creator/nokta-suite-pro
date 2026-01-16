@@ -45,6 +45,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [borderRadius, setBorderRadius] = useState("12");
   const [progressBackgroundColor, setProgressBackgroundColor] = useState("#e5e5e5");
   const [cardBorderColor, setCardBorderColor] = useState("transparent");
+  const [backButtonColor, setBackButtonColor] = useState("#6b7280");
+  const [backButtonTextColor, setBackButtonTextColor] = useState("#ffffff");
+  const [answerTextColor, setAnswerTextColor] = useState("#1f2937");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +99,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setBorderRadius(template.border_radius || "12");
       setProgressBackgroundColor((template as any).progress_background_color || "#e5e5e5");
       setCardBorderColor((template as any).card_border_color || "transparent");
+      setBackButtonColor((template as any).back_button_color || "#6b7280");
+      setBackButtonTextColor((template as any).back_button_text_color || "#ffffff");
+      setAnswerTextColor((template as any).answer_text_color || "#1f2937");
       setLogoUrl(template.logo_url || null);
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
@@ -117,6 +123,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setBorderRadius("12");
       setProgressBackgroundColor("#e5e5e5");
       setCardBorderColor("transparent");
+      setBackButtonColor("#6b7280");
+      setBackButtonTextColor("#ffffff");
+      setAnswerTextColor("#1f2937");
       setLogoUrl(null);
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
@@ -230,6 +239,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       border_radius: borderRadius,
       progress_background_color: progressBackgroundColor,
       card_border_color: cardBorderColor,
+      back_button_color: backButtonColor,
+      back_button_text_color: backButtonTextColor,
+      answer_text_color: answerTextColor,
       logo_url: logoUrl,
       pagina_obrigado_titulo: paginaObrigadoTitulo,
       pagina_obrigado_mensagem: paginaObrigadoMensagem,
@@ -531,6 +543,67 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="backButtonColor">Cor do Botão Voltar</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="backButtonColor"
+                      type="color"
+                      value={backButtonColor}
+                      onChange={(e) => setBackButtonColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={backButtonColor}
+                      onChange={(e) => setBackButtonColor(e.target.value)}
+                      placeholder="#6b7280"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="backButtonTextColor">Texto do Botão Voltar</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="backButtonTextColor"
+                      type="color"
+                      value={backButtonTextColor}
+                      onChange={(e) => setBackButtonTextColor(e.target.value)}
+                      className="w-12 h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={backButtonTextColor}
+                      onChange={(e) => setBackButtonTextColor(e.target.value)}
+                      placeholder="#ffffff"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="answerTextColor">Cor do Texto das Respostas</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="answerTextColor"
+                    type="color"
+                    value={answerTextColor}
+                    onChange={(e) => setAnswerTextColor(e.target.value)}
+                    className="w-12 h-10 p-1 cursor-pointer"
+                  />
+                  <Input
+                    value={answerTextColor}
+                    onChange={(e) => setAnswerTextColor(e.target.value)}
+                    placeholder="#1f2937"
+                    className="flex-1"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Cor do texto digitado nos campos de formulário
+                </p>
+              </div>
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
