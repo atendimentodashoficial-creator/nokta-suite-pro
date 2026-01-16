@@ -35,6 +35,8 @@ export interface FormularioTemplate {
   button_text_color: string | null;
   border_radius: string | null;
   progress_background_color: string | null;
+  barra_progresso_visivel: boolean | null;
+  fonte_tamanho_indicador_etapa: string | null;
   card_border_color: string | null;
   back_button_color: string | null;
   back_button_text_color: string | null;

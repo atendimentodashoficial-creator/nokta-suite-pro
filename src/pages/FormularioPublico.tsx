@@ -48,6 +48,7 @@ interface TemplateConfig {
   button_text_color: string | null;
   border_radius: string | null;
   progress_background_color: string | null;
+  barra_progresso_visivel?: boolean | null;
   card_border_color: string | null;
   back_button_color: string | null;
   back_button_text_color: string | null;
@@ -80,6 +81,7 @@ interface TemplateConfig {
   fonte_tamanho_obrigado_texto?: string | null;
   fonte_tamanho_obrigado_botao?: string | null;
   fonte_tamanho_descricao_etapa?: string | null;
+  fonte_tamanho_indicador_etapa?: string | null;
   cor_descricao_etapa?: string | null;
   cor_indicador_etapa?: string | null;
   whatsapp_instancia_id?: string | null;
@@ -1361,20 +1363,28 @@ export default function FormularioPublico() {
               )}
             </div>
           )}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm" style={{ color: config.cor_indicador_etapa || "#6b7280" }}>
-              <span>Etapa {currentStep} de {totalSteps}</span>
-              <span>{Math.round(progress)}%</span>
+          {(config.barra_progresso_visivel !== false) && (
+            <div className="space-y-2">
+              <div
+                className="flex items-center justify-between"
+                style={{
+                  color: config.cor_indicador_etapa || "#6b7280",
+                  fontSize: config.fonte_tamanho_indicador_etapa || "14px",
+                }}
+              >
+                <span>Etapa {currentStep} de {totalSteps}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <Progress
+                value={progress}
+                className="h-2"
+                style={{
+                  "--progress-color": primaryColor,
+                  "--progress-background": progressBgColor,
+                } as React.CSSProperties}
+              />
             </div>
-            <Progress 
-              value={progress} 
-              className="h-2" 
-              style={{ 
-                "--progress-color": primaryColor,
-                "--progress-background": progressBgColor,
-              } as React.CSSProperties} 
-            />
-          </div>
+          )}
           <div className="text-left pt-2">
             <CardTitle style={{ color: textColor, fontSize: questionTitleSize }}>{currentEtapa.titulo}</CardTitle>
             {currentEtapa.descricao && (

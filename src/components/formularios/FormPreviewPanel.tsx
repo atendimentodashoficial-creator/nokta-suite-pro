@@ -56,6 +56,7 @@ interface FormPreviewPanelProps {
     corSubtituloMidia?: string;
     // Step description styling
     fonteTamanhoDescricaoEtapa?: string;
+    fonteTamanhoIndicadorEtapa?: string;
     corDescricaoEtapa?: string;
     corIndicadorEtapa?: string;
   };
@@ -148,6 +149,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     corSubtituloMidia = "#6b7280",
     // Step description styling
     fonteTamanhoDescricaoEtapa = "14px",
+    fonteTamanhoIndicadorEtapa = "14px",
     corDescricaoEtapa = "#6b7280",
     corIndicadorEtapa = "#6b7280",
   } = config;
@@ -717,7 +719,12 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 <ChevronLeft className="h-3 w-3 mr-1" />
                 Voltar
               </Button>
-              <span className="text-xs" style={{ color: corIndicadorEtapa }}>
+              <span
+                style={{
+                  color: corIndicadorEtapa,
+                  fontSize: `${Math.min((parseInt(fonteTamanhoIndicadorEtapa) || 14) * 0.85, 18)}px`,
+                }}
+              >
                 {currentEtapaIndex + 1}/{etapas.length}
               </span>
               <Button
