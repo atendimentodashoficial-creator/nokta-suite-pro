@@ -1702,9 +1702,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         className="flex-1"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Usa a cor primária
-                    </p>
                   </div>
 
                   <div className="space-y-2">
