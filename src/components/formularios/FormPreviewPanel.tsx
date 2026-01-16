@@ -4,6 +4,8 @@ import { CheckCircle2 } from "lucide-react";
 import { MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
 import { Checkbox } from "@/components/ui/checkbox";
 
+type SectionType = "titulo" | "cta" | "imagens" | "videos";
+
 interface FormPreviewPanelProps {
   config: {
     nome: string;
@@ -22,10 +24,11 @@ interface FormPreviewPanelProps {
     paginaObrigadoTitulo: string;
     paginaObrigadoMensagem: string;
     paginaObrigadoCtaTexto: string;
-    paginaObrigadoVideoPosicao: "acima" | "abaixo";
+    paginaObrigadoCtaLink?: string;
     imagens: MediaItem[];
     videos: MediaItem[];
     imagensLayout?: "horizontal" | "vertical";
+    sectionOrder?: SectionType[];
     etapas: FormularioEtapa[];
     // New title fields
     titulo?: string;
@@ -95,10 +98,11 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     paginaObrigadoTitulo,
     paginaObrigadoMensagem,
     paginaObrigadoCtaTexto,
-    paginaObrigadoVideoPosicao,
+    paginaObrigadoCtaLink,
     imagens,
     videos,
     imagensLayout = "vertical",
+    sectionOrder = ["titulo", "cta", "imagens", "videos"],
     etapas,
     // New title fields with defaults
     titulo = "",
@@ -113,8 +117,121 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
 
   const validImagens = imagens.filter(i => i.url);
   const validVideos = videos.filter(v => v.url && getVideoEmbedUrl(v.url));
-  const hasMedia = validImagens.length > 0 || validVideos.length > 0;
-  const mediaAcima = paginaObrigadoVideoPosicao === "acima";
+
+  // Sections render functions for thank you page
+  const TituloSection = ({ obrigadoTituloSize, obrigadoTextoSize }: { obrigadoTituloSize: number, obrigadoTextoSize: number }) => (
+    <>
+      <div className="flex items-center justify-center gap-2">
+        <div 
+          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: corPrimaria + "20" }}
+        >
+          <CheckCircle2 className="h-4 w-4" style={{ color: corPrimaria }} />
+        </div>
+        <h2 className="font-bold" style={{ color: textColor, fontSize: `${Math.min(obrigadoTituloSize * 0.6, 20)}px` }}>
+          {paginaObrigadoTitulo || "Obrigado!"}
+        </h2>
+      </div>
+      <p className="text-center" style={{ color: textColor, opacity: 0.7, fontSize: `${Math.min(obrigadoTextoSize * 0.7, 12)}px` }}>
+        {paginaObrigadoMensagem || "Recebemos suas informações."}
+      </p>
+    </>
+  );
+
+  const CtaSection = () => (
+    paginaObrigadoCtaTexto ? (
+      <Button
+        size="sm"
+        className="mt-2"
+        style={{ 
+          backgroundColor: corPrimaria, 
+          color: buttonTextColor,
+          borderRadius: `${parseInt(borderRadius) / 2}px`,
+        }}
+      >
+        {paginaObrigadoCtaTexto}
+      </Button>
+    ) : null
+  );
+
+  const ImagensSection = () => (
+    validImagens.length > 0 ? (
+      <div className="space-y-3 w-full">
+        {validImagens.map((img, idx) => (
+          <div key={`img-${idx}`} className="flex flex-col items-center space-y-1 w-full">
+            {img.titulo && (
+              <span className="text-[10px] font-medium text-center" style={{ color: textColor }}>
+                {img.titulo}
+              </span>
+            )}
+            {img.subtitulo && (
+              <span className="text-[8px] text-center" style={{ color: textColor, opacity: 0.7 }}>
+                {img.subtitulo}
+              </span>
+            )}
+            <div className="flex flex-wrap justify-center gap-2">
+              <img 
+                src={img.url} 
+                alt={img.titulo || `Imagem ${idx + 1}`} 
+                className="h-16 w-auto max-w-[80px] object-contain rounded" 
+              />
+              {img.sideImages?.filter(s => s.url).map((sideImg, sideIdx) => (
+                <img 
+                  key={`side-${idx}-${sideIdx}`}
+                  src={sideImg.url} 
+                  alt={`Imagem ${idx + 1}.${sideIdx + 1}`} 
+                  className="h-16 w-auto max-w-[80px] object-contain rounded" 
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null
+  );
+
+  const VideosSection = () => (
+    validVideos.length > 0 ? (
+      <div className="w-full space-y-3">
+        {validVideos.map((vid, idx) => (
+          <div key={`vid-${idx}`} className="space-y-1">
+            {vid.titulo && (
+              <h3 className="text-sm font-semibold text-center" style={{ color: textColor }}>
+                {vid.titulo}
+              </h3>
+            )}
+            {vid.subtitulo && (
+              <p className="text-xs text-center" style={{ color: textColor, opacity: 0.7 }}>
+                {vid.subtitulo}
+              </p>
+            )}
+            <div className={`grid gap-2 ${vid.sideVideos?.filter(s => s.url && getVideoEmbedUrl(s.url)).length ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              <div className="w-full aspect-video rounded overflow-hidden">
+                <iframe
+                  src={getVideoEmbedUrl(vid.url)!}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={vid.titulo || `Video ${idx + 1}`}
+                />
+              </div>
+              {vid.sideVideos?.filter(s => s.url && getVideoEmbedUrl(s.url)).map((sideVid, sideIdx) => (
+                <div key={`side-vid-${idx}-${sideIdx}`} className="w-full aspect-video rounded overflow-hidden">
+                  <iframe
+                    src={getVideoEmbedUrl(sideVid.url)!}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={`Video ${idx + 1}.${sideIdx + 1}`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null
+  );
 
   const MediaSection = () => (
     <div className="w-full space-y-3">
@@ -286,6 +403,21 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     const obrigadoTituloSize = parseInt(fonteTamanhoObrigadoTitulo) || 28;
     const obrigadoTextoSize = parseInt(fonteTamanhoObrigadoTexto) || 16;
     
+    const renderSection = (sectionType: SectionType) => {
+      switch (sectionType) {
+        case "titulo":
+          return <TituloSection key="titulo" obrigadoTituloSize={obrigadoTituloSize} obrigadoTextoSize={obrigadoTextoSize} />;
+        case "cta":
+          return <CtaSection key="cta" />;
+        case "imagens":
+          return <ImagensSection key="imagens" />;
+        case "videos":
+          return <VideosSection key="videos" />;
+        default:
+          return null;
+      }
+    };
+    
     return (
       <div 
         className="h-full flex items-center justify-center p-4 rounded-lg"
@@ -304,39 +436,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           }}
         >
           <CardContent className="flex flex-col items-center justify-center py-6 px-4 space-y-3">
-            {mediaAcima && hasMedia && <MediaSection />}
-            
-            <div className="flex items-center justify-center gap-2">
-              <div 
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: corPrimaria + "20" }}
-              >
-                <CheckCircle2 className="h-4 w-4" style={{ color: corPrimaria }} />
-              </div>
-              <h2 className="font-bold" style={{ color: textColor, fontSize: `${Math.min(obrigadoTituloSize * 0.6, 20)}px` }}>
-                {paginaObrigadoTitulo || "Obrigado!"}
-              </h2>
-            </div>
-            
-            <p className="text-center" style={{ color: textColor, opacity: 0.7, fontSize: `${Math.min(obrigadoTextoSize * 0.7, 12)}px` }}>
-              {paginaObrigadoMensagem || "Recebemos suas informações."}
-            </p>
-
-            {!mediaAcima && hasMedia && <MediaSection />}
-
-            {paginaObrigadoCtaTexto && (
-              <Button
-                size="sm"
-                className="mt-2"
-                style={{ 
-                  backgroundColor: corPrimaria, 
-                  color: buttonTextColor,
-                  borderRadius: `${parseInt(borderRadius) / 2}px`,
-                }}
-              >
-                {paginaObrigadoCtaTexto}
-              </Button>
-            )}
+            {sectionOrder.map(renderSection)}
           </CardContent>
         </Card>
       </div>

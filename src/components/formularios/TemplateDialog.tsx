@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useCreateTemplate, useUpdateTemplate, useFormularioTemplate, FormularioTemplate, MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload, X, Loader2, Plus, Trash2, ChevronDown, Palette, Type, Settings2 } from "lucide-react";
+import { Upload, X, Loader2, Plus, Trash2, ChevronDown, ChevronUp, Palette, Type, Link2, Video, Image, GripVertical, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import FormPreviewPanel from "./FormPreviewPanel";
 
@@ -102,6 +102,24 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [imagensLayout, setImagensLayout] = useState<"horizontal" | "vertical">("vertical");
   const [uploadingImagemIndex, setUploadingImagemIndex] = useState<number | null>(null);
   const imagemInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  // Section order for thank you page
+  type SectionType = "titulo" | "cta" | "imagens" | "videos";
+  const [sectionOrder, setSectionOrder] = useState<SectionType[]>(["titulo", "cta", "imagens", "videos"]);
+  
+  const moveSectionUp = (index: number) => {
+    if (index === 0) return;
+    const newOrder = [...sectionOrder];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    setSectionOrder(newOrder);
+  };
+  
+  const moveSectionDown = (index: number) => {
+    if (index === sectionOrder.length - 1) return;
+    const newOrder = [...sectionOrder];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    setSectionOrder(newOrder);
+  };
 
   const generateSlug = (text: string) => {
     return text
@@ -550,10 +568,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     paginaObrigadoTitulo,
     paginaObrigadoMensagem,
     paginaObrigadoCtaTexto,
-    paginaObrigadoVideoPosicao,
+    paginaObrigadoCtaLink,
     imagens,
     videos,
     imagensLayout,
+    sectionOrder,
     etapas,
     // New title fields
     titulo,
@@ -1074,346 +1093,359 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
             </TabsContent>
 
             <TabsContent value="obrigado" className="space-y-4 mt-4">
-              {/* Título e Mensagem - Collapsible */}
-              <Collapsible defaultOpen>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
-                    <span className="flex items-center gap-2">
-                      <Type className="h-4 w-4" />
-                      Título e Mensagem
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 pt-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="obrigadoTitulo">Título</Label>
-                    <Input
-                      id="obrigadoTitulo"
-                      value={paginaObrigadoTitulo}
-                      onChange={(e) => setPaginaObrigadoTitulo(e.target.value)}
-                      placeholder="Obrigado!"
-                    />
+              {/* Render sections in order */}
+              {sectionOrder.map((sectionType, sectionIndex) => {
+                const isFirst = sectionIndex === 0;
+                const isLast = sectionIndex === sectionOrder.length - 1;
+                
+                const SectionHeader = ({ icon: Icon, title }: { icon: React.ComponentType<{ className?: string }>, title: string }) => (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Icon className="h-4 w-4" />
+                    <span>{title}</span>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="obrigadoMensagem">Mensagem</Label>
-                    <Textarea
-                      id="obrigadoMensagem"
-                      value={paginaObrigadoMensagem}
-                      onChange={(e) => setPaginaObrigadoMensagem(e.target.value)}
-                      placeholder="Recebemos suas informações..."
-                      rows={3}
-                    />
+                );
+                
+                const ReorderButtons = () => (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); moveSectionUp(sectionIndex); }}
+                      disabled={isFirst}
+                      className={`p-1 rounded hover:bg-muted ${isFirst ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); moveSectionDown(sectionIndex); }}
+                      disabled={isLast}
+                      className={`p-1 rounded hover:bg-muted ${isLast ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                );
 
-              {/* Botão/Link CTA - Collapsible */}
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
-                    <span className="flex items-center gap-2">
-                      <Settings2 className="h-4 w-4" />
-                      Botão de Ação (CTA)
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 pt-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="ctaTexto">Texto do Botão</Label>
-                    <Input
-                      id="ctaTexto"
-                      value={paginaObrigadoCtaTexto}
-                      onChange={(e) => setPaginaObrigadoCtaTexto(e.target.value)}
-                      placeholder="Ex: Voltar ao Site"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="ctaLink">Link do Botão</Label>
-                    <Input
-                      id="ctaLink"
-                      value={paginaObrigadoCtaLink}
-                      onChange={(e) => setPaginaObrigadoCtaLink(e.target.value)}
-                      placeholder="https://exemplo.com"
-                    />
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Multiple Images Section - Collapsible */}
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
-                    <span className="flex items-center gap-2">
-                      <Upload className="h-4 w-4" />
-                      Imagens {imagens.length > 0 && `(${imagens.length})`}
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 pt-3">
-                  {/* Each image row with its own card */}
-                  {imagens.map((img, index) => (
-                    <div key={index} className="border rounded-lg p-3 space-y-2 relative">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={() => removeImagem(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      
-                      <div className="space-y-2">
-                        <Label>Título</Label>
-                        <Input
-                          placeholder="Título da imagem (opcional)"
-                          value={img.titulo}
-                          onChange={(e) => updateImagem(index, "titulo", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Subtítulo</Label>
-                        <Input
-                          placeholder="Subtítulo da imagem (opcional)"
-                          value={img.subtitulo}
-                          onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {img.url ? (
-                          <div className="relative group">
-                            <img 
-                              src={img.url} 
-                              alt={`Imagem ${index + 1}`} 
-                              className="h-16 w-auto max-w-24 object-contain rounded border" 
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateImagem(index, "url", "")}
-                              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
-                            >
-                              <X className="h-2.5 w-2.5" />
-                            </button>
+                if (sectionType === "titulo") {
+                  return (
+                    <Collapsible key={sectionType} defaultOpen={sectionIndex === 0}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" type="button" className="w-full justify-between">
+                          <SectionHeader icon={Type} title="Título e Mensagem" />
+                          <div className="flex items-center gap-2">
+                            <ReorderButtons />
+                            <ChevronDown className="h-4 w-4" />
                           </div>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => imagemInputRefs.current[index]?.click()}
-                            disabled={uploadingImagemIndex === index}
-                            className="h-16 w-16"
-                          >
-                            {uploadingImagemIndex === index ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
-                        <input
-                          ref={(el) => (imagemInputRefs.current[index] = el)}
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleMultiImageUpload(e, index)}
-                          className="hidden"
-                        />
-                        
-                        {/* Side-by-side images - only show if first image is uploaded */}
-                        {img.url && img.sideImages?.map((sideImg, sideIndex) => (
-                          <div key={sideIndex} className="relative group">
-                            {sideImg.url ? (
-                              <>
-                                <img 
-                                  src={sideImg.url} 
-                                  alt={`Imagem ${index + 1}.${sideIndex + 1}`} 
-                                  className="h-16 w-auto max-w-24 object-contain rounded border" 
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => removeSideImage(index, sideIndex)}
-                                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
-                                >
-                                  <X className="h-2.5 w-2.5" />
-                                </button>
-                              </>
-                            ) : (
-                              <div className="flex items-center gap-1">
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3 pt-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="obrigadoTitulo">Título</Label>
+                          <Input
+                            id="obrigadoTitulo"
+                            value={paginaObrigadoTitulo}
+                            onChange={(e) => setPaginaObrigadoTitulo(e.target.value)}
+                            placeholder="Obrigado!"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="obrigadoMensagem">Mensagem</Label>
+                          <Textarea
+                            id="obrigadoMensagem"
+                            value={paginaObrigadoMensagem}
+                            onChange={(e) => setPaginaObrigadoMensagem(e.target.value)}
+                            placeholder="Recebemos suas informações..."
+                            rows={3}
+                          />
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                }
+
+                if (sectionType === "cta") {
+                  return (
+                    <Collapsible key={sectionType}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" type="button" className="w-full justify-between">
+                          <SectionHeader icon={Link2} title="Botão de Ação (CTA)" />
+                          <div className="flex items-center gap-2">
+                            <ReorderButtons />
+                            <ChevronDown className="h-4 w-4" />
+                          </div>
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3 pt-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="ctaTexto">Texto do Botão</Label>
+                          <Input
+                            id="ctaTexto"
+                            value={paginaObrigadoCtaTexto}
+                            onChange={(e) => setPaginaObrigadoCtaTexto(e.target.value)}
+                            placeholder="Ex: Voltar ao Site"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="ctaLink">Link do Botão</Label>
+                          <Input
+                            id="ctaLink"
+                            value={paginaObrigadoCtaLink}
+                            onChange={(e) => setPaginaObrigadoCtaLink(e.target.value)}
+                            placeholder="https://exemplo.com"
+                          />
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                }
+
+                if (sectionType === "imagens") {
+                  return (
+                    <Collapsible key={sectionType}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" type="button" className="w-full justify-between">
+                          <SectionHeader icon={Image} title={`Imagens ${imagens.length > 0 ? `(${imagens.length})` : ''}`} />
+                          <div className="flex items-center gap-2">
+                            <ReorderButtons />
+                            <ChevronDown className="h-4 w-4" />
+                          </div>
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3 pt-3">
+                        {imagens.map((img, index) => (
+                          <div key={index} className="border rounded-lg p-3 space-y-2 relative">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => removeImagem(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            
+                            <div className="space-y-2">
+                              <Label>Título</Label>
+                              <Input
+                                placeholder="Título da imagem (opcional)"
+                                value={img.titulo}
+                                onChange={(e) => updateImagem(index, "titulo", e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Subtítulo</Label>
+                              <Input
+                                placeholder="Subtítulo da imagem (opcional)"
+                                value={img.subtitulo}
+                                onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
+                              />
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {img.url ? (
+                                <div className="relative group">
+                                  <img 
+                                    src={img.url} 
+                                    alt={`Imagem ${index + 1}`} 
+                                    className="h-16 w-auto max-w-24 object-contain rounded border" 
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => updateImagem(index, "url", "")}
+                                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
+                                  >
+                                    <X className="h-2.5 w-2.5" />
+                                  </button>
+                                </div>
+                              ) : (
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => {
-                                    const input = document.createElement('input');
-                                    input.type = 'file';
-                                    input.accept = 'image/*';
-                                    input.onchange = (e) => handleSideImageUpload(e as any, index, sideIndex);
-                                    input.click();
-                                  }}
+                                  onClick={() => imagemInputRefs.current[index]?.click()}
+                                  disabled={uploadingImagemIndex === index}
                                   className="h-16 w-16"
                                 >
-                                  <Upload className="h-4 w-4" />
+                                  {uploadingImagemIndex === index ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Upload className="h-4 w-4" />
+                                  )}
                                 </Button>
-                                <button
+                              )}
+                              <input
+                                ref={(el) => (imagemInputRefs.current[index] = el)}
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleMultiImageUpload(e, index)}
+                                className="hidden"
+                              />
+                              
+                              {img.url && img.sideImages?.map((sideImg, sideIndex) => (
+                                <div key={sideIndex} className="relative group">
+                                  {sideImg.url ? (
+                                    <>
+                                      <img 
+                                        src={sideImg.url} 
+                                        alt={`Imagem ${index + 1}.${sideIndex + 1}`} 
+                                        className="h-16 w-auto max-w-24 object-contain rounded border" 
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeSideImage(index, sideIndex)}
+                                        className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
+                                      >
+                                        <X className="h-2.5 w-2.5" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          const input = document.createElement('input');
+                                          input.type = 'file';
+                                          input.accept = 'image/*';
+                                          input.onchange = (e) => handleSideImageUpload(e as any, index, sideIndex);
+                                          input.click();
+                                        }}
+                                        className="h-16 w-16"
+                                      >
+                                        <Upload className="h-4 w-4" />
+                                      </Button>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeSideImage(index, sideIndex)}
+                                        className="text-destructive hover:text-destructive/80"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              
+                              {img.url && (
+                                <Button
                                   type="button"
-                                  onClick={() => removeSideImage(index, sideIndex)}
-                                  className="text-destructive hover:text-destructive/80"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => addSideImage(index)}
+                                  className="h-16 w-16 border-dashed"
+                                  title="Adicionar imagem ao lado"
                                 >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            )}
+                                  <Plus className="h-5 w-5" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         ))}
-                        
-                        {/* Add side image button - only show if main image is uploaded */}
-                        {img.url && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addSideImage(index)}
-                            className="h-16 w-16 border-dashed"
-                            title="Adicionar imagem ao lado"
-                          >
-                            <Plus className="h-5 w-5" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  <Button type="button" variant="outline" size="sm" onClick={addImagem} className="w-full">
-                    <Plus className="h-4 w-4 mr-1" /> Adicionar Imagem
-                  </Button>
-                </CollapsibleContent>
-              </Collapsible>
+                        <Button type="button" variant="outline" size="sm" onClick={addImagem} className="w-full">
+                          <Plus className="h-4 w-4 mr-1" /> Adicionar Imagem
+                        </Button>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                }
 
-              {/* Multiple Videos Section - Collapsible */}
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
-                    <span className="flex items-center gap-2">
-                      <Settings2 className="h-4 w-4" />
-                      Vídeos {videos.length > 0 && `(${videos.length})`}
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 pt-3">
-                  {videos.map((video, index) => (
-                    <div key={index} className="border rounded-lg p-3 space-y-2 relative">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={() => removeVideo(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      
-                      <div className="space-y-2">
-                        <Label>Título</Label>
-                        <Input
-                          placeholder="Título do vídeo (opcional)"
-                          value={video.titulo}
-                          onChange={(e) => updateVideo(index, "titulo", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Subtítulo</Label>
-                        <Input
-                          placeholder="Subtítulo do vídeo (opcional)"
-                          value={video.subtitulo}
-                          onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
-                        />
-                      </div>
-                      
-                      {/* Main video URL and side videos */}
-                      <div className="space-y-2">
-                        <Label>URLs dos Vídeos</Label>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <div className="flex-1 min-w-[200px]">
-                            <Input
-                              placeholder="URL do vídeo (YouTube ou Vimeo)"
-                              value={video.url}
-                              onChange={(e) => updateVideo(index, "url", e.target.value)}
-                            />
+                if (sectionType === "videos") {
+                  return (
+                    <Collapsible key={sectionType}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" type="button" className="w-full justify-between">
+                          <SectionHeader icon={Video} title={`Vídeos ${videos.length > 0 ? `(${videos.length})` : ''}`} />
+                          <div className="flex items-center gap-2">
+                            <ReorderButtons />
+                            <ChevronDown className="h-4 w-4" />
                           </div>
-                          
-                          {/* Side videos */}
-                          {video.sideVideos?.map((sideVideo, sideIndex) => (
-                            <div key={sideIndex} className="flex items-center gap-1 flex-1 min-w-[200px]">
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3 pt-3">
+                        {videos.map((video, index) => (
+                          <div key={index} className="border rounded-lg p-3 space-y-2 relative">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => removeVideo(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            
+                            <div className="space-y-2">
+                              <Label>Título</Label>
                               <Input
-                                placeholder="URL do vídeo ao lado"
-                                value={sideVideo.url}
-                                onChange={(e) => updateSideVideo(index, sideIndex, e.target.value)}
+                                placeholder="Título do vídeo (opcional)"
+                                value={video.titulo}
+                                onChange={(e) => updateVideo(index, "titulo", e.target.value)}
                               />
-                              <button
-                                type="button"
-                                onClick={() => removeSideVideo(index, sideIndex)}
-                                className="text-destructive hover:text-destructive/80 p-1"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
                             </div>
-                          ))}
-                          
-                          {/* Add side video button */}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addSideVideo(index)}
-                            className="h-9 px-3 border-dashed"
-                            title="Adicionar vídeo ao lado"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <Button type="button" variant="outline" size="sm" onClick={addVideo} className="w-full">
-                    <Plus className="h-4 w-4 mr-1" /> Adicionar Vídeo
-                  </Button>
-                </CollapsibleContent>
-              </Collapsible>
+                            <div className="space-y-2">
+                              <Label>Subtítulo</Label>
+                              <Input
+                                placeholder="Subtítulo do vídeo (opcional)"
+                                value={video.subtitulo}
+                                onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label>URLs dos Vídeos</Label>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex-1 min-w-[200px]">
+                                  <Input
+                                    placeholder="URL do vídeo (YouTube ou Vimeo)"
+                                    value={video.url}
+                                    onChange={(e) => updateVideo(index, "url", e.target.value)}
+                                  />
+                                </div>
+                                
+                                {video.sideVideos?.map((sideVideo, sideIndex) => (
+                                  <div key={sideIndex} className="flex items-center gap-1 flex-1 min-w-[200px]">
+                                    <Input
+                                      placeholder="URL do vídeo ao lado"
+                                      value={sideVideo.url}
+                                      onChange={(e) => updateSideVideo(index, sideIndex, e.target.value)}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeSideVideo(index, sideIndex)}
+                                      className="text-destructive hover:text-destructive/80 p-1"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                                
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => addSideVideo(index)}
+                                  className="h-9 px-3 border-dashed"
+                                  title="Adicionar vídeo ao lado"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={addVideo} className="w-full">
+                          <Plus className="h-4 w-4 mr-1" /> Adicionar Vídeo
+                        </Button>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                }
 
-              {/* Media Position */}
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full justify-between">
-                    <span className="flex items-center gap-2">
-                      <Settings2 className="h-4 w-4" />
-                      Posição da Mídia
-                    </span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 pt-3">
-                  <Select value={paginaObrigadoVideoPosicao} onValueChange={(v: "acima" | "abaixo") => setPaginaObrigadoVideoPosicao(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="acima">Acima do "Obrigado"</SelectItem>
-                      <SelectItem value="abaixo">Abaixo do "Obrigado"</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Escolha se as imagens e vídeos aparecem antes ou depois do título
-                  </p>
-                </CollapsibleContent>
-              </Collapsible>
+                return null;
+              })}
 
-              {/* Personalização Completa - Collapsible */}
+              {/* Personalização Visual - Always at the end */}
               <Collapsible>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" type="button" className="w-full justify-between">
