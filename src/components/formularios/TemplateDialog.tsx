@@ -1045,6 +1045,93 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </CollapsibleContent>
               </Collapsible>
 
+              {/* Colors for Thank You Page */}
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <Palette className="h-4 w-4" />
+                      Cores e Aparência
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Cor do Fundo</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="color"
+                          value={backgroundColor}
+                          onChange={(e) => setBackgroundColor(e.target.value)}
+                          className="w-10 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          value={backgroundColor}
+                          onChange={(e) => setBackgroundColor(e.target.value)}
+                          placeholder="#ffffff"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Cor do Texto</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="color"
+                          value={textColor}
+                          onChange={(e) => setTextColor(e.target.value)}
+                          className="w-10 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          value={textColor}
+                          onChange={(e) => setTextColor(e.target.value)}
+                          placeholder="#1f2937"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Cor Primária (Botão)</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="color"
+                          value={corPrimaria}
+                          onChange={(e) => setCorPrimaria(e.target.value)}
+                          className="w-10 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          value={corPrimaria}
+                          onChange={(e) => setCorPrimaria(e.target.value)}
+                          placeholder="#8B5CF6"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Texto do Botão</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="color"
+                          value={buttonTextColor}
+                          onChange={(e) => setButtonTextColor(e.target.value)}
+                          className="w-10 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          value={buttonTextColor}
+                          onChange={(e) => setButtonTextColor(e.target.value)}
+                          placeholder="#ffffff"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
               <div className="space-y-2">
                 <Label htmlFor="ctaTexto">Texto do Botão (opcional)</Label>
                 <Input
