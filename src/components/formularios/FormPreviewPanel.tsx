@@ -569,7 +569,11 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             <div className="space-y-3">
               {fieldsToShow.map((etapa) => (
                 <div key={etapa.id} className="space-y-1">
-                  <label style={{ color: textColor, fontSize: `${Math.min((parseInt(fonteTamanhoCampos) || 14) * 0.75, 12)}px`, fontWeight: 500 }}>
+                  <label style={{ 
+                    color: textColor, 
+                    fontSize: `${Math.min((parseInt(fonteTamanhoTitulo) || 16) * 0.75, 14)}px`,
+                    fontWeight: 500,
+                  }}>
                     {etapa.titulo} {etapa.obrigatorio && <span style={{ color: "#ef4444" }}>*</span>}
                   </label>
                   {renderField(etapa)}
