@@ -1029,6 +1029,19 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               </div>
 
               <div className="space-y-2">
+                <Label>Layout do Formulário</Label>
+                <Select value={layoutTipo} onValueChange={(v: "multi_step" | "single_page") => setLayoutTipo(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="multi_step">Multi-etapas (uma pergunta por vez)</SelectItem>
+                    <SelectItem value="single_page">Página única (todas as perguntas juntas)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="slug">Link do Formulário *</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
@@ -1044,65 +1057,57 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
-              {/* Title & Subtitle Section */}
-              <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-                <Label className="text-base font-semibold">Título e Subtítulo</Label>
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Aparece no formulário apenas se preenchido
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="titulo" className="text-sm">Título</Label>
-                    <Input
-                      id="titulo"
-                      value={titulo}
-                      onChange={(e) => setTitulo(e.target.value)}
-                      placeholder="Ex: Preencha seus dados"
-                    />
+              {/* Title & Subtitle Section - Collapsible */}
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center justify-between w-full border rounded-lg p-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Type className="h-4 w-4" />
+                    <span className="font-medium">Título e Subtítulo</span>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="tituloCor" className="text-sm">Cor do Título</Label>
-                    <div className="flex items-center gap-2">
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="border border-t-0 rounded-b-lg p-4 space-y-3 bg-muted/20">
+                  <p className="text-xs text-muted-foreground">
+                    Aparece no formulário apenas se preenchido
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="titulo" className="text-sm">Título</Label>
                       <Input
-                        type="color"
-                        value={tituloCor}
-                        onChange={(e) => setTituloCor(e.target.value)}
-                        className="w-10 h-9 p-1 cursor-pointer"
-                      />
-                      <Input
-                        value={tituloCor}
-                        onChange={(e) => setTituloCor(e.target.value)}
-                        className="flex-1"
+                        id="titulo"
+                        value={titulo}
+                        onChange={(e) => setTitulo(e.target.value)}
+                        placeholder="Ex: Preencha seus dados"
                       />
                     </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tituloCor" className="text-sm">Cor do Título</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="color"
+                          value={tituloCor}
+                          onChange={(e) => setTituloCor(e.target.value)}
+                          className="w-10 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          value={tituloCor}
+                          onChange={(e) => setTituloCor(e.target.value)}
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="subtitulo" className="text-sm">Subtítulo</Label>
-                  <Input
-                    id="subtitulo"
-                    value={subtitulo}
-                    onChange={(e) => setSubtitulo(e.target.value)}
-                    placeholder="Ex: É rápido e fácil"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Layout do Formulário</Label>
-                <Select value={layoutTipo} onValueChange={(v: "multi_step" | "single_page") => setLayoutTipo(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="multi_step">Multi-etapas (uma pergunta por vez)</SelectItem>
-                    <SelectItem value="single_page">Página única (todas as perguntas juntas)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Escolha como as etapas serão exibidas para o usuário
-                </p>
-              </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="subtitulo" className="text-sm">Subtítulo</Label>
+                    <Input
+                      id="subtitulo"
+                      value={subtitulo}
+                      onChange={(e) => setSubtitulo(e.target.value)}
+                      placeholder="Ex: É rápido e fácil"
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               <div className="space-y-2">
                 <Label htmlFor="descricao">Descrição</Label>
