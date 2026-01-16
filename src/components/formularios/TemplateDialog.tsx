@@ -1241,22 +1241,20 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         <Trash2 className="h-4 w-4" />
                       </Button>
                       
-                      <div className="space-y-1">
-                        <Label className="text-xs">Título</Label>
+                      <div className="space-y-2">
+                        <Label>Título</Label>
                         <Input
                           placeholder="Título da imagem (opcional)"
                           value={img.titulo}
                           onChange={(e) => updateImagem(index, "titulo", e.target.value)}
-                          className="text-sm"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Subtítulo</Label>
+                      <div className="space-y-2">
+                        <Label>Subtítulo</Label>
                         <Input
                           placeholder="Subtítulo da imagem (opcional)"
                           value={img.subtitulo}
                           onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
-                          className="text-sm"
                         />
                       </div>
                       
@@ -1393,31 +1391,28 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         <Trash2 className="h-4 w-4" />
                       </Button>
                       
-                      <div className="space-y-1">
-                        <Label className="text-xs">Título</Label>
+                      <div className="space-y-2">
+                        <Label>Título</Label>
                         <Input
                           placeholder="Título do vídeo (opcional)"
                           value={video.titulo}
                           onChange={(e) => updateVideo(index, "titulo", e.target.value)}
-                          className="text-sm"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Subtítulo</Label>
+                      <div className="space-y-2">
+                        <Label>Subtítulo</Label>
                         <Input
                           placeholder="Subtítulo do vídeo (opcional)"
                           value={video.subtitulo}
                           onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
-                          className="text-sm"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">URL do Vídeo</Label>
+                      <div className="space-y-2">
+                        <Label>URL do Vídeo</Label>
                         <Input
                           placeholder="URL do vídeo (YouTube ou Vimeo)"
                           value={video.url}
                           onChange={(e) => updateVideo(index, "url", e.target.value)}
-                          className="text-sm"
                         />
                       </div>
                     </div>
