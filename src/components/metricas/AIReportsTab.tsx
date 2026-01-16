@@ -1388,8 +1388,47 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
             </div>
           </div>
 
-          {/* Badges de status */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* Desktop: Badges + Botão na mesma linha */}
+          <div className="hidden lg:flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="gap-1">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                API Conectada
+              </Badge>
+              {funnelData && (
+                <>
+                  <Badge variant="secondary" className="gap-1">
+                    <Users className="h-3 w-3" />
+                    Leads WhatsApp: {funnelData.totals.leads}
+                  </Badge>
+                  <Badge variant="secondary" className="gap-1">
+                    <Layers className="h-3 w-3" />
+                    Leads Disparos: {funnelData.totals.leadsDisparos}
+                  </Badge>
+                </>
+              )}
+            </div>
+            
+            <Button 
+              onClick={handleGenerateClick} 
+              disabled={loading || !selectedAccount}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {loadingMessage || "Analisando..."}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Gerar Relatório
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Mobile: Badges */}
+          <div className="flex lg:hidden flex-wrap items-center gap-2 mb-4">
             <Badge variant="outline" className="gap-1">
               <CheckCircle2 className="h-3 w-3 text-green-500" />
               API Conectada
@@ -1408,10 +1447,10 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
             )}
           </div>
 
-          {/* Mobile: Período + Botão na mesma linha */}
-          <div className="flex lg:hidden items-center gap-2">
+          {/* Mobile: Período + Botão na mesma linha com mesma altura */}
+          <div className="flex lg:hidden items-stretch gap-2">
             <Select value={periodFilter} onValueChange={(v) => setPeriodFilterHook(v as any)}>
-              <SelectTrigger className="flex-1">
+              <SelectTrigger className="flex-1 h-10">
                 <Calendar className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
@@ -1432,7 +1471,7 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
             <Button 
               onClick={handleGenerateClick} 
               disabled={loading || !selectedAccount}
-              size="sm"
+              className="h-10 px-3"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1483,26 +1522,6 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
               </Popover>
             </div>
           )}
-
-          {/* Desktop: Botão no canto inferior direito */}
-          <div className="hidden lg:flex justify-end mt-2">
-            <Button 
-              onClick={handleGenerateClick} 
-              disabled={loading || !selectedAccount}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {loadingMessage || "Analisando..."}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Gerar Relatório
-                </>
-              )}
-            </Button>
-          </div>
         </CardHeader>
         
         {/* Info about stored report */}
