@@ -28,7 +28,7 @@ const FONT_OPTIONS = [
   { value: "Montserrat", label: "Montserrat" },
   { value: "Nunito", label: "Nunito" },
   { value: "Raleway", label: "Raleway" },
-  { value: "Source Sans Pro", label: "Source Sans Pro" },
+  { value: "'Source Sans 3'", label: "Source Sans" },
   { value: "PT Sans", label: "PT Sans" },
 ];
 
@@ -1255,6 +1255,21 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </Select>
                     </div>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Fonte do Formulário</Label>
+                    <Select value={fontFamily} onValueChange={setFontFamily}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma fonte" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FONT_OPTIONS.map((font) => (
+                          <SelectItem key={font.value} value={font.value}>
+                            <span style={{ fontFamily: font.value }}>{font.label}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </CollapsibleContent>
               </Collapsible>
 
@@ -1350,40 +1365,22 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="textColor">Cor das Perguntas</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="textColor"
-                      type="color"
-                      value={textColor}
-                      onChange={(e) => setTextColor(e.target.value)}
-                      className="w-12 h-10 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={textColor}
-                      onChange={(e) => setTextColor(e.target.value)}
-                      placeholder="#1f2937"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="fontFamily">Fonte</Label>
-                  <Select value={fontFamily} onValueChange={setFontFamily}>
-                    <SelectTrigger id="fontFamily">
-                      <SelectValue placeholder="Selecione uma fonte" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FONT_OPTIONS.map((font) => (
-                        <SelectItem key={font.value} value={font.value}>
-                          <span style={{ fontFamily: font.value }}>{font.label}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <Label htmlFor="textColor">Cor das Perguntas</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="textColor"
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    className="w-12 h-10 p-1 cursor-pointer"
+                  />
+                  <Input
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    placeholder="#1f2937"
+                    className="flex-1"
+                  />
                 </div>
               </div>
 
