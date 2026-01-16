@@ -219,8 +219,8 @@ export default function FormulariosLeads() {
                     </TableHead>
                     <TableHead>Data/Hora</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>E-mail</TableHead>
                     <TableHead>Telefone</TableHead>
+                    <TableHead>E-mail</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Formulário</TableHead>
                     <TableHead className="w-12"></TableHead>
@@ -239,8 +239,8 @@ export default function FormulariosLeads() {
                         {format(new Date(lead.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                       </TableCell>
                       <TableCell>{lead.nome || "-"}</TableCell>
-                      <TableCell>{lead.email || "-"}</TableCell>
                       <TableCell>{lead.telefone ? formatPhoneDisplay(lead.telefone) : "-"}</TableCell>
+                      <TableCell>{lead.email || "-"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={statusColors[lead.status]}>
                           {statusLabels[lead.status] || lead.status}

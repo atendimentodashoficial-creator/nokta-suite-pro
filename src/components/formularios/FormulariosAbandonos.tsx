@@ -214,8 +214,8 @@ export default function FormulariosAbandonos() {
                     <TableHead>Início</TableHead>
                     <TableHead>Abandono</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>E-mail</TableHead>
                     <TableHead>Telefone</TableHead>
+                    <TableHead>E-mail</TableHead>
                     <TableHead>Etapa</TableHead>
                     <TableHead>Progresso</TableHead>
                     <TableHead>Tempo</TableHead>
@@ -280,11 +280,11 @@ export default function FormulariosAbandonos() {
                         <TableCell className="max-w-[150px] truncate" title={nome}>
                           {nome}
                         </TableCell>
-                        <TableCell className="max-w-[180px] truncate" title={email}>
-                          {email}
-                        </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {telefone !== "-" ? formatPhoneDisplay(telefone) : "-"}
+                        </TableCell>
+                        <TableCell className="max-w-[180px] truncate" title={email}>
+                          {email}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
