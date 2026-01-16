@@ -340,7 +340,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   };
 
   const addVideo = () => {
-    setVideos([...videos, { url: "", titulo: "", subtitulo: "" }]);
+    setVideos([...videos, { url: "", titulo: "", subtitulo: "", sideVideos: [] }]);
   };
 
   const removeVideo = (index: number) => {
@@ -350,6 +350,31 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const updateVideo = (index: number, field: keyof MediaItem, value: string) => {
     const newVideos = [...videos];
     newVideos[index] = { ...newVideos[index], [field]: value };
+    setVideos(newVideos);
+  };
+
+  const addSideVideo = (parentIndex: number) => {
+    const newVideos = [...videos];
+    if (!newVideos[parentIndex].sideVideos) {
+      newVideos[parentIndex].sideVideos = [];
+    }
+    newVideos[parentIndex].sideVideos!.push({ url: "" });
+    setVideos(newVideos);
+  };
+
+  const removeSideVideo = (parentIndex: number, sideIndex: number) => {
+    const newVideos = [...videos];
+    if (newVideos[parentIndex].sideVideos) {
+      newVideos[parentIndex].sideVideos = newVideos[parentIndex].sideVideos!.filter((_, i) => i !== sideIndex);
+    }
+    setVideos(newVideos);
+  };
+
+  const updateSideVideo = (parentIndex: number, sideIndex: number, url: string) => {
+    const newVideos = [...videos];
+    if (newVideos[parentIndex].sideVideos) {
+      newVideos[parentIndex].sideVideos![sideIndex] = { url };
+    }
     setVideos(newVideos);
   };
 
@@ -1407,13 +1432,49 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                           onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
                         />
                       </div>
+                      
+                      {/* Main video URL and side videos */}
                       <div className="space-y-2">
-                        <Label>URL do Vídeo</Label>
-                        <Input
-                          placeholder="URL do vídeo (YouTube ou Vimeo)"
-                          value={video.url}
-                          onChange={(e) => updateVideo(index, "url", e.target.value)}
-                        />
+                        <Label>URLs dos Vídeos</Label>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex-1 min-w-[200px]">
+                            <Input
+                              placeholder="URL do vídeo (YouTube ou Vimeo)"
+                              value={video.url}
+                              onChange={(e) => updateVideo(index, "url", e.target.value)}
+                            />
+                          </div>
+                          
+                          {/* Side videos */}
+                          {video.sideVideos?.map((sideVideo, sideIndex) => (
+                            <div key={sideIndex} className="flex items-center gap-1 flex-1 min-w-[200px]">
+                              <Input
+                                placeholder="URL do vídeo ao lado"
+                                value={sideVideo.url}
+                                onChange={(e) => updateSideVideo(index, sideIndex, e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeSideVideo(index, sideIndex)}
+                                className="text-destructive hover:text-destructive/80 p-1"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                          
+                          {/* Add side video button */}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addSideVideo(index)}
+                            className="h-9 px-3 border-dashed"
+                            title="Adicionar vídeo ao lado"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
