@@ -1,23 +1,20 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useUpdateLeadStatus, FormularioLead } from "@/hooks/useFormularios";
+import { useUpdateLeadStatus, FormularioLead, FormularioEtapa } from "@/hooks/useFormularios";
 
 interface LeadDetailsDialogProps {
-  lead: (FormularioLead & { formularios_templates?: { nome: string } | null }) | null;
+  lead: (FormularioLead & { 
+    formularios_templates?: { 
+      nome: string;
+      formularios_etapas?: FormularioEtapa[];
+    } | null 
+  }) | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const statusColors: Record<string, string> = {
-  novo: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  contactado: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  fechado: "bg-green-500/10 text-green-500 border-green-500/20",
-  negado: "bg-red-500/10 text-red-500 border-red-500/20",
-};
 
 const statusLabels: Record<string, string> = {
   novo: "Novo",
@@ -41,6 +38,36 @@ export default function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDeta
 
   const handleStatusChange = (status: string) => {
     updateStatus.mutate({ id: lead.id, status });
+  };
+
+  // Criar mapa de ID -> Label baseado nas etapas do formulário
+  const buildFieldLabelsMap = (): Record<string, string> => {
+    const labelsMap: Record<string, string> = {};
+    const etapas = lead.formularios_templates?.formularios_etapas || [];
+    
+    etapas.forEach(etapa => {
+      // Cada etapa pode ser um campo único (ID da etapa é a chave)
+      labelsMap[etapa.id] = etapa.titulo;
+      
+      // Ou pode ter múltiplos campos na configuração
+      const config = etapa.configuracao as { 
+        campos?: { id: string; label?: string; nome?: string }[];
+      } | null;
+      
+      if (config?.campos) {
+        config.campos.forEach(campo => {
+          labelsMap[campo.id] = campo.label || campo.nome || campo.id;
+        });
+      }
+    });
+    
+    return labelsMap;
+  };
+
+  const fieldLabels = buildFieldLabelsMap();
+
+  const getFieldLabel = (key: string): string => {
+    return fieldLabels[key] || key.replace(/_/g, " ");
   };
 
   return (
@@ -107,7 +134,7 @@ export default function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDeta
                 <div className="grid grid-cols-1 gap-3">
                   {Object.entries(lead.dados).map(([key, value]) => (
                     <div key={key} className="bg-muted p-3 rounded-lg">
-                      <p className="text-sm text-muted-foreground capitalize">{key.replace(/_/g, " ")}</p>
+                      <p className="text-sm text-muted-foreground">{getFieldLabel(key)}</p>
                       <p className="font-medium">
                         {Array.isArray(value) ? value.join(", ") : String(value)}
                       </p>
