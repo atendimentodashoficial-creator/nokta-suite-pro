@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Pencil, GripVertical, Check, X } from "lucide-react";
+import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Pencil, GripVertical, Check, X, Shield } from "lucide-react";
+import { UserPermissionsDialog } from "@/components/admin/UserPermissionsDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -93,9 +94,10 @@ interface SortableUserCardProps {
   onBlock: (userId: string) => void;
   onUnblock: (userId: string) => void;
   onLogin: (email: string) => void;
+  onPermissions: (userId: string, userName: string) => void;
 }
 
-const SortableUserCard = ({ user, onEdit, onBlock, onUnblock, onLogin }: SortableUserCardProps) => {
+const SortableUserCard = ({ user, onEdit, onBlock, onUnblock, onLogin, onPermissions }: SortableUserCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: user.id });
   
   const style = {
@@ -122,7 +124,10 @@ const SortableUserCard = ({ user, onEdit, onBlock, onUnblock, onLogin }: Sortabl
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               )}
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onEdit(user.id, user.user_metadata?.full_name || '')} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={() => onPermissions(user.id, displayName)} className="h-8 w-8" title="Permissões">
+              <Shield className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(user.id, user.user_metadata?.full_name || '')} className="h-8 w-8" title="Editar nome">
               <Pencil className="h-4 w-4" />
             </Button>
           </div>
@@ -220,6 +225,10 @@ export default function AdminDashboard() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
+  // Estados para permissões
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<{ id: string; name: string } | null>(null);
 
   // Sensores para drag and drop
   const sensors = useSensors(
@@ -818,6 +827,12 @@ export default function AdminDashboard() {
                             <Button variant="ghost" size="sm" onClick={() => handleOpenEditDialog(user.id, user.user_metadata?.full_name || '')} title="Editar nome">
                               <Pencil className="w-4 h-4" />
                             </Button>
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setSelectedUserForPermissions({ id: user.id, name: displayName });
+                              setPermissionsDialogOpen(true);
+                            }} title="Gerenciar permissões">
+                              <Shield className="w-4 h-4" />
+                            </Button>
                             <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)} title="Acessar como este usuário">
                               <ExternalLink className="w-4 h-4" />
                             </Button>
@@ -841,6 +856,10 @@ export default function AdminDashboard() {
                         onBlock={handleBlockUser}
                         onUnblock={handleUnblockUser}
                         onLogin={handleLoginAsUser}
+                        onPermissions={(userId, userName) => {
+                          setSelectedUserForPermissions({ id: userId, name: userName });
+                          setPermissionsDialogOpen(true);
+                        }}
                       />
                     ))}
                   </div>
@@ -880,6 +899,16 @@ export default function AdminDashboard() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Dialog para Permissões */}
+        {selectedUserForPermissions && (
+          <UserPermissionsDialog
+            open={permissionsDialogOpen}
+            onOpenChange={setPermissionsDialogOpen}
+            userId={selectedUserForPermissions.id}
+            userName={selectedUserForPermissions.name}
+          />
+        )}
       </TabsContent>
 
       {/* Aba Dashboard - Filtros e Gráficos */}
