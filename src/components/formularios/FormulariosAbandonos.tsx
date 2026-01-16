@@ -165,7 +165,7 @@ export default function FormulariosAbandonos() {
                     <TableHead>Telefone</TableHead>
                     <TableHead>Etapa</TableHead>
                     <TableHead>Progresso</TableHead>
-                    <TableHead>Tempo na Sessão</TableHead>
+                    <TableHead>Tempo</TableHead>
                     <TableHead>Formulário</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
