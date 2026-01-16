@@ -1185,7 +1185,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 <CollapsibleContent className="space-y-3 pt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Título Principal</Label>
+                      <Label className="text-sm">Título</Label>
                       <Select value={fonteTamanhoTitulo} onValueChange={setFonteTamanhoTitulo}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1196,7 +1196,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Subtítulo Principal</Label>
+                      <Label className="text-sm">Subtítulo</Label>
                       <Select value={fonteTamanhoSubtitulo} onValueChange={setFonteTamanhoSubtitulo}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1209,7 +1209,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Títulos das Perguntas</Label>
+                      <Label className="text-sm">Perguntas</Label>
                       <Select value={fonteTamanhoPerguntas} onValueChange={setFonteTamanhoPerguntas}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1233,7 +1233,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Opções de Escolha</Label>
+                      <Label className="text-sm">Opções</Label>
                       <Select value={fonteTamanhoCampos} onValueChange={setFonteTamanhoCampos}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1244,7 +1244,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-sm">Título dos Botões</Label>
+                      <Label className="text-sm">Botões</Label>
                       <Select value={fonteTamanhoBotoes} onValueChange={setFonteTamanhoBotoes}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1256,7 +1256,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm">Fonte do Formulário</Label>
+                    <Label className="text-sm">Fonte</Label>
                     <Select value={fontFamily} onValueChange={setFontFamily}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione uma fonte" />
