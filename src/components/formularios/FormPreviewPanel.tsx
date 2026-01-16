@@ -644,7 +644,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                     fontSize: fonteTamanhoIndicadorEtapa,
                   }}
                 >
-                  {currentEtapaIndex + 1}/{etapas.length}
+                  Etapa {currentEtapaIndex + 1} de {etapas.length}
                 </span>
                 <span
                   style={{
