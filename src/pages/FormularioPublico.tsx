@@ -35,6 +35,11 @@ interface TemplateConfig {
   status: string;
   cor_primaria: string;
   background_color: string | null;
+  card_color: string | null;
+  font_family: string | null;
+  text_color: string | null;
+  button_text_color: string | null;
+  border_radius: string | null;
   logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
@@ -575,13 +580,28 @@ export default function FormularioPublico() {
   if (submitted && config) {
     const primaryColor = config.cor_primaria || "#8B5CF6";
     const bgColor = config.background_color || "#ffffff";
+    const cardColor = config.card_color || "#ffffff";
+    const fontFamily = config.font_family || "Inter";
+    const textColor = config.text_color || "#1f2937";
+    const buttonTextColor = config.button_text_color || "#ffffff";
+    const borderRadiusValue = config.border_radius || "12";
     
     return (
       <div 
         className="min-h-screen flex items-center justify-center p-4"
-        style={{ backgroundColor: bgColor }}
+        style={{ 
+          backgroundColor: bgColor,
+          fontFamily: `${fontFamily}, sans-serif`,
+        }}
       >
-        <Card className="w-full max-w-md">
+        <Card 
+          className="w-full max-w-md"
+          style={{ 
+            backgroundColor: cardColor,
+            borderRadius: `${borderRadiusValue}px`,
+            color: textColor,
+          }}
+        >
           <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
             <div 
               className="w-16 h-16 rounded-full flex items-center justify-center"
@@ -589,17 +609,21 @@ export default function FormularioPublico() {
             >
               <CheckCircle2 className="h-8 w-8" style={{ color: primaryColor }} />
             </div>
-            <h2 className="text-xl font-bold text-center">
+            <h2 className="text-xl font-bold text-center" style={{ color: textColor }}>
               {config.pagina_obrigado_titulo || "Obrigado!"}
             </h2>
-            <p className="text-muted-foreground text-center">
+            <p className="text-center" style={{ color: textColor, opacity: 0.7 }}>
               {config.pagina_obrigado_mensagem || "Recebemos suas informações."}
             </p>
 
             {config.pagina_obrigado_cta_texto && config.pagina_obrigado_cta_link && (
               <Button
                 className="mt-4"
-                style={{ backgroundColor: primaryColor }}
+                style={{ 
+                  backgroundColor: primaryColor, 
+                  color: buttonTextColor,
+                  borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+                }}
                 onClick={() => {
                   let url = config.pagina_obrigado_cta_link!;
                   if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -663,13 +687,28 @@ export default function FormularioPublico() {
 
   const primaryColor = config.cor_primaria || "#8B5CF6";
   const bgColor = config.background_color || "#ffffff";
+  const cardColor = config.card_color || "#ffffff";
+  const fontFamily = config.font_family || "Inter";
+  const textColor = config.text_color || "#1f2937";
+  const buttonTextColor = config.button_text_color || "#ffffff";
+  const borderRadiusValue = config.border_radius || "12";
 
   return (
     <div 
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundColor: bgColor }}
+      style={{ 
+        backgroundColor: bgColor,
+        fontFamily: `${fontFamily}, sans-serif`,
+      }}
     >
-      <Card className="w-full max-w-md">
+      <Card 
+        className="w-full max-w-md"
+        style={{ 
+          backgroundColor: cardColor,
+          borderRadius: `${borderRadiusValue}px`,
+          color: textColor,
+        }}
+      >
         <CardHeader className="space-y-4">
           {config.logo_url && (
             <div className="flex justify-center pt-2">
@@ -686,16 +725,16 @@ export default function FormularioPublico() {
             </div>
           )}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center justify-between text-sm" style={{ color: textColor, opacity: 0.7 }}>
               <span>Etapa {currentStep} de {totalSteps}</span>
               <span>{Math.round(progress)}%</span>
             </div>
             <Progress value={progress} className="h-2" style={{ "--progress-color": primaryColor } as React.CSSProperties} />
           </div>
           <div className="text-center pt-2">
-            <CardTitle className="text-xl">{currentEtapa.titulo}</CardTitle>
+            <CardTitle className="text-xl" style={{ color: textColor }}>{currentEtapa.titulo}</CardTitle>
             {currentEtapa.descricao && (
-              <CardDescription className="mt-2">{currentEtapa.descricao}</CardDescription>
+              <CardDescription className="mt-2" style={{ color: textColor, opacity: 0.7 }}>{currentEtapa.descricao}</CardDescription>
             )}
           </div>
         </CardHeader>
@@ -711,6 +750,7 @@ export default function FormularioPublico() {
                 variant="outline"
                 onClick={handlePrev}
                 className="flex-1"
+                style={{ borderRadius: `${parseInt(borderRadiusValue) / 2}px` }}
               >
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Voltar
@@ -721,7 +761,11 @@ export default function FormularioPublico() {
               onClick={handleNext}
               disabled={submitting}
               className="flex-1"
-              style={{ backgroundColor: primaryColor }}
+              style={{ 
+                backgroundColor: primaryColor, 
+                color: buttonTextColor,
+                borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+              }}
             >
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

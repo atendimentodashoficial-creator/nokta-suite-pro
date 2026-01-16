@@ -12,6 +12,11 @@ export interface FormularioTemplate {
   status: string;
   cor_primaria: string | null;
   background_color: string | null;
+  card_color: string | null;
+  font_family: string | null;
+  text_color: string | null;
+  button_text_color: string | null;
+  border_radius: string | null;
   logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
