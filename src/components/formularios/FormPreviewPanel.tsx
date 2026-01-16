@@ -147,10 +147,11 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
   // Render a single field based on its type
   const renderField = (etapa: FormularioEtapa) => {
     const opcoes = (etapa.configuracao?.opcoes as string[]) || [];
+    const campos = (etapa.configuracao?.campos as Array<{ label: string; placeholder?: string }>) || [];
     const placeholder = getPlaceholderForType(etapa.tipo, etapa.configuracao);
 
-    // For checkbox/radio types
-    if (etapa.tipo === "multipla_escolha" || etapa.tipo === "selecao_unica") {
+    // For checkbox/radio types (multipla_escolha, selecao_unica, opcoes)
+    if (etapa.tipo === "multipla_escolha" || etapa.tipo === "selecao_unica" || etapa.tipo === "opcoes") {
       return (
         <div className="space-y-1.5">
           {opcoes.slice(0, 3).map((opcao, idx) => (
@@ -174,6 +175,38 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           {opcoes.length > 3 && (
             <p className="text-xs opacity-50" style={{ color: textColor }}>
               +{opcoes.length - 3} opções...
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // For multiplos_campos type (multiple sub-fields)
+    if (etapa.tipo === "multiplos_campos" && campos.length > 0) {
+      return (
+        <div className="space-y-1.5">
+          {campos.slice(0, 4).map((campo, idx) => (
+            <div key={idx} className="space-y-0.5">
+              <label className="text-[10px] font-medium" style={{ color: textColor }}>
+                {campo.label} <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <div 
+                className="w-full h-7 rounded-md border px-2 flex items-center text-xs"
+                style={{ 
+                  backgroundColor: "#ffffff",
+                  borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "#e5e7eb",
+                  borderRadius: `${parseInt(borderRadius) / 2}px`,
+                }}
+              >
+                <span style={{ color: answerTextColor, opacity: 0.5 }}>
+                  {campo.placeholder || "Digite aqui..."}
+                </span>
+              </div>
+            </div>
+          ))}
+          {campos.length > 4 && (
+            <p className="text-xs opacity-50" style={{ color: textColor }}>
+              +{campos.length - 4} campos...
             </p>
           )}
         </div>

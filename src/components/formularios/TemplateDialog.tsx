@@ -380,6 +380,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   };
 
   const [activeTab, setActiveTab] = useState("geral");
+  const [previewMode, setPreviewMode] = useState<"form" | "obrigado">("form");
 
   // Get etapas sorted by ordem
   const etapas: FormularioEtapa[] = templateWithEtapas?.formularios_etapas
@@ -1046,18 +1047,40 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
           {/* Live Preview Panel - Desktop only */}
           <div className="hidden lg:flex flex-col w-[380px] border-l bg-muted/30">
-            <div className="p-4 border-b bg-muted/50">
+            <div className="p-4 border-b bg-muted/50 space-y-2">
               <h3 className="font-medium text-sm text-center">
                 Preview em tempo real
               </h3>
-              <p className="text-xs text-muted-foreground text-center mt-1">
-                {activeTab === "obrigado" ? "Página de Obrigado" : "Formulário"}
-              </p>
+              {/* Toggle buttons for preview type */}
+              <div className="flex gap-1 p-1 bg-muted rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("form")}
+                  className={`flex-1 text-xs py-1.5 px-2 rounded-md transition-colors ${
+                    previewMode === "form" 
+                      ? "bg-background shadow-sm font-medium" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Formulário
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("obrigado")}
+                  className={`flex-1 text-xs py-1.5 px-2 rounded-md transition-colors ${
+                    previewMode === "obrigado" 
+                      ? "bg-background shadow-sm font-medium" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Página de Obrigado
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-auto p-4">
               <FormPreviewPanel 
                 config={previewConfig} 
-                showThankYou={activeTab === "obrigado"}
+                showThankYou={previewMode === "obrigado"}
               />
             </div>
           </div>
