@@ -1375,12 +1375,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     </Button>
                     
                     <Input
-                      placeholder="URL do vídeo (YouTube ou Vimeo)"
-                      value={video.url}
-                      onChange={(e) => updateVideo(index, "url", e.target.value)}
-                      className="text-sm"
-                    />
-                    <Input
                       placeholder="Título do vídeo (opcional)"
                       value={video.titulo}
                       onChange={(e) => updateVideo(index, "titulo", e.target.value)}
@@ -1390,6 +1384,12 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       placeholder="Subtítulo do vídeo (opcional)"
                       value={video.subtitulo}
                       onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      placeholder="URL do vídeo (YouTube ou Vimeo)"
+                      value={video.url}
+                      onChange={(e) => updateVideo(index, "url", e.target.value)}
                       className="text-sm"
                     />
                   </div>
