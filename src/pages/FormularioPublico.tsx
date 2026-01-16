@@ -637,6 +637,14 @@ export default function FormularioPublico() {
           }}
         >
           <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+            {/* Check icon - always show */}
+            <div 
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: primaryColor + "20" }}
+            >
+              <CheckCircle2 className="h-8 w-8" style={{ color: primaryColor }} />
+            </div>
+            
             {/* Video embed */}
             {config.pagina_obrigado_video_url && getVideoEmbedUrl(config.pagina_obrigado_video_url) && (
               <div className="w-full aspect-video rounded-lg overflow-hidden">
@@ -650,23 +658,13 @@ export default function FormularioPublico() {
               </div>
             )}
             
-            {/* Image */}
-            {config.pagina_obrigado_imagem_url && !config.pagina_obrigado_video_url && (
+            {/* Image - show independently of video */}
+            {config.pagina_obrigado_imagem_url && (
               <img 
                 src={config.pagina_obrigado_imagem_url} 
                 alt="Obrigado" 
                 className="max-w-full h-auto max-h-48 object-contain rounded-lg"
               />
-            )}
-            
-            {/* Icon fallback - only show if no video or image */}
-            {!config.pagina_obrigado_video_url && !config.pagina_obrigado_imagem_url && (
-              <div 
-                className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: primaryColor + "20" }}
-              >
-                <CheckCircle2 className="h-8 w-8" style={{ color: primaryColor }} />
-              </div>
             )}
             
             <h2 className="text-xl font-bold text-center" style={{ color: textColor }}>
