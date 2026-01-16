@@ -40,6 +40,8 @@ interface TemplateConfig {
   text_color: string | null;
   button_text_color: string | null;
   border_radius: string | null;
+  progress_background_color: string | null;
+  card_border_color: string | null;
   logo_url: string | null;
   pagina_obrigado_titulo: string | null;
   pagina_obrigado_mensagem: string | null;
@@ -606,6 +608,7 @@ export default function FormularioPublico() {
     const textColor = config.text_color || "#1f2937";
     const buttonTextColor = config.button_text_color || "#ffffff";
     const borderRadiusValue = config.border_radius || "12";
+    const cardBorderColor = config.card_border_color || "transparent";
     
     return (
       <div 
@@ -621,6 +624,7 @@ export default function FormularioPublico() {
             backgroundColor: cardColor,
             borderRadius: `${borderRadiusValue}px`,
             color: textColor,
+            border: cardBorderColor && cardBorderColor !== "transparent" ? `1px solid ${cardBorderColor}` : undefined,
           }}
         >
           <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -739,6 +743,8 @@ export default function FormularioPublico() {
   const textColor = config.text_color || "#1f2937";
   const buttonTextColor = config.button_text_color || "#ffffff";
   const borderRadiusValue = config.border_radius || "12";
+  const progressBgColor = config.progress_background_color || "#e5e5e5";
+  const cardBorderColor = config.card_border_color || "transparent";
 
   return (
     <div 
@@ -748,14 +754,15 @@ export default function FormularioPublico() {
         fontFamily: `${fontFamily}, sans-serif`,
       }}
     >
-      <Card 
-        className="w-full max-w-md"
-        style={{ 
-          backgroundColor: cardColor,
-          borderRadius: `${borderRadiusValue}px`,
-          color: textColor,
-        }}
-      >
+        <Card 
+          className="w-full max-w-md"
+          style={{ 
+            backgroundColor: cardColor,
+            borderRadius: `${borderRadiusValue}px`,
+            color: textColor,
+            border: cardBorderColor && cardBorderColor !== "transparent" ? `1px solid ${cardBorderColor}` : undefined,
+          }}
+        >
         <CardHeader className="space-y-4">
           {config.logo_url && (
             <div className="flex justify-center pt-2">
@@ -776,7 +783,14 @@ export default function FormularioPublico() {
               <span>Etapa {currentStep} de {totalSteps}</span>
               <span>{Math.round(progress)}%</span>
             </div>
-            <Progress value={progress} className="h-2" style={{ "--progress-color": primaryColor } as React.CSSProperties} />
+            <Progress 
+              value={progress} 
+              className="h-2" 
+              style={{ 
+                "--progress-color": primaryColor,
+                "--progress-background": progressBgColor,
+              } as React.CSSProperties} 
+            />
           </div>
           <div className="text-center pt-2">
             <CardTitle className="text-xl" style={{ color: textColor }}>{currentEtapa.titulo}</CardTitle>
