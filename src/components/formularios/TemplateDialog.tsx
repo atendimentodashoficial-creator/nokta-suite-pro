@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTemplate, useUpdateTemplate, FormularioTemplate } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,6 +33,7 @@ interface TemplateDialogProps {
 }
 
 export default function TemplateDialog({ open, onOpenChange, template }: TemplateDialogProps) {
+  const { user } = useAuth();
   const [nome, setNome] = useState("");
   const [slug, setSlug] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -58,6 +60,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [paginaObrigadoCtaTexto, setPaginaObrigadoCtaTexto] = useState("");
   const [paginaObrigadoCtaLink, setPaginaObrigadoCtaLink] = useState("");
   const [paginaObrigadoVideoUrl, setPaginaObrigadoVideoUrl] = useState("");
+  const [paginaObrigadoVideoTitulo, setPaginaObrigadoVideoTitulo] = useState("");
+  const [paginaObrigadoVideoSubtitulo, setPaginaObrigadoVideoSubtitulo] = useState("");
+  const [paginaObrigadoVideoPosicao, setPaginaObrigadoVideoPosicao] = useState<"acima" | "abaixo">("abaixo");
   const [paginaObrigadoImagemUrl, setPaginaObrigadoImagemUrl] = useState<string | null>(null);
   const [uploadingObrigadoImagem, setUploadingObrigadoImagem] = useState(false);
   const obrigadoImageInputRef = useRef<HTMLInputElement>(null);
@@ -112,6 +117,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoCtaTexto(template.pagina_obrigado_cta_texto || "");
       setPaginaObrigadoCtaLink(template.pagina_obrigado_cta_link || "");
       setPaginaObrigadoVideoUrl(template.pagina_obrigado_video_url || "");
+      setPaginaObrigadoVideoTitulo((template as any).pagina_obrigado_video_titulo || "");
+      setPaginaObrigadoVideoSubtitulo((template as any).pagina_obrigado_video_subtitulo || "");
+      setPaginaObrigadoVideoPosicao((template as any).pagina_obrigado_video_posicao || "abaixo");
       setPaginaObrigadoImagemUrl(template.pagina_obrigado_imagem_url || null);
     } else {
       setNome("");
@@ -138,6 +146,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setPaginaObrigadoCtaTexto("");
       setPaginaObrigadoCtaLink("");
       setPaginaObrigadoVideoUrl("");
+      setPaginaObrigadoVideoTitulo("");
+      setPaginaObrigadoVideoSubtitulo("");
+      setPaginaObrigadoVideoPosicao("abaixo");
       setPaginaObrigadoImagemUrl(null);
     }
   }, [template, open]);
@@ -159,7 +170,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     setUploadingLogo(true);
     try {
       const fileExt = file.name.split(".").pop();
-      const fileName = `formularios/${crypto.randomUUID()}.${fileExt}`;
+      const userId = user?.id || "anonymous";
+      const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("logos")
@@ -202,7 +214,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     setUploadingObrigadoImagem(true);
     try {
       const fileExt = file.name.split(".").pop();
-      const fileName = `formularios/obrigado/${crypto.randomUUID()}.${fileExt}`;
+      const userId = user?.id || "anonymous";
+      const fileName = `${userId}/obrigado-${crypto.randomUUID()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("logos")
@@ -256,6 +269,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       pagina_obrigado_cta_texto: paginaObrigadoCtaTexto || null,
       pagina_obrigado_cta_link: paginaObrigadoCtaLink || null,
       pagina_obrigado_video_url: paginaObrigadoVideoUrl || null,
+      pagina_obrigado_video_titulo: paginaObrigadoVideoTitulo || null,
+      pagina_obrigado_video_subtitulo: paginaObrigadoVideoSubtitulo || null,
+      pagina_obrigado_video_posicao: paginaObrigadoVideoPosicao,
       pagina_obrigado_imagem_url: paginaObrigadoImagemUrl,
     };
 
@@ -768,6 +784,46 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   Cole o link de um vídeo do YouTube ou Vimeo
                 </p>
               </div>
+
+              {paginaObrigadoVideoUrl && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="videoTitulo">Título do Vídeo (opcional)</Label>
+                    <Input
+                      id="videoTitulo"
+                      value={paginaObrigadoVideoTitulo}
+                      onChange={(e) => setPaginaObrigadoVideoTitulo(e.target.value)}
+                      placeholder="Ex: Assista o vídeo abaixo"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="videoSubtitulo">Subtítulo do Vídeo (opcional)</Label>
+                    <Input
+                      id="videoSubtitulo"
+                      value={paginaObrigadoVideoSubtitulo}
+                      onChange={(e) => setPaginaObrigadoVideoSubtitulo(e.target.value)}
+                      placeholder="Ex: Instruções importantes para você"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Posição do Vídeo</Label>
+                    <Select value={paginaObrigadoVideoPosicao} onValueChange={(v: "acima" | "abaixo") => setPaginaObrigadoVideoPosicao(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="acima">Acima do "Obrigado"</SelectItem>
+                        <SelectItem value="abaixo">Abaixo do "Obrigado"</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Escolha se o vídeo aparece antes ou depois do título de obrigado
+                    </p>
+                  </div>
+                </>
+              )}
 
               <div className="p-4 bg-muted rounded-lg">
                 <h4 className="font-medium mb-2">Preview</h4>

@@ -53,6 +53,9 @@ interface TemplateConfig {
   pagina_obrigado_cta_texto: string | null;
   pagina_obrigado_cta_link: string | null;
   pagina_obrigado_video_url: string | null;
+  pagina_obrigado_video_titulo: string | null;
+  pagina_obrigado_video_subtitulo: string | null;
+  pagina_obrigado_video_posicao: string | null;
   pagina_obrigado_imagem_url: string | null;
   formularios_etapas: EtapaConfig[];
 }
@@ -803,68 +806,97 @@ export default function FormularioPublico() {
           }}
         >
           <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
-            {/* Check icon - always show */}
-            <div 
-              className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: primaryColor + "20" }}
-            >
-              <CheckCircle2 className="h-8 w-8" style={{ color: primaryColor }} />
-            </div>
-            
-            {/* Video embed */}
-            {config.pagina_obrigado_video_url && getVideoEmbedUrl(config.pagina_obrigado_video_url) && (
-              <div className="w-full aspect-video rounded-lg overflow-hidden">
-                <iframe
-                  src={getVideoEmbedUrl(config.pagina_obrigado_video_url)!}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title="Video"
-                />
-              </div>
-            )}
-            
-            {/* Image - show independently of video */}
-            {config.pagina_obrigado_imagem_url && (
-              <img 
-                src={config.pagina_obrigado_imagem_url} 
-                alt="Obrigado" 
-                className="max-w-full h-auto max-h-48 object-contain rounded-lg"
-              />
-            )}
-            
-            <h2 className="text-xl font-bold text-center" style={{ color: textColor }}>
-              {config.pagina_obrigado_titulo || "Obrigado!"}
-            </h2>
-            <p className="text-center" style={{ color: textColor, opacity: 0.7 }}>
-              {config.pagina_obrigado_mensagem || "Recebemos suas informações."}
-            </p>
+            {/* Video section component */}
+            {(() => {
+              const videoSection = config.pagina_obrigado_video_url && getVideoEmbedUrl(config.pagina_obrigado_video_url) && (
+                <div className="w-full space-y-3">
+                  {config.pagina_obrigado_video_titulo && (
+                    <h3 className="text-lg font-semibold text-center" style={{ color: textColor }}>
+                      {config.pagina_obrigado_video_titulo}
+                    </h3>
+                  )}
+                  {config.pagina_obrigado_video_subtitulo && (
+                    <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
+                      {config.pagina_obrigado_video_subtitulo}
+                    </p>
+                  )}
+                  <div className="w-full aspect-video rounded-lg overflow-hidden">
+                    <iframe
+                      src={getVideoEmbedUrl(config.pagina_obrigado_video_url)!}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title="Video"
+                    />
+                  </div>
+                </div>
+              );
 
-            {config.pagina_obrigado_cta_texto && config.pagina_obrigado_cta_link && (
-              <Button
-                className="mt-4"
-                style={{ 
-                  backgroundColor: primaryColor, 
-                  color: buttonTextColor,
-                  borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
-                }}
-                onClick={() => {
-                  let url = config.pagina_obrigado_cta_link!;
-                  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                    url = "https://" + url;
-                  }
-                  window.open(url, "_blank");
-                }}
-              >
-                {config.pagina_obrigado_cta_texto}
-              </Button>
-            )}
-            
-            {isPreview && (
-              <p className="text-xs text-muted-foreground mt-4 px-4 py-2 bg-yellow-500/10 rounded-lg">
-                Modo Preview - Nenhum dado foi salvo
-              </p>
-            )}
+              const videoPosicao = config.pagina_obrigado_video_posicao || "abaixo";
+              const videoAcima = videoPosicao === "acima";
+
+              return (
+                <>
+                  {/* Video acima do obrigado */}
+                  {videoAcima && videoSection}
+                  
+                  {/* Image - show independently */}
+                  {config.pagina_obrigado_imagem_url && (
+                    <img 
+                      src={config.pagina_obrigado_imagem_url} 
+                      alt="Obrigado" 
+                      className="max-w-full h-auto max-h-48 object-contain rounded-lg"
+                    />
+                  )}
+                  
+                  {/* Título com check ao lado */}
+                  <div className="flex items-center justify-center gap-3">
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: primaryColor + "20" }}
+                    >
+                      <CheckCircle2 className="h-5 w-5" style={{ color: primaryColor }} />
+                    </div>
+                    <h2 className="text-xl font-bold" style={{ color: textColor }}>
+                      {config.pagina_obrigado_titulo || "Obrigado!"}
+                    </h2>
+                  </div>
+                  
+                  <p className="text-center" style={{ color: textColor, opacity: 0.7 }}>
+                    {config.pagina_obrigado_mensagem || "Recebemos suas informações."}
+                  </p>
+
+                  {/* Video abaixo do obrigado */}
+                  {!videoAcima && videoSection}
+
+                  {config.pagina_obrigado_cta_texto && config.pagina_obrigado_cta_link && (
+                    <Button
+                      className="mt-4"
+                      style={{ 
+                        backgroundColor: primaryColor, 
+                        color: buttonTextColor,
+                        borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+                      }}
+                      onClick={() => {
+                        let url = config.pagina_obrigado_cta_link!;
+                        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                          url = "https://" + url;
+                        }
+                        window.open(url, "_blank");
+                      }}
+                    >
+                      {config.pagina_obrigado_cta_texto}
+                    </Button>
+                  )}
+                  
+                  {isPreview && (
+                    <p className="text-xs text-muted-foreground mt-4 px-4 py-2 bg-yellow-500/10 rounded-lg">
+                      Modo Preview - Nenhum dado foi salvo
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>

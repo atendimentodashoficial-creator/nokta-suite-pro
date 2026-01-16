@@ -30,6 +30,9 @@ export interface FormularioTemplate {
   pagina_obrigado_cta_texto: string | null;
   pagina_obrigado_cta_link: string | null;
   pagina_obrigado_video_url: string | null;
+  pagina_obrigado_video_titulo: string | null;
+  pagina_obrigado_video_subtitulo: string | null;
+  pagina_obrigado_video_posicao: string | null;
   pagina_obrigado_imagem_url: string | null;
   created_at: string;
   updated_at: string;
