@@ -1312,44 +1312,25 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
       {/* Header com período e botão de gerar */}
       <Card>
         <CardHeader className="pb-4">
-          {/* Título e descrição */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Brain className="h-6 w-6 text-primary" />
+          {/* Desktop: Título à esquerda, Período à direita */}
+          {/* Mobile: Título e período na mesma linha */}
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Brain className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Relatório de IA</CardTitle>
+                <CardDescription className="hidden sm:block">
+                  Análise inteligente de campanhas, conjuntos e anúncios
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle>Relatório de IA</CardTitle>
-              <CardDescription>
-                Análise inteligente de campanhas, conjuntos e anúncios
-              </CardDescription>
-            </div>
-          </div>
-
-          {/* Badges de status */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <Badge variant="outline" className="gap-1">
-              <CheckCircle2 className="h-3 w-3 text-green-500" />
-              API Conectada
-            </Badge>
-            {funnelData && (
-              <>
-                <Badge variant="secondary" className="gap-1">
-                  <Users className="h-3 w-3" />
-                  Leads WhatsApp: {funnelData.totals.leads}
-                </Badge>
-                <Badge variant="secondary" className="gap-1">
-                  <Layers className="h-3 w-3" />
-                  Leads Disparos: {funnelData.totals.leadsDisparos}
-                </Badge>
-              </>
-            )}
-          </div>
-
-          {/* Controles: Período + Botão */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="flex flex-wrap items-center gap-2 flex-1">
+            
+            {/* Desktop: Período no canto superior direito */}
+            <div className="hidden lg:flex items-center gap-2">
               <Select value={periodFilter} onValueChange={(v) => setPeriodFilterHook(v as any)}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="w-[180px]">
                   <Calendar className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
@@ -1405,11 +1386,109 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Badges de status */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <Badge variant="outline" className="gap-1">
+              <CheckCircle2 className="h-3 w-3 text-green-500" />
+              API Conectada
+            </Badge>
+            {funnelData && (
+              <>
+                <Badge variant="secondary" className="gap-1">
+                  <Users className="h-3 w-3" />
+                  Leads WhatsApp: {funnelData.totals.leads}
+                </Badge>
+                <Badge variant="secondary" className="gap-1">
+                  <Layers className="h-3 w-3" />
+                  Leads Disparos: {funnelData.totals.leadsDisparos}
+                </Badge>
+              </>
+            )}
+          </div>
+
+          {/* Mobile: Período + Botão na mesma linha */}
+          <div className="flex lg:hidden items-center gap-2">
+            <Select value={periodFilter} onValueChange={(v) => setPeriodFilterHook(v as any)}>
+              <SelectTrigger className="flex-1">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Hoje</SelectItem>
+                <SelectItem value="yesterday">Ontem</SelectItem>
+                <SelectItem value="last_7_days">Últimos 7 dias</SelectItem>
+                <SelectItem value="last_30_days">Últimos 30 dias</SelectItem>
+                <SelectItem value="this_week">Esta semana</SelectItem>
+                <SelectItem value="last_week">Semana passada</SelectItem>
+                <SelectItem value="this_month">Este mês</SelectItem>
+                <SelectItem value="last_month">Mês passado</SelectItem>
+                <SelectItem value="max">Máximo</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
             
             <Button 
               onClick={handleGenerateClick} 
               disabled={loading || !selectedAccount}
-              className="w-full sm:w-auto"
+              size="sm"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-1" />
+                  Gerar
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {/* Mobile: Datas customizadas abaixo */}
+          {periodFilter === "custom" && (
+            <div className="flex lg:hidden items-center gap-2 mt-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex-1">
+                    {format(dateStart, "dd/MM/yy", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateStart}
+                    onSelect={(date) => date && setDateStart(date)}
+                    locale={ptBR}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground text-sm">até</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex-1">
+                    {format(dateEnd, "dd/MM/yy", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateEnd}
+                    onSelect={(date) => date && setDateEnd(date)}
+                    locale={ptBR}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* Desktop: Botão no canto inferior direito */}
+          <div className="hidden lg:flex justify-end mt-2">
+            <Button 
+              onClick={handleGenerateClick} 
+              disabled={loading || !selectedAccount}
             >
               {loading ? (
                 <>
