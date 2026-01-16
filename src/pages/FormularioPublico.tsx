@@ -409,23 +409,50 @@ export default function FormularioPublico() {
       const tempoTotal = Math.round((new Date().getTime() - startTime.getTime()) / 1000);
 
       // Extract nome, email, telefone from formData
-      let nome = formData["nome"] as string || null;
-      let email = formData["email"] as string || null;
-      let telefone = formData["telefone"] as string || null;
+      let nome = (formData["nome"] as string) || null;
+      let email = (formData["email"] as string) || null;
+      let telefone: string | null = (formData["telefone"] as string) || null;
 
-      // Check in etapas for these fields
-      etapas.forEach(etapa => {
+      const normalizeTelefone = (raw: string | null | undefined) => {
+        const digits = (raw || "").replace(/\D/g, "");
+        if (!digits) return null;
+        const cc = String(countryCode || "").replace(/\D/g, "");
+        return cc ? `${cc}${digits}` : digits;
+      };
+
+      // Check in etapas (including multiplos_campos) for these fields
+      etapas.forEach((etapa) => {
+        if (etapa.tipo === "multiplos_campos") {
+          const campos = etapa.configuracao?.campos || [];
+          campos.forEach((campo) => {
+            const value = (formData[campo.id] as string) || "";
+            const label = (campo.label || "").toLowerCase();
+
+            if (!nome && campo.tipo === "texto" && label.includes("nome")) {
+              nome = value || null;
+            }
+            if (!email && campo.tipo === "email") {
+              email = value || null;
+            }
+            if (!telefone && campo.tipo === "telefone") {
+              telefone = normalizeTelefone(value);
+            }
+          });
+        }
+
         if (etapa.tipo === "texto" && etapa.titulo.toLowerCase().includes("nome") && !nome) {
-          nome = formData[etapa.id] as string;
+          nome = (formData[etapa.id] as string) || null;
         }
         if (etapa.tipo === "email" && !email) {
-          email = formData[etapa.id] as string;
+          email = (formData[etapa.id] as string) || null;
         }
         if (etapa.tipo === "telefone" && !telefone) {
-          const raw = formData[etapa.id] as string;
-          telefone = raw ? `${countryCode}${raw.replace(/\D/g, "")}` : null;
+          telefone = normalizeTelefone(formData[etapa.id] as string);
         }
       });
+
+      // Ensure phone is normalized if it came from a direct key
+      telefone = normalizeTelefone(telefone);
 
       // Create lead
       const { error: leadError } = await supabase

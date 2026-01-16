@@ -70,13 +70,16 @@ Deno.serve(async (req) => {
 
     // Send message via UAZapi
     const normalizedUrl = instancia.base_url.replace(/\/+$/, "");
-    console.log(`Sending WhatsApp message to ${telefone} via ${normalizedUrl}`);
+    const apiUrl = `${normalizedUrl}/send/text`;
 
-    const response = await fetch(`${normalizedUrl}/chat/send-text`, {
+    console.log(`Sending WhatsApp message to ${telefone} via ${apiUrl}`);
+
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
+        "Accept": "application/json",
         "Content-Type": "application/json",
-        "apikey": instancia.api_key,
+        "token": instancia.api_key,
       },
       body: JSON.stringify({
         number: telefone,
