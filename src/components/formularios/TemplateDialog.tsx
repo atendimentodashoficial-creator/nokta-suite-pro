@@ -1379,7 +1379,60 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
-              {/* Linha 2: Cor Primária (Botão), Cor do Texto (Botão) */}
+              {/* Linha: Perguntas, Respostas */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="textColor">Perguntas</Label>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: textColor }}
+                      onClick={() => document.getElementById('textColor')?.click()}
+                    >
+                      <Input
+                        id="textColor"
+                        type="color"
+                        value={textColor}
+                        onChange={(e) => setTextColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      value={textColor}
+                      onChange={(e) => setTextColor(e.target.value)}
+                      placeholder="#1f2937"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="answerTextColor">Respostas</Label>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                      style={{ backgroundColor: answerTextColor }}
+                      onClick={() => document.getElementById('answerTextColor')?.click()}
+                    >
+                      <Input
+                        id="answerTextColor"
+                        type="color"
+                        value={answerTextColor}
+                        onChange={(e) => setAnswerTextColor(e.target.value)}
+                        className="opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      value={answerTextColor}
+                      onChange={(e) => setAnswerTextColor(e.target.value)}
+                      placeholder="#1f2937"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Linha: Cor Primária (Botão), Cor do Texto (Botão) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cor">Botão Principal</Label>
@@ -1432,7 +1485,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
-              {/* Linha 3: Botão Voltar, Texto Botão Voltar (apenas multi_step) */}
+              {/* Linha: Botão Voltar, Texto Botão Voltar (apenas multi_step) */}
               {layoutTipo === "multi_step" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -1486,59 +1539,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </div>
                 </div>
               )}
-
-              {/* Linha 4: Perguntas, Respostas */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="textColor">Perguntas</Label>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                      style={{ backgroundColor: textColor }}
-                      onClick={() => document.getElementById('textColor')?.click()}
-                    >
-                      <Input
-                        id="textColor"
-                        type="color"
-                        value={textColor}
-                        onChange={(e) => setTextColor(e.target.value)}
-                        className="opacity-0 w-full h-full cursor-pointer"
-                      />
-                    </div>
-                    <Input
-                      value={textColor}
-                      onChange={(e) => setTextColor(e.target.value)}
-                      placeholder="#1f2937"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="answerTextColor">Respostas</Label>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                      style={{ backgroundColor: answerTextColor }}
-                      onClick={() => document.getElementById('answerTextColor')?.click()}
-                    >
-                      <Input
-                        id="answerTextColor"
-                        type="color"
-                        value={answerTextColor}
-                        onChange={(e) => setAnswerTextColor(e.target.value)}
-                        className="opacity-0 w-full h-full cursor-pointer"
-                      />
-                    </div>
-                    <Input
-                      value={answerTextColor}
-                      onChange={(e) => setAnswerTextColor(e.target.value)}
-                      placeholder="#1f2937"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso (apenas multi_step) */}
               {layoutTipo === "multi_step" && (
