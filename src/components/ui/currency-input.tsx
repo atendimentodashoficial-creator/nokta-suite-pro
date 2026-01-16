@@ -8,20 +8,31 @@ interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
   showPrefix?: boolean;
 }
 
-const formatCurrencyInput = (value: string): string => {
-  // Remove tudo que não é número
-  const numericOnly = value.replace(/\D/g, '');
+const formatCurrencyInput = (value: string, previousValue: string = ''): string => {
+  // Remove tudo que não é número e vírgula
+  let cleaned = value.replace(/[^\d,]/g, '');
   
-  if (!numericOnly) return '';
+  if (!cleaned) return '';
   
-  // Converte para número e divide por 100 para ter os centavos
-  const numericValue = parseInt(numericOnly, 10) / 100;
+  // Garante apenas uma vírgula
+  const parts = cleaned.split(',');
+  if (parts.length > 2) {
+    cleaned = parts[0] + ',' + parts.slice(1).join('');
+  }
   
-  // Formata com duas casas decimais
-  return numericValue.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  // Limita casas decimais a 2
+  if (parts.length === 2 && parts[1].length > 2) {
+    cleaned = parts[0] + ',' + parts[1].slice(0, 2);
+  }
+  
+  // Formata a parte inteira com pontos de milhar
+  if (parts[0]) {
+    const integerPart = parts[0].replace(/\D/g, '');
+    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    cleaned = formattedInteger + (parts.length > 1 ? ',' + parts[1].replace(/\D/g, '') : '');
+  }
+  
+  return cleaned;
 };
 
 const parseCurrencyToNumber = (value: string): number => {
@@ -34,7 +45,7 @@ const parseCurrencyToNumber = (value: string): number => {
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ className, value, onChange, showPrefix = true, ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const formatted = formatCurrencyInput(e.target.value);
+      const formatted = formatCurrencyInput(e.target.value, value);
       onChange(formatted);
     };
 
