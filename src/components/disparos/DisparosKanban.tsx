@@ -850,8 +850,8 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                       onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
                       onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
                       className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${
-                        selectedChatId === chat.id ? "ring-2 ring-primary" : ""
-                      } ${selectedChats.has(chat.id) ? "ring-2 ring-destructive bg-destructive/5" : ""}`}
+                        selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""
+                      } ${selectedChats.has(chat.id) ? "ring-2 ring-inset ring-destructive bg-destructive/5" : ""}`}
                     >
                       {selectionMode && (
                         <div className="absolute top-2 left-2 z-10">
@@ -965,8 +965,8 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                           onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
                           onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
                           className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${
-                            selectedChatId === chat.id ? "ring-2 ring-primary" : ""
-                          } ${selectedChats.has(chat.id) ? "ring-2 ring-destructive bg-destructive/5" : ""}`}
+                            selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""
+                          } ${selectedChats.has(chat.id) ? "ring-2 ring-inset ring-destructive bg-destructive/5" : ""}`}
                         >
                           {selectionMode && (
                             <div className="absolute top-2 left-2 z-10">
