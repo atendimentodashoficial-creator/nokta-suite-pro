@@ -121,10 +121,20 @@ serve(async (req) => {
     const adminToken = btoa(`admin:${adminUser.id}:${Date.now()}`);
     
     return new Response(
-      JSON.stringify({ 
-        isAdmin: true, 
+      JSON.stringify({
+        isAdmin: true,
         adminToken,
-        users: filteredUsers 
+        users: filteredUsers,
+        ...(debugEnabled
+          ? {
+              debug: {
+                reason: "admin_ok",
+                normalizedEmail,
+                adminUserId: adminUser.id,
+                returnedUsers: filteredUsers.length,
+              },
+            }
+          : {}),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -39,8 +39,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { data, error } = await supabase.functions.invoke("check-admin-status", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          // debug temporário para identificarmos por que está retornando isAdmin:false
+          "x-debug": "1",
         },
       });
+
+      if (data?.debug) {
+        console.log("[check-admin-status][debug]", data.debug);
+        try {
+          localStorage.setItem("admin_debug", JSON.stringify(data.debug));
+        } catch {
+          // ignore
+        }
+      }
 
       if (error) {
         console.error("Erro ao verificar status admin:", error);
