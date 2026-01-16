@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronDown, Users, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +31,7 @@ interface AdminClientSwitcherProps {
 export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
@@ -59,10 +60,14 @@ export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherPr
     
     try {
       const adminToken = localStorage.getItem('admin_token');
+      // Salvar a rota atual para redirecionar após o login
+      const currentPath = location.pathname + location.search;
+      
       const { data, error } = await supabase.functions.invoke('admin-manage-users', {
         body: {
           action: 'generate_link',
-          email: userEmail
+          email: userEmail,
+          redirectTo: currentPath
         },
         headers: {
           Authorization: `Bearer ${adminToken}`
