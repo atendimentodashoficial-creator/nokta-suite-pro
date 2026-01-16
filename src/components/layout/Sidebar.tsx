@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import noktaLogoDefault from "@/assets/nokta-logo.png";
 import googleAdsIcon from "@/assets/google-ads-icon.png";
 import { createContext, useContext } from "react";
-
+import { AdminClientSwitcher } from "./AdminClientSwitcher";
 export const navigation = [
   { name: "Calendário", href: "/", icon: Calendar },
   { name: "Não Compareceu", href: "/nao-compareceu", icon: UserX },
@@ -57,8 +57,8 @@ export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse
       <div className="flex flex-col h-full overflow-hidden">
         {/* Logo / Expand Button */}
         <div className={cn(
-          "h-20 flex items-center border-b border-sidebar-border",
-          collapsed ? "justify-center px-2" : "justify-center px-6"
+          "flex items-center border-b border-sidebar-border",
+          collapsed ? "justify-center px-2 py-4" : "justify-center px-6 py-4"
         )}>
           {collapsed && onToggleCollapse ? (
             <Tooltip>
@@ -83,6 +83,14 @@ export const SidebarContent = ({ onNavigate, collapsed = false, onToggleCollapse
               className="h-8 w-auto object-contain transition-all brightness-0 invert"
             />
           )}
+        </div>
+
+        {/* Admin Client Switcher - só aparece quando admin está logado como cliente */}
+        <div className={cn(
+          "border-b border-sidebar-border",
+          collapsed ? "px-2 py-2 flex justify-center" : "px-3 py-2"
+        )}>
+          <AdminClientSwitcher collapsed={collapsed} />
         </div>
 
         {/* Navigation */}
