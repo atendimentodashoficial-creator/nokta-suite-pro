@@ -106,14 +106,14 @@ export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherPr
           <Button
             variant="ghost"
             size="icon"
-            className="w-10 h-10 text-sidebar-foreground hover:bg-sidebar-accent"
+            className="w-12 h-12 text-sidebar-foreground hover:bg-sidebar-accent"
           >
-            <Users className="h-5 w-5 text-amber-500" />
+            <Users className="h-6 w-6 text-amber-500" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
-          side="right" 
-          align="start"
+          side="bottom" 
+          align="center"
           className="w-64 bg-popover border border-border z-50"
         >
           <DropdownMenuLabel className="text-xs text-muted-foreground">
@@ -171,7 +171,7 @@ export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherPr
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        side="right" 
+        side="bottom" 
         align="start"
         className="w-64 bg-popover border border-border z-50"
       >
