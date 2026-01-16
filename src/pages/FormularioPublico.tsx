@@ -825,8 +825,8 @@ export default function FormularioPublico() {
                   {/* Multiple Images */}
                   {imagens.filter(img => img.url).map((img, idx) => (
                     <div key={`img-${idx}`} className="space-y-2">
-                      {img.titulo && (
-                        <h3 className="text-lg font-semibold text-center" style={{ color: textColor }}>
+                    {img.titulo && (
+                        <h3 className="text-xl md:text-2xl font-semibold text-center" style={{ color: textColor }}>
                           {img.titulo}
                         </h3>
                       )}
@@ -843,7 +843,7 @@ export default function FormularioPublico() {
                   {videosArr.filter(vid => vid.url && getVideoEmbedUrl(vid.url)).map((vid, idx) => (
                     <div key={`vid-${idx}`} className="space-y-2">
                       {vid.titulo && (
-                        <h3 className="text-lg font-semibold text-center" style={{ color: textColor }}>
+                        <h3 className="text-xl md:text-2xl font-semibold text-center" style={{ color: textColor }}>
                           {vid.titulo}
                         </h3>
                       )}
@@ -883,7 +883,7 @@ export default function FormularioPublico() {
                     >
                       <CheckCircle2 className="h-5 w-5" style={{ color: primaryColor }} />
                     </div>
-                    <h2 className="text-xl font-bold" style={{ color: textColor }}>
+                    <h2 className="text-2xl md:text-3xl font-bold" style={{ color: textColor }}>
                       {config.pagina_obrigado_titulo || "Obrigado!"}
                     </h2>
                   </div>
