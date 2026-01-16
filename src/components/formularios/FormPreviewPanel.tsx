@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -148,6 +148,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
   const validVideos = videos.filter(v => v.url && getVideoEmbedUrl(v.url));
   
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [currentEtapaIndex, setCurrentEtapaIndex] = useState(0);
   const imageCarouselRef = useRef<HTMLDivElement>(null);
 
   // Sections render functions for thank you page
@@ -571,11 +572,25 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
   }
 
   // Determine which fields to show
-  const fieldsToShow = etapas.length > 0 
-    ? (layoutTipo === "single_page" ? etapas : etapas.slice(0, 1))
-    : []; // No fallback - only show real etapas
+  const hasEtapas = etapas.length > 0;
+  const currentEtapa = hasEtapas ? etapas[Math.min(currentEtapaIndex, etapas.length - 1)] : null;
+  
+  // For single page, show all. For multi-step, show current etapa
+  const fieldsToShow = hasEtapas 
+    ? (layoutTipo === "single_page" ? etapas : (currentEtapa ? [currentEtapa] : []))
+    : [];
 
-  const hasEtapas = fieldsToShow.length > 0;
+  const handlePrevEtapa = () => {
+    if (currentEtapaIndex > 0) {
+      setCurrentEtapaIndex(currentEtapaIndex - 1);
+    }
+  };
+
+  const handleNextEtapa = () => {
+    if (currentEtapaIndex < etapas.length - 1) {
+      setCurrentEtapaIndex(currentEtapaIndex + 1);
+    }
+  };
 
   return (
     <div 
@@ -612,7 +627,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               <div 
                 className="h-full rounded-full transition-all"
                 style={{ 
-                  width: `${Math.round(100 / etapas.length)}%`,
+                  width: `${Math.round(((currentEtapaIndex + 1) / etapas.length) * 100)}%`,
                   backgroundColor: corPrimaria 
                 }}
               />
@@ -653,6 +668,16 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   }}>
                     {etapa.titulo} {etapa.obrigatorio && <span style={{ color: "#ef4444" }}>*</span>}
                   </label>
+                  {/* Descrição da etapa */}
+                  {etapa.descricao && (
+                    <p style={{ 
+                      color: textColor, 
+                      opacity: 0.7,
+                      fontSize: `${Math.min((parseInt(fonteTamanhoPerguntas) || 16) * 0.6, 11)}px`,
+                    }}>
+                      {etapa.descricao}
+                    </p>
+                  )}
                   {renderField(etapa)}
                 </div>
               ))}
@@ -667,8 +692,49 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             </div>
           )}
           
-          {/* Button */}
-          {hasEtapas && (
+          {/* Navigation for multi-step */}
+          {layoutTipo === "multi_step" && hasEtapas && (
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handlePrevEtapa}
+                disabled={currentEtapaIndex === 0}
+                className="flex-1"
+                style={{ 
+                  borderRadius: `${parseInt(borderRadius) / 2}px`,
+                  opacity: currentEtapaIndex === 0 ? 0.5 : 1,
+                }}
+              >
+                <ChevronLeft className="h-3 w-3 mr-1" />
+                Voltar
+              </Button>
+              <span className="text-xs" style={{ color: textColor, opacity: 0.6 }}>
+                {currentEtapaIndex + 1}/{etapas.length}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleNextEtapa}
+                disabled={currentEtapaIndex === etapas.length - 1}
+                className="flex-1"
+                style={{ 
+                  backgroundColor: corPrimaria, 
+                  color: buttonTextColor,
+                  borderRadius: `${parseInt(borderRadius) / 2}px`,
+                  fontSize: `${Math.min((parseInt(fonteTamanhoBotoes) || 16) * 0.75, 14)}px`,
+                  opacity: currentEtapaIndex === etapas.length - 1 ? 0.5 : 1,
+                }}
+              >
+                Próximo
+                <ChevronRight className="h-3 w-3 ml-1" />
+              </Button>
+            </div>
+          )}
+          
+          {/* Button for single page */}
+          {layoutTipo === "single_page" && hasEtapas && (
             <Button
               type="button"
               className="w-full"
@@ -680,7 +746,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 fontSize: `${Math.min((parseInt(fonteTamanhoBotoes) || 16) * 0.75, 14)}px`,
               }}
             >
-              {layoutTipo === "multi_step" ? "Próximo" : "Enviar"}
+              Enviar
             </Button>
           )}
         </CardContent>
