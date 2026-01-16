@@ -67,7 +67,11 @@ interface TemplateConfig {
   pagina_obrigado_videos: unknown;
   imagens_layout: string | null;
   fonte_tamanho_titulo?: string | null;
+  fonte_tamanho_subtitulo?: string | null;
   fonte_tamanho_perguntas?: string | null;
+  fonte_tamanho_campos?: string | null;
+  fonte_tamanho_respostas?: string | null;
+  fonte_tamanho_botoes?: string | null;
   formularios_etapas: EtapaConfig[];
 }
 
@@ -573,7 +577,7 @@ export default function FormularioPublico() {
     }
   };
 
-  const renderField = (etapa: EtapaConfig, customStyles?: { cardColor?: string; textColor?: string; borderColor?: string; answerColor?: string; errorColor?: string }) => {
+  const renderField = (etapa: EtapaConfig, customStyles?: { cardColor?: string; textColor?: string; borderColor?: string; answerColor?: string; errorColor?: string; fieldsSize?: string; answersSize?: string }) => {
     const { tipo, id, titulo, descricao, configuracao, obrigatorio } = etapa;
     const value = formData[id];
     const errorStyle = customStyles?.errorColor ? { color: customStyles.errorColor } : {};
@@ -673,7 +677,7 @@ export default function FormularioPublico() {
                     checked={isSelected}
                     onCheckedChange={() => handleChange(id, opcao)}
                   />
-                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.answerColor || "#1f2937" }}>
+                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.answerColor || "#1f2937", fontSize: customStyles?.fieldsSize || "14px" }}>
                     {opcao}
                   </Label>
                 </div>
@@ -714,7 +718,7 @@ export default function FormularioPublico() {
                       handleChange(id, newValues);
                     }}
                   />
-                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.answerColor || "#1f2937" }}>
+                  <Label htmlFor={`${id}-${idx}`} className="flex-1 cursor-pointer" style={{ color: customStyles?.answerColor || "#1f2937", fontSize: customStyles?.fieldsSize || "14px" }}>
                     {opcao}
                   </Label>
                 </div>
@@ -940,6 +944,7 @@ export default function FormularioPublico() {
                         backgroundColor: primaryColor, 
                         color: buttonTextColor,
                         borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+                        fontSize: config.fonte_tamanho_botoes || "16px",
                       }}
                       onClick={() => {
                         let url = config.pagina_obrigado_cta_link!;
@@ -1019,6 +1024,9 @@ export default function FormularioPublico() {
   const answerTextColor = config.answer_text_color || "#1f2937";
   const errorTextColor = config.error_text_color || "#ef4444";
   const questionTitleSize = config.fonte_tamanho_perguntas || "16px";
+  const fieldsSize = config.fonte_tamanho_campos || "14px";
+  const answersSize = config.fonte_tamanho_respostas || "14px";
+  const buttonsSize = config.fonte_tamanho_botoes || "16px";
 
   const isSinglePage = config.layout_tipo === "single_page";
 
@@ -1081,6 +1089,8 @@ export default function FormularioPublico() {
                   borderColor: cardBorderColor !== "transparent" ? cardBorderColor : "rgba(255,255,255,0.2)",
                   answerColor: answerTextColor,
                   errorColor: errorTextColor,
+                  fieldsSize: fieldsSize,
+                  answersSize: answersSize,
                 })}
               </div>
             ))}
@@ -1096,6 +1106,7 @@ export default function FormularioPublico() {
                 backgroundColor: primaryColor, 
                 color: buttonTextColor,
                 borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+                fontSize: buttonsSize,
               }}
             >
               {submitting ? (
@@ -1187,6 +1198,7 @@ export default function FormularioPublico() {
                   color: backButtonTextColor,
                   borderColor: backButtonColor,
                   borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+                  fontSize: buttonsSize,
                 }}
               >
                 <ChevronLeft className="h-4 w-4 mr-2" />
@@ -1202,6 +1214,7 @@ export default function FormularioPublico() {
                 backgroundColor: primaryColor, 
                 color: buttonTextColor,
                 borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
+                fontSize: buttonsSize,
               }}
             >
               {submitting ? (
