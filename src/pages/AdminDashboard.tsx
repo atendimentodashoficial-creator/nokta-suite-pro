@@ -328,15 +328,14 @@ export default function AdminDashboard() {
       });
       if (error) throw error;
       if (data?.link) {
-        // Usar location.href para mobile compatibility
-        const link = document.createElement('a');
-        link.href = data.link;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Link de acesso gerado! Abrindo em nova aba...');
+        // Para mobile, usar window.open que é mais compatível
+        // Fallback para location.href se window.open falhar (bloqueado por popup blocker)
+        const newWindow = window.open(data.link, '_blank', 'noopener,noreferrer');
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          // Popup foi bloqueado ou não suportado, usar redirecionamento direto
+          window.location.href = data.link;
+        }
+        toast.success('Link de acesso gerado! Abrindo...');
       } else {
         toast.error('Não foi possível gerar o link de acesso');
       }
