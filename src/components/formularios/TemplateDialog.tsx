@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateTemplate, useUpdateTemplate, FormularioTemplate, MediaItem } from "@/hooks/useFormularios";
+import { useCreateTemplate, useUpdateTemplate, useFormularioTemplate, FormularioTemplate, MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, X, Loader2, Plus, Trash2 } from "lucide-react";
@@ -94,6 +94,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   
   const createTemplate = useCreateTemplate();
   const updateTemplate = useUpdateTemplate();
+  
+  // Fetch template with etapas for preview
+  const { data: templateWithEtapas } = useFormularioTemplate(template?.id);
   
   const isEditing = !!template;
   const isPending = createTemplate.isPending || updateTemplate.isPending;
@@ -378,6 +381,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
   const [activeTab, setActiveTab] = useState("geral");
 
+  // Get etapas sorted by ordem
+  const etapas: FormularioEtapa[] = templateWithEtapas?.formularios_etapas
+    ?.filter(e => e.ativo)
+    ?.sort((a, b) => a.ordem - b.ordem) || [];
+
   const previewConfig = {
     nome,
     logoUrl,
@@ -398,6 +406,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     paginaObrigadoVideoPosicao,
     imagens,
     videos,
+    etapas,
   };
 
   return (
