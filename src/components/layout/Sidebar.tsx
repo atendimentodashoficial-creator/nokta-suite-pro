@@ -1,12 +1,12 @@
 import { Calendar, DollarSign, TrendingUp, Settings, UserCog, FileText, LogOut, MessageSquare, UserX, Handshake, UserPlus, Users, ChevronLeft, ChevronRight, Send, Database, Instagram, Wallet } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
-import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import noktaLogoDefault from "@/assets/nokta-logo.png";
+import googleAdsIcon from "@/assets/google-ads-icon.png";
 import { createContext, useContext } from "react";
 
 export const navigation = [
@@ -23,7 +23,7 @@ export const navigation = [
   { name: "Extrator", href: "/extrator", icon: Database },
   { name: "Instagram", href: "/instagram", icon: Instagram },
   { name: "Meta Ads", href: "/metricas-campanhas", icon: MetaIcon },
-  { name: "Google Ads", href: "/google-ads", icon: GoogleAdsIcon },
+  { name: "Google Ads", href: "/google-ads", icon: ({ className }: { className?: string }) => <img src={googleAdsIcon} alt="Google Ads" className={cn("h-5 w-5", className)} /> },
   { name: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
