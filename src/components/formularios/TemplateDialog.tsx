@@ -464,12 +464,12 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [subtitulo, setSubtitulo] = useState("");
   const [tituloCor, setTituloCor] = useState("#00d5ff");
   const [subtituloCor, setSubtituloCor] = useState("#6b7280");
-  const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("24px");
-  const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("16px");
+  const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("28px");
+  const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("18px");
   const [fonteTamanhoPerguntas, setFonteTamanhoPerguntas] = useState("16px");
   const [fonteTamanhoCampos, setFonteTamanhoCampos] = useState("14px");
   const [fonteTamanhoRespostas, setFonteTamanhoRespostas] = useState("14px");
-  const [fonteTamanhoBotoes, setFonteTamanhoBotoes] = useState("16px");
+  const [fonteTamanhoBotoes, setFonteTamanhoBotoes] = useState("18px");
   const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("28px");
   const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("16px");
   const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("18px");
@@ -632,12 +632,12 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setSubtitulo("");
       setTituloCor("#00d5ff");
       setSubtituloCor("#6b7280");
-      setFonteTamanhoTitulo("24px");
-      setFonteTamanhoSubtitulo("16px");
+      setFonteTamanhoTitulo("28px");
+      setFonteTamanhoSubtitulo("18px");
       setFonteTamanhoPerguntas("16px");
       setFonteTamanhoCampos("14px");
       setFonteTamanhoRespostas("14px");
-      setFonteTamanhoBotoes("16px");
+      setFonteTamanhoBotoes("18px");
       setFonteTamanhoObrigadoTitulo("28px");
       setFonteTamanhoObrigadoTexto("16px");
       
