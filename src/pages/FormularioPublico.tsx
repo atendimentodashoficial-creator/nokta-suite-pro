@@ -457,36 +457,23 @@ export default function FormularioPublico() {
 
       setSubmitted(true);
 
-      // Send WhatsApp notification if configured
+      // Send WhatsApp notification via edge function (bypasses RLS)
       if (config.whatsapp_notificacao_ativa && config.whatsapp_instancia_id && config.whatsapp_mensagem_sucesso && telefone) {
         try {
-          // Get instance config
-          const { data: instancia } = await supabase
-            .from("disparos_instancias")
-            .select("base_url, api_key")
-            .eq("id", config.whatsapp_instancia_id)
-            .single();
-
-          if (instancia) {
-            // Replace placeholders in message
-            let mensagem = config.whatsapp_mensagem_sucesso;
-            mensagem = mensagem.replace(/\{nome\}/gi, nome || "");
-            mensagem = mensagem.replace(/\{email\}/gi, email || "");
-            mensagem = mensagem.replace(/\{telefone\}/gi, telefone || "");
-
-            // Send message via UAZapi
-            const normalizedUrl = instancia.base_url.replace(/\/+$/, "");
-            await fetch(`${normalizedUrl}/chat/send-text`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "apikey": instancia.api_key,
-              },
-              body: JSON.stringify({
-                number: telefone,
-                text: mensagem,
-              }),
-            });
+          console.log("Sending WhatsApp notification for template:", config.id);
+          const { error: notifyError } = await supabase.functions.invoke("formulario-whatsapp-notify", {
+            body: {
+              template_id: config.id,
+              nome: nome || "",
+              email: email || "",
+              telefone: telefone,
+            },
+          });
+          
+          if (notifyError) {
+            console.error("Erro ao enviar notificação WhatsApp:", notifyError);
+          } else {
+            console.log("WhatsApp notification sent successfully");
           }
         } catch (whatsappError) {
           console.error("Erro ao enviar notificação WhatsApp:", whatsappError);
