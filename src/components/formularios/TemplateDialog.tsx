@@ -1817,17 +1817,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm">Botão</Label>
-                      <Select value={fonteTamanhoObrigadoBotao} onValueChange={setFonteTamanhoObrigadoBotao}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {FONT_SIZE_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
@@ -1844,6 +1833,17 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     <div className="space-y-1.5">
                       <Label className="text-sm">Subtítulo Mídias</Label>
                       <Select value={fonteTamanhoMidiaSubtitulo} onValueChange={setFonteTamanhoMidiaSubtitulo}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZE_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2 space-y-1.5">
+                      <Label className="text-sm">Botão</Label>
+                      <Select value={fonteTamanhoObrigadoBotao} onValueChange={setFonteTamanhoObrigadoBotao}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
