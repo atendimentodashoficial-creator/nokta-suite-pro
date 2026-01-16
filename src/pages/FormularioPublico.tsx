@@ -28,6 +28,12 @@ interface EtapaConfig {
   };
 }
 
+interface MediaItem {
+  url: string;
+  titulo: string;
+  subtitulo: string;
+}
+
 interface TemplateConfig {
   id: string;
   user_id: string;
@@ -57,6 +63,8 @@ interface TemplateConfig {
   pagina_obrigado_video_subtitulo: string | null;
   pagina_obrigado_video_posicao: string | null;
   pagina_obrigado_imagem_url: string | null;
+  pagina_obrigado_imagens: MediaItem[] | null;
+  pagina_obrigado_videos: MediaItem[] | null;
   formularios_etapas: EtapaConfig[];
 }
 
@@ -808,46 +816,64 @@ export default function FormularioPublico() {
           <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
             {/* Video section component */}
             {(() => {
-              const videoSection = config.pagina_obrigado_video_url && getVideoEmbedUrl(config.pagina_obrigado_video_url) && (
-                <div className="w-full space-y-3">
-                  {config.pagina_obrigado_video_titulo && (
-                    <h3 className="text-lg font-semibold text-center" style={{ color: textColor }}>
-                      {config.pagina_obrigado_video_titulo}
-                    </h3>
-                  )}
-                  {config.pagina_obrigado_video_subtitulo && (
-                    <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
-                      {config.pagina_obrigado_video_subtitulo}
-                    </p>
-                  )}
-                  <div className="w-full aspect-video rounded-lg overflow-hidden">
-                    <iframe
-                      src={getVideoEmbedUrl(config.pagina_obrigado_video_url)!}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      title="Video"
-                    />
-                  </div>
+              // Get arrays from config
+              const imagens: MediaItem[] = Array.isArray(config.pagina_obrigado_imagens) ? config.pagina_obrigado_imagens : [];
+              const videosArr: MediaItem[] = Array.isArray(config.pagina_obrigado_videos) ? config.pagina_obrigado_videos : [];
+              
+              const mediaSection = (
+                <div className="w-full space-y-4">
+                  {/* Multiple Images */}
+                  {imagens.filter(img => img.url).map((img, idx) => (
+                    <div key={`img-${idx}`} className="space-y-2">
+                      {img.titulo && (
+                        <h3 className="text-lg font-semibold text-center" style={{ color: textColor }}>
+                          {img.titulo}
+                        </h3>
+                      )}
+                      {img.subtitulo && (
+                        <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
+                          {img.subtitulo}
+                        </p>
+                      )}
+                      <img src={img.url} alt={img.titulo || `Imagem ${idx + 1}`} className="max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto" />
+                    </div>
+                  ))}
+                  
+                  {/* Multiple Videos */}
+                  {videosArr.filter(vid => vid.url && getVideoEmbedUrl(vid.url)).map((vid, idx) => (
+                    <div key={`vid-${idx}`} className="space-y-2">
+                      {vid.titulo && (
+                        <h3 className="text-lg font-semibold text-center" style={{ color: textColor }}>
+                          {vid.titulo}
+                        </h3>
+                      )}
+                      {vid.subtitulo && (
+                        <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
+                          {vid.subtitulo}
+                        </p>
+                      )}
+                      <div className="w-full aspect-video rounded-lg overflow-hidden">
+                        <iframe
+                          src={getVideoEmbedUrl(vid.url)!}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          title={vid.titulo || `Video ${idx + 1}`}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               );
-
+              
+              const hasMedia = imagens.filter(i => i.url).length > 0 || videosArr.filter(v => v.url).length > 0;
               const videoPosicao = config.pagina_obrigado_video_posicao || "abaixo";
-              const videoAcima = videoPosicao === "acima";
+              const mediaAcima = videoPosicao === "acima";
 
               return (
                 <>
-                  {/* Video acima do obrigado */}
-                  {videoAcima && videoSection}
-                  
-                  {/* Image - show independently */}
-                  {config.pagina_obrigado_imagem_url && (
-                    <img 
-                      src={config.pagina_obrigado_imagem_url} 
-                      alt="Obrigado" 
-                      className="max-w-full h-auto max-h-48 object-contain rounded-lg"
-                    />
-                  )}
+                  {/* Media acima do obrigado */}
+                  {mediaAcima && hasMedia && mediaSection}
                   
                   {/* Título com check ao lado */}
                   <div className="flex items-center justify-center gap-3">
@@ -866,8 +892,8 @@ export default function FormularioPublico() {
                     {config.pagina_obrigado_mensagem || "Recebemos suas informações."}
                   </p>
 
-                  {/* Video abaixo do obrigado */}
-                  {!videoAcima && videoSection}
+                  {/* Media abaixo do obrigado */}
+                  {!mediaAcima && hasMedia && mediaSection}
 
                   {config.pagina_obrigado_cta_texto && config.pagina_obrigado_cta_link && (
                     <Button

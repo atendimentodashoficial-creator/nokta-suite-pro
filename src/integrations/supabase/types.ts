@@ -2091,13 +2091,17 @@ export type Database = {
           nome: string
           pagina_obrigado_cta_link: string | null
           pagina_obrigado_cta_texto: string | null
+          pagina_obrigado_imagem_subtitulo: string | null
+          pagina_obrigado_imagem_titulo: string | null
           pagina_obrigado_imagem_url: string | null
+          pagina_obrigado_imagens: Json | null
           pagina_obrigado_mensagem: string | null
           pagina_obrigado_titulo: string | null
           pagina_obrigado_video_posicao: string | null
           pagina_obrigado_video_subtitulo: string | null
           pagina_obrigado_video_titulo: string | null
           pagina_obrigado_video_url: string | null
+          pagina_obrigado_videos: Json | null
           progress_background_color: string | null
           slug: string | null
           status: string
@@ -2125,13 +2129,17 @@ export type Database = {
           nome: string
           pagina_obrigado_cta_link?: string | null
           pagina_obrigado_cta_texto?: string | null
+          pagina_obrigado_imagem_subtitulo?: string | null
+          pagina_obrigado_imagem_titulo?: string | null
           pagina_obrigado_imagem_url?: string | null
+          pagina_obrigado_imagens?: Json | null
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
           pagina_obrigado_video_posicao?: string | null
           pagina_obrigado_video_subtitulo?: string | null
           pagina_obrigado_video_titulo?: string | null
           pagina_obrigado_video_url?: string | null
+          pagina_obrigado_videos?: Json | null
           progress_background_color?: string | null
           slug?: string | null
           status?: string
@@ -2159,13 +2167,17 @@ export type Database = {
           nome?: string
           pagina_obrigado_cta_link?: string | null
           pagina_obrigado_cta_texto?: string | null
+          pagina_obrigado_imagem_subtitulo?: string | null
+          pagina_obrigado_imagem_titulo?: string | null
           pagina_obrigado_imagem_url?: string | null
+          pagina_obrigado_imagens?: Json | null
           pagina_obrigado_mensagem?: string | null
           pagina_obrigado_titulo?: string | null
           pagina_obrigado_video_posicao?: string | null
           pagina_obrigado_video_subtitulo?: string | null
           pagina_obrigado_video_titulo?: string | null
           pagina_obrigado_video_url?: string | null
+          pagina_obrigado_videos?: Json | null
           progress_background_color?: string | null
           slug?: string | null
           status?: string
