@@ -78,6 +78,7 @@ interface TemplateConfig {
   fonte_tamanho_botoes?: string | null;
   fonte_tamanho_obrigado_titulo?: string | null;
   fonte_tamanho_obrigado_texto?: string | null;
+  fonte_tamanho_obrigado_botao?: string | null;
   whatsapp_instancia_id?: string | null;
   whatsapp_mensagem_sucesso?: string | null;
   whatsapp_notificacao_ativa?: boolean | null;
@@ -1123,7 +1124,7 @@ export default function FormularioPublico() {
                         backgroundColor: primaryColor, 
                         color: buttonTextColor,
                         borderRadius: `${parseInt(borderRadiusValue) / 2}px`,
-                        fontSize: config.fonte_tamanho_botoes || "16px",
+                        fontSize: config.fonte_tamanho_obrigado_botao || "16px",
                       }}
                       onClick={() => {
                         let url = config.pagina_obrigado_cta_link!;
