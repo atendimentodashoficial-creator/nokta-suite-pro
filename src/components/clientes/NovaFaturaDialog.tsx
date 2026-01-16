@@ -536,11 +536,11 @@ export function NovaFaturaDialog({
                         <div className="flex justify-between">
                           <span>Entrada:</span>
                           <span className="font-medium">
-                            R$ {(parseFloat((form.watch("valor_entrada") || "0").replace(/[^\d,.-]/g, '').replace(',', '.')) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {(parseCurrencyToNumber(form.watch("valor_entrada") || "0") || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </span>
                         </div>
                       )}
-                      {parseFloat((form.watch("taxa_parcelamento") || "0").replace(',', '.')) > 0 && (
+                      {parseFloat((form.watch("taxa_parcelamento") || "0").replace(",", ".")) > 0 && (
                         <div className="flex justify-between">
                           <span>Taxa ({form.watch("juros_pago_por") === "empresa" ? "paga pela empresa" : "paga pelo cliente"}):</span>
                           <span className={cn("font-medium", form.watch("juros_pago_por") === "empresa" ? "text-red-600" : "text-orange-600")}>
@@ -553,15 +553,15 @@ export function NovaFaturaDialog({
                         <span className="font-medium">
                           {form.watch("numero_parcelas") || 1}x de R$ {(() => {
                             const total = valorTotal;
-                            const taxa = parseFloat((form.watch("taxa_parcelamento") || "0").replace(',', '.')) || 0;
+                            const taxa = parseFloat((form.watch("taxa_parcelamento") || "0").replace(",", ".")) || 0;
                             const jurosPagoPor = form.watch("juros_pago_por");
                             const valorTaxa = total * (taxa / 100);
                             const totalFinal = jurosPagoPor === "empresa" ? total : total + valorTaxa;
-                            const entrada = form.watch("forma_pagamento") === "entrada_parcelado" 
-                              ? parseFloat((form.watch("valor_entrada") || "0").replace(/[^\d,.-]/g, '').replace(',', '.')) || 0
+                            const entrada = form.watch("forma_pagamento") === "entrada_parcelado"
+                              ? parseCurrencyToNumber(form.watch("valor_entrada") || "0") || 0
                               : 0;
                             const parcelas = parseInt(form.watch("numero_parcelas") || "1") || 1;
-                            return ((totalFinal - entrada) / parcelas).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                            return ((totalFinal - entrada) / parcelas).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
                           })()}
                         </span>
                       </div>
