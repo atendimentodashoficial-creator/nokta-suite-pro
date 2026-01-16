@@ -1311,42 +1311,45 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
     <div className="space-y-6">
       {/* Header com período e botão de gerar */}
       <Card>
-        <CardHeader>
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Brain className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Relatório de IA</CardTitle>
-                <CardDescription>
-                  Análise inteligente de campanhas, conjuntos e anúncios
-                </CardDescription>
-              </div>
+        <CardHeader className="pb-4">
+          {/* Título e descrição */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Brain className="h-6 w-6 text-primary" />
             </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="gap-1">
-                <CheckCircle2 className="h-3 w-3 text-green-500" />
-                API Conectada
-              </Badge>
+            <div>
+              <CardTitle>Relatório de IA</CardTitle>
+              <CardDescription>
+                Análise inteligente de campanhas, conjuntos e anúncios
+              </CardDescription>
+            </div>
+          </div>
 
-              {funnelData && (
-                <>
-                  <Badge variant="secondary" className="gap-1">
-                    <Users className="h-3 w-3" />
-                    Leads WhatsApp: {funnelData.totals.leads}
-                  </Badge>
-                  <Badge variant="secondary" className="gap-1">
-                    <Layers className="h-3 w-3" />
-                    Leads Disparos: {funnelData.totals.leadsDisparos}
-                  </Badge>
-                </>
-              )}
+          {/* Badges de status */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <Badge variant="outline" className="gap-1">
+              <CheckCircle2 className="h-3 w-3 text-green-500" />
+              API Conectada
+            </Badge>
+            {funnelData && (
+              <>
+                <Badge variant="secondary" className="gap-1">
+                  <Users className="h-3 w-3" />
+                  Leads WhatsApp: {funnelData.totals.leads}
+                </Badge>
+                <Badge variant="secondary" className="gap-1">
+                  <Layers className="h-3 w-3" />
+                  Leads Disparos: {funnelData.totals.leadsDisparos}
+                </Badge>
+              </>
+            )}
+          </div>
 
-              {/* Period Selector */}
+          {/* Controles: Período + Botão */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 flex-1">
               <Select value={periodFilter} onValueChange={(v) => setPeriodFilterHook(v as any)}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                   <Calendar className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
@@ -1401,21 +1404,25 @@ export function AIReportsTab({ campaigns, selectedAccount, accountCurrency }: AI
                   </Popover>
                 </div>
               )}
-              
-              <Button onClick={handleGenerateClick} disabled={loading || !selectedAccount}>
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {loadingMessage || "Analisando..."}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Gerar Relatório
-                  </>
-                )}
-              </Button>
             </div>
+            
+            <Button 
+              onClick={handleGenerateClick} 
+              disabled={loading || !selectedAccount}
+              className="w-full sm:w-auto"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {loadingMessage || "Analisando..."}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Gerar Relatório
+                </>
+              )}
+            </Button>
           </div>
         </CardHeader>
         
