@@ -163,7 +163,7 @@ export default function FormulariosAbandonos() {
                     <TableHead>Nome</TableHead>
                     <TableHead>E-mail</TableHead>
                     <TableHead>Telefone</TableHead>
-                    <TableHead>Etapa Abandonada</TableHead>
+                    <TableHead>Etapa</TableHead>
                     <TableHead>Progresso</TableHead>
                     <TableHead>Tempo na Sessão</TableHead>
                     <TableHead>Formulário</TableHead>
