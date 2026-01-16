@@ -1336,22 +1336,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="borderRadius">Arredondamento dos Cantos: {borderRadius}px</Label>
-                <Input
-                  id="borderRadius"
-                  type="range"
-                  min="0"
-                  max="32"
-                  value={borderRadius}
-                  onChange={(e) => setBorderRadius(e.target.value)}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Quadrado</span>
-                  <span>Arredondado</span>
-                </div>
-              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1479,6 +1463,23 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   <p className="text-xs text-muted-foreground">
                     Cor dos erros de validação
                   </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="borderRadius">Arredondamento dos Cantos: {borderRadius}px</Label>
+                <Input
+                  id="borderRadius"
+                  type="range"
+                  min="0"
+                  max="32"
+                  value={borderRadius}
+                  onChange={(e) => setBorderRadius(e.target.value)}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Quadrado</span>
+                  <span>Arredondado</span>
                 </div>
               </div>
                 </CollapsibleContent>
@@ -1764,20 +1765,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     <Label className="text-sm font-medium">Estilos de Mídia</Label>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Arredondamento</Label>
-                        <Select value={borderRadius} onValueChange={setBorderRadius}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Sem arredondamento</SelectItem>
-                            <SelectItem value="4">Leve (4px)</SelectItem>
-                            <SelectItem value="8">Médio (8px)</SelectItem>
-                            <SelectItem value="12">Padrão (12px)</SelectItem>
-                            <SelectItem value="16">Grande (16px)</SelectItem>
-                            <SelectItem value="24">Extra Grande (24px)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">Cor do Card</Label>
                         <div className="flex items-center gap-2">
                           <Input
@@ -1794,23 +1781,40 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                           />
                         </div>
                       </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Borda do Card</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="color"
-                          value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
-                          onChange={(e) => setCardBorderColor(e.target.value)}
-                          className="w-10 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          value={cardBorderColor}
-                          onChange={(e) => setCardBorderColor(e.target.value)}
-                          placeholder="transparent"
-                          className="flex-1"
-                        />
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Borda do Card</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                            onChange={(e) => setCardBorderColor(e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            value={cardBorderColor}
+                            onChange={(e) => setCardBorderColor(e.target.value)}
+                            placeholder="transparent"
+                            className="flex-1"
+                          />
+                        </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Arredondamento */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Arredondamento dos Cantos: {borderRadius}px</Label>
+                    <Input
+                      type="range"
+                      min="0"
+                      max="32"
+                      value={borderRadius}
+                      onChange={(e) => setBorderRadius(e.target.value)}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Quadrado</span>
+                      <span>Arredondado</span>
                     </div>
                   </div>
                 </CollapsibleContent>
