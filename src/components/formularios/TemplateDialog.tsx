@@ -11,9 +11,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useCreateTemplate, useUpdateTemplate, useFormularioTemplate, FormularioTemplate, MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload, X, Loader2, Plus, Trash2, ChevronDown, ChevronUp, Palette, Type, Link2, Video, Image, GripVertical, Settings2 } from "lucide-react";
+import { Upload, X, Loader2, Plus, Trash2, ChevronDown, Palette, Type, Link2, Film, ImageIcon, GripVertical, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import FormPreviewPanel from "./FormPreviewPanel";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
 
 const FONT_OPTIONS = [
   { value: "Inter", label: "Inter" },
@@ -43,6 +47,392 @@ interface TemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   template: FormularioTemplate | null;
+}
+
+type SectionType = "titulo" | "cta" | "imagens" | "videos";
+
+interface SortableSectionProps {
+  id: SectionType;
+  sectionType: SectionType;
+  imagens: MediaItem[];
+  videos: MediaItem[];
+  paginaObrigadoTitulo: string;
+  setPaginaObrigadoTitulo: (v: string) => void;
+  paginaObrigadoMensagem: string;
+  setPaginaObrigadoMensagem: (v: string) => void;
+  paginaObrigadoCtaTexto: string;
+  setPaginaObrigadoCtaTexto: (v: string) => void;
+  paginaObrigadoCtaLink: string;
+  setPaginaObrigadoCtaLink: (v: string) => void;
+  removeImagem: (index: number) => void;
+  updateImagem: (index: number, field: string, value: string) => void;
+  addSideImage: (index: number) => void;
+  removeSideImage: (index: number, sideIndex: number) => void;
+  handleMultiImageUpload: (e: React.ChangeEvent<HTMLInputElement>, index: number) => void;
+  handleSideImageUpload: (e: React.ChangeEvent<HTMLInputElement>, index: number, sideIndex: number) => void;
+  imagemInputRefs: React.MutableRefObject<(HTMLInputElement | null)[]>;
+  uploadingImagemIndex: number | null;
+  addImagem: () => void;
+  removeVideo: (index: number) => void;
+  updateVideo: (index: number, field: string, value: string) => void;
+  addSideVideo: (index: number) => void;
+  removeSideVideo: (index: number, sideIndex: number) => void;
+  updateSideVideo: (index: number, sideIndex: number, value: string) => void;
+  addVideo: () => void;
+}
+
+function SortableSection({
+  id,
+  sectionType,
+  imagens,
+  videos,
+  paginaObrigadoTitulo,
+  setPaginaObrigadoTitulo,
+  paginaObrigadoMensagem,
+  setPaginaObrigadoMensagem,
+  paginaObrigadoCtaTexto,
+  setPaginaObrigadoCtaTexto,
+  paginaObrigadoCtaLink,
+  setPaginaObrigadoCtaLink,
+  removeImagem,
+  updateImagem,
+  addSideImage,
+  removeSideImage,
+  handleMultiImageUpload,
+  handleSideImageUpload,
+  imagemInputRefs,
+  uploadingImagemIndex,
+  addImagem,
+  removeVideo,
+  updateVideo,
+  addSideVideo,
+  removeSideVideo,
+  updateSideVideo,
+  addVideo,
+}: SortableSectionProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const getSectionConfig = () => {
+    switch (sectionType) {
+      case "titulo":
+        return { icon: Type, title: "Título e Mensagem" };
+      case "cta":
+        return { icon: Link2, title: "Botão de Ação (CTA)" };
+      case "imagens":
+        return { icon: ImageIcon, title: `Imagens ${imagens.length > 0 ? `(${imagens.length})` : ''}` };
+      case "videos":
+        return { icon: Film, title: `Vídeos ${videos.length > 0 ? `(${videos.length})` : ''}` };
+    }
+  };
+
+  const config = getSectionConfig();
+  const Icon = config.icon;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(isDragging && "opacity-50 z-50")}
+    >
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" type="button" className="w-full justify-between">
+            <div className="flex items-center gap-2 flex-1">
+              <button
+                type="button"
+                className="cursor-grab active:cursor-grabbing touch-none"
+                {...attributes}
+                {...listeners}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </button>
+              <Icon className="h-4 w-4" />
+              <span>{config.title}</span>
+            </div>
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-3">
+          {sectionType === "titulo" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="obrigadoTitulo">Título</Label>
+                <Input
+                  id="obrigadoTitulo"
+                  value={paginaObrigadoTitulo}
+                  onChange={(e) => setPaginaObrigadoTitulo(e.target.value)}
+                  placeholder="Obrigado!"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="obrigadoMensagem">Mensagem</Label>
+                <Textarea
+                  id="obrigadoMensagem"
+                  value={paginaObrigadoMensagem}
+                  onChange={(e) => setPaginaObrigadoMensagem(e.target.value)}
+                  placeholder="Recebemos suas informações..."
+                  rows={3}
+                />
+              </div>
+            </>
+          )}
+          
+          {sectionType === "cta" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="ctaTexto">Texto do Botão</Label>
+                <Input
+                  id="ctaTexto"
+                  value={paginaObrigadoCtaTexto}
+                  onChange={(e) => setPaginaObrigadoCtaTexto(e.target.value)}
+                  placeholder="Ex: Voltar ao Site"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ctaLink">Link do Botão</Label>
+                <Input
+                  id="ctaLink"
+                  value={paginaObrigadoCtaLink}
+                  onChange={(e) => setPaginaObrigadoCtaLink(e.target.value)}
+                  placeholder="https://exemplo.com"
+                />
+              </div>
+            </>
+          )}
+          
+          {sectionType === "imagens" && (
+            <>
+              {imagens.map((img, index) => (
+                <div key={index} className="border rounded-lg p-3 space-y-2 relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
+                    onClick={() => removeImagem(index)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="space-y-2">
+                    <Label>Título</Label>
+                    <Input
+                      placeholder="Título da imagem (opcional)"
+                      value={img.titulo}
+                      onChange={(e) => updateImagem(index, "titulo", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Subtítulo</Label>
+                    <Input
+                      placeholder="Subtítulo da imagem (opcional)"
+                      value={img.subtitulo}
+                      onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {img.url ? (
+                      <div className="relative group">
+                        <img 
+                          src={img.url} 
+                          alt={`Imagem ${index + 1}`} 
+                          className="h-16 w-auto max-w-24 object-contain rounded border" 
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateImagem(index, "url", "")}
+                          className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => imagemInputRefs.current[index]?.click()}
+                        disabled={uploadingImagemIndex === index}
+                        className="h-16 w-16"
+                      >
+                        {uploadingImagemIndex === index ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                    <input
+                      ref={(el) => (imagemInputRefs.current[index] = el)}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleMultiImageUpload(e, index)}
+                      className="hidden"
+                    />
+                    
+                    {img.url && img.sideImages?.map((sideImg, sideIndex) => (
+                      <div key={sideIndex} className="relative group">
+                        {sideImg.url ? (
+                          <>
+                            <img 
+                              src={sideImg.url} 
+                              alt={`Imagem ${index + 1}.${sideIndex + 1}`} 
+                              className="h-16 w-auto max-w-24 object-contain rounded border" 
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeSideImage(index, sideIndex)}
+                              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*';
+                                input.onchange = (e) => handleSideImageUpload(e as any, index, sideIndex);
+                                input.click();
+                              }}
+                              className="h-16 w-16"
+                            >
+                              <Upload className="h-4 w-4" />
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => removeSideImage(index, sideIndex)}
+                              className="text-destructive hover:text-destructive/80"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {img.url && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addSideImage(index)}
+                        className="h-16 w-16 border-dashed"
+                        title="Adicionar imagem ao lado"
+                      >
+                        <Plus className="h-5 w-5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={addImagem} className="w-full">
+                <Plus className="h-4 w-4 mr-1" /> Adicionar Imagem
+              </Button>
+            </>
+          )}
+          
+          {sectionType === "videos" && (
+            <>
+              {videos.map((video, index) => (
+                <div key={index} className="border rounded-lg p-3 space-y-2 relative">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
+                    onClick={() => removeVideo(index)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="space-y-2">
+                    <Label>Título</Label>
+                    <Input
+                      placeholder="Título do vídeo (opcional)"
+                      value={video.titulo}
+                      onChange={(e) => updateVideo(index, "titulo", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Subtítulo</Label>
+                    <Input
+                      placeholder="Subtítulo do vídeo (opcional)"
+                      value={video.subtitulo}
+                      onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>URLs dos Vídeos</Label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex-1 min-w-[200px]">
+                        <Input
+                          placeholder="URL do vídeo (YouTube ou Vimeo)"
+                          value={video.url}
+                          onChange={(e) => updateVideo(index, "url", e.target.value)}
+                        />
+                      </div>
+                      
+                      {video.sideVideos?.map((sideVideo, sideIndex) => (
+                        <div key={sideIndex} className="flex items-center gap-1 flex-1 min-w-[200px]">
+                          <Input
+                            placeholder="URL do vídeo ao lado"
+                            value={sideVideo.url}
+                            onChange={(e) => updateSideVideo(index, sideIndex, e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeSideVideo(index, sideIndex)}
+                            className="text-destructive hover:text-destructive/80 p-1"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addSideVideo(index)}
+                        className="h-9 px-3 border-dashed"
+                        title="Adicionar vídeo ao lado"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={addVideo} className="w-full">
+                <Plus className="h-4 w-4 mr-1" /> Adicionar Vídeo
+              </Button>
+            </>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
 }
 
 export default function TemplateDialog({ open, onOpenChange, template }: TemplateDialogProps) {
@@ -104,21 +494,25 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const imagemInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   // Section order for thank you page
-  type SectionType = "titulo" | "cta" | "imagens" | "videos";
   const [sectionOrder, setSectionOrder] = useState<SectionType[]>(["titulo", "cta", "imagens", "videos"]);
   
-  const moveSectionUp = (index: number) => {
-    if (index === 0) return;
-    const newOrder = [...sectionOrder];
-    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    setSectionOrder(newOrder);
-  };
+  // DnD sensors
+  const sectionSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
-  const moveSectionDown = (index: number) => {
-    if (index === sectionOrder.length - 1) return;
-    const newOrder = [...sectionOrder];
-    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    setSectionOrder(newOrder);
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSectionOrder((items) => {
+        const oldIndex = items.indexOf(active.id as SectionType);
+        const newIndex = items.indexOf(over.id as SectionType);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   };
 
   const generateSlug = (text: string) => {
@@ -1093,357 +1487,47 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
             </TabsContent>
 
             <TabsContent value="obrigado" className="space-y-4 mt-4">
-              {/* Render sections in order */}
-              {sectionOrder.map((sectionType, sectionIndex) => {
-                const isFirst = sectionIndex === 0;
-                const isLast = sectionIndex === sectionOrder.length - 1;
-                
-                const SectionHeader = ({ icon: Icon, title }: { icon: React.ComponentType<{ className?: string }>, title: string }) => (
-                  <div className="flex items-center gap-2 flex-1">
-                    <Icon className="h-4 w-4" />
-                    <span>{title}</span>
-                  </div>
-                );
-                
-                const ReorderButtons = () => (
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); moveSectionUp(sectionIndex); }}
-                      disabled={isFirst}
-                      className={`p-1 rounded hover:bg-muted ${isFirst ? 'opacity-30 cursor-not-allowed' : ''}`}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); moveSectionDown(sectionIndex); }}
-                      disabled={isLast}
-                      className={`p-1 rounded hover:bg-muted ${isLast ? 'opacity-30 cursor-not-allowed' : ''}`}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </button>
-                  </div>
-                );
-
-                if (sectionType === "titulo") {
-                  return (
-                    <Collapsible key={sectionType} defaultOpen={sectionIndex === 0}>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="outline" type="button" className="w-full justify-between">
-                          <SectionHeader icon={Type} title="Título e Mensagem" />
-                          <div className="flex items-center gap-2">
-                            <ReorderButtons />
-                            <ChevronDown className="h-4 w-4" />
-                          </div>
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-3 pt-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="obrigadoTitulo">Título</Label>
-                          <Input
-                            id="obrigadoTitulo"
-                            value={paginaObrigadoTitulo}
-                            onChange={(e) => setPaginaObrigadoTitulo(e.target.value)}
-                            placeholder="Obrigado!"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="obrigadoMensagem">Mensagem</Label>
-                          <Textarea
-                            id="obrigadoMensagem"
-                            value={paginaObrigadoMensagem}
-                            onChange={(e) => setPaginaObrigadoMensagem(e.target.value)}
-                            placeholder="Recebemos suas informações..."
-                            rows={3}
-                          />
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  );
-                }
-
-                if (sectionType === "cta") {
-                  return (
-                    <Collapsible key={sectionType}>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="outline" type="button" className="w-full justify-between">
-                          <SectionHeader icon={Link2} title="Botão de Ação (CTA)" />
-                          <div className="flex items-center gap-2">
-                            <ReorderButtons />
-                            <ChevronDown className="h-4 w-4" />
-                          </div>
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-3 pt-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="ctaTexto">Texto do Botão</Label>
-                          <Input
-                            id="ctaTexto"
-                            value={paginaObrigadoCtaTexto}
-                            onChange={(e) => setPaginaObrigadoCtaTexto(e.target.value)}
-                            placeholder="Ex: Voltar ao Site"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="ctaLink">Link do Botão</Label>
-                          <Input
-                            id="ctaLink"
-                            value={paginaObrigadoCtaLink}
-                            onChange={(e) => setPaginaObrigadoCtaLink(e.target.value)}
-                            placeholder="https://exemplo.com"
-                          />
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  );
-                }
-
-                if (sectionType === "imagens") {
-                  return (
-                    <Collapsible key={sectionType}>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="outline" type="button" className="w-full justify-between">
-                          <SectionHeader icon={Image} title={`Imagens ${imagens.length > 0 ? `(${imagens.length})` : ''}`} />
-                          <div className="flex items-center gap-2">
-                            <ReorderButtons />
-                            <ChevronDown className="h-4 w-4" />
-                          </div>
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-3 pt-3">
-                        {imagens.map((img, index) => (
-                          <div key={index} className="border rounded-lg p-3 space-y-2 relative">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
-                              onClick={() => removeImagem(index)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                            
-                            <div className="space-y-2">
-                              <Label>Título</Label>
-                              <Input
-                                placeholder="Título da imagem (opcional)"
-                                value={img.titulo}
-                                onChange={(e) => updateImagem(index, "titulo", e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Subtítulo</Label>
-                              <Input
-                                placeholder="Subtítulo da imagem (opcional)"
-                                value={img.subtitulo}
-                                onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
-                              />
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              {img.url ? (
-                                <div className="relative group">
-                                  <img 
-                                    src={img.url} 
-                                    alt={`Imagem ${index + 1}`} 
-                                    className="h-16 w-auto max-w-24 object-contain rounded border" 
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => updateImagem(index, "url", "")}
-                                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
-                                  >
-                                    <X className="h-2.5 w-2.5" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => imagemInputRefs.current[index]?.click()}
-                                  disabled={uploadingImagemIndex === index}
-                                  className="h-16 w-16"
-                                >
-                                  {uploadingImagemIndex === index ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Upload className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              )}
-                              <input
-                                ref={(el) => (imagemInputRefs.current[index] = el)}
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => handleMultiImageUpload(e, index)}
-                                className="hidden"
-                              />
-                              
-                              {img.url && img.sideImages?.map((sideImg, sideIndex) => (
-                                <div key={sideIndex} className="relative group">
-                                  {sideImg.url ? (
-                                    <>
-                                      <img 
-                                        src={sideImg.url} 
-                                        alt={`Imagem ${index + 1}.${sideIndex + 1}`} 
-                                        className="h-16 w-auto max-w-24 object-contain rounded border" 
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => removeSideImage(index, sideIndex)}
-                                        className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
-                                      >
-                                        <X className="h-2.5 w-2.5" />
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <div className="flex items-center gap-1">
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                          const input = document.createElement('input');
-                                          input.type = 'file';
-                                          input.accept = 'image/*';
-                                          input.onchange = (e) => handleSideImageUpload(e as any, index, sideIndex);
-                                          input.click();
-                                        }}
-                                        className="h-16 w-16"
-                                      >
-                                        <Upload className="h-4 w-4" />
-                                      </Button>
-                                      <button
-                                        type="button"
-                                        onClick={() => removeSideImage(index, sideIndex)}
-                                        className="text-destructive hover:text-destructive/80"
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                              
-                              {img.url && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => addSideImage(index)}
-                                  className="h-16 w-16 border-dashed"
-                                  title="Adicionar imagem ao lado"
-                                >
-                                  <Plus className="h-5 w-5" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        <Button type="button" variant="outline" size="sm" onClick={addImagem} className="w-full">
-                          <Plus className="h-4 w-4 mr-1" /> Adicionar Imagem
-                        </Button>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  );
-                }
-
-                if (sectionType === "videos") {
-                  return (
-                    <Collapsible key={sectionType}>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="outline" type="button" className="w-full justify-between">
-                          <SectionHeader icon={Video} title={`Vídeos ${videos.length > 0 ? `(${videos.length})` : ''}`} />
-                          <div className="flex items-center gap-2">
-                            <ReorderButtons />
-                            <ChevronDown className="h-4 w-4" />
-                          </div>
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-3 pt-3">
-                        {videos.map((video, index) => (
-                          <div key={index} className="border rounded-lg p-3 space-y-2 relative">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:text-destructive"
-                              onClick={() => removeVideo(index)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                            
-                            <div className="space-y-2">
-                              <Label>Título</Label>
-                              <Input
-                                placeholder="Título do vídeo (opcional)"
-                                value={video.titulo}
-                                onChange={(e) => updateVideo(index, "titulo", e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Subtítulo</Label>
-                              <Input
-                                placeholder="Subtítulo do vídeo (opcional)"
-                                value={video.subtitulo}
-                                onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label>URLs dos Vídeos</Label>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <div className="flex-1 min-w-[200px]">
-                                  <Input
-                                    placeholder="URL do vídeo (YouTube ou Vimeo)"
-                                    value={video.url}
-                                    onChange={(e) => updateVideo(index, "url", e.target.value)}
-                                  />
-                                </div>
-                                
-                                {video.sideVideos?.map((sideVideo, sideIndex) => (
-                                  <div key={sideIndex} className="flex items-center gap-1 flex-1 min-w-[200px]">
-                                    <Input
-                                      placeholder="URL do vídeo ao lado"
-                                      value={sideVideo.url}
-                                      onChange={(e) => updateSideVideo(index, sideIndex, e.target.value)}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => removeSideVideo(index, sideIndex)}
-                                      className="text-destructive hover:text-destructive/80 p-1"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                ))}
-                                
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => addSideVideo(index)}
-                                  className="h-9 px-3 border-dashed"
-                                  title="Adicionar vídeo ao lado"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <Button type="button" variant="outline" size="sm" onClick={addVideo} className="w-full">
-                          <Plus className="h-4 w-4 mr-1" /> Adicionar Vídeo
-                        </Button>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  );
-                }
-
-                return null;
-              })}
+              {/* Render sections in order with drag-and-drop */}
+              <DndContext
+                sensors={sectionSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleSectionDragEnd}
+              >
+                <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
+                  {sectionOrder.map((sectionType) => (
+                    <SortableSection
+                      key={sectionType}
+                      id={sectionType}
+                      sectionType={sectionType}
+                      imagens={imagens}
+                      videos={videos}
+                      paginaObrigadoTitulo={paginaObrigadoTitulo}
+                      setPaginaObrigadoTitulo={setPaginaObrigadoTitulo}
+                      paginaObrigadoMensagem={paginaObrigadoMensagem}
+                      setPaginaObrigadoMensagem={setPaginaObrigadoMensagem}
+                      paginaObrigadoCtaTexto={paginaObrigadoCtaTexto}
+                      setPaginaObrigadoCtaTexto={setPaginaObrigadoCtaTexto}
+                      paginaObrigadoCtaLink={paginaObrigadoCtaLink}
+                      setPaginaObrigadoCtaLink={setPaginaObrigadoCtaLink}
+                      removeImagem={removeImagem}
+                      updateImagem={updateImagem}
+                      addSideImage={addSideImage}
+                      removeSideImage={removeSideImage}
+                      handleMultiImageUpload={handleMultiImageUpload}
+                      handleSideImageUpload={handleSideImageUpload}
+                      imagemInputRefs={imagemInputRefs}
+                      uploadingImagemIndex={uploadingImagemIndex}
+                      addImagem={addImagem}
+                      removeVideo={removeVideo}
+                      updateVideo={updateVideo}
+                      addSideVideo={addSideVideo}
+                      removeSideVideo={removeSideVideo}
+                      updateSideVideo={updateSideVideo}
+                      addVideo={addVideo}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
 
               {/* Personalização Visual - Always at the end */}
               <Collapsible>
