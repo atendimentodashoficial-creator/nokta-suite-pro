@@ -24,7 +24,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, userId, email, password, fullName, expiryDate, displayOrder } = await req.json();
+    const { action, userId, email, password, fullName, expiryDate, displayOrder, redirectTo } = await req.json();
 
     switch (action) {
       case 'create': {
@@ -93,11 +93,16 @@ serve(async (req) => {
 
       case 'generate_link': {
         // Gerar link mágico para login como usuário
+        const origin = req.headers.get('origin') || 'https://nokta-clinic-flow.lovable.app';
+        // Usar redirectTo customizado se fornecido, senão ir para a raiz
+        const redirectPath = redirectTo || '/';
+        const fullRedirectUrl = `${origin}${redirectPath}`;
+        
         const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
           type: 'magiclink',
           email: email,
           options: {
-            redirectTo: `${req.headers.get('origin') || 'https://nokta-clinic-flow.lovable.app'}/`
+            redirectTo: fullRedirectUrl
           }
         });
 
