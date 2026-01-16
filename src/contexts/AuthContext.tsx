@@ -40,18 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-        // debug temporário (via body para não quebrar CORS)
-        body: { debug: true },
       });
-
-      if (data?.debug) {
-        console.log("[check-admin-status][debug]", data.debug);
-        try {
-          localStorage.setItem("admin_debug", JSON.stringify(data.debug));
-        } catch {
-          // ignore
-        }
-      }
 
       if (error) {
         console.error("Erro ao verificar status admin:", error);
