@@ -666,10 +666,11 @@ export default function FormularioPublico() {
               return (
                 <div 
                   key={idx} 
-                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80"
+                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-all hover:opacity-90"
                   style={{ 
                     backgroundColor: customStyles?.cardColor || "#ffffff",
-                    border: `1px solid ${customStyles?.borderColor || "rgba(255,255,255,0.2)"}`,
+                    border: `1px solid ${isSelected ? (customStyles?.borderColor || "#d1d5db") : "#d1d5db"}`,
+                    boxShadow: isSelected ? `0 0 0 2px ${customStyles?.borderColor || "#00d5ff"}` : "none",
                   }}
                   onClick={() => handleChange(id, opcao)}
                 >
@@ -698,10 +699,11 @@ export default function FormularioPublico() {
               return (
                 <div 
                   key={idx} 
-                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-opacity hover:opacity-80"
+                  className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-all hover:opacity-90"
                   style={{ 
                     backgroundColor: customStyles?.cardColor || "#ffffff",
-                    border: `1px solid ${customStyles?.borderColor || "rgba(255,255,255,0.2)"}`,
+                    border: `1px solid ${isChecked ? (customStyles?.borderColor || "#d1d5db") : "#d1d5db"}`,
+                    boxShadow: isChecked ? `0 0 0 2px ${customStyles?.borderColor || "#00d5ff"}` : "none",
                   }}
                   onClick={() => {
                     const newValues = isChecked 
