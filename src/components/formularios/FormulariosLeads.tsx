@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, Eye, Pencil, Trash2, Download, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Eye, Trash2, Download, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -269,29 +269,39 @@ export default function FormulariosLeads() {
                       </TableCell>
                       <TableCell>{lead.formularios_templates?.nome || "-"}</TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSelectedLead(lead)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
+                        <div className="flex items-center gap-1">
+                          {lead.telefone && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => {
-                                setLeadToDelete(lead.id);
-                                setDeleteDialogOpen(true);
+                                const phone = lead.telefone?.replace(/\D/g, "");
+                                window.open(`https://wa.me/${phone}`, "_blank");
                               }}
-                              className="text-destructive"
+                              className="text-green-600 hover:text-green-700"
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedLead(lead)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setLeadToDelete(lead.id);
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

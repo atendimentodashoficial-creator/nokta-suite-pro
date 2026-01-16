@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, differenceInSeconds } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Eye, AlertTriangle, Clock, Target, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, AlertTriangle, Clock, Target, Trash2, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -336,6 +336,19 @@ export default function FormulariosAbandonos() {
                         <TableCell>{sessao.formularios_templates?.nome || "-"}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
+                            {telefone !== "-" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  const phone = telefone.replace(/\D/g, "");
+                                  window.open(`https://wa.me/${phone}`, "_blank");
+                                }}
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
