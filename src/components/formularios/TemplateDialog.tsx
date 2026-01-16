@@ -33,15 +33,18 @@ const FONT_OPTIONS = [
 ];
 
 const FONT_SIZE_OPTIONS = [
-  { value: "12px", label: "12px - Pequeno" },
-  { value: "14px", label: "14px - Normal" },
-  { value: "16px", label: "16px - Médio" },
-  { value: "18px", label: "18px - Grande" },
-  { value: "20px", label: "20px - Maior" },
-  { value: "24px", label: "24px - Extra Grande" },
-  { value: "28px", label: "28px - Título" },
-  { value: "32px", label: "32px - Destaque" },
-  { value: "34px", label: "34px - Impacto" },
+  { value: "12px", label: "12px" },
+  { value: "14px", label: "14px" },
+  { value: "16px", label: "16px" },
+  { value: "18px", label: "18px" },
+  { value: "20px", label: "20px" },
+  { value: "24px", label: "24px" },
+  { value: "28px", label: "28px" },
+  { value: "32px", label: "32px" },
+  { value: "34px", label: "34px" },
+  { value: "36px", label: "36px" },
+  { value: "38px", label: "38px" },
+  { value: "40px", label: "40px" },
 ];
 
 interface TemplateDialogProps {
