@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useCreateTemplate, useUpdateTemplate, useFormularioTemplate, FormularioTemplate, MediaItem, FormularioEtapa } from "@/hooks/useFormularios";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload, X, Loader2, Plus, Trash2, ChevronDown, Palette, Type, Link2, Film, ImageIcon, GripVertical, Settings2, Heading } from "lucide-react";
+import { Upload, X, Loader2, Plus, Trash2, ChevronDown, Palette, Type, Link2, Film, ImageIcon, GripVertical, Settings2, Heading, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import FormPreviewPanel from "./FormPreviewPanel";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -509,6 +509,12 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   // Section order for thank you page
   const [sectionOrder, setSectionOrder] = useState<SectionType[]>(["titulo", "cta", "imagens", "videos"]);
   
+  // WhatsApp notification settings
+  const [whatsappInstanciaId, setWhatsappInstanciaId] = useState<string | null>(null);
+  const [whatsappMensagemSucesso, setWhatsappMensagemSucesso] = useState("");
+  const [whatsappNotificacaoAtiva, setWhatsappNotificacaoAtiva] = useState(false);
+  const [whatsappInstancias, setWhatsappInstancias] = useState<{ id: string; nome: string }[]>([]);
+  
   // DnD sensors
   const sectionSensors = useSensors(
     useSensor(PointerSensor),
@@ -608,6 +614,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setVideos(Array.isArray(loadedVideos) ? loadedVideos : []);
       
       setImagensLayout((template as any).imagens_layout || "horizontal");
+      
+      // WhatsApp settings
+      setWhatsappInstanciaId((template as any).whatsapp_instancia_id || null);
+      setWhatsappMensagemSucesso((template as any).whatsapp_mensagem_sucesso || "");
+      setWhatsappNotificacaoAtiva((template as any).whatsapp_notificacao_ativa || false);
     } else {
       setNome("");
       setSlug("");
@@ -654,8 +665,33 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setImagens([]);
       setVideos([]);
       setImagensLayout("vertical");
+      
+      // Reset WhatsApp settings
+      setWhatsappInstanciaId(null);
+      setWhatsappMensagemSucesso("");
+      setWhatsappNotificacaoAtiva(false);
     }
   }, [template, open]);
+
+  // Fetch WhatsApp instances
+  useEffect(() => {
+    if (!user || !open) return;
+    
+    const fetchInstancias = async () => {
+      const { data } = await supabase
+        .from("disparos_instancias")
+        .select("id, nome")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("nome");
+      
+      if (data) {
+        setWhatsappInstancias(data);
+      }
+    };
+    
+    fetchInstancias();
+  }, [user, open]);
 
   // Handle multiple image upload
   const handleMultiImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -948,6 +984,11 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       pagina_obrigado_imagens: imagens.filter(img => img.url),
       pagina_obrigado_videos: videos.filter(vid => vid.url),
       imagens_layout: imagensLayout,
+      
+      // WhatsApp notification
+      whatsapp_instancia_id: whatsappNotificacaoAtiva ? whatsappInstanciaId : null,
+      whatsapp_mensagem_sucesso: whatsappNotificacaoAtiva ? whatsappMensagemSucesso : null,
+      whatsapp_notificacao_ativa: whatsappNotificacaoAtiva,
     };
 
     try {
@@ -2074,6 +2115,75 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       <span>Arredondado</span>
                     </div>
                   </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* WhatsApp Notification Section */}
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" type="button" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Notificação WhatsApp
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Enviar mensagem automática</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Envie uma mensagem WhatsApp quando o lead completar o formulário
+                      </p>
+                    </div>
+                    <Switch
+                      checked={whatsappNotificacaoAtiva}
+                      onCheckedChange={setWhatsappNotificacaoAtiva}
+                    />
+                  </div>
+                  
+                  {whatsappNotificacaoAtiva && (
+                    <div className="space-y-4 pl-4 border-l-2 border-primary/20">
+                      <div className="space-y-2">
+                        <Label>Instância WhatsApp</Label>
+                        {whatsappInstancias.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhuma instância de disparo conectada. Configure em Disparos → Instâncias.
+                          </p>
+                        ) : (
+                          <Select
+                            value={whatsappInstanciaId || ""}
+                            onValueChange={(value) => setWhatsappInstanciaId(value || null)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione uma instância" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {whatsappInstancias.map((inst) => (
+                                <SelectItem key={inst.id} value={inst.id}>
+                                  {inst.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Mensagem</Label>
+                        <Textarea
+                          value={whatsappMensagemSucesso}
+                          onChange={(e) => setWhatsappMensagemSucesso(e.target.value)}
+                          placeholder="Olá {nome}! Obrigado por se cadastrar..."
+                          rows={4}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Use {"{nome}"}, {"{email}"}, {"{telefone}"} para personalizar a mensagem
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
 
