@@ -2072,6 +2072,7 @@ export type Database = {
       }
       formularios_templates: {
         Row: {
+          background_color: string | null
           cor_primaria: string | null
           created_at: string
           descricao: string | null
@@ -2088,6 +2089,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          background_color?: string | null
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
@@ -2104,6 +2106,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          background_color?: string | null
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
