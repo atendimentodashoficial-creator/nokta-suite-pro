@@ -600,6 +600,23 @@ export default function FormularioPublico() {
       let email: string | null = null;
       let telefone: string | null = null;
 
+      // IMPORTANT: keep the phone as "raw" (possibly masked) and normalize only once
+      // to avoid duplicating the country code (e.g. user types +55 and DDI=55).
+      let telefoneRaw: string | null = null;
+
+      const normalizeTelefone = (raw: string | null | undefined) => {
+        let digits = String(raw || "").replace(/\D/g, "");
+        if (!digits) return null;
+
+        if (digits.startsWith("00")) digits = digits.slice(2);
+
+        const cc = String(countryCode || "").replace(/\D/g, "");
+        if (!cc) return digits;
+
+        if (digits.startsWith(cc)) return digits;
+        return `${cc}${digits}`;
+      };
+
       etapas.forEach((etapa) => {
         if (etapa.tipo === "texto" && etapa.titulo.toLowerCase().includes("nome") && !nome) {
           nome = formData[etapa.id] as string;
@@ -607,11 +624,12 @@ export default function FormularioPublico() {
         if (etapa.tipo === "email" && !email) {
           email = formData[etapa.id] as string;
         }
-        if (etapa.tipo === "telefone" && !telefone) {
-          const raw = formData[etapa.id] as string;
-          telefone = raw ? `${countryCode}${raw.replace(/\D/g, "")}` : null;
+        if (etapa.tipo === "telefone" && !telefoneRaw) {
+          telefoneRaw = (formData[etapa.id] as string) || null;
         }
       });
+
+      telefone = normalizeTelefone(telefoneRaw);
 
       const { error: leadError } = await supabase
         .from("formularios_leads")
@@ -641,36 +659,23 @@ export default function FormularioPublico() {
 
       setSubmitted(true);
 
-      // Send WhatsApp notification if configured
+      // Send WhatsApp notification via edge function (bypasses RLS)
       if (config.whatsapp_notificacao_ativa && config.whatsapp_instancia_id && config.whatsapp_mensagem_sucesso && telefone) {
         try {
-          // Get instance config
-          const { data: instancia } = await supabase
-            .from("disparos_instancias")
-            .select("base_url, api_key")
-            .eq("id", config.whatsapp_instancia_id)
-            .single();
+          console.log("Sending WhatsApp notification for template:", config.id);
+          const { error: notifyError } = await supabase.functions.invoke("formulario-whatsapp-notify", {
+            body: {
+              template_id: config.id,
+              nome: nome || "",
+              email: email || "",
+              telefone,
+            },
+          });
 
-          if (instancia) {
-            // Replace placeholders in message
-            let mensagem = config.whatsapp_mensagem_sucesso;
-            mensagem = mensagem.replace(/\{nome\}/gi, nome || "");
-            mensagem = mensagem.replace(/\{email\}/gi, email || "");
-            mensagem = mensagem.replace(/\{telefone\}/gi, telefone || "");
-
-            // Send message via UAZapi
-            const normalizedUrl = instancia.base_url.replace(/\/+$/, "");
-            await fetch(`${normalizedUrl}/chat/send-text`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "apikey": instancia.api_key,
-              },
-              body: JSON.stringify({
-                number: telefone,
-                text: mensagem,
-              }),
-            });
+          if (notifyError) {
+            console.error("Erro ao enviar notificação WhatsApp:", notifyError);
+          } else {
+            console.log("WhatsApp notification sent successfully");
           }
         } catch (whatsappError) {
           console.error("Erro ao enviar notificação WhatsApp:", whatsappError);
