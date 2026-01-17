@@ -893,27 +893,89 @@ export function EditarCampanhaDialog({
         primeiraMediaBase64 = `data:${primeiraVariacao.mediaFile.type};base64,${btoa(binary)}`;
       }
 
-      // Update campaign - reset stats for new execution
+      // Get existing contacts to compare
+      const { data: existingContacts } = await supabase
+        .from("disparos_campanha_contatos")
+        .select("numero, status, enviado_em")
+        .eq("campanha_id", campanhaId);
+
+      // Create a map of existing contacts with their status
+      const existingContactsMap = new Map<string, { status: string; enviado_em: string | null }>();
+      (existingContacts || []).forEach(c => {
+        const normalizedNumber = c.numero.startsWith("55") ? c.numero : `55${c.numero}`;
+        existingContactsMap.set(normalizedNumber, { status: c.status, enviado_em: c.enviado_em });
+      });
+
+      // Normalize new contacts
+      const normalizedNewContacts = contatos.map(c => ({
+        ...c,
+        normalizedNumero: c.numero.startsWith("55") ? c.numero : `55${c.numero}`
+      }));
+
+      // Check if contacts list actually changed (ignoring already sent ones)
+      const newContactNumbers = new Set(normalizedNewContacts.map(c => c.normalizedNumero));
+      const existingContactNumbers = new Set(existingContactsMap.keys());
+      
+      // Find truly new contacts (not in existing list)
+      const trulyNewContacts = normalizedNewContacts.filter(c => !existingContactsMap.has(c.normalizedNumero));
+      
+      // Find removed contacts (were in existing but not in new list)
+      const removedContactNumbers = [...existingContactNumbers].filter(num => !newContactNumbers.has(num));
+
+      // Count already sent contacts that should be preserved
+      const sentContactsCount = [...existingContactsMap.entries()]
+        .filter(([num, data]) => data.status === 'sent' && newContactNumbers.has(num))
+        .length;
+      
+      const failedContactsCount = [...existingContactsMap.entries()]
+        .filter(([num, data]) => data.status === 'failed' && newContactNumbers.has(num))
+        .length;
+
+      // Calculate new total (preserved sent + new pending)
+      const totalContatos = sentContactsCount + failedContactsCount + 
+        normalizedNewContacts.filter(c => {
+          const existing = existingContactsMap.get(c.normalizedNumero);
+          return !existing || existing.status === 'pending';
+        }).length;
+
+      // Determine if we should preserve stats or reset
+      // Preserve if campaign was executed and we're just adding contacts/changing settings
+      const shouldPreserveStats = existingCampanha && existingCampanha.enviados > 0;
+
+      // Update campaign - preserve stats if campaign was already executed
+      const updateData: any = {
+        nome: nome.trim(),
+        tipo_mensagem: primeiraVariacao.tipo,
+        mensagem: primeiraVariacao.tipo === "text" ? primeiraVariacao.mensagem.trim() : primeiraVariacao.mensagem || null,
+        media_base64: primeiraMediaBase64,
+        delay_min: delayMinSeconds,
+        delay_max: delayMaxSeconds,
+        delay_bloco_min: delayBlocoMin,
+        delay_bloco_max: delayBlocoMax,
+        instancias_ids: selectedInstancias,
+        updated_at: new Date().toISOString()
+      };
+
+      if (shouldPreserveStats) {
+        // Keep the campaign running/completed status, just update total
+        updateData.total_contatos = totalContatos;
+        // If campaign was paused or completed and we added new contacts, set it back to pending so it can continue
+        if (trulyNewContacts.length > 0 && (existingCampanha.status === 'completed' || existingCampanha.status === 'paused')) {
+          updateData.status = 'pending';
+        }
+      } else {
+        // Fresh campaign, reset everything
+        updateData.total_contatos = contatos.length;
+        updateData.status = "pending";
+        updateData.enviados = 0;
+        updateData.falhas = 0;
+        updateData.iniciado_em = null;
+        updateData.finalizado_em = null;
+      }
+
       const { error: campanhaError } = await supabase
         .from("disparos_campanhas")
-        .update({
-          nome: nome.trim(),
-          tipo_mensagem: primeiraVariacao.tipo,
-          mensagem: primeiraVariacao.tipo === "text" ? primeiraVariacao.mensagem.trim() : primeiraVariacao.mensagem || null,
-          media_base64: primeiraMediaBase64,
-          delay_min: delayMinSeconds,
-          delay_max: delayMaxSeconds,
-          delay_bloco_min: delayBlocoMin,
-          delay_bloco_max: delayBlocoMax,
-          total_contatos: contatos.length,
-          instancias_ids: selectedInstancias,
-          status: "pending",
-          enviados: 0,
-          falhas: 0,
-          iniciado_em: null,
-          finalizado_em: null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq("id", campanhaId);
 
       if (campanhaError) throw campanhaError;
@@ -953,21 +1015,49 @@ export function EditarCampanhaDialog({
         .insert(variacoesToInsert);
       if (variacoesError) throw variacoesError;
 
-      // Delete existing contacts
-      await supabase.from("disparos_campanha_contatos").delete().eq("campanha_id", campanhaId);
+      // Handle contacts intelligently - preserve sent/failed status
+      if (shouldPreserveStats) {
+        // Remove contacts that are no longer in the list
+        if (removedContactNumbers.length > 0) {
+          await supabase
+            .from("disparos_campanha_contatos")
+            .delete()
+            .eq("campanha_id", campanhaId)
+            .in("numero", removedContactNumbers);
+        }
 
-      // Insert contacts
-      const contatosToInsert = contatos.map(c => ({
-        campanha_id: campanhaId,
-        numero: c.numero.startsWith("55") ? c.numero : `55${c.numero}`,
-        nome: c.nome || null,
-        status: "pending"
-      }));
+        // Insert only truly new contacts as pending
+        if (trulyNewContacts.length > 0) {
+          const newContatosToInsert = trulyNewContacts.map(c => ({
+            campanha_id: campanhaId,
+            numero: c.normalizedNumero,
+            nome: c.nome || null,
+            status: "pending"
+          }));
 
-      const { error: contatosError } = await supabase
-        .from("disparos_campanha_contatos")
-        .insert(contatosToInsert);
-      if (contatosError) throw contatosError;
+          const { error: contatosError } = await supabase
+            .from("disparos_campanha_contatos")
+            .insert(newContatosToInsert);
+          if (contatosError) throw contatosError;
+        }
+
+        console.log(`[EditarCampanha] Preserved ${sentContactsCount} sent contacts, added ${trulyNewContacts.length} new contacts`);
+      } else {
+        // Fresh start - delete all and reinsert
+        await supabase.from("disparos_campanha_contatos").delete().eq("campanha_id", campanhaId);
+
+        const contatosToInsert = contatos.map(c => ({
+          campanha_id: campanhaId,
+          numero: c.numero.startsWith("55") ? c.numero : `55${c.numero}`,
+          nome: c.nome || null,
+          status: "pending"
+        }));
+
+        const { error: contatosError } = await supabase
+          .from("disparos_campanha_contatos")
+          .insert(contatosToInsert);
+        if (contatosError) throw contatosError;
+      }
 
       toast.success("Campanha atualizada com sucesso!");
       onCampanhaAtualizada();
