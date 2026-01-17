@@ -2106,6 +2106,12 @@ export type Database = {
           layout_tipo: string
           logo_url: string | null
           nome: string
+          obrigado_background_color: string | null
+          obrigado_border_radius: string | null
+          obrigado_button_text_color: string | null
+          obrigado_card_border_color: string | null
+          obrigado_card_color: string | null
+          obrigado_cor_primaria: string | null
           pagina_obrigado_cta_link: string | null
           pagina_obrigado_cta_texto: string | null
           pagina_obrigado_imagem_subtitulo: string | null
@@ -2169,6 +2175,12 @@ export type Database = {
           layout_tipo?: string
           logo_url?: string | null
           nome: string
+          obrigado_background_color?: string | null
+          obrigado_border_radius?: string | null
+          obrigado_button_text_color?: string | null
+          obrigado_card_border_color?: string | null
+          obrigado_card_color?: string | null
+          obrigado_cor_primaria?: string | null
           pagina_obrigado_cta_link?: string | null
           pagina_obrigado_cta_texto?: string | null
           pagina_obrigado_imagem_subtitulo?: string | null
@@ -2232,6 +2244,12 @@ export type Database = {
           layout_tipo?: string
           logo_url?: string | null
           nome?: string
+          obrigado_background_color?: string | null
+          obrigado_border_radius?: string | null
+          obrigado_button_text_color?: string | null
+          obrigado_card_border_color?: string | null
+          obrigado_card_color?: string | null
+          obrigado_cor_primaria?: string | null
           pagina_obrigado_cta_link?: string | null
           pagina_obrigado_cta_texto?: string | null
           pagina_obrigado_imagem_subtitulo?: string | null

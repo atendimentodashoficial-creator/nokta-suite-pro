@@ -62,6 +62,13 @@ interface FormPreviewPanelProps {
     corIndicadorEtapa?: string;
     corPaginacao?: string;
     barraProgressoVisivel?: boolean;
+    // Independent thank you page styling
+    obrigadoBackgroundColor?: string;
+    obrigadoCardColor?: string;
+    obrigadoCorPrimaria?: string;
+    obrigadoButtonTextColor?: string;
+    obrigadoCardBorderColor?: string;
+    obrigadoBorderRadius?: string;
   };
   showThankYou?: boolean;
 }
@@ -158,6 +165,13 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     corIndicadorEtapa = "#6b7280",
     corPaginacao = "#6b7280",
     barraProgressoVisivel = true,
+    // Independent thank you page styling (use fallbacks to general settings)
+    obrigadoBackgroundColor = backgroundColor,
+    obrigadoCardColor = cardColor,
+    obrigadoCorPrimaria = corPrimaria,
+    obrigadoButtonTextColor = buttonTextColor,
+    obrigadoCardBorderColor = cardBorderColor,
+    obrigadoBorderRadius = borderRadius,
   } = config;
 
   const validImagens = imagens.filter(i => i.url);
@@ -173,9 +187,9 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
       <div className="flex items-center justify-center gap-2">
         <div 
           className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: corPrimaria + "20" }}
+          style={{ backgroundColor: obrigadoCorPrimaria + "20" }}
         >
-          <CheckCircle2 className="h-4 w-4" style={{ color: corPrimaria }} />
+          <CheckCircle2 className="h-4 w-4" style={{ color: obrigadoCorPrimaria }} />
         </div>
         <h2 className="font-bold" style={{ color: corTituloPrincipal, fontSize: `${Math.round(obrigadoTituloSize * 0.5)}px` }}>
           {paginaObrigadoTitulo || "Obrigado!"}
@@ -195,9 +209,9 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
         size="sm"
         className="mt-2"
         style={{ 
-          backgroundColor: corPrimaria, 
-          color: buttonTextColor,
-          borderRadius: `${parseInt(borderRadius) / 2}px`,
+          backgroundColor: obrigadoCorPrimaria, 
+          color: obrigadoButtonTextColor,
+          borderRadius: `${parseInt(obrigadoBorderRadius) / 2}px`,
           fontSize: `${Math.round(obrigadoBotaoSize * 0.5)}px`,
         }}
       >
@@ -302,7 +316,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   }}
                   className="w-1.5 h-1.5 rounded-full transition-all"
                   style={{ 
-                    backgroundColor: corPrimaria, 
+                    backgroundColor: obrigadoCorPrimaria, 
                     opacity: idx === activeImageIndex ? 1 : 0.3,
                     transform: idx === activeImageIndex ? "scale(1.2)" : "scale(1)"
                   }}
@@ -566,17 +580,17 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
       <div 
         className="h-full flex items-center justify-center p-4 rounded-lg"
         style={{ 
-          backgroundColor,
+          backgroundColor: obrigadoBackgroundColor,
           fontFamily: `${fontFamily}, sans-serif`,
         }}
       >
         <Card 
           className="w-full max-w-[280px]"
           style={{ 
-            backgroundColor: cardColor,
-            borderRadius: `${borderRadius}px`,
+            backgroundColor: obrigadoCardColor,
+            borderRadius: `${obrigadoBorderRadius}px`,
             color: textColor,
-            border: cardBorderColor && cardBorderColor !== "transparent" ? `1px solid ${cardBorderColor}` : undefined,
+            border: obrigadoCardBorderColor && obrigadoCardBorderColor !== "transparent" ? `1px solid ${obrigadoCardBorderColor}` : undefined,
           }}
         >
           <CardContent className="flex flex-col items-center justify-center py-6 px-4 space-y-3">
