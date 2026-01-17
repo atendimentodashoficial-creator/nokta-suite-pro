@@ -1783,41 +1783,69 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         />
                       </div>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cardBorderInner">Borda do Card</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
+                          onClick={() => document.getElementById('cardBorderInner')?.click()}
+                        >
+                          <Input
+                            id="cardBorderInner"
+                            type="color"
+                            value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                            onChange={(e) => setCardBorderColor(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
+                        <Input
+                          value={cardBorderColor}
+                          onChange={(e) => setCardBorderColor(e.target.value)}
+                          placeholder="transparent"
+                          className="flex-1"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Use "transparent" para sem borda
+                      </p>
+                    </div>
                   </div>
                 </>
               )}
 
-
-              {/* Linha 6: Cor da Borda do Card */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cardBorder">Borda do Card</Label>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                      style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
-                      onClick={() => document.getElementById('cardBorder')?.click()}
-                    >
+              {/* Borda do Card - mostrar separadamente quando barra não visível ou não multi_step */}
+              {!(layoutTipo === "multi_step" && barraProgressoVisivel) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cardBorder">Borda do Card</Label>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
+                        onClick={() => document.getElementById('cardBorder')?.click()}
+                      >
+                        <Input
+                          id="cardBorder"
+                          type="color"
+                          value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                          onChange={(e) => setCardBorderColor(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
                       <Input
-                        id="cardBorder"
-                        type="color"
-                        value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                        value={cardBorderColor}
                         onChange={(e) => setCardBorderColor(e.target.value)}
-                        className="opacity-0 w-full h-full cursor-pointer"
+                        placeholder="transparent"
+                        className="flex-1"
                       />
                     </div>
-                    <Input
-                      value={cardBorderColor}
-                      onChange={(e) => setCardBorderColor(e.target.value)}
-                      placeholder="transparent"
-                      className="flex-1"
-                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use "transparent" para sem borda
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Use "transparent" para sem borda
-                  </p>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="borderRadius">Arredondamento dos Cantos: {borderRadius}px</Label>
