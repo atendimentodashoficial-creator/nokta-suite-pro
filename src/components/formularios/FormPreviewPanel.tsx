@@ -231,7 +231,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           const totalImages = 1 + sideImages.length;
 
           return (
-            <div key={`img-${idx}`} className="w-full space-y-1">
+            <div key={`img-${idx}`} className="w-full">
               {/* Title for this image */}
               {img.titulo && (
                 <span 
@@ -248,7 +248,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               {/* Subtitle for this image */}
               {img.subtitulo && (
                 <span 
-                  className="text-center block" 
+                  className="text-center block mt-0.5 mb-2" 
                   style={{ 
                     color: corSubtituloMidia, 
                     fontFamily: fonteMidia,
@@ -287,7 +287,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     validVideos.length > 0 ? (
       <div className="w-full space-y-3">
         {validVideos.map((vid, idx) => (
-          <div key={`vid-${idx}`} className="space-y-1">
+          <div key={`vid-${idx}`}>
             {vid.titulo && (
               <h3 
                 className="font-semibold text-center" 
@@ -302,7 +302,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             )}
             {vid.subtitulo && (
               <p 
-                className="text-center" 
+                className="text-center mt-0.5 mb-2" 
                 style={{ 
                   color: corSubtituloMidia, 
                   fontFamily: fonteMidia,
