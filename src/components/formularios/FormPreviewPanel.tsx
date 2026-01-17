@@ -223,75 +223,62 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
 
   const ImagensSection = () => (
     validImagens.length > 0 ? (
-      <div className="w-full space-y-2">
-        {/* Title/subtitle from first image */}
-        {validImagens[0]?.titulo && (
-          <span 
-            className="font-medium text-center block" 
-            style={{ 
-              color: corTituloMidia, 
-              fontFamily: fonteMidia,
-              fontSize: `${Math.min(mediaTitleSize * 0.6, 14)}px` 
-            }}
-          >
-            {validImagens[0].titulo}
-          </span>
-        )}
-        {validImagens[0]?.subtitulo && (
-          <span 
-            className="text-center block" 
-            style={{ 
-              color: corSubtituloMidia, 
-              fontFamily: fonteMidia,
-              fontSize: `${Math.min(mediaSubtitleSize * 0.6, 11)}px` 
-            }}
-          >
-            {validImagens[0].subtitulo}
-          </span>
-        )}
-        
-        {validImagens.length === 1 ? (
-          /* Single image - full width, no cropping */
-          <div className="w-full rounded overflow-hidden">
-            <img 
-              src={validImagens[0].url} 
-              alt={validImagens[0].titulo || "Imagem"} 
-              className="w-full h-auto object-contain" 
-            />
-          </div>
-        ) : (
-          /* Multiple images - vertical stack (one below another) */
-          <div className="w-full space-y-3">
-            {validImagens.map((img, idx) => {
-              // sideImages are displayed horizontally with the main image
-              const sideImages = img.sideImages?.filter(si => si.url) || [];
-              const hasSideImages = sideImages.length > 0;
-              const totalImages = 1 + sideImages.length;
+      <div className="w-full space-y-3">
+        {validImagens.map((img, idx) => {
+          // sideImages are displayed horizontally with the main image
+          const sideImages = img.sideImages?.filter(si => si.url) || [];
+          const hasSideImages = sideImages.length > 0;
+          const totalImages = 1 + sideImages.length;
 
-              return (
-                <div key={`img-${idx}`} className="w-full">
-                  <div className={`w-full rounded overflow-hidden ${hasSideImages ? 'flex gap-1' : ''}`}>
-                    <img 
-                      src={img.url} 
-                      alt={img.titulo || `Imagem ${idx + 1}`} 
-                      className="h-auto object-contain" 
-                      style={hasSideImages ? { width: `${100 / totalImages}%` } : { width: '100%' }}
-                    />
-                    {sideImages.map((sideImg, sideIdx) => (
-                      <img 
-                        key={`${idx}-side-${sideIdx}`}
-                        src={sideImg.url} 
-                        alt={`Imagem lateral ${sideIdx + 1}`} 
-                        className="h-auto object-contain" 
-                        style={{ width: `${100 / totalImages}%` }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+          return (
+            <div key={`img-${idx}`} className="w-full space-y-1">
+              {/* Title for this image */}
+              {img.titulo && (
+                <span 
+                  className="font-medium text-center block" 
+                  style={{ 
+                    color: corTituloMidia, 
+                    fontFamily: fonteMidia,
+                    fontSize: `${Math.min(mediaTitleSize * 0.6, 14)}px` 
+                  }}
+                >
+                  {img.titulo}
+                </span>
+              )}
+              {/* Subtitle for this image */}
+              {img.subtitulo && (
+                <span 
+                  className="text-center block" 
+                  style={{ 
+                    color: corSubtituloMidia, 
+                    fontFamily: fonteMidia,
+                    fontSize: `${Math.min(mediaSubtitleSize * 0.6, 11)}px` 
+                  }}
+                >
+                  {img.subtitulo}
+                </span>
+              )}
+              {/* Image(s) */}
+              <div className={`w-full rounded overflow-hidden ${hasSideImages ? 'flex gap-1' : ''}`}>
+                <img 
+                  src={img.url} 
+                  alt={img.titulo || `Imagem ${idx + 1}`} 
+                  className="h-auto object-contain" 
+                  style={hasSideImages ? { width: `${100 / totalImages}%` } : { width: '100%' }}
+                />
+                {sideImages.map((sideImg, sideIdx) => (
+                  <img 
+                    key={`${idx}-side-${sideIdx}`}
+                    src={sideImg.url} 
+                    alt={`Imagem lateral ${sideIdx + 1}`} 
+                    className="h-auto object-contain" 
+                    style={{ width: `${100 / totalImages}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     ) : null
   );
