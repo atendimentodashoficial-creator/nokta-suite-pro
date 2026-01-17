@@ -546,8 +546,8 @@ export function useFormulariosDashboard(dateStart?: Date, dateEnd?: Date) {
       const negados = leads.filter(l => l.status === "negado").length;
       
       const abandonados = sessoes.filter(s => s.abandoned_at && !s.completed_at).length;
-      const totalSessoes = sessoes.length;
-      const taxaConversao = totalSessoes > 0 ? ((totalLeads / totalSessoes) * 100).toFixed(1) : "0";
+      // Taxa de conversão: porcentagem de leads que foram fechados
+      const taxaConversao = totalLeads > 0 ? ((fechados / totalLeads) * 100).toFixed(1) : "0";
       
       const temposValidos = leads.filter(l => l.tempo_total_segundos).map(l => l.tempo_total_segundos!);
       const tempoMedio = temposValidos.length > 0 
