@@ -1710,7 +1710,97 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                 </div>
               )}
 
-              {/* Linha 5: Barra de Progresso, Fundo Barra de Progresso (apenas multi_step e visível) */}
+              {/* Paginação + Borda do Card - sempre visível quando multi_step */}
+              {layoutTipo === "multi_step" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="corPaginacao">Paginação (1/3)</Label>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: corPaginacao }}
+                        onClick={() => document.getElementById('corPaginacao')?.click()}
+                      >
+                        <Input
+                          id="corPaginacao"
+                          type="color"
+                          value={corPaginacao}
+                          onChange={(e) => setCorPaginacao(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
+                      <Input
+                        value={corPaginacao}
+                        onChange={(e) => setCorPaginacao(e.target.value)}
+                        placeholder="#6b7280"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cardBorderMulti">Borda do Card</Label>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
+                        onClick={() => document.getElementById('cardBorderMulti')?.click()}
+                      >
+                        <Input
+                          id="cardBorderMulti"
+                          type="color"
+                          value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                          onChange={(e) => setCardBorderColor(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
+                      <Input
+                        value={cardBorderColor}
+                        onChange={(e) => setCardBorderColor(e.target.value)}
+                        placeholder="transparent"
+                        className="flex-1"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Use "transparent" para sem borda
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Borda do Card - mostrar separadamente quando não multi_step */}
+              {layoutTipo !== "multi_step" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cardBorder">Borda do Card</Label>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
+                        onClick={() => document.getElementById('cardBorder')?.click()}
+                      >
+                        <Input
+                          id="cardBorder"
+                          type="color"
+                          value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
+                          onChange={(e) => setCardBorderColor(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
+                      <Input
+                        value={cardBorderColor}
+                        onChange={(e) => setCardBorderColor(e.target.value)}
+                        placeholder="transparent"
+                        className="flex-1"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Use "transparent" para sem borda
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Barra de Progresso + Fundo Barra (penúltima linha - apenas multi_step e visível) */}
               {layoutTipo === "multi_step" && barraProgressoVisivel && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
@@ -1765,6 +1855,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     </div>
                   </div>
 
+                  {/* Etapas (1/3) - última linha */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="corIndicadorEtapa">Etapas (1/3)</Label>
@@ -1790,98 +1881,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cardBorderInner">Borda do Card</Label>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                          style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
-                          onClick={() => document.getElementById('cardBorderInner')?.click()}
-                        >
-                          <Input
-                            id="cardBorderInner"
-                            type="color"
-                            value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
-                            onChange={(e) => setCardBorderColor(e.target.value)}
-                            className="opacity-0 w-full h-full cursor-pointer"
-                          />
-                        </div>
-                        <Input
-                          value={cardBorderColor}
-                          onChange={(e) => setCardBorderColor(e.target.value)}
-                          placeholder="transparent"
-                          className="flex-1"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Use "transparent" para sem borda
-                      </p>
-                    </div>
                   </div>
                 </>
-              )}
-
-              {/* Borda do Card - mostrar separadamente quando barra não visível ou não multi_step */}
-              {!(layoutTipo === "multi_step" && barraProgressoVisivel) && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cardBorder">Borda do Card</Label>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                        style={{ backgroundColor: cardBorderColor === "transparent" ? "#f3f4f6" : cardBorderColor }}
-                        onClick={() => document.getElementById('cardBorder')?.click()}
-                      >
-                        <Input
-                          id="cardBorder"
-                          type="color"
-                          value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
-                          onChange={(e) => setCardBorderColor(e.target.value)}
-                          className="opacity-0 w-full h-full cursor-pointer"
-                        />
-                      </div>
-                      <Input
-                        value={cardBorderColor}
-                        onChange={(e) => setCardBorderColor(e.target.value)}
-                        placeholder="transparent"
-                        className="flex-1"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Use "transparent" para sem borda
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Paginação - sempre visível quando multi_step */}
-              {layoutTipo === "multi_step" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="corPaginacao">Paginação (1/3)</Label>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                        style={{ backgroundColor: corPaginacao }}
-                        onClick={() => document.getElementById('corPaginacao')?.click()}
-                      >
-                        <Input
-                          id="corPaginacao"
-                          type="color"
-                          value={corPaginacao}
-                          onChange={(e) => setCorPaginacao(e.target.value)}
-                          className="opacity-0 w-full h-full cursor-pointer"
-                        />
-                      </div>
-                      <Input
-                        value={corPaginacao}
-                        onChange={(e) => setCorPaginacao(e.target.value)}
-                        placeholder="#6b7280"
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                </div>
               )}
 
               <div className="space-y-2">
