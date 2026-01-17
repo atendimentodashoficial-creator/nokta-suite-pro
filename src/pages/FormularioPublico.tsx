@@ -990,7 +990,7 @@ export default function FormularioPublico() {
                               </h3>
                             )}
                             {img.subtitulo && (
-                              <p className="text-center mt-1 mb-3" style={{ color: textColor, opacity: 0.7, fontSize: config.fonte_tamanho_obrigado_texto || "16px" }}>
+                              <p className="text-center mt-1 mb-5" style={{ color: textColor, opacity: 0.7, fontSize: config.fonte_tamanho_obrigado_texto || "16px" }}>
                                 {img.subtitulo}
                               </p>
                             )}
@@ -1015,7 +1015,7 @@ export default function FormularioPublico() {
                         </h3>
                       )}
                       {vid.subtitulo && (
-                        <p className="text-center mt-1 mb-3" style={{ color: textColor, opacity: 0.7, fontSize: config.fonte_tamanho_obrigado_texto || "16px" }}>
+                        <p className="text-center mt-1 mb-5" style={{ color: textColor, opacity: 0.7, fontSize: config.fonte_tamanho_obrigado_texto || "16px" }}>
                           {vid.subtitulo}
                         </p>
                       )}
