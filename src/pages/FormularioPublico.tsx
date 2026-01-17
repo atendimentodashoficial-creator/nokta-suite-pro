@@ -1062,7 +1062,7 @@ export default function FormularioPublico() {
                   {/* Media abaixo do obrigado */}
                   {!mediaAcima && hasMedia && mediaSection}
 
-                  {config.pagina_obrigado_cta_texto && config.pagina_obrigado_cta_link && (
+                  {config.pagina_obrigado_cta_texto && (
                     <Button
                       className="mt-4"
                       style={{ 
@@ -1072,11 +1072,13 @@ export default function FormularioPublico() {
                         fontSize: config.fonte_tamanho_obrigado_botao || "16px",
                       }}
                       onClick={() => {
-                        let url = config.pagina_obrigado_cta_link!;
-                        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                          url = "https://" + url;
+                        if (config.pagina_obrigado_cta_link) {
+                          let url = config.pagina_obrigado_cta_link;
+                          if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                            url = "https://" + url;
+                          }
+                          window.open(url, "_blank");
                         }
-                        window.open(url, "_blank");
                       }}
                     >
                       {config.pagina_obrigado_cta_texto}
