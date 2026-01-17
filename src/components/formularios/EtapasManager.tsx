@@ -90,17 +90,17 @@ function SortableEtapa({
       </div>
 
       <div className="flex items-center gap-2">
-        <Switch
-          checked={etapa.ativo}
-          onCheckedChange={onToggle}
-          aria-label={etapa.ativo ? "Desativar" : "Ativar"}
-        />
         <Button variant="ghost" size="icon" onClick={onEdit}>
           <Pencil className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="icon" onClick={onDelete} className="text-destructive hover:text-destructive">
           <Trash2 className="h-4 w-4" />
         </Button>
+        <Switch
+          checked={etapa.ativo}
+          onCheckedChange={onToggle}
+          aria-label={etapa.ativo ? "Desativar" : "Ativar"}
+        />
       </div>
     </div>
   );
