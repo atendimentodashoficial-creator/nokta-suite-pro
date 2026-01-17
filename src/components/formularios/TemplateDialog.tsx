@@ -483,8 +483,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   // Step description styling
   const [fonteTamanhoDescricaoEtapa, setFonteTamanhoDescricaoEtapa] = useState("14px");
   const [fonteTamanhoIndicadorEtapa, setFonteTamanhoIndicadorEtapa] = useState("14px");
+  const [fonteTamanhoPaginacao, setFonteTamanhoPaginacao] = useState("14px");
   const [corDescricaoEtapa, setCorDescricaoEtapa] = useState("#6b7280");
   const [corIndicadorEtapa, setCorIndicadorEtapa] = useState("#6b7280");
+  const [corPaginacao, setCorPaginacao] = useState("#6b7280");
   // Independent colors for thank you page
   const [corTituloPrincipal, setCorTituloPrincipal] = useState("#1f2937");
   const [corMensagem, setCorMensagem] = useState("#6b7280");
@@ -608,11 +610,12 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoObrigadoTitulo((template as any).fonte_tamanho_obrigado_titulo || "28px");
       setFonteTamanhoObrigadoTexto((template as any).fonte_tamanho_obrigado_texto || "16px");
       setFonteTamanhoObrigadoBotao((template as any).fonte_tamanho_obrigado_botao || "16px");
-      // Step description styling
       setFonteTamanhoDescricaoEtapa((template as any).fonte_tamanho_descricao_etapa || "14px");
       setFonteTamanhoIndicadorEtapa((template as any).fonte_tamanho_indicador_etapa || "14px");
+      setFonteTamanhoPaginacao((template as any).fonte_tamanho_paginacao || "14px");
       setCorDescricaoEtapa((template as any).cor_descricao_etapa || "#6b7280");
       setCorIndicadorEtapa((template as any).cor_indicador_etapa || "#6b7280");
+      setCorPaginacao((template as any).cor_paginacao || "#6b7280");
       setBarraProgressoVisivel((template as any).barra_progresso_visivel !== false);
       
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
@@ -1000,8 +1003,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       // Step description styling
       fonte_tamanho_descricao_etapa: fonteTamanhoDescricaoEtapa,
       fonte_tamanho_indicador_etapa: fonteTamanhoIndicadorEtapa,
+      fonte_tamanho_paginacao: fonteTamanhoPaginacao,
       cor_descricao_etapa: corDescricaoEtapa,
       cor_indicador_etapa: corIndicadorEtapa,
+      cor_paginacao: corPaginacao,
       barra_progresso_visivel: barraProgressoVisivel,
       
       pagina_obrigado_titulo: paginaObrigadoTitulo,
@@ -1092,8 +1097,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     // Step description styling
     fonteTamanhoDescricaoEtapa,
     fonteTamanhoIndicadorEtapa,
+    fonteTamanhoPaginacao,
     corDescricaoEtapa,
     corIndicadorEtapa,
+    corPaginacao,
     barraProgressoVisivel,
   };
 
@@ -1330,7 +1337,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-sm">Paginação</Label>
-                      <Select value={fonteTamanhoIndicadorEtapa} onValueChange={setFonteTamanhoIndicadorEtapa}>
+                      <Select value={fonteTamanhoPaginacao} onValueChange={setFonteTamanhoPaginacao}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FONT_SIZE_OPTIONS.map(opt => (
@@ -1843,6 +1850,36 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     <p className="text-xs text-muted-foreground">
                       Use "transparent" para sem borda
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Paginação - sempre visível quando multi_step */}
+              {layoutTipo === "multi_step" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="corPaginacao">Paginação (1/3)</Label>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: corPaginacao }}
+                        onClick={() => document.getElementById('corPaginacao')?.click()}
+                      >
+                        <Input
+                          id="corPaginacao"
+                          type="color"
+                          value={corPaginacao}
+                          onChange={(e) => setCorPaginacao(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
+                      <Input
+                        value={corPaginacao}
+                        onChange={(e) => setCorPaginacao(e.target.value)}
+                        placeholder="#6b7280"
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

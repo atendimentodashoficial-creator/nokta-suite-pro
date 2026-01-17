@@ -2083,6 +2083,7 @@ export type Database = {
           card_color: string | null
           cor_descricao_etapa: string | null
           cor_indicador_etapa: string | null
+          cor_paginacao: string | null
           cor_primaria: string | null
           created_at: string
           descricao: string | null
@@ -2095,6 +2096,7 @@ export type Database = {
           fonte_tamanho_obrigado_botao: string | null
           fonte_tamanho_obrigado_texto: string | null
           fonte_tamanho_obrigado_titulo: string | null
+          fonte_tamanho_paginacao: string | null
           fonte_tamanho_perguntas: string | null
           fonte_tamanho_respostas: string | null
           fonte_tamanho_subtitulo: string | null
@@ -2144,6 +2146,7 @@ export type Database = {
           card_color?: string | null
           cor_descricao_etapa?: string | null
           cor_indicador_etapa?: string | null
+          cor_paginacao?: string | null
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
@@ -2156,6 +2159,7 @@ export type Database = {
           fonte_tamanho_obrigado_botao?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
+          fonte_tamanho_paginacao?: string | null
           fonte_tamanho_perguntas?: string | null
           fonte_tamanho_respostas?: string | null
           fonte_tamanho_subtitulo?: string | null
@@ -2205,6 +2209,7 @@ export type Database = {
           card_color?: string | null
           cor_descricao_etapa?: string | null
           cor_indicador_etapa?: string | null
+          cor_paginacao?: string | null
           cor_primaria?: string | null
           created_at?: string
           descricao?: string | null
@@ -2217,6 +2222,7 @@ export type Database = {
           fonte_tamanho_obrigado_botao?: string | null
           fonte_tamanho_obrigado_texto?: string | null
           fonte_tamanho_obrigado_titulo?: string | null
+          fonte_tamanho_paginacao?: string | null
           fonte_tamanho_perguntas?: string | null
           fonte_tamanho_respostas?: string | null
           fonte_tamanho_subtitulo?: string | null

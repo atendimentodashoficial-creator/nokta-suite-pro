@@ -57,8 +57,10 @@ interface FormPreviewPanelProps {
     // Step description styling
     fonteTamanhoDescricaoEtapa?: string;
     fonteTamanhoIndicadorEtapa?: string;
+    fonteTamanhoPaginacao?: string;
     corDescricaoEtapa?: string;
     corIndicadorEtapa?: string;
+    corPaginacao?: string;
     barraProgressoVisivel?: boolean;
   };
   showThankYou?: boolean;
@@ -151,8 +153,10 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
     // Step description styling
     fonteTamanhoDescricaoEtapa = "14px",
     fonteTamanhoIndicadorEtapa = "14px",
+    fonteTamanhoPaginacao = "14px",
     corDescricaoEtapa = "#6b7280",
     corIndicadorEtapa = "#6b7280",
+    corPaginacao = "#6b7280",
     barraProgressoVisivel = true,
   } = config;
 
@@ -745,8 +749,8 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               </Button>
               <span
                 style={{
-                  color: corIndicadorEtapa,
-                  fontSize: `${Math.min((parseInt(fonteTamanhoIndicadorEtapa) || 14) * 0.85, 18)}px`,
+                  color: corPaginacao,
+                  fontSize: `${Math.min((parseInt(fonteTamanhoPaginacao) || 14) * 0.85, 18)}px`,
                 }}
               >
                 {currentEtapaIndex + 1}/{etapas.length}
