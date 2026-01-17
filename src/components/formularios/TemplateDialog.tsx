@@ -1736,9 +1736,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         className="flex-1"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Use "transparent" para sem borda
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="corPaginacao">Paginação (1/3)</Label>
@@ -1793,9 +1790,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                         className="flex-1"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Use "transparent" para sem borda
-                    </p>
                   </div>
                 </div>
               )}
