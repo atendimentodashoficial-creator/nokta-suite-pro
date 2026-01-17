@@ -425,22 +425,9 @@ export function InstagramFormulariosTab() {
                   }) => <FormItem>
                         <FormLabel>Cor do Botão</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input 
-                              type="color" 
-                              className="absolute inset-0 w-full h-10 cursor-pointer opacity-0" 
-                              {...field} 
-                            />
-                            <div 
-                              className="flex items-center gap-2 h-10 px-3 border rounded-md cursor-pointer"
-                              style={{ backgroundColor: field.value || '#00D4FF' }}
-                            >
-                              <span className="text-sm font-medium" style={{ 
-                                color: field.value && parseInt(field.value.replace('#', ''), 16) > 0xffffff / 2 ? '#000' : '#fff' 
-                              }}>
-                                {field.value || '#00D4FF'}
-                              </span>
-                            </div>
+                          <div className="flex gap-2">
+                            <Input type="color" className="w-12 h-10 p-0 border-0 cursor-pointer" {...field} />
+                            <Input placeholder="#00D4FF" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
