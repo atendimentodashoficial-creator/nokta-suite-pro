@@ -231,22 +231,26 @@ function SortableSection({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                   
-                  <div className="space-y-2">
-                    <Label>Título</Label>
-                    <Input
-                      placeholder="Título da imagem (opcional)"
-                      value={img.titulo}
-                      onChange={(e) => updateImagem(index, "titulo", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Subtítulo</Label>
-                    <Input
-                      placeholder="Subtítulo da imagem (opcional)"
-                      value={img.subtitulo}
-                      onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
-                    />
-                  </div>
+                  {index === 0 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Título</Label>
+                        <Input
+                          placeholder="Título da imagem (opcional)"
+                          value={img.titulo}
+                          onChange={(e) => updateImagem(index, "titulo", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subtítulo</Label>
+                        <Input
+                          placeholder="Subtítulo da imagem (opcional)"
+                          value={img.subtitulo}
+                          onChange={(e) => updateImagem(index, "subtitulo", e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
                   
                   <div className="flex items-center gap-2">
                     {img.url ? (
@@ -369,22 +373,26 @@ function SortableSection({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                   
-                  <div className="space-y-2">
-                    <Label>Título</Label>
-                    <Input
-                      placeholder="Título do vídeo (opcional)"
-                      value={video.titulo}
-                      onChange={(e) => updateVideo(index, "titulo", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Subtítulo</Label>
-                    <Input
-                      placeholder="Subtítulo do vídeo (opcional)"
-                      value={video.subtitulo}
-                      onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
-                    />
-                  </div>
+                  {index === 0 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Título</Label>
+                        <Input
+                          placeholder="Título do vídeo (opcional)"
+                          value={video.titulo}
+                          onChange={(e) => updateVideo(index, "titulo", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subtítulo</Label>
+                        <Input
+                          placeholder="Subtítulo do vídeo (opcional)"
+                          value={video.subtitulo}
+                          onChange={(e) => updateVideo(index, "subtitulo", e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
                   
                   <div className="space-y-2">
                     <Label>URLs dos Vídeos</Label>
