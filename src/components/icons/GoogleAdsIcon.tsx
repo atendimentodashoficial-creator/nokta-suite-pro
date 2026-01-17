@@ -13,7 +13,7 @@ const GoogleAdsIcon: React.FC<GoogleAdsIconProps> = ({ className = "", size = 24
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
+      viewBox="0 0 192 192"
       width={size}
       height={size}
       fill="currentColor"
@@ -21,8 +21,12 @@ const GoogleAdsIcon: React.FC<GoogleAdsIconProps> = ({ className = "", size = 24
       aria-label="Google Ads"
       role="img"
     >
-      {/* Google Ads logo path - simplified triangle mark */}
-      <path d="M3.5 18.49l6-10.39 2.5 4.33-3.5 6.06a2.994 2.994 0 0 1-4.1 1.1 2.994 2.994 0 0 1-1.1-4.1l.2-.3v3.3zm7.5-6.49l6-10.39a3 3 0 0 1 4.1 1.1 3 3 0 0 1-1.1 4.1l-6 10.39-3-5.2zm9.5 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+      {/* Google Ads official logo shape - yellow bar */}
+      <path d="M17.578 109.406L64.734 27.75a27.406 27.406 0 0137.516-10.031c13.36 7.687 17.953 24.797 10.266 38.156l-47.157 81.657a27.406 27.406 0 01-37.515 10.03c-13.36-7.687-17.954-24.796-10.266-38.156z" />
+      {/* Blue bar */}
+      <path d="M174.422 109.406l-47.156-81.656a27.406 27.406 0 00-37.516-10.031c-13.36 7.687-17.953 24.797-10.266 38.156l47.157 81.657a27.406 27.406 0 0037.515 10.03c13.36-7.687 17.954-24.796 10.266-38.156z" />
+      {/* Red circle */}
+      <circle cx="145.406" cy="147.188" r="27.406" />
     </svg>
   );
 };
