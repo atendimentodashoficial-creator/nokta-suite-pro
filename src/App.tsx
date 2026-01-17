@@ -40,7 +40,6 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/formulario/:templateId" element={<FormularioPublico />} />
-          <Route path="/formularioig/:templateId" element={<FormularioPublico />} />
           <Route path="/conversao/:faturaId" element={<FormularioConversao />} />
           <Route
             path="/"
