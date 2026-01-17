@@ -421,7 +421,7 @@ export default function GoogleAdsMetrics() {
   if (loading) {
     return (
       <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
           <img src={googleAdsIcon} alt="Google Ads" className="h-6 w-6 brightness-0 dark:invert" />
           <h1 className="text-2xl font-bold">Google Ads</h1>
         </div>
@@ -444,7 +444,7 @@ export default function GoogleAdsMetrics() {
   if (!hasConfig || linkedAccounts.length === 0) {
     return (
       <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
           <img src={googleAdsIcon} alt="Google Ads" className="h-6 w-6 brightness-0 dark:invert" />
           <h1 className="text-2xl font-bold">Google Ads</h1>
         </div>
