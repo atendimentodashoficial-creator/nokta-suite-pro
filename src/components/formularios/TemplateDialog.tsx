@@ -1714,30 +1714,6 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
               {layoutTipo === "multi_step" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="corPaginacao">Paginação (1/3)</Label>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                        style={{ backgroundColor: corPaginacao }}
-                        onClick={() => document.getElementById('corPaginacao')?.click()}
-                      >
-                        <Input
-                          id="corPaginacao"
-                          type="color"
-                          value={corPaginacao}
-                          onChange={(e) => setCorPaginacao(e.target.value)}
-                          className="opacity-0 w-full h-full cursor-pointer"
-                        />
-                      </div>
-                      <Input
-                        value={corPaginacao}
-                        onChange={(e) => setCorPaginacao(e.target.value)}
-                        placeholder="#6b7280"
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="cardBorderMulti">Borda do Card</Label>
                     <div className="flex items-center gap-2">
                       <div 
@@ -1763,6 +1739,30 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     <p className="text-xs text-muted-foreground">
                       Use "transparent" para sem borda
                     </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="corPaginacao">Paginação (1/3)</Label>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                        style={{ backgroundColor: corPaginacao }}
+                        onClick={() => document.getElementById('corPaginacao')?.click()}
+                      >
+                        <Input
+                          id="corPaginacao"
+                          type="color"
+                          value={corPaginacao}
+                          onChange={(e) => setCorPaginacao(e.target.value)}
+                          className="opacity-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
+                      <Input
+                        value={corPaginacao}
+                        onChange={(e) => setCorPaginacao(e.target.value)}
+                        placeholder="#6b7280"
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
