@@ -284,21 +284,31 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               }}
             >
               
-              {validImagens.map((img, idx) => (
-                <div 
-                  key={`img-${idx}`} 
-                  data-carousel-item
-                  className="flex-shrink-0 w-full snap-center"
-                >
-                  <div className="w-full rounded overflow-hidden">
-                    <img 
-                      src={img.url} 
-                      alt={img.titulo || `Imagem ${idx + 1}`} 
-                      className="w-full h-auto object-contain" 
-                    />
+              {validImagens.map((img, idx) => {
+                // Get all images for this slide: main image + sideImages
+                const slideImages = [img.url, ...(img.sideImages?.map(si => si.url).filter(Boolean) || [])];
+                const imageCount = slideImages.length;
+                
+                return (
+                  <div 
+                    key={`img-${idx}`} 
+                    data-carousel-item
+                    className="flex-shrink-0 w-full snap-center"
+                  >
+                    <div className="w-full rounded overflow-hidden flex gap-1">
+                      {slideImages.map((imgUrl, imgIdx) => (
+                        <img 
+                          key={`${idx}-${imgIdx}`}
+                          src={imgUrl} 
+                          alt={img.titulo || `Imagem ${idx + 1}`} 
+                          className="h-auto object-contain" 
+                          style={{ width: `${100 / imageCount}%` }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             {/* Dot indicators */}
             <div className="flex justify-center gap-1 mt-1">
