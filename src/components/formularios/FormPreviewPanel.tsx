@@ -761,14 +761,16 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 <ChevronLeft className="h-3 w-3 mr-1" />
                 Voltar
               </Button>
-              <span
-                style={{
-                  color: corPaginacao,
-                  fontSize: `${Math.min((parseInt(fonteTamanhoPaginacao) || 14) * 0.85, 18)}px`,
-                }}
-              >
-                {currentEtapaIndex + 1}/{etapas.length}
-              </span>
+              {!barraProgressoVisivel && (
+                <span
+                  style={{
+                    color: corPaginacao,
+                    fontSize: `${Math.min((parseInt(fonteTamanhoPaginacao) || 14) * 0.85, 18)}px`,
+                  }}
+                >
+                  {currentEtapaIndex + 1}/{etapas.length}
+                </span>
+              )}
               <Button
                 type="button"
                 size="sm"
