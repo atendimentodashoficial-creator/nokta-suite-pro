@@ -66,6 +66,39 @@ function normalizeBaseUrl(raw: string | null | undefined): string | null {
   }
 }
 
+// Generate URL-friendly slug from form name
+function generateFormSlug(nome: string): string {
+  return nome
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove accents
+    .replace(/[^a-z0-9\s-]/g, "") // Remove special chars
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/-+/g, "-") // Remove multiple hyphens
+    .trim();
+}
+
+// Get form name by ID and generate URL
+async function getFormUrl(supabase: any, baseUrl: string, formularioId: string, trackingId: string): Promise<string> {
+  try {
+    const { data: form } = await supabase
+      .from('instagram_formularios')
+      .select('nome')
+      .eq('id', formularioId)
+      .maybeSingle();
+    
+    if (form?.nome) {
+      const slug = generateFormSlug(form.nome);
+      return `${baseUrl}/formularioig/${slug}?t=${trackingId}`;
+    }
+  } catch (e) {
+    console.error('Error fetching form name:', e);
+  }
+  
+  // Fallback to ID-based URL if form not found
+  return `${baseUrl}/formulario/${formularioId}?t=${trackingId}`;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -382,7 +415,7 @@ async function processMessage(supabase: any, event: any, webhookAccountId?: stri
         
         // Build form URL with tracking - use configured base URL or fallback
         const baseUrl = normalizeBaseUrl(config.form_base_url) || 'https://app.noktaodonto.com.br';
-        const formUrl = `${baseUrl}/formulario/${gatilho.formulario_id}?t=${senderId}`;
+        const formUrl = await getFormUrl(supabase, baseUrl, gatilho.formulario_id, senderId);
         
         let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
         formMessage = processSpintax(formMessage);
@@ -501,7 +534,7 @@ async function sendGatilhoContent(supabase: any, config: any, gatilho: any, send
   // If a form is required, send the form with a button
   if (gatilho.formulario_id) {
     const baseUrl = normalizeBaseUrl(config.form_base_url) || 'https://app.noktaodonto.com.br';
-    const formUrl = `${baseUrl}/formulario/${gatilho.formulario_id}?t=${senderId}`;
+    const formUrl = await getFormUrl(supabase, baseUrl, gatilho.formulario_id, senderId);
     
     let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
     formMessage = processSpintax(formMessage);
@@ -903,7 +936,7 @@ async function processComment(supabase: any, comment: any, webhookAccountId?: st
           
           // Build form URL with tracking - use configured base URL or fallback
           const baseUrl = normalizeBaseUrl(config.form_base_url) || 'https://app.noktaodonto.com.br';
-          const formUrl = `${baseUrl}/formulario/${gatilho.formulario_id}?t=${comment.from.id}`;
+          const formUrl = await getFormUrl(supabase, baseUrl, gatilho.formulario_id, comment.from.id);
           
           let formMessage = gatilho.mensagem_formulario || 'Olá! Para liberar seu material, preencha o formulário abaixo:';
           formMessage = processSpintax(formMessage);

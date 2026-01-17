@@ -330,11 +330,23 @@ export function InstagramFormulariosTab() {
       createFormulario.mutate(data);
     }
   };
-  const getFormUrl = (formId: string) => {
-    return `${window.location.origin}/formulario/${formId}`;
+  const generateSlug = (nome: string) => {
+    return nome
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents
+      .replace(/[^a-z0-9\s-]/g, "") // Remove special chars
+      .replace(/\s+/g, "-") // Replace spaces with hyphens
+      .replace(/-+/g, "-") // Remove multiple hyphens
+      .trim();
   };
-  const copyFormUrl = (formId: string) => {
-    navigator.clipboard.writeText(getFormUrl(formId));
+
+  const getFormUrl = (formNome: string) => {
+    const slug = generateSlug(formNome);
+    return `${window.location.origin}/formularioig/${slug}`;
+  };
+  const copyFormUrl = (formNome: string) => {
+    navigator.clipboard.writeText(getFormUrl(formNome));
     toast.success("Link copiado!");
   };
   if (isLoading) {
@@ -678,7 +690,7 @@ export function InstagramFormulariosTab() {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(formulario)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyFormUrl(formulario.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyFormUrl(formulario.nome)}>
                           <Copy className="h-4 w-4" />
                         </Button>
                         <Switch checked={formulario.ativo} onCheckedChange={ativo => toggleFormulario.mutate({ id: formulario.id, ativo })} />

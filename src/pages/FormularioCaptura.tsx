@@ -70,7 +70,7 @@ const isEmptyValue = (v: FormValue | undefined): boolean => {
 };
 
 export default function FormularioCaptura() {
-  const { formId } = useParams<{ formId: string }>();
+  const { formId, formSlug } = useParams<{ formId?: string; formSlug?: string }>();
   const [searchParams] = useSearchParams();
   const trackingId = searchParams.get("t");
   const instagramUserId = searchParams.get("ig");
@@ -86,13 +86,39 @@ export default function FormularioCaptura() {
 
   useEffect(() => {
     async function loadForm() {
-      if (!formId) {
+      // If neither formId nor formSlug is provided
+      if (!formId && !formSlug) {
         setError("Formulário não encontrado");
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase.from("instagram_formularios").select("*").eq("id", formId).maybeSingle();
+      let query = supabase.from("instagram_formularios").select("*");
+      
+      if (formId) {
+        // Search by ID
+        query = query.eq("id", formId);
+      } else if (formSlug) {
+        // Search by slug (nome field, case-insensitive match using slug format)
+        // The slug is typically the form name in lowercase with hyphens
+        query = query.ilike("nome", formSlug.replace(/-/g, " "));
+      }
+
+      const { data, error } = await query.maybeSingle();
+
+      // If slug search didn't find anything, try exact match on nome
+      if (!data && formSlug) {
+        const { data: dataExact, error: errorExact } = await supabase
+          .from("instagram_formularios")
+          .select("*")
+          .eq("nome", formSlug)
+          .maybeSingle();
+        
+        if (!errorExact && dataExact) {
+          processFormData(dataExact);
+          return;
+        }
+      }
 
       if (error || !data) {
         setError("Formulário não encontrado");
@@ -100,6 +126,10 @@ export default function FormularioCaptura() {
         return;
       }
 
+      processFormData(data);
+    }
+
+    function processFormData(data: any) {
       if (data.ativo === false) {
         setError("Formulário inativo");
         setLoading(false);
@@ -132,7 +162,7 @@ export default function FormularioCaptura() {
     }
 
     loadForm();
-  }, [formId]);
+  }, [formId, formSlug]);
 
   const getCampoId = (campo: string | CampoPersonalizado): string => {
     return typeof campo === "string" ? campo : campo.id;
