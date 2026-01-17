@@ -99,17 +99,76 @@ Deno.serve(async (req) => {
       // UAZapi pattern (observed):
       // {
       //   instance: { status: "connected" },
-      //   status: { connected: false, loggedIn: true, jid: null }
+      //   status: { connected: true, loggedIn: true, jid: "553497102989:13@s.whatsapp.net" }
       // }
       const instanceStatus = statusData?.instance?.status;
       const nestedStatus = statusData?.status;
       const state = statusData?.state || instanceStatus || statusData?.connection_status;
 
+      // FIRST: Check if currently connected - this takes priority over lastDisconnectReason
+      // The loggedIn and connected flags in status object represent the CURRENT state
+      const loggedInFlag = nestedStatus?.loggedIn === true || statusData?.loggedIn === true;
+      const jid = nestedStatus?.jid ?? statusData?.jid;
+      const connectedFlag = nestedStatus?.connected;
+
+      const stateLower = String(state || "").toLowerCase();
+      const instanceStatusLower = String(instanceStatus || "").toLowerCase();
+
+      const isTransitional =
+        stateLower === "connecting" ||
+        stateLower === "starting" ||
+        instanceStatusLower === "connecting" ||
+        instanceStatusLower === "starting";
+
+      const hasJid = jid != null && String(jid).length > 0;
+      
+      // For connected check: if connectedFlag is explicitly true, trust it
+      // If undefined but loggedIn is true and jid exists, consider connected
+      const connectedIsOk = connectedFlag === true || (connectedFlag === undefined && loggedInFlag && hasJid);
+
+      // Also check instance.status === "connected" as a primary indicator
+      const instanceShowsConnected = instanceStatusLower === "connected";
+
+      const isReallyConnected = (loggedInFlag === true && hasJid && connectedIsOk && !isTransitional) || 
+                                 (instanceShowsConnected && loggedInFlag === true && hasJid);
+
+      console.log("Connection check:", { 
+        instanceStatus, 
+        loggedInFlag, 
+        hasJid, 
+        connectedFlag, 
+        isReallyConnected,
+        instanceShowsConnected
+      });
+
+      // If currently connected, return success immediately - don't check lastDisconnectReason
+      if (isReallyConnected) {
+        return new Response(JSON.stringify({
+          success: true,
+          message: "WhatsApp conectado e funcionando!",
+          details: {
+            url_testada: statusEndpoint,
+            status: state || "connected",
+            whatsapp_status: "connected",
+            loggedIn: true,
+            jid: String(jid),
+            connected: true,
+            instance_status: instanceStatus,
+            raw_state: state,
+          },
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Only check lastDisconnectReason if NOT currently connected
       const lastDisconnectReason = statusData?.instance?.lastDisconnectReason;
       const lastDisconnectAt = statusData?.instance?.lastDisconnect;
 
       // Some providers report "connected" in the panel, but WhatsApp rejects the pairing.
       // When that happens, UAZapi often records a lastDisconnectReason like "connection attempt canceled".
+      // But we ONLY check this if the instance is NOT currently connected
       if (
         typeof lastDisconnectReason === "string" &&
         /canceled|cancelled|não foi possivel|nao foi possivel|not possible|pairing failed/i.test(lastDisconnectReason)
@@ -137,29 +196,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Some providers flip fields during pairing; we only accept "really connected" when:
-      // - loggedIn === true
-      // - jid is present
-      // - nestedStatus.connected is NOT false (if provided)
-      // - not in transitional state
-      const loggedInFlag = nestedStatus?.loggedIn === true || statusData?.loggedIn === true;
-      const jid = nestedStatus?.jid ?? statusData?.jid;
-      const connectedFlag = nestedStatus?.connected;
-
-      const stateLower = String(state || "").toLowerCase();
-      const instanceStatusLower = String(instanceStatus || "").toLowerCase();
-
-      const isTransitional =
-        stateLower === "connecting" ||
-        stateLower === "starting" ||
-        instanceStatusLower === "connecting" ||
-        instanceStatusLower === "starting";
-
-      const hasJid = jid != null && String(jid).length > 0;
-      const connectedIsOk = connectedFlag === undefined || connectedFlag === true;
-
-      const isReallyConnected = loggedInFlag === true && hasJid && connectedIsOk && !isTransitional;
-
       // Check for banned/disconnected states
       const isBanned =
         state === "BANNED" ||
@@ -172,7 +208,8 @@ Deno.serve(async (req) => {
         state === "disconnected" ||
         state === "DISCONNECTED" ||
         state === "UNPAIRED" ||
-        instanceStatus === "disconnected";
+        instanceStatusLower === "disconnected" ||
+        instanceStatusLower === "close";
 
       if (isBanned) {
         return new Response(JSON.stringify({
@@ -199,30 +236,6 @@ Deno.serve(async (req) => {
             status: state || "disconnected",
             whatsapp_status: "disconnected",
             tipo_erro: "whatsapp_disconnected",
-          },
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (isReallyConnected) {
-        // IMPORTANT: Do NOT call /chat/find here as a "double-check"
-        // Calling heavy endpoints during connection validation can interfere with the 
-        // WhatsApp pairing process and cause "connection attempt canceled by API" errors.
-        // The /instance/status check with loggedIn=true and valid jid is sufficient.
-        return new Response(JSON.stringify({
-          success: true,
-          message: "WhatsApp conectado e funcionando!",
-          details: {
-            url_testada: statusEndpoint,
-            status: state || "connected",
-            whatsapp_status: "connected",
-            loggedIn: true,
-            jid: String(jid),
-            connected: true,
-            instance_status: instanceStatus,
-            raw_state: state,
           },
         }), {
           status: 200,
