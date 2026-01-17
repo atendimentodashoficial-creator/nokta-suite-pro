@@ -479,8 +479,8 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("40px");
   const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("20px");
   const [fonteTamanhoObrigadoBotao, setFonteTamanhoObrigadoBotao] = useState("32px");
-  const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("18px");
-  const [fonteTamanhoMidiaSubtitulo, setFonteTamanhoMidiaSubtitulo] = useState("14px");
+  const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("28px");
+  const [fonteTamanhoMidiaSubtitulo, setFonteTamanhoMidiaSubtitulo] = useState("18px");
   const [fonteMidia, setFonteMidia] = useState("Inter");
   // Step description styling
   const [fonteTamanhoDescricaoEtapa, setFonteTamanhoDescricaoEtapa] = useState("14px");
