@@ -41,6 +41,7 @@ export default function FormulariosLeads() {
   const [selectedLead, setSelectedLead] = useState<FormularioLead | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   
@@ -126,6 +127,21 @@ export default function FormulariosLeads() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    const count = selectedLeads.length;
+    try {
+      for (const id of selectedLeads) {
+        await deleteLead.mutateAsync(id);
+      }
+      toast.success(`${count} lead(s) excluído(s) com sucesso`);
+    } catch (error) {
+      toast.error("Erro ao excluir alguns leads");
+    } finally {
+      setSelectedLeads([]);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   // Pagination logic
   const totalItems = filteredLeads?.length || 0;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -148,6 +164,9 @@ export default function FormulariosLeads() {
             <div className="flex flex-wrap gap-2">
               {selectedLeads.length > 0 && (
                 <>
+                  <span className="text-sm text-muted-foreground self-center">
+                    {selectedLeads.length} selecionado(s)
+                  </span>
                   <Select onValueChange={handleBulkStatusChange}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Alterar status" />
@@ -159,9 +178,14 @@ export default function FormulariosLeads() {
                       <SelectItem value="negado">Negado</SelectItem>
                     </SelectContent>
                   </Select>
-                  <span className="text-sm text-muted-foreground self-center">
-                    {selectedLeads.length} selecionado(s)
-                  </span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir ({selectedLeads.length})
+                  </Button>
                 </>
               )}
               <Button variant="outline" size="sm" onClick={handleExport}>
@@ -365,6 +389,23 @@ export default function FormulariosLeads() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Leads em Massa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir {selectedLeads.length} lead(s) selecionado(s)? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground">
+              Excluir ({selectedLeads.length})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
