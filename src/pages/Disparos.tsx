@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
 import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter, QrCode, Loader2, Smartphone, Unplug, Settings, Pencil, Keyboard, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -1035,17 +1036,44 @@ export default function Disparos() {
                 
                 {/* Instance filter */}
                 {instanciasList.length > 0 && (
-                  <Select value={filterInstanciaId} onValueChange={setFilterInstanciaId}>
+                  <Select 
+                    value={filterInstanciaId} 
+                    onValueChange={setFilterInstanciaId}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        // Check connection status for all instances when dropdown opens
+                        instanciasList.forEach(inst => {
+                          if (!connectionStatus[inst.id]) {
+                            checkConnectionStatus(inst);
+                          }
+                        });
+                      }
+                    }}
+                  >
                     <SelectTrigger className="w-[140px] h-9">
                       <SelectValue placeholder="Instância" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas</SelectItem>
-                      {instanciasList.map((inst) => (
-                        <SelectItem key={inst.id} value={inst.id}>
-                          {inst.nome}
-                        </SelectItem>
-                      ))}
+                      {instanciasList.map((inst) => {
+                        const status = connectionStatus[inst.id];
+                        return (
+                          <SelectItem key={inst.id} value={inst.id}>
+                            <div className="flex items-center gap-2">
+                              <span 
+                                className={cn(
+                                  "w-2 h-2 rounded-full flex-shrink-0",
+                                  status === 'connected' ? "bg-green-500" :
+                                  status === 'loading' ? "bg-yellow-500 animate-pulse" :
+                                  status === 'disconnected' ? "bg-red-500" :
+                                  "bg-muted-foreground/30"
+                                )}
+                              />
+                              <span className="truncate">{inst.nome}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 )}
