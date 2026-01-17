@@ -266,8 +266,8 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
           <div className="relative w-full">
             <div 
               ref={imageCarouselRef}
-              className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
-              style={{ 
+              className="flex overflow-x-auto snap-x snap-mandatory pb-1 scrollbar-hide"
+              style={{
                 scrollbarWidth: "none", 
                 msOverflowStyle: "none",
                 WebkitOverflowScrolling: "touch",
@@ -275,17 +275,19 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               onScroll={(e) => {
                 const container = e.currentTarget;
                 const scrollLeft = container.scrollLeft;
-                const itemWidth = container.offsetWidth;
+                const firstItem = container.querySelector<HTMLElement>("[data-carousel-item]");
+                const itemWidth = firstItem?.offsetWidth || container.offsetWidth;
                 const newIndex = Math.round(scrollLeft / itemWidth);
                 if (newIndex !== activeImageIndex && newIndex >= 0 && newIndex < validImagens.length) {
                   setActiveImageIndex(newIndex);
                 }
               }}
             >
-              <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+              
               {validImagens.map((img, idx) => (
                 <div 
                   key={`img-${idx}`} 
+                  data-carousel-item
                   className="flex-shrink-0 w-full snap-center"
                 >
                   <div className="w-full rounded overflow-hidden">
@@ -305,12 +307,10 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   key={`dot-${idx}`}
                   type="button"
                   onClick={() => {
-                    if (imageCarouselRef.current) {
-                      const itemWidth = imageCarouselRef.current.offsetWidth;
-                      imageCarouselRef.current.scrollTo({
-                        left: idx * itemWidth,
-                        behavior: "smooth"
-                      });
+                    const container = imageCarouselRef.current;
+                    if (container) {
+                      const items = container.querySelectorAll<HTMLElement>("[data-carousel-item]");
+                      items[idx]?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
                     }
                     setActiveImageIndex(idx);
                   }}
