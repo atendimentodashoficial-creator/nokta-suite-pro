@@ -140,4 +140,22 @@ All colors MUST be HSL.
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+
+  /* Make native color input swatch fill the whole control */
+  input[type="color"].color-swatch-full {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+  }
+  input[type="color"].color-swatch-full::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  input[type="color"].color-swatch-full::-webkit-color-swatch {
+    border: none;
+    border-radius: inherit;
+  }
+  input[type="color"].color-swatch-full::-moz-color-swatch {
+    border: none;
+    border-radius: inherit;
+  }
 }
