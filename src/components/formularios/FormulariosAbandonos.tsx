@@ -176,6 +176,9 @@ export default function FormulariosAbandonos() {
             <div className="flex flex-wrap gap-2">
               {selectedSessoes.length > 0 && (
                 <>
+                  <span className="text-sm text-muted-foreground self-center">
+                    {selectedSessoes.length} selecionado(s)
+                  </span>
                   <Button
                     variant="destructive"
                     size="sm"
@@ -184,9 +187,6 @@ export default function FormulariosAbandonos() {
                     <Trash2 className="h-4 w-4 mr-2" />
                     Excluir ({selectedSessoes.length})
                   </Button>
-                  <span className="text-sm text-muted-foreground self-center">
-                    {selectedSessoes.length} selecionado(s)
-                  </span>
                 </>
               )}
             </div>
