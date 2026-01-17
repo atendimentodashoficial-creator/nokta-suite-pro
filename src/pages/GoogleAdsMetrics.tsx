@@ -35,7 +35,7 @@ import {
   ArrowUp,
   ArrowDown
 } from "lucide-react";
-import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
+import googleAdsIcon from "@/assets/google-ads-icon.png";
 import {
   Select,
   SelectContent,
@@ -422,7 +422,7 @@ export default function GoogleAdsMetrics() {
     return (
       <div className="space-y-6">
       <div className="flex items-center gap-3">
-          <GoogleAdsIcon className="h-6 w-6" />
+          <img src={googleAdsIcon} alt="Google Ads" className="h-6 w-6 brightness-0 dark:invert" />
           <h1 className="text-2xl font-bold">Google Ads</h1>
         </div>
         <div className="grid gap-4 md:grid-cols-4">
@@ -445,7 +445,7 @@ export default function GoogleAdsMetrics() {
     return (
       <div className="space-y-6">
       <div className="flex items-center gap-3">
-          <GoogleAdsIcon className="h-6 w-6" />
+          <img src={googleAdsIcon} alt="Google Ads" className="h-6 w-6 brightness-0 dark:invert" />
           <h1 className="text-2xl font-bold">Google Ads</h1>
         </div>
         <Card>
@@ -470,7 +470,7 @@ export default function GoogleAdsMetrics() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-          <GoogleAdsIcon className="w-6 h-6 text-foreground" />
+          <img src={googleAdsIcon} alt="Google Ads" className="h-6 w-6 brightness-0 dark:invert" />
           <h1 className="text-2xl font-bold">Google Ads</h1>
         </div>
       </div>
@@ -703,7 +703,7 @@ export default function GoogleAdsMetrics() {
                 </div>
               ) : filteredAndSortedCampaigns.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  <GoogleAdsIcon className="h-12 w-12 mx-auto mb-4 opacity-50" size={48} />
+                  <img src={googleAdsIcon} alt="Google Ads" className="h-12 w-12 mx-auto mb-4 opacity-50 brightness-0 dark:invert" />
                   <p>
                     {filterActive && campaigns.length > 0
                       ? "Nenhuma campanha ativa encontrada."
