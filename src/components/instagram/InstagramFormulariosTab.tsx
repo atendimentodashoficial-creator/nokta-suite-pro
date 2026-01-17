@@ -681,16 +681,16 @@ export function InstagramFormulariosTab() {
                         <p className="text-xs text-muted-foreground truncate">{formulario.titulo_pagina}</p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(formulario)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyFormUrl(formulario.nome)}>
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Switch checked={formulario.ativo} onCheckedChange={ativo => toggleFormulario.mutate({ id: formulario.id, ativo })} />
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(formulario)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteFormulario.mutate(formulario.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
+                        <Switch checked={formulario.ativo} onCheckedChange={ativo => toggleFormulario.mutate({ id: formulario.id, ativo })} />
                       </div>
                     </div>
                   </CardContent>
