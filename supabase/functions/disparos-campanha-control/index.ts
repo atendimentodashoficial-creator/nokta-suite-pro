@@ -242,6 +242,21 @@ serve(async (req) => {
           .eq("id", campanha_id);
       }
 
+      // Reset any "sending" contacts that got stuck (from failed executions)
+      // This handles orphaned contacts if a previous execution crashed
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const { data: stuckContacts } = await supabase
+        .from("disparos_campanha_contatos")
+        .update({ status: "pending" })
+        .eq("campanha_id", campanha_id)
+        .eq("status", "sending")
+        .lt("created_at", twoMinutesAgo) // Only reset if stuck for more than 2 minutes
+        .select("id");
+      
+      if (stuckContacts && stuckContacts.length > 0) {
+        console.log(`Reset ${stuckContacts.length} stuck "sending" contacts back to pending`);
+      }
+
       // Get pending contacts
       const { data: contatos, error: contatosError } = await supabase
         .from("disparos_campanha_contatos")
@@ -730,6 +745,13 @@ async function processCampaign(
     const currentInstance = selectNextInstance();
     
     console.log(`[Smart Rotation] Selected instance: ${currentInstance.nome} (sends in batch: ${instanceStats.get(currentInstance.id)!.sends})`);
+
+    // CRITICAL: Mark contact as "sending" IMMEDIATELY to prevent duplicate processing
+    // This prevents race conditions where another execution could pick up the same contact
+    await supabase
+      .from("disparos_campanha_contatos")
+      .update({ status: "sending" })
+      .eq("id", contato.id);
 
     let chatDbId: string | null = null;
     let allBlocksSuccess = true;
