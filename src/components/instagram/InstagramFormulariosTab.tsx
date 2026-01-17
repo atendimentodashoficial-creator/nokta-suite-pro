@@ -421,69 +421,6 @@ export function InstagramFormulariosTab() {
                       <FormMessage />
                     </FormItem>} />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="texto_botao" render={({
-                    field
-                  }) => <FormItem>
-                        <FormLabel>Texto do Botão</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enviar" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>} />
-
-                  <FormField control={form.control} name="cor_primaria" render={({
-                    field
-                  }) => <FormItem>
-                        <FormLabel>Cor do Botão</FormLabel>
-                        <FormControl>
-                          <div className="flex gap-2">
-                            <Input type="color" className="w-12 h-10 p-0 cursor-pointer rounded-md overflow-hidden color-swatch-full" {...field} />
-                            <Input placeholder="#00D4FF" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>} />
-                </div>
-
-                <FormField control={form.control} name="mensagem_sucesso" render={({
-                  field
-                }) => <FormItem>
-                      <FormLabel>Mensagem de Sucesso</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Obrigado! Seus dados foram enviados com sucesso." rows={2} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>} />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="botao_sucesso_texto" render={({
-                    field
-                  }) => <FormItem>
-                        <FormLabel>Texto do Botão de Sucesso</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ex: Acessar Material" {...field} />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          Opcional - botão exibido após envio
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>} />
-
-                  <FormField control={form.control} name="botao_sucesso_url" render={({
-                    field
-                  }) => <FormItem>
-                        <FormLabel>Link do Botão</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://..." {...field} />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          URL para onde o botão redireciona
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>} />
-                </div>
-
                 <div className="space-y-3">
                   <FormLabel>Campos do Formulário</FormLabel>
                   
@@ -597,30 +534,87 @@ export function InstagramFormulariosTab() {
                         id: novoId,
                         label: novoCampoLabel.trim(),
                         tipo: novoCampoTipo as CampoPersonalizado["tipo"],
-                        obrigatorio: true
+                        obrigatorio: true,
+                        ...(novoCampoTipo === "multipla_escolha" && {
+                          opcoes: novasOpcoes.map(o => o.trim()).filter(Boolean)
+                        }),
+                        ...(novoCampoTipo === "sim_nao" && {
+                          opcoes: simNaoOpcoes
+                        })
                       };
-                      if (novoCampoTipo === "multipla_escolha") {
-                        novoCampo.opcoes = novasOpcoes.map(o => o.trim()).filter(Boolean);
-                      }
-                      if (novoCampoTipo === "sim_nao") {
-                        const op1 = simNaoOpcoes[0].trim() || "Sim";
-                        const op2 = simNaoOpcoes[1].trim() || "Não";
-                        novoCampo.opcoes = [op1, op2];
-                      }
-                      setCamposPersonalizados(prev => [...prev, novoCampo]);
+                      setCamposPersonalizados([...camposPersonalizados, novoCampo]);
                       setNovoCampoLabel("");
                       setNovoCampoTipo("text");
                       setNovasOpcoes(["", ""]);
                       setSimNaoOpcoes(["Sim", "Não"]);
                     }}>
-                        <Plus className="h-4 w-4 mr-1" />
+                        <Plus className="h-4 w-4 mr-2" />
                         Adicionar pergunta
                       </Button>
                   </div>
+                </div>
 
-                  <p className="text-xs text-muted-foreground">
-                    Selecione os campos padrão e/ou adicione perguntas personalizadas
-                  </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="texto_botao" render={({
+                    field
+                  }) => <FormItem>
+                        <FormLabel>Texto do Botão</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enviar" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>} />
+
+                  <FormField control={form.control} name="cor_primaria" render={({
+                    field
+                  }) => <FormItem>
+                        <FormLabel>Cor do Botão</FormLabel>
+                        <FormControl>
+                          <div className="flex gap-2">
+                            <Input type="color" className="w-12 h-10 p-0 cursor-pointer rounded-md overflow-hidden color-swatch-full" {...field} />
+                            <Input placeholder="#00D4FF" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>} />
+                </div>
+
+                <FormField control={form.control} name="mensagem_sucesso" render={({
+                  field
+                }) => <FormItem>
+                      <FormLabel>Mensagem de Sucesso</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Obrigado! Seus dados foram enviados com sucesso." rows={2} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>} />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="botao_sucesso_texto" render={({
+                    field
+                  }) => <FormItem>
+                        <FormLabel>Texto do Botão de Sucesso</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Acessar Material" {...field} />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Opcional - botão exibido após envio
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>} />
+
+                  <FormField control={form.control} name="botao_sucesso_url" render={({
+                    field
+                  }) => <FormItem>
+                        <FormLabel>Link do Botão</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          URL para onde o botão redireciona
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>} />
                 </div>
 
                 <FormField control={form.control} name="imagem_url" render={({
