@@ -85,6 +85,17 @@ export default function FormularioCaptura() {
   const [countryCode, setCountryCode] = useState("55");
 
   useEffect(() => {
+    const generateSlug = (nome: string) => {
+      return nome
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove accents
+        .replace(/[^a-z0-9\s-]/g, "") // Remove special chars
+        .replace(/\s+/g, "-") // Replace spaces with hyphens
+        .replace(/-+/g, "-") // Remove multiple hyphens
+        .trim();
+    };
+
     async function loadForm() {
       // If neither formId nor formSlug is provided
       if (!formId && !formSlug) {
@@ -93,40 +104,44 @@ export default function FormularioCaptura() {
         return;
       }
 
-      let query = supabase.from("instagram_formularios").select("*");
-      
       if (formId) {
         // Search by ID
-        query = query.eq("id", formId);
-      } else if (formSlug) {
-        // Search by slug (nome field, case-insensitive match using slug format)
-        // The slug is typically the form name in lowercase with hyphens
-        query = query.ilike("nome", formSlug.replace(/-/g, " "));
-      }
-
-      const { data, error } = await query.maybeSingle();
-
-      // If slug search didn't find anything, try exact match on nome
-      if (!data && formSlug) {
-        const { data: dataExact, error: errorExact } = await supabase
+        const { data, error } = await supabase
           .from("instagram_formularios")
           .select("*")
-          .eq("nome", formSlug)
+          .eq("id", formId)
           .maybeSingle();
-        
-        if (!errorExact && dataExact) {
-          processFormData(dataExact);
+
+        if (error || !data) {
+          setError("Formulário não encontrado");
+          setLoading(false);
           return;
         }
-      }
 
-      if (error || !data) {
-        setError("Formulário não encontrado");
-        setLoading(false);
-        return;
-      }
+        processFormData(data);
+      } else if (formSlug) {
+        // Search by slug - fetch all forms and find the one matching the slug
+        const { data: allForms, error } = await supabase
+          .from("instagram_formularios")
+          .select("*");
 
-      processFormData(data);
+        if (error) {
+          setError("Erro ao carregar formulário");
+          setLoading(false);
+          return;
+        }
+
+        // Find form where generated slug matches the URL slug
+        const matchingForm = allForms?.find(form => generateSlug(form.nome) === formSlug);
+
+        if (!matchingForm) {
+          setError("Formulário não encontrado");
+          setLoading(false);
+          return;
+        }
+
+        processFormData(matchingForm);
+      }
     }
 
     function processFormData(data: any) {
