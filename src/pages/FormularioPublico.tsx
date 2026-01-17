@@ -1059,12 +1059,10 @@ export default function FormularioPublico() {
                     {config.pagina_obrigado_mensagem || "Recebemos suas informações."}
                   </p>
 
-                  {/* Media abaixo do obrigado */}
-                  {!mediaAcima && hasMedia && mediaSection}
-
+                  {/* CTA Button - comes right after title/message, before media */}
                   {config.pagina_obrigado_cta_texto && (
                     <Button
-                      className="mt-4"
+                      className="mt-2"
                       style={{ 
                         backgroundColor: primaryColor, 
                         color: buttonTextColor,
@@ -1084,6 +1082,9 @@ export default function FormularioPublico() {
                       {config.pagina_obrigado_cta_texto}
                     </Button>
                   )}
+
+                  {/* Media abaixo do obrigado */}
+                  {!mediaAcima && hasMedia && mediaSection}
                   
                   {isPreview && (
                     <p className="text-xs text-muted-foreground mt-4 px-4 py-2 bg-yellow-500/10 rounded-lg">
