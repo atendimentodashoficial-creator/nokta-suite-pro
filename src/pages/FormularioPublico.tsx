@@ -977,94 +977,32 @@ export default function FormularioPublico() {
               
               const mediaSection = (
                 <div className="w-full space-y-4">
-                  {/* Images - full width like videos, horizontal scroll if multiple */}
+                  {/* Images - displayed vertically */}
                   {validImages.length > 0 && (
-                    <div className="w-full space-y-2">
-                      {/* Title/subtitle from first image */}
-                      {validImages[0]?.titulo && (
-                        <h3 className="text-xl md:text-2xl font-semibold text-center" style={{ color: textColor }}>
-                          {validImages[0].titulo}
-                        </h3>
-                      )}
-                      {validImages[0]?.subtitulo && (
-                        <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
-                          {validImages[0].subtitulo}
-                        </p>
-                      )}
-                      
-                      {validImages.length === 1 ? (
-                        /* Single image - full width, no cropping */
-                        <div className="w-full rounded-lg overflow-hidden">
-                          <img 
-                            src={validImages[0].url} 
-                            alt={validImages[0].titulo || "Imagem"} 
-                            className="w-full h-auto object-contain" 
-                          />
-                        </div>
-                      ) : (
-                        /* Multiple images - horizontal carousel */
-                        <div className="relative w-full">
-                          <div 
-                            ref={imageCarouselRef}
-                            className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2"
-                            style={{ 
-                              scrollbarWidth: "none", 
-                              msOverflowStyle: "none",
-                              WebkitOverflowScrolling: "touch",
-                            }}
-                            onScroll={(e) => {
-                              const container = e.currentTarget;
-                              const scrollLeft = container.scrollLeft;
-                              const itemWidth = container.offsetWidth;
-                              const newIndex = Math.round(scrollLeft / itemWidth);
-                              if (newIndex !== activeImageIndex && newIndex >= 0 && newIndex < validImages.length) {
-                                setActiveImageIndex(newIndex);
-                              }
-                            }}
-                          >
-                            <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
-                            {validImages.map((img, idx) => (
-                              <div 
-                                key={`img-${idx}`} 
-                                className="flex-shrink-0 w-full snap-center"
-                              >
-                                <div className="w-full rounded-lg overflow-hidden">
-                                  <img 
-                                    src={img.url} 
-                                    alt={img.titulo || `Imagem ${idx + 1}`} 
-                                    className="w-full h-auto object-contain" 
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          {/* Dot indicators - clickable */}
-                          <div className="flex justify-center gap-2 mt-3">
-                            {validImages.map((_, idx) => (
-                              <button 
-                                key={`dot-${idx}`}
-                                type="button"
-                                onClick={() => {
-                                  if (imageCarouselRef.current) {
-                                    const itemWidth = imageCarouselRef.current.offsetWidth;
-                                    imageCarouselRef.current.scrollTo({
-                                      left: idx * itemWidth,
-                                      behavior: "smooth"
-                                    });
-                                  }
-                                  setActiveImageIndex(idx);
-                                }}
-                                className="w-2.5 h-2.5 rounded-full transition-all"
-                                style={{ 
-                                  backgroundColor: primaryColor, 
-                                  opacity: idx === activeImageIndex ? 1 : 0.3,
-                                  transform: idx === activeImageIndex ? "scale(1.2)" : "scale(1)"
-                                }}
+                    <div className="w-full space-y-4">
+                      {/* All images displayed vertically */}
+                        {validImages.map((img, idx) => (
+                          <div key={`img-${idx}`} className="w-full space-y-2">
+                            {/* Show title/subtitle for each image */}
+                            {img.titulo && (
+                              <h3 className="text-xl md:text-2xl font-semibold text-center" style={{ color: textColor }}>
+                                {img.titulo}
+                              </h3>
+                            )}
+                            {img.subtitulo && (
+                              <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
+                                {img.subtitulo}
+                              </p>
+                            )}
+                            <div className="w-full rounded-lg overflow-hidden">
+                              <img 
+                                src={img.url} 
+                                alt={img.titulo || `Imagem ${idx + 1}`} 
+                                className="w-full h-auto object-contain" 
                               />
-                            ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        ))}
                     </div>
                   )}
                   
