@@ -82,8 +82,10 @@ interface TemplateConfig {
   fonte_tamanho_obrigado_botao?: string | null;
   fonte_tamanho_descricao_etapa?: string | null;
   fonte_tamanho_indicador_etapa?: string | null;
+  fonte_tamanho_paginacao?: string | null;
   cor_descricao_etapa?: string | null;
   cor_indicador_etapa?: string | null;
+  cor_paginacao?: string | null;
   whatsapp_instancia_id?: string | null;
   whatsapp_mensagem_sucesso?: string | null;
   whatsapp_notificacao_ativa?: boolean | null;
@@ -1406,7 +1408,7 @@ export default function FormularioPublico() {
 
           {error && <p className="text-sm text-center" style={{ color: errorTextColor }}>{error}</p>}
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             {currentStep > 1 && (
               <Button
                 type="button"
@@ -1424,6 +1426,16 @@ export default function FormularioPublico() {
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Voltar
               </Button>
+            )}
+            {currentStep > 1 && (
+              <span
+                style={{
+                  color: config.cor_paginacao || "#6b7280",
+                  fontSize: config.fonte_tamanho_paginacao || "14px",
+                }}
+              >
+                {currentStep}/{totalSteps}
+              </span>
             )}
             <Button
               type="button"
