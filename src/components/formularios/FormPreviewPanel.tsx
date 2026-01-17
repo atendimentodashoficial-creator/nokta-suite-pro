@@ -285,9 +285,10 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             >
               
               {validImagens.map((img, idx) => {
-                // Get all images for this slide: main image + sideImages
-                const slideImages = [img.url, ...(img.sideImages?.map(si => si.url).filter(Boolean) || [])];
-                const imageCount = slideImages.length;
+                // sideImages are displayed horizontally with the main image
+                const sideImages = img.sideImages?.filter(si => si.url) || [];
+                const hasSideImages = sideImages.length > 0;
+                const totalImages = 1 + sideImages.length;
                 
                 return (
                   <div 
@@ -295,14 +296,20 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                     data-carousel-item
                     className="flex-shrink-0 w-full snap-center"
                   >
-                    <div className="w-full rounded overflow-hidden flex gap-1">
-                      {slideImages.map((imgUrl, imgIdx) => (
+                    <div className={`w-full rounded overflow-hidden ${hasSideImages ? 'flex gap-1' : ''}`}>
+                      <img 
+                        src={img.url} 
+                        alt={img.titulo || `Imagem ${idx + 1}`} 
+                        className="h-auto object-contain" 
+                        style={hasSideImages ? { width: `${100 / totalImages}%` } : { width: '100%' }}
+                      />
+                      {sideImages.map((sideImg, sideIdx) => (
                         <img 
-                          key={`${idx}-${imgIdx}`}
-                          src={imgUrl} 
-                          alt={img.titulo || `Imagem ${idx + 1}`} 
+                          key={`${idx}-side-${sideIdx}`}
+                          src={sideImg.url} 
+                          alt={`Imagem lateral ${sideIdx + 1}`} 
                           className="h-auto object-contain" 
-                          style={{ width: `${100 / imageCount}%` }}
+                          style={{ width: `${100 / totalImages}%` }}
                         />
                       ))}
                     </div>
