@@ -27,9 +27,9 @@ export default function Formularios() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <FileText className="h-8 w-8 text-primary" />
-        <h1 className="text-2xl md:text-3xl font-bold">Formulários</h1>
+      <div className="flex items-center gap-2">
+        <FileText className="w-6 h-6" />
+        <h1 className="text-2xl font-bold">Formulários</h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
