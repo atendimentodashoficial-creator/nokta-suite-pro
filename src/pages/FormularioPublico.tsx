@@ -1427,7 +1427,7 @@ export default function FormularioPublico() {
                 Voltar
               </Button>
             )}
-            {currentStep > 1 && (
+            {currentStep > 1 && !config.barra_progresso_visivel && (
               <span
                 style={{
                   color: config.cor_paginacao || "#6b7280",

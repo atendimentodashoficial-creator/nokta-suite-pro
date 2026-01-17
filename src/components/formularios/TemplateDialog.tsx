@@ -1374,17 +1374,19 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                   </div>
                   {layoutTipo === "multi_step" && (
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Paginação</Label>
-                        <Select value={fonteTamanhoPaginacao} onValueChange={setFonteTamanhoPaginacao}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {FONT_SIZE_OPTIONS.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {!barraProgressoVisivel && (
+                        <div className="space-y-1.5">
+                          <Label className="text-sm">Paginação</Label>
+                          <Select value={fonteTamanhoPaginacao} onValueChange={setFonteTamanhoPaginacao}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {FONT_SIZE_OPTIONS.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       {barraProgressoVisivel && (
                         <div className="space-y-1.5">
                           <Label className="text-sm">Etapas</Label>
@@ -1777,30 +1779,32 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="corPaginacao">Paginação</Label>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                        style={{ backgroundColor: corPaginacao }}
-                        onClick={() => document.getElementById('corPaginacao')?.click()}
-                      >
+                  {!barraProgressoVisivel && (
+                    <div className="space-y-2">
+                      <Label htmlFor="corPaginacao">Paginação</Label>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
+                          style={{ backgroundColor: corPaginacao }}
+                          onClick={() => document.getElementById('corPaginacao')?.click()}
+                        >
+                          <Input
+                            id="corPaginacao"
+                            type="color"
+                            value={corPaginacao}
+                            onChange={(e) => setCorPaginacao(e.target.value)}
+                            className="opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
                         <Input
-                          id="corPaginacao"
-                          type="color"
                           value={corPaginacao}
                           onChange={(e) => setCorPaginacao(e.target.value)}
-                          className="opacity-0 w-full h-full cursor-pointer"
+                          placeholder="#6b7280"
+                          className="flex-1"
                         />
                       </div>
-                      <Input
-                        value={corPaginacao}
-                        onChange={(e) => setCorPaginacao(e.target.value)}
-                        placeholder="#6b7280"
-                        className="flex-1"
-                      />
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
