@@ -249,17 +249,21 @@ export function EditarCampanhaDialog({
         }
       }
 
+      // Load only pending contacts (exclude already sent/failed)
       const { data: contatosData, error: contatosError } = await supabase
         .from("disparos_campanha_contatos")
-        .select("numero, nome")
+        .select("numero, nome, status")
         .eq("campanha_id", campanhaId);
 
       if (contatosError) throw contatosError;
 
-      setContatos((contatosData || []).map(c => ({
-        numero: c.numero,
-        nome: c.nome || undefined
-      })));
+      // Filter to show only pending contacts - sent/failed are preserved in DB but not editable
+      setContatos((contatosData || [])
+        .filter(c => c.status === 'pending')
+        .map(c => ({
+          numero: c.numero,
+          nome: c.nome || undefined
+        })));
 
     } catch (error: any) {
       console.error("Error loading campaign:", error);
