@@ -16,6 +16,7 @@ export const ALL_FEATURES = [
   { key: "disparos", label: "Disparos", href: "/disparos" },
   { key: "extrator", label: "Extrator", href: "/extrator" },
   { key: "instagram", label: "Instagram", href: "/instagram" },
+  { key: "formularios", label: "Formulários", href: "/formularios" },
   { key: "meta-ads", label: "Meta Ads", href: "/metricas-campanhas" },
   { key: "google-ads", label: "Google Ads", href: "/google-ads" },
   { key: "configuracoes", label: "Configurações", href: "/configuracoes" },
