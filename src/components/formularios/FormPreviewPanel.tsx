@@ -316,7 +316,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   }}
                   className="w-1.5 h-1.5 rounded-full transition-all"
                   style={{ 
-                    backgroundColor: obrigadoCorPrimaria, 
+                    backgroundColor: obrigadoCorPrimaria || corPrimaria, 
                     opacity: idx === activeImageIndex ? 1 : 0.3,
                     transform: idx === activeImageIndex ? "scale(1.2)" : "scale(1)"
                   }}
