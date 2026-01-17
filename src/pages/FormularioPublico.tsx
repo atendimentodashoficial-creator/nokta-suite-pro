@@ -985,12 +985,12 @@ export default function FormularioPublico() {
                           <div key={`img-${idx}`} className="w-full space-y-2">
                             {/* Show title/subtitle for each image */}
                             {img.titulo && (
-                              <h3 className="text-xl md:text-2xl font-semibold text-center" style={{ color: textColor }}>
+                              <h3 className="font-semibold text-center" style={{ color: textColor, fontSize: config.fonte_tamanho_obrigado_titulo || "28px" }}>
                                 {img.titulo}
                               </h3>
                             )}
                             {img.subtitulo && (
-                              <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
+                              <p className="text-center" style={{ color: textColor, opacity: 0.7, fontSize: config.fonte_tamanho_obrigado_texto || "16px" }}>
                                 {img.subtitulo}
                               </p>
                             )}
@@ -1010,12 +1010,12 @@ export default function FormularioPublico() {
                   {videosArr.filter(vid => vid.url && getVideoEmbedUrl(vid.url)).map((vid, idx) => (
                     <div key={`vid-${idx}`} className="space-y-2">
                       {vid.titulo && (
-                        <h3 className="text-xl md:text-2xl font-semibold text-center" style={{ color: textColor }}>
+                        <h3 className="font-semibold text-center" style={{ color: textColor, fontSize: config.fonte_tamanho_obrigado_titulo || "28px" }}>
                           {vid.titulo}
                         </h3>
                       )}
                       {vid.subtitulo && (
-                        <p className="text-sm text-center" style={{ color: textColor, opacity: 0.7 }}>
+                        <p className="text-center" style={{ color: textColor, opacity: 0.7, fontSize: config.fonte_tamanho_obrigado_texto || "16px" }}>
                           {vid.subtitulo}
                         </p>
                       )}

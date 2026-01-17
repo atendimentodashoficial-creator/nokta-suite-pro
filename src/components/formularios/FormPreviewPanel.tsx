@@ -239,7 +239,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   style={{ 
                     color: corTituloMidia, 
                     fontFamily: fonteMidia,
-                    fontSize: `${mediaTitleSize * 0.6}px` 
+                    fontSize: `${mediaTitleSize}px` 
                   }}
                 >
                   {img.titulo}
@@ -252,7 +252,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                   style={{ 
                     color: corSubtituloMidia, 
                     fontFamily: fonteMidia,
-                    fontSize: `${mediaSubtitleSize * 0.6}px` 
+                    fontSize: `${mediaSubtitleSize}px` 
                   }}
                 >
                   {img.subtitulo}
@@ -294,7 +294,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 style={{ 
                   color: corTituloMidia, 
                   fontFamily: fonteMidia,
-                  fontSize: `${mediaTitleSize * 0.7}px` 
+                  fontSize: `${mediaTitleSize}px` 
                 }}
               >
                 {vid.titulo}
@@ -306,7 +306,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
                 style={{ 
                   color: corSubtituloMidia, 
                   fontFamily: fonteMidia,
-                  fontSize: `${mediaSubtitleSize * 0.7}px` 
+                  fontSize: `${mediaSubtitleSize}px` 
                 }}
               >
                 {vid.subtitulo}
