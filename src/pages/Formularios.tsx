@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -28,7 +28,7 @@ export default function Formularios() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <FileText className="w-6 h-6" />
+        <ClipboardList className="w-6 h-6" />
         <h1 className="text-2xl font-bold">Formulários</h1>
       </div>
 
