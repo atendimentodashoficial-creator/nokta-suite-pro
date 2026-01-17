@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -177,9 +177,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
   const validImagens = imagens.filter(i => i.url);
   const validVideos = videos.filter(v => v.url && getVideoEmbedUrl(v.url));
   
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [currentEtapaIndex, setCurrentEtapaIndex] = useState(0);
-  const imageCarouselRef = useRef<HTMLDivElement>(null);
 
   // Sections render functions for thank you page
   const TituloSection = ({ obrigadoTituloSize, obrigadoTextoSize }: { obrigadoTituloSize: number, obrigadoTextoSize: number }) => (
@@ -262,84 +260,36 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             />
           </div>
         ) : (
-          /* Multiple images - horizontal carousel */
-          <div className="relative w-full">
-            <div 
-              ref={imageCarouselRef}
-              className="flex overflow-x-auto snap-x snap-mandatory pb-1 scrollbar-hide"
-              style={{
-                scrollbarWidth: "none", 
-                msOverflowStyle: "none",
-                WebkitOverflowScrolling: "touch",
-              }}
-              onScroll={(e) => {
-                const container = e.currentTarget;
-                const scrollLeft = container.scrollLeft;
-                const firstItem = container.querySelector<HTMLElement>("[data-carousel-item]");
-                const itemWidth = firstItem?.offsetWidth || container.offsetWidth;
-                const newIndex = Math.round(scrollLeft / itemWidth);
-                if (newIndex !== activeImageIndex && newIndex >= 0 && newIndex < validImagens.length) {
-                  setActiveImageIndex(newIndex);
-                }
-              }}
-            >
-              
-              {validImagens.map((img, idx) => {
-                // sideImages are displayed horizontally with the main image
-                const sideImages = img.sideImages?.filter(si => si.url) || [];
-                const hasSideImages = sideImages.length > 0;
-                const totalImages = 1 + sideImages.length;
-                
-                return (
-                  <div 
-                    key={`img-${idx}`} 
-                    data-carousel-item
-                    className="flex-shrink-0 w-full snap-center"
-                  >
-                    <div className={`w-full rounded overflow-hidden ${hasSideImages ? 'flex gap-1' : ''}`}>
+          /* Multiple images - vertical stack (one below another) */
+          <div className="w-full space-y-3">
+            {validImagens.map((img, idx) => {
+              // sideImages are displayed horizontally with the main image
+              const sideImages = img.sideImages?.filter(si => si.url) || [];
+              const hasSideImages = sideImages.length > 0;
+              const totalImages = 1 + sideImages.length;
+
+              return (
+                <div key={`img-${idx}`} className="w-full">
+                  <div className={`w-full rounded overflow-hidden ${hasSideImages ? 'flex gap-1' : ''}`}>
+                    <img 
+                      src={img.url} 
+                      alt={img.titulo || `Imagem ${idx + 1}`} 
+                      className="h-auto object-contain" 
+                      style={hasSideImages ? { width: `${100 / totalImages}%` } : { width: '100%' }}
+                    />
+                    {sideImages.map((sideImg, sideIdx) => (
                       <img 
-                        src={img.url} 
-                        alt={img.titulo || `Imagem ${idx + 1}`} 
+                        key={`${idx}-side-${sideIdx}`}
+                        src={sideImg.url} 
+                        alt={`Imagem lateral ${sideIdx + 1}`} 
                         className="h-auto object-contain" 
-                        style={hasSideImages ? { width: `${100 / totalImages}%` } : { width: '100%' }}
+                        style={{ width: `${100 / totalImages}%` }}
                       />
-                      {sideImages.map((sideImg, sideIdx) => (
-                        <img 
-                          key={`${idx}-side-${sideIdx}`}
-                          src={sideImg.url} 
-                          alt={`Imagem lateral ${sideIdx + 1}`} 
-                          className="h-auto object-contain" 
-                          style={{ width: `${100 / totalImages}%` }}
-                        />
-                      ))}
-                    </div>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
-            {/* Dot indicators */}
-            <div className="flex justify-center gap-1 mt-1">
-              {validImagens.map((_, idx) => (
-                <button 
-                  key={`dot-${idx}`}
-                  type="button"
-                  onClick={() => {
-                    const container = imageCarouselRef.current;
-                    if (container) {
-                      const items = container.querySelectorAll<HTMLElement>("[data-carousel-item]");
-                      items[idx]?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
-                    }
-                    setActiveImageIndex(idx);
-                  }}
-                  className="w-1.5 h-1.5 rounded-full transition-all"
-                  style={{ 
-                    backgroundColor: obrigadoCorPrimaria || corPrimaria, 
-                    opacity: idx === activeImageIndex ? 1 : 0.3,
-                    transform: idx === activeImageIndex ? "scale(1.2)" : "scale(1)"
-                  }}
-                />
-              ))}
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
