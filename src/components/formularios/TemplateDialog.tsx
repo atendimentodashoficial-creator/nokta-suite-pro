@@ -468,21 +468,23 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [subtitulo, setSubtitulo] = useState("");
   const [tituloCor, setTituloCor] = useState("#00d5ff");
   const [subtituloCor, setSubtituloCor] = useState("#6b7280");
-  const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("28px");
-  const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("18px");
-  const [fonteTamanhoPerguntas, setFonteTamanhoPerguntas] = useState("16px");
+  // Font sizes - Formulário
+  const [fonteTamanhoTitulo, setFonteTamanhoTitulo] = useState("24px");
+  const [fonteTamanhoSubtitulo, setFonteTamanhoSubtitulo] = useState("16px");
+  const [fonteTamanhoPerguntas, setFonteTamanhoPerguntas] = useState("18px");
   const [fonteTamanhoCampos, setFonteTamanhoCampos] = useState("14px");
-  const [fonteTamanhoRespostas, setFonteTamanhoRespostas] = useState("14px");
+  const [fonteTamanhoRespostas, setFonteTamanhoRespostas] = useState("16px");
   const [fonteTamanhoBotoes, setFonteTamanhoBotoes] = useState("18px");
-  const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("28px");
-  const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("16px");
-  const [fonteTamanhoObrigadoBotao, setFonteTamanhoObrigadoBotao] = useState("16px");
+  // Font sizes - Página de Obrigado
+  const [fonteTamanhoObrigadoTitulo, setFonteTamanhoObrigadoTitulo] = useState("40px");
+  const [fonteTamanhoObrigadoTexto, setFonteTamanhoObrigadoTexto] = useState("20px");
+  const [fonteTamanhoObrigadoBotao, setFonteTamanhoObrigadoBotao] = useState("32px");
   const [fonteTamanhoMidiaTitulo, setFonteTamanhoMidiaTitulo] = useState("18px");
   const [fonteTamanhoMidiaSubtitulo, setFonteTamanhoMidiaSubtitulo] = useState("14px");
   const [fonteMidia, setFonteMidia] = useState("Inter");
   // Step description styling
   const [fonteTamanhoDescricaoEtapa, setFonteTamanhoDescricaoEtapa] = useState("14px");
-  const [fonteTamanhoIndicadorEtapa, setFonteTamanhoIndicadorEtapa] = useState("14px");
+  const [fonteTamanhoIndicadorEtapa, setFonteTamanhoIndicadorEtapa] = useState("12px");
   const [fonteTamanhoPaginacao, setFonteTamanhoPaginacao] = useState("14px");
   const [corDescricaoEtapa, setCorDescricaoEtapa] = useState("#6b7280");
   const [corIndicadorEtapa, setCorIndicadorEtapa] = useState("#6b7280");
@@ -493,7 +495,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [corTituloMidia, setCorTituloMidia] = useState("#1f2937");
   const [corSubtituloMidia, setCorSubtituloMidia] = useState("#6b7280");
   // Independent styling for thank you page (separate from general settings)
-  const [obrigadoBackgroundColor, setObrigadoBackgroundColor] = useState("#ffffff");
+  const [obrigadoBackgroundColor, setObrigadoBackgroundColor] = useState("#003666");
   const [obrigadoCardColor, setObrigadoCardColor] = useState("#ffffff");
   const [obrigadoCorPrimaria, setObrigadoCorPrimaria] = useState("#00d5ff");
   const [obrigadoButtonTextColor, setObrigadoButtonTextColor] = useState("#ffffff");
