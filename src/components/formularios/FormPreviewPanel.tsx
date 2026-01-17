@@ -248,7 +248,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
               {/* Subtitle for this image */}
               {img.subtitulo && (
                 <span 
-                  className="text-center block mt-0.5 mb-2" 
+                  className="text-center block mt-1 mb-4"
                   style={{ 
                     color: corSubtituloMidia, 
                     fontFamily: fonteMidia,
@@ -302,7 +302,7 @@ export default function FormPreviewPanel({ config, showThankYou = false }: FormP
             )}
             {vid.subtitulo && (
               <p 
-                className="text-center mt-0.5 mb-2" 
+                className="text-center mt-1 mb-4"
                 style={{ 
                   color: corSubtituloMidia, 
                   fontFamily: fonteMidia,
