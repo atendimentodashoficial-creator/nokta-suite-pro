@@ -426,7 +426,7 @@ export function InstagramFormulariosTab() {
                         <FormLabel>Cor do Botão</FormLabel>
                         <FormControl>
                           <div className="flex gap-2">
-                            <Input type="color" className="w-12 h-10 p-0 cursor-pointer rounded-md" {...field} />
+                            <Input type="color" className="w-12 h-10 p-0 cursor-pointer rounded-md overflow-hidden color-swatch-full" {...field} />
                             <Input placeholder="#00D4FF" {...field} />
                           </div>
                         </FormControl>
