@@ -95,18 +95,50 @@ export function WhatsAppInstanceManager({
     ? instances.filter(inst => inst.id === mainInstanceId || !mainInstanceId)
     : instances.filter(inst => inst.id !== mainInstanceId);
 
-  // Auto-check connection status on mount for displayed instances
+  // Auto-check connection status on mount and configure webhook if needed
   useEffect(() => {
-    const displayInstances = instanceType === "whatsapp" 
-      ? (mainInstanceId ? instances.filter(inst => inst.id === mainInstanceId) : [])
-      : instances.filter(inst => !mainInstanceId || inst.id !== mainInstanceId);
-    
-    displayInstances.forEach(instance => {
-      // Only check if status is unknown (not already checked)
-      if (!connectionStatus[instance.id]) {
-        checkConnectionStatus(instance);
+    const checkAndConfigureInstances = async () => {
+      const displayInstances = instanceType === "whatsapp" 
+        ? (mainInstanceId ? instances.filter(inst => inst.id === mainInstanceId) : [])
+        : instances.filter(inst => !mainInstanceId || inst.id !== mainInstanceId);
+      
+      for (const instance of displayInstances) {
+        // Only check if status is unknown (not already checked)
+        if (!connectionStatus[instance.id]) {
+          await checkConnectionStatus(instance);
+        }
+        
+        // Auto-configure webhook if not configured
+        if (!instance.last_webhook_at) {
+          console.log(`[Auto-Webhook] Instance ${instance.nome} needs webhook configuration, attempting...`);
+          setTimeout(async () => {
+            const { data: session } = await supabase.auth.getSession();
+            const webhookUrl = getWebhookUrl(instance.id);
+            
+            try {
+              const response = await supabase.functions.invoke("uazapi-set-webhook", {
+                headers: { Authorization: `Bearer ${session.session?.access_token}` },
+                body: {
+                  base_url: instance.base_url,
+                  api_key: instance.api_key,
+                  webhook_url: webhookUrl,
+                  instancia_id: instance.id,
+                },
+              });
+              
+              if (response.data?.success) {
+                console.log(`[Auto-Webhook] Successfully configured webhook for ${instance.nome}`);
+                onInstancesChange();
+              }
+            } catch (err) {
+              console.error(`[Auto-Webhook] Failed to configure webhook for ${instance.nome}:`, err);
+            }
+          }, 3000);
+        }
       }
-    });
+    };
+    
+    checkAndConfigureInstances();
   }, [instances, mainInstanceId, instanceType]);
 
   // Cleanup polling on unmount

@@ -92,18 +92,42 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [newInstancePolling, setNewInstancePolling] = useState<NodeJS.Timeout | null>(null);
   const [tempNewInstance, setTempNewInstance] = useState<DisparosInstancia | null>(null);
 
-  // Check connection status on mount
+  // Check connection status on mount and auto-configure webhook if needed
   useEffect(() => {
-    instancias.forEach(inst => {
-      if (inst.is_active) {
-        checkConnectionStatus(inst);
+    const checkAndConfigureInstances = async () => {
+      for (const inst of instancias) {
+        if (!inst.is_active) continue;
+        
         // Check webhook status based on last_webhook_at
+        const hasWebhook = !!inst.last_webhook_at;
         setWebhookStatus(prev => ({
           ...prev,
-          [inst.id]: inst.last_webhook_at ? 'configured' : 'pending'
+          [inst.id]: hasWebhook ? 'configured' : 'pending'
         }));
+        
+        // Check connection status
+        await checkConnectionStatus(inst);
+        
+        // Auto-configure webhook if instance is connected but webhook not configured
+        if (!hasWebhook) {
+          console.log(`[Auto-Webhook] Instance ${inst.nome} needs webhook configuration, attempting...`);
+          // Small delay to let connection status settle
+          setTimeout(async () => {
+            const currentStatus = connectionStatus[inst.id];
+            // Only try if likely connected (or status unknown which means first load)
+            if (currentStatus !== 'disconnected') {
+              const success = await configureWebhook(inst);
+              if (success) {
+                console.log(`[Auto-Webhook] Successfully configured webhook for ${inst.nome}`);
+                onInstanciasChange();
+              }
+            }
+          }, 3000);
+        }
       }
-    });
+    };
+    
+    checkAndConfigureInstances();
   }, [instancias]);
 
   // Cleanup polling on unmount
