@@ -492,6 +492,13 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
   const [corMensagem, setCorMensagem] = useState("#6b7280");
   const [corTituloMidia, setCorTituloMidia] = useState("#1f2937");
   const [corSubtituloMidia, setCorSubtituloMidia] = useState("#6b7280");
+  // Independent styling for thank you page (separate from general settings)
+  const [obrigadoBackgroundColor, setObrigadoBackgroundColor] = useState("#ffffff");
+  const [obrigadoCardColor, setObrigadoCardColor] = useState("#ffffff");
+  const [obrigadoCorPrimaria, setObrigadoCorPrimaria] = useState("#00d5ff");
+  const [obrigadoButtonTextColor, setObrigadoButtonTextColor] = useState("#ffffff");
+  const [obrigadoCardBorderColor, setObrigadoCardBorderColor] = useState("transparent");
+  const [obrigadoBorderRadius, setObrigadoBorderRadius] = useState("16");
   
   // Progress bar visibility
   const [barraProgressoVisivel, setBarraProgressoVisivel] = useState(true);
@@ -618,6 +625,14 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setCorPaginacao((template as any).cor_paginacao || "#6b7280");
       setBarraProgressoVisivel((template as any).barra_progresso_visivel !== false);
       
+      // Independent thank you page styling
+      setObrigadoBackgroundColor((template as any).obrigado_background_color || backgroundColor || "#ffffff");
+      setObrigadoCardColor((template as any).obrigado_card_color || cardColor || "#ffffff");
+      setObrigadoCorPrimaria((template as any).obrigado_cor_primaria || corPrimaria || "#00d5ff");
+      setObrigadoButtonTextColor((template as any).obrigado_button_text_color || buttonTextColor || "#ffffff");
+      setObrigadoCardBorderColor((template as any).obrigado_card_border_color || cardBorderColor || "transparent");
+      setObrigadoBorderRadius((template as any).obrigado_border_radius || borderRadius || "16");
+      
       setPaginaObrigadoTitulo(template.pagina_obrigado_titulo || "Obrigado!");
       setPaginaObrigadoMensagem(template.pagina_obrigado_mensagem || "");
       setPaginaObrigadoCtaTexto(template.pagina_obrigado_cta_texto || "");
@@ -680,6 +695,14 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setFonteTamanhoIndicadorEtapa("14px");
       setCorIndicadorEtapa("#6b7280");
       setBarraProgressoVisivel(true);
+      
+      // Reset independent thank you page styling
+      setObrigadoBackgroundColor("#ffffff");
+      setObrigadoCardColor("#ffffff");
+      setObrigadoCorPrimaria("#00d5ff");
+      setObrigadoButtonTextColor("#ffffff");
+      setObrigadoCardBorderColor("transparent");
+      setObrigadoBorderRadius("16");
       
       setPaginaObrigadoTitulo("Obrigado!");
       setPaginaObrigadoMensagem("Recebemos suas informações. Em breve entraremos em contato.");
@@ -1022,6 +1045,14 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       pagina_obrigado_videos: videos.filter(vid => vid.url),
       imagens_layout: imagensLayout,
       
+      // Independent thank you page styling
+      obrigado_background_color: obrigadoBackgroundColor,
+      obrigado_card_color: obrigadoCardColor,
+      obrigado_cor_primaria: obrigadoCorPrimaria,
+      obrigado_button_text_color: obrigadoButtonTextColor,
+      obrigado_card_border_color: obrigadoCardBorderColor,
+      obrigado_border_radius: obrigadoBorderRadius,
+      
       // WhatsApp notification
       whatsapp_instancia_id: whatsappNotificacaoAtiva ? whatsappInstanciaId : null,
       whatsapp_mensagem_sucesso: whatsappNotificacaoAtiva ? whatsappMensagemSucesso : null,
@@ -1102,6 +1133,13 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
     corIndicadorEtapa,
     corPaginacao,
     barraProgressoVisivel,
+    // Independent thank you page styling
+    obrigadoBackgroundColor,
+    obrigadoCardColor,
+    obrigadoCorPrimaria,
+    obrigadoButtonTextColor,
+    obrigadoCardBorderColor,
+    obrigadoBorderRadius,
   };
 
   return (
@@ -2079,20 +2117,20 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                          style={{ backgroundColor: backgroundColor }}
+                          style={{ backgroundColor: obrigadoBackgroundColor }}
                           onClick={() => document.getElementById('obrigado-bg')?.click()}
                         >
                           <Input
                             id="obrigado-bg"
                             type="color"
-                            value={backgroundColor}
-                            onChange={(e) => setBackgroundColor(e.target.value)}
+                            value={obrigadoBackgroundColor}
+                            onChange={(e) => setObrigadoBackgroundColor(e.target.value)}
                             className="opacity-0 w-full h-full cursor-pointer"
                           />
                         </div>
                         <Input
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
+                          value={obrigadoBackgroundColor}
+                          onChange={(e) => setObrigadoBackgroundColor(e.target.value)}
                           placeholder="#ffffff"
                           className="flex-1"
                         />
@@ -2103,20 +2141,20 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                          style={{ backgroundColor: cardColor }}
+                          style={{ backgroundColor: obrigadoCardColor }}
                           onClick={() => document.getElementById('obrigado-card')?.click()}
                         >
                           <Input
                             id="obrigado-card"
                             type="color"
-                            value={cardColor}
-                            onChange={(e) => setCardColor(e.target.value)}
+                            value={obrigadoCardColor}
+                            onChange={(e) => setObrigadoCardColor(e.target.value)}
                             className="opacity-0 w-full h-full cursor-pointer"
                           />
                         </div>
                         <Input
-                          value={cardColor}
-                          onChange={(e) => setCardColor(e.target.value)}
+                          value={obrigadoCardColor}
+                          onChange={(e) => setObrigadoCardColor(e.target.value)}
                           placeholder="#ffffff"
                           className="flex-1"
                         />
@@ -2235,20 +2273,20 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                          style={{ backgroundColor: corPrimaria }}
+                          style={{ backgroundColor: obrigadoCorPrimaria }}
                           onClick={() => document.getElementById('obrigado-botao')?.click()}
                         >
                           <Input
                             id="obrigado-botao"
                             type="color"
-                            value={corPrimaria}
-                            onChange={(e) => setCorPrimaria(e.target.value)}
+                            value={obrigadoCorPrimaria}
+                            onChange={(e) => setObrigadoCorPrimaria(e.target.value)}
                             className="opacity-0 w-full h-full cursor-pointer"
                           />
                         </div>
                         <Input
-                          value={corPrimaria}
-                          onChange={(e) => setCorPrimaria(e.target.value)}
+                          value={obrigadoCorPrimaria}
+                          onChange={(e) => setObrigadoCorPrimaria(e.target.value)}
                           placeholder="#8B5CF6"
                           className="flex-1"
                         />
@@ -2259,20 +2297,20 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                          style={{ backgroundColor: buttonTextColor }}
+                          style={{ backgroundColor: obrigadoButtonTextColor }}
                           onClick={() => document.getElementById('obrigado-botao-texto')?.click()}
                         >
                           <Input
                             id="obrigado-botao-texto"
                             type="color"
-                            value={buttonTextColor}
-                            onChange={(e) => setButtonTextColor(e.target.value)}
+                            value={obrigadoButtonTextColor}
+                            onChange={(e) => setObrigadoButtonTextColor(e.target.value)}
                             className="opacity-0 w-full h-full cursor-pointer"
                           />
                         </div>
                         <Input
-                          value={buttonTextColor}
-                          onChange={(e) => setButtonTextColor(e.target.value)}
+                          value={obrigadoButtonTextColor}
+                          onChange={(e) => setObrigadoButtonTextColor(e.target.value)}
                           placeholder="#ffffff"
                           className="flex-1"
                         />
@@ -2287,20 +2325,20 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
-                          style={{ backgroundColor: cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor }}
+                          style={{ backgroundColor: obrigadoCardBorderColor === "transparent" ? "#ffffff" : obrigadoCardBorderColor }}
                           onClick={() => document.getElementById('obrigado-borda')?.click()}
                         >
                           <Input
                             id="obrigado-borda"
                             type="color"
-                            value={cardBorderColor === "transparent" ? "#ffffff" : cardBorderColor}
-                            onChange={(e) => setCardBorderColor(e.target.value)}
+                            value={obrigadoCardBorderColor === "transparent" ? "#ffffff" : obrigadoCardBorderColor}
+                            onChange={(e) => setObrigadoCardBorderColor(e.target.value)}
                             className="opacity-0 w-full h-full cursor-pointer"
                           />
                         </div>
                         <Input
-                          value={cardBorderColor}
-                          onChange={(e) => setCardBorderColor(e.target.value)}
+                          value={obrigadoCardBorderColor}
+                          onChange={(e) => setObrigadoCardBorderColor(e.target.value)}
                           placeholder="transparent"
                           className="flex-1"
                         />
@@ -2310,13 +2348,13 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
 
                   {/* Arredondamento */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Arredondamento: {borderRadius}px</Label>
+                    <Label className="text-sm font-medium">Arredondamento: {obrigadoBorderRadius}px</Label>
                     <Input
                       type="range"
                       min="0"
                       max="32"
-                      value={borderRadius}
-                      onChange={(e) => setBorderRadius(e.target.value)}
+                      value={obrigadoBorderRadius}
+                      onChange={(e) => setObrigadoBorderRadius(e.target.value)}
                       className="w-full"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
