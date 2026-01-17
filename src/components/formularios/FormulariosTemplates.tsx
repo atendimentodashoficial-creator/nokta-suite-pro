@@ -14,7 +14,11 @@ import TemplateDialog from "./TemplateDialog";
 import EtapasManager from "./EtapasManager";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-export default function FormulariosTemplates() {
+interface FormulariosTemplatesProps {
+  linkPrefix?: string; // Default: "/formulario"
+}
+
+export default function FormulariosTemplates({ linkPrefix = "/formulario" }: FormulariosTemplatesProps) {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<FormularioTemplate | null>(null);
   const [managingEtapas, setManagingEtapas] = useState<(FormularioTemplate & { formularios_etapas: FormularioEtapa[] }) | null>(null);
@@ -48,7 +52,7 @@ export default function FormulariosTemplates() {
 
   const handleCopyLink = (template: FormularioTemplate) => {
     const slug = template.slug || template.id;
-    const url = `${window.location.origin}/formulario/${slug}`;
+    const url = `${window.location.origin}${linkPrefix}/${slug}`;
     navigator.clipboard.writeText(url);
     toast.success("Link copiado para a área de transferência!");
   };
@@ -63,7 +67,7 @@ export default function FormulariosTemplates() {
 
   const handlePreview = (template: FormularioTemplate) => {
     const slug = template.slug || template.id;
-    window.open(`/formulario/${slug}?preview=true`, "_blank");
+    window.open(`${linkPrefix}/${slug}?preview=true`, "_blank");
   };
 
   if (managingEtapas) {
