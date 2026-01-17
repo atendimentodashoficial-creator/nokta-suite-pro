@@ -960,14 +960,7 @@ export function EditarCampanhaDialog({
         updated_at: new Date().toISOString()
       };
 
-      if (shouldPreserveStats) {
-        // Keep the campaign running/completed status, just update total
-        updateData.total_contatos = totalContatos;
-        // If campaign was paused or completed and we added new contacts, set it back to pending so it can continue
-        if (trulyNewContacts.length > 0 && (existingCampanha.status === 'completed' || existingCampanha.status === 'paused')) {
-          updateData.status = 'pending';
-        }
-      } else {
+      if (!shouldPreserveStats) {
         // Fresh campaign, reset everything
         updateData.total_contatos = contatos.length;
         updateData.status = "pending";
@@ -976,6 +969,7 @@ export function EditarCampanhaDialog({
         updateData.iniciado_em = null;
         updateData.finalizado_em = null;
       }
+      // Note: When shouldPreserveStats is true, stats are updated later after removing sent/failed contacts
 
       const { error: campanhaError } = await supabase
         .from("disparos_campanhas")
@@ -1019,9 +1013,16 @@ export function EditarCampanhaDialog({
         .insert(variacoesToInsert);
       if (variacoesError) throw variacoesError;
 
-      // Handle contacts intelligently - preserve sent/failed status
+      // Handle contacts - when campaign was executed, remove sent/failed and keep only pending + new
       if (shouldPreserveStats) {
-        // Remove contacts that are no longer in the list
+        // Delete ALL sent and failed contacts - they are archived in the snapshot
+        await supabase
+          .from("disparos_campanha_contatos")
+          .delete()
+          .eq("campanha_id", campanhaId)
+          .in("status", ["sent", "failed"]);
+
+        // Remove pending contacts that are no longer in the list
         if (removedContactNumbers.length > 0) {
           await supabase
             .from("disparos_campanha_contatos")
@@ -1045,7 +1046,21 @@ export function EditarCampanhaDialog({
           if (contatosError) throw contatosError;
         }
 
-        console.log(`[EditarCampanha] Preserved ${sentContactsCount} sent contacts, added ${trulyNewContacts.length} new contacts`);
+        // Update campaign stats to reflect only pending contacts
+        const pendingCount = contatos.length; // contatos now only contains pending ones
+        await supabase
+          .from("disparos_campanhas")
+          .update({
+            total_contatos: pendingCount,
+            enviados: 0,
+            falhas: 0,
+            status: "pending",
+            iniciado_em: null,
+            finalizado_em: null
+          })
+          .eq("id", campanhaId);
+
+        console.log(`[EditarCampanha] Removed sent/failed contacts, kept ${pendingCount} pending contacts`);
       } else {
         // Fresh start - delete all and reinsert
         await supabase.from("disparos_campanha_contatos").delete().eq("campanha_id", campanhaId);
