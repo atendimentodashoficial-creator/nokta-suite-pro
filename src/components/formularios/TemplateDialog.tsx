@@ -1738,7 +1738,7 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="corPaginacao">Paginação (1/3)</Label>
+                    <Label htmlFor="corPaginacao">Paginação</Label>
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
@@ -1849,10 +1849,10 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
                     </div>
                   </div>
 
-                  {/* Etapas (1/3) - última linha */}
+                  {/* Etapas - última linha */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="corIndicadorEtapa">Etapas (1/3)</Label>
+                      <Label htmlFor="corIndicadorEtapa">Etapas</Label>
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-12 h-10 rounded-md border cursor-pointer shrink-0"
