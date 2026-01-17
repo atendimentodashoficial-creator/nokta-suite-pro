@@ -470,7 +470,7 @@ export default function GoogleAdsMetrics() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-          <GoogleAdsIcon className="w-6 h-6" />
+          <GoogleAdsIcon className="w-6 h-6 text-foreground" />
           <h1 className="text-2xl font-bold">Google Ads</h1>
         </div>
       </div>
