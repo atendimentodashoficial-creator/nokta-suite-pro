@@ -842,14 +842,14 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
               </div>
 
               <ScrollArea className="flex-1 p-2 min-w-0">
-                <div className="space-y-2 min-w-0 pr-3">
+                <div className="space-y-2 min-w-0 pl-1 pr-4">
                   {getUnassignedChats().map((chat) => (
                     <Card
                       key={chat.id}
                       draggable={!selectionMode}
                       onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
                       onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
-                      className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl min-w-0 max-w-full overflow-hidden ${
+                      className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl w-full min-w-0 max-w-full overflow-hidden ${
                         selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""
                       } ${selectedChats.has(chat.id) ? "ring-2 ring-inset ring-destructive bg-destructive/5" : ""}`}
                     >
@@ -957,14 +957,14 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
 
                   {/* Column Content */}
                   <ScrollArea className="flex-1 p-2 min-w-0">
-                    <div className="space-y-2 min-w-0 pr-3">
+                    <div className="space-y-2 min-w-0 pl-1 pr-4">
                       {columnChats.map((chat) => (
                         <Card
                           key={chat.id}
                           draggable={!selectionMode}
                           onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
                           onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
-                          className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl min-w-0 max-w-full overflow-hidden ${
+                          className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl w-full min-w-0 max-w-full overflow-hidden ${
                             selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""
                           } ${selectedChats.has(chat.id) ? "ring-2 ring-inset ring-destructive bg-destructive/5" : ""}`}
                         >
