@@ -132,6 +132,16 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
+  /* Multi-line truncation (we don't use Tailwind line-clamp plugin) */
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+  }
+
   /* Hide scrollbar for tabs and other scrollable elements */
   .scrollbar-none {
     -ms-overflow-style: none;
