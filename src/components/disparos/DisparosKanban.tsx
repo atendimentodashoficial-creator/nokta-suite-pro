@@ -841,7 +841,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 p-2">
+              <ScrollArea className="flex-1 p-1.5">
                 <div className="space-y-2">
                   {getUnassignedChats().map((chat) => (
                     <Card
@@ -956,7 +956,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                   </div>
 
                   {/* Column Content */}
-                  <ScrollArea className="flex-1 p-2">
+                  <ScrollArea className="flex-1 p-1.5">
                     <div className="space-y-2">
                       {columnChats.map((chat) => (
                         <Card
