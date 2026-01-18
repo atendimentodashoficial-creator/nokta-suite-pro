@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -606,7 +606,7 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                               </span>
                               {inst.lastSendAt ? (
                                 <span className="text-muted-foreground">
-                                  Último: {format(new Date(inst.lastSendAt), "HH:mm", { locale: ptBR })}
+                                  {formatDistanceToNow(new Date(inst.lastSendAt), { addSuffix: true, locale: ptBR })}
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">Sem envios</span>
