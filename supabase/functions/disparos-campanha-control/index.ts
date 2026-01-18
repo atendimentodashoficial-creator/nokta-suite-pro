@@ -781,7 +781,8 @@ async function processCampaign(
     for (const { instance } of scoredNonLast) {
       const isConnected = await checkInstanceConnection(instance);
       if (!isConnected) {
-        console.log(`[Smart Rotation] Instance ${instance.nome} is NOT connected, trying next...`);
+        console.log(`[Smart Rotation] Instance ${instance.nome} is NOT connected, marking as disabled...`);
+        await markInstanceAsDisabled(instance.id, instance.nome);
         continue;
       }
 
@@ -804,11 +805,44 @@ async function processCampaign(
         stats.lastSendTime = Date.now();
         lastUsedInstanceId = lastInstance.id;
         return lastInstance;
+      } else {
+        console.log(`[Smart Rotation] Last instance ${lastInstance.nome} also disconnected, marking as disabled...`);
+        await markInstanceAsDisabled(lastInstance.id, lastInstance.nome);
       }
     }
 
     console.error(`[Smart Rotation] No connected instances available!`);
     return null;
+  }
+
+  /**
+   * Mark an instance as disabled in the campaign (due to connection issues)
+   */
+  async function markInstanceAsDisabled(instanceId: string, instanceName: string): Promise<void> {
+    try {
+      // Get current disabled instances
+      const { data: currentCampaign } = await supabase
+        .from("disparos_campanhas")
+        .select("disabled_instancias_ids")
+        .eq("id", campanha.id)
+        .single();
+
+      const currentDisabled: string[] = (currentCampaign?.disabled_instancias_ids as string[]) || [];
+      
+      // Only add if not already in the list
+      if (!currentDisabled.includes(instanceId)) {
+        const newDisabled = [...currentDisabled, instanceId];
+        
+        await supabase
+          .from("disparos_campanhas")
+          .update({ disabled_instancias_ids: newDisabled })
+          .eq("id", campanha.id);
+        
+        console.log(`[Instance Disabled] ${instanceName} (${instanceId}) added to disabled list for campaign ${campanha.id}`);
+      }
+    } catch (error: any) {
+      console.error(`[Instance Disabled] Error marking instance as disabled:`, error.message);
+    }
   }
 
   for (const contato of contatos) {

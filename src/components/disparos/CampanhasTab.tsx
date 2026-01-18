@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3 } from "lucide-react";
+import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3, WifiOff, RotateCcw, Wifi } from "lucide-react";
 import { EditarCampanhaDialog } from "./EditarCampanhaDialog";
 import { ContatosCampanhaDialog } from "./ContatosCampanhaDialog";
 import { RelatorioCampanhaDialog } from "./RelatorioCampanhaDialog";
@@ -13,6 +13,16 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+interface DisparosInstancia {
+  id: string;
+  nome: string;
+  base_url: string;
+  api_key: string;
+  is_active: boolean;
+}
+
 interface Campanha {
   id: string;
   nome: string;
@@ -27,6 +37,8 @@ interface Campanha {
   finalizado_em: string | null;
   created_at: string;
   next_send_at: string | null;
+  instancias_ids: string[] | null;
+  disabled_instancias_ids: string[] | null;
 }
 
 interface CampanhasTabProps {
@@ -36,6 +48,7 @@ interface CampanhasTabProps {
 export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   const { user } = useAuth();
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
+  const [instancias, setInstancias] = useState<DisparosInstancia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [campanhaToDelete, setCampanhaToDelete] = useState<string | null>(null);
@@ -46,6 +59,8 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   const [campanhaContatos, setCampanhaContatos] = useState<{ id: string; nome: string } | null>(null);
   const [relatorioDialogOpen, setRelatorioDialogOpen] = useState(false);
   const [campanhaRelatorio, setCampanhaRelatorio] = useState<string | null>(null);
+  const [instanceConnectionStatus, setInstanceConnectionStatus] = useState<Record<string, boolean | null>>({});
+  const [checkingInstance, setCheckingInstance] = useState<string | null>(null);
 
   const loadCampanhas = async () => {
     try {
@@ -55,7 +70,7 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setCampanhas(data || []);
+      setCampanhas((data || []) as Campanha[]);
     } catch (error: any) {
       console.error("Error loading campaigns:", error);
       toast.error("Erro ao carregar campanhas");
@@ -64,8 +79,23 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
     }
   };
 
+  const loadInstancias = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("disparos_instancias")
+        .select("id, nome, base_url, api_key, is_active")
+        .eq("is_active", true);
+
+      if (error) throw error;
+      setInstancias((data || []) as DisparosInstancia[]);
+    } catch (error: any) {
+      console.error("Error loading instances:", error);
+    }
+  };
+
   useEffect(() => {
     loadCampanhas();
+    loadInstancias();
   }, []);
 
   // Realtime updates
@@ -247,6 +277,76 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  // Check instance connection status
+  const checkInstanceConnection = async (instanceId: string) => {
+    const instance = instancias.find(i => i.id === instanceId);
+    if (!instance) return;
+
+    setCheckingInstance(instanceId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await supabase.functions.invoke("uazapi-check-status", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { base_url: instance.base_url, api_key: instance.api_key }
+      });
+
+      const isConnected = response.data?.success === true;
+      setInstanceConnectionStatus(prev => ({ ...prev, [instanceId]: isConnected }));
+      return isConnected;
+    } catch (error) {
+      console.error("Error checking instance connection:", error);
+      setInstanceConnectionStatus(prev => ({ ...prev, [instanceId]: false }));
+      return false;
+    } finally {
+      setCheckingInstance(null);
+    }
+  };
+
+  // Reactivate a disabled instance
+  const handleReactivateInstance = async (campanhaId: string, instanceId: string) => {
+    // First check if instance is connected
+    const isConnected = await checkInstanceConnection(instanceId);
+    
+    if (!isConnected) {
+      toast.error("Instância ainda não está conectada. Verifique a conexão primeiro.");
+      return;
+    }
+
+    try {
+      // Get current disabled instances
+      const { data: campanha } = await supabase
+        .from("disparos_campanhas")
+        .select("disabled_instancias_ids")
+        .eq("id", campanhaId)
+        .single();
+
+      const currentDisabled: string[] = (campanha?.disabled_instancias_ids as string[]) || [];
+      const newDisabled = currentDisabled.filter(id => id !== instanceId);
+
+      await supabase
+        .from("disparos_campanhas")
+        .update({ disabled_instancias_ids: newDisabled })
+        .eq("id", campanhaId);
+
+      toast.success("Instância reativada na campanha");
+      loadCampanhas();
+    } catch (error: any) {
+      console.error("Error reactivating instance:", error);
+      toast.error("Erro ao reativar instância");
+    }
+  };
+
+  // Get disabled instances for a campaign with their names
+  const getDisabledInstances = (campanha: Campanha) => {
+    const disabledIds = campanha.disabled_instancias_ids || [];
+    return disabledIds.map(id => {
+      const instance = instancias.find(i => i.id === id);
+      return { id, nome: instance?.nome || "Instância desconhecida" };
+    }).filter(i => i.nome !== "Instância desconhecida");
   };
 
   const getStatusBadge = (status: string) => {
@@ -445,6 +545,86 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                 )}
                 <span>Delay: {campanha.delay_min >= 60 && campanha.delay_max >= 60 ? `${Math.round(campanha.delay_min / 60)}-${Math.round(campanha.delay_max / 60)}min` : `${campanha.delay_min}-${campanha.delay_max}s`}</span>
               </div>
+
+              {/* Disabled instances warning */}
+              {(() => {
+                const disabledInstances = getDisabledInstances(campanha);
+                if (disabledInstances.length === 0) return null;
+                
+                return (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-2">
+                      <WifiOff className="h-4 w-4" />
+                      <span className="text-sm font-medium">Instâncias desconectadas</span>
+                    </div>
+                    <div className="space-y-2">
+                      {disabledInstances.map(inst => {
+                        const connectionStatus = instanceConnectionStatus[inst.id];
+                        const isChecking = checkingInstance === inst.id;
+                        
+                        return (
+                          <div key={inst.id} className="flex items-center justify-between gap-2 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">{inst.nome}</span>
+                              {connectionStatus === true && (
+                                <Badge variant="outline" className="text-green-600 border-green-600 gap-1 text-xs">
+                                  <Wifi className="h-3 w-3" />
+                                  Online
+                                </Badge>
+                              )}
+                              {connectionStatus === false && (
+                                <Badge variant="outline" className="text-red-600 border-red-600 gap-1 text-xs">
+                                  <WifiOff className="h-3 w-3" />
+                                  Offline
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2"
+                                      onClick={() => checkInstanceConnection(inst.id)}
+                                      disabled={isChecking}
+                                    >
+                                      <RefreshCw className={`h-3 w-3 ${isChecking ? 'animate-spin' : ''}`} />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Verificar conexão</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant={connectionStatus === true ? "default" : "outline"}
+                                      className="h-7 px-2 gap-1"
+                                      onClick={() => handleReactivateInstance(campanha.id, inst.id)}
+                                      disabled={isChecking || connectionStatus === false}
+                                    >
+                                      <RotateCcw className="h-3 w-3" />
+                                      Reativar
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {connectionStatus === true 
+                                      ? "Clique para reativar esta instância" 
+                                      : "Verifique a conexão primeiro"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Progress bar */}
               {(campanha.status === "running" || campanha.status === "completed") && (
