@@ -187,21 +187,35 @@ serve(async (req) => {
     // Get instances - try new multi-instance table first, fallback to old config
     let instancias: DisparosInstancia[] = [];
     
+    // Get disabled instances list for this campaign
+    const disabledInstanceIds: string[] = (campanha.disabled_instancias_ids as string[]) || [];
+    console.log(`Campaign has ${disabledInstanceIds.length} disabled instance(s): ${disabledInstanceIds.join(", ") || "none"}`);
+    
     // Check if campaign has specific instances configured
     if (campanha.instancias_ids && campanha.instancias_ids.length > 0) {
-      const { data: instanciasData } = await supabase
-        .from("disparos_instancias")
-        .select("*")
-        .eq("user_id", userId)
-        .in("id", campanha.instancias_ids)
-        .eq("is_active", true);
+      // Filter out disabled instances from the configured list
+      const activeInstanceIds = (campanha.instancias_ids as string[]).filter(
+        (id: string) => !disabledInstanceIds.includes(id)
+      );
       
-      if (instanciasData && instanciasData.length > 0) {
-        instancias = instanciasData;
+      console.log(`Campaign configured instances: ${(campanha.instancias_ids as string[]).join(", ")}`);
+      console.log(`Active (non-disabled) instances: ${activeInstanceIds.join(", ") || "none"}`);
+      
+      if (activeInstanceIds.length > 0) {
+        const { data: instanciasData } = await supabase
+          .from("disparos_instancias")
+          .select("*")
+          .eq("user_id", userId)
+          .in("id", activeInstanceIds)
+          .eq("is_active", true);
+        
+        if (instanciasData && instanciasData.length > 0) {
+          instancias = instanciasData;
+        }
       }
     }
 
-    // Fallback: get all active instances
+    // Fallback: get all active instances (also excluding disabled ones)
     if (instancias.length === 0) {
       const { data: allInstancias } = await supabase
         .from("disparos_instancias")
@@ -210,7 +224,8 @@ serve(async (req) => {
         .eq("is_active", true);
       
       if (allInstancias && allInstancias.length > 0) {
-        instancias = allInstancias;
+        // Filter out disabled instances
+        instancias = allInstancias.filter(inst => !disabledInstanceIds.includes(inst.id));
       }
     }
 
