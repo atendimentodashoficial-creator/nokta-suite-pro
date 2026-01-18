@@ -957,6 +957,11 @@ export function EditarCampanhaDialog({
         delay_bloco_min: delayBlocoMin,
         delay_bloco_max: delayBlocoMax,
         instancias_ids: selectedInstancias,
+        // Reset rotation state and disabled instances when editing
+        // This ensures all instances start with balanced load
+        instance_rotation_state: {},
+        disabled_instancias_ids: [],
+        last_instance_id: null,
         updated_at: new Date().toISOString()
       };
 
