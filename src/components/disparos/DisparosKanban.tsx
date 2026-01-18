@@ -881,7 +881,16 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                                 <span className="truncate">{chat.instancia_nome || instanciasMap[chat.instancia_id]?.nome}</span>
                               </div>
                             )}
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-normal break-words">
+                            <p
+                              className="text-xs text-muted-foreground mt-1 whitespace-normal break-words max-w-full"
+                              style={{
+                                display: "-webkit-box",
+                                WebkitBoxOrient: "vertical",
+                                WebkitLineClamp: 3,
+                                overflow: "hidden",
+                                wordBreak: "break-word",
+                              }}
+                            >
                               {truncateText(formatLastMessagePreview(chat.last_message), 160)}
                             </p>
                             {chat.last_message_time && (
@@ -996,7 +1005,16 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                                     <span className="truncate">{chat.instancia_nome || instanciasMap[chat.instancia_id]?.nome}</span>
                                   </div>
                                 )}
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-normal break-words">
+                                <p
+                                  className="text-xs text-muted-foreground mt-1 whitespace-normal break-words max-w-full"
+                                  style={{
+                                    display: "-webkit-box",
+                                    WebkitBoxOrient: "vertical",
+                                    WebkitLineClamp: 3,
+                                    overflow: "hidden",
+                                    wordBreak: "break-word",
+                                  }}
+                                >
                                   {truncateText(formatLastMessagePreview(chat.last_message), 160)}
                                 </p>
                                 {chat.last_message_time && (
