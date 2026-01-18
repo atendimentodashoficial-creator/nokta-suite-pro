@@ -366,6 +366,20 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
     }).filter(i => i.nome !== "Instância desconhecida");
   };
 
+  // Get active instances for a campaign (configured minus disabled)
+  const getActiveInstances = (campanha: Campanha) => {
+    const configuredIds = campanha.instancias_ids || [];
+    const disabledIds = campanha.disabled_instancias_ids || [];
+    
+    return configuredIds
+      .filter(id => !disabledIds.includes(id))
+      .map(id => {
+        const instance = instancias.find(i => i.id === id);
+        return { id, nome: instance?.nome || null };
+      })
+      .filter(i => i.nome !== null) as { id: string; nome: string }[];
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -562,6 +576,28 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                 )}
                 <span>Delay: {campanha.delay_min >= 60 && campanha.delay_max >= 60 ? `${Math.round(campanha.delay_min / 60)}-${Math.round(campanha.delay_max / 60)}min` : `${campanha.delay_min}-${campanha.delay_max}s`}</span>
               </div>
+
+              {/* Active instances in queue */}
+              {(() => {
+                const activeInstances = getActiveInstances(campanha);
+                if (activeInstances.length === 0) return null;
+                
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Instâncias:</span>
+                    {activeInstances.map(inst => (
+                      <Badge 
+                        key={inst.id} 
+                        variant="outline" 
+                        className="text-xs gap-1 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800"
+                      >
+                        <Wifi className="h-3 w-3" />
+                        {inst.nome}
+                      </Badge>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Disabled instances warning */}
               {(() => {
