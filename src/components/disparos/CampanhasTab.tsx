@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3, WifiOff, RotateCcw, Wifi } from "lucide-react";
+import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3, WifiOff, RotateCcw, Wifi, ArrowRight } from "lucide-react";
 import { EditarCampanhaDialog } from "./EditarCampanhaDialog";
 import { ContatosCampanhaDialog } from "./ContatosCampanhaDialog";
 import { RelatorioCampanhaDialog } from "./RelatorioCampanhaDialog";
@@ -40,6 +40,7 @@ interface Campanha {
   instancias_ids: string[] | null;
   disabled_instancias_ids: string[] | null;
   instance_rotation_state: unknown;
+  last_instance_id: string | null;
 }
 
 interface CampanhasTabProps {
@@ -368,20 +369,55 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   };
 
   // Get active instances for a campaign (configured minus disabled)
+  // Sorted by "next to send" - lowest score first (same logic as backend)
   const getActiveInstances = (campanha: Campanha) => {
     const configuredIds = campanha.instancias_ids || [];
     const disabledIds = campanha.disabled_instancias_ids || [];
     const rotationState = (campanha.instance_rotation_state || {}) as Record<string, { sends: number; lastSendAt: string | null }>;
+    const lastUsedInstanceId = campanha.last_instance_id;
     
-    return configuredIds
+    const activeInstances = configuredIds
       .filter(id => !disabledIds.includes(id))
       .map(id => {
         const instance = instancias.find(i => i.id === id);
         const stateEntry = rotationState[id];
+        const sends = stateEntry?.sends || 0;
         const lastSendAt = stateEntry?.lastSendAt || null;
-        return { id, nome: instance?.nome || null, lastSendAt };
+        return { id, nome: instance?.nome || null, lastSendAt, sends };
       })
-      .filter(i => i.nome !== null) as { id: string; nome: string; lastSendAt: string | null }[];
+      .filter(i => i.nome !== null) as { id: string; nome: string; lastSendAt: string | null; sends: number }[];
+    
+    // Find minimum sends
+    const minSends = Math.min(...activeInstances.map(i => i.sends), 0);
+    
+    // Sort by score (lower = next to send)
+    return activeInstances.sort((a, b) => {
+      const now = Date.now();
+      
+      // Calculate scores like backend
+      const getScore = (inst: typeof a) => {
+        let score = 0;
+        
+        // Send penalty: 50 points per send above minimum
+        score += (inst.sends - minSends) * 50;
+        
+        // Recency penalty: up to 30 points if used recently
+        if (inst.lastSendAt) {
+          const timeSinceLastSend = now - new Date(inst.lastSendAt).getTime();
+          const recencyPenalty = Math.max(0, 30 - (timeSinceLastSend / 1000)); // decreases over 30s
+          score += recencyPenalty;
+        }
+        
+        // Anti-repetition: big penalty if was last used
+        if (inst.id === lastUsedInstanceId) {
+          score += 100;
+        }
+        
+        return score;
+      };
+      
+      return getScore(a) - getScore(b);
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -599,11 +635,20 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                         <TooltipContent side="bottom" align="start" className="p-2">
                           <div className="space-y-1.5">
                             <p className="text-xs font-medium mb-2">Instâncias ativas:</p>
-                            {activeInstances.map(inst => (
-                              <div key={inst.id} className="flex items-center justify-between gap-4 text-xs">
+                            {activeInstances.map((inst, index) => (
+                              <div key={inst.id} className={`flex items-center justify-between gap-4 text-xs ${index === 0 ? 'bg-green-100 dark:bg-green-900/30 -mx-1 px-1 py-0.5 rounded' : ''}`}>
                                 <span className="flex items-center gap-1.5">
-                                  <Wifi className="h-3 w-3 text-green-500" />
+                                  {index === 0 ? (
+                                    <ArrowRight className="h-3 w-3 text-green-600" />
+                                  ) : (
+                                    <Wifi className="h-3 w-3 text-green-500" />
+                                  )}
                                   {inst.nome}
+                                  {index === 0 && (
+                                    <Badge variant="outline" className="text-[10px] h-4 px-1 text-green-600 border-green-600">
+                                      próxima
+                                    </Badge>
+                                  )}
                                 </span>
                                 {inst.lastSendAt ? (
                                   <span className="text-muted-foreground">
