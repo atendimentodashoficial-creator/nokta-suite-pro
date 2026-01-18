@@ -796,7 +796,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
           <>
             {/* Leads Column - Fixed on Left */}
             <div
-              className="flex-shrink-0 w-72 flex flex-col bg-muted/50 rounded-lg"
+              className="flex-shrink-0 w-72 min-w-0 max-w-[18rem] flex flex-col bg-muted/50 rounded-lg overflow-hidden"
               onDrop={(e) => {
                 e.preventDefault();
                 const chatId = e.dataTransfer.getData("chatId");
@@ -841,8 +841,8 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 p-2">
-                <div className="space-y-2">
+              <ScrollArea className="flex-1 p-2 min-w-0">
+                <div className="space-y-2 min-w-0">
                   {getUnassignedChats().map((chat) => (
                     <Card
                       key={chat.id}
@@ -862,8 +862,8 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                           />
                         </div>
                       )}
-                      <div className={`flex flex-col w-full ${selectionMode ? "pl-6" : ""}`}>
-                        <div className="flex items-start gap-2 w-full">
+                      <div className={`flex flex-col w-full min-w-0 ${selectionMode ? "pl-6" : ""}`}>
+                        <div className="flex items-start gap-2 w-full min-w-0">
                           <div className="flex-shrink-0">
                             <ChatAvatar chat={chat} size="md" />
                           </div>
