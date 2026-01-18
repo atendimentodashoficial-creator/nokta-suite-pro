@@ -746,19 +746,33 @@ async function processCampaign(
         ? candidateInstances.filter((i) => i.id !== lastUsedInstanceId)
         : candidateInstances;
 
+    const now = Date.now();
+
+    // Use RELATIVE sends to avoid starving an instance forever when it has historical sends.
+    // We only care about balancing between currently available instances.
+    const sendsByInstance = nonLastCandidates.map((inst) => instanceStats.get(inst.id)?.sends ?? 0);
+    const minSends = sendsByInstance.length > 0 ? Math.min(...sendsByInstance) : 0;
+
     const scoredNonLast = nonLastCandidates
       .map((inst) => {
         const stats = instanceStats.get(inst.id);
-        const sendScore = (stats?.sends || 0) * 1000;
-        const timeScore =
-          (stats?.lastSendTime || 0) > 0
-            ? Math.max(0, 500 - (Date.now() - (stats?.lastSendTime || 0)) / 100)
-            : 0;
-        const randomFactor = Math.random() * 50;
+        const sends = stats?.sends ?? 0;
+        const lastSendTime = stats?.lastSendTime ?? 0;
+
+        // Penalize instances that have sent more THAN the least-used instance.
+        // Keep this weight low; otherwise one instance can be "locked out" for a long time.
+        const relativeSends = Math.max(0, sends - minSends);
+        const sendPenalty = relativeSends * 50;
+
+        // Slightly penalize instances used very recently (helps spread load).
+        const recencyPenalty =
+          lastSendTime > 0 ? Math.max(0, 30 - (now - lastSendTime) / 1000) : 0;
+
+        const randomFactor = Math.random() * 5;
 
         return {
           instance: inst,
-          score: sendScore + timeScore + randomFactor,
+          score: sendPenalty + recencyPenalty + randomFactor,
         };
       })
       .sort((a, b) => a.score - b.score);
