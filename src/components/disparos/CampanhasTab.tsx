@@ -595,7 +595,7 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                           <span>{activeInstances.length} instância{activeInstances.length > 1 ? 's' : ''}</span>
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="p-2">
+                      <TooltipContent side="bottom" align="start" className="p-2">
                         <div className="space-y-1.5">
                           <p className="text-xs font-medium mb-2">Instâncias ativas:</p>
                           {activeInstances.map(inst => (
