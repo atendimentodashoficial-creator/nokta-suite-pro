@@ -71,20 +71,41 @@ Deno.serve(async (req) => {
     // Check for definitive connected state
     const loggedIn = nestedStatus?.loggedIn === true || statusData?.loggedIn === true;
     const jid = nestedStatus?.jid ?? statusData?.jid;
-    const connected = nestedStatus?.connected;
+    const connected = nestedStatus?.connected === true || statusData?.connected === true;
     
     // Check for transitional states - should NOT be treated as connected
     const isConnecting = instanceStatus === "connecting" || instanceStatus === "starting";
+    
+    // Check for disconnected state - IMPORTANT: check this BEFORE checking connected
+    const isDisconnected = instanceStatus === "disconnected" || 
+                           instanceStatus === "close" || 
+                           instanceStatus === "DISCONNECTED" ||
+                           nestedStatus?.connected === false ||
+                           statusData?.connected === false;
     
     // Only consider truly connected if:
     // 1. loggedIn is true
     // 2. jid is present (has a valid phone number)
     // 3. not in transitional state
+    // 4. not explicitly disconnected
+    // 5. connected flag is true (when available)
     const hasValidJid = jid != null && String(jid).length > 0;
-    const isReallyConnected = loggedIn === true && hasValidJid && !isConnecting;
-    
-    // Check for disconnected state
-    const isDisconnected = instanceStatus === "disconnected" || instanceStatus === "close";
+    const isReallyConnected = loggedIn === true && 
+                              hasValidJid && 
+                              !isConnecting && 
+                              !isDisconnected &&
+                              (connected === true || connected === undefined); // Accept if connected is true or not reported
+
+    console.log("[uazapi-check-status] Debug:", {
+      loggedIn,
+      jid: hasValidJid ? String(jid).substring(0, 6) + "..." : null,
+      connected,
+      instanceStatus,
+      isConnecting,
+      isDisconnected,
+      isReallyConnected,
+      nestedStatus: JSON.stringify(nestedStatus).substring(0, 100),
+    });
 
     return new Response(JSON.stringify({ 
       success: isReallyConnected,
@@ -94,6 +115,7 @@ Deno.serve(async (req) => {
       connected: connected,
       instanceStatus: instanceStatus,
       isConnecting: isConnecting,
+      isDisconnected: isDisconnected,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
