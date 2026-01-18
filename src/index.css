@@ -132,14 +132,35 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  /* Multi-line truncation (we don't use Tailwind line-clamp plugin) */
+  /* Multi-line truncation (cross-browser-ish; adds fallback for browsers without -webkit-line-clamp) */
   .line-clamp-3 {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
+    display: block;
     overflow: hidden;
-    text-overflow: ellipsis;
     overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.25em;
+    max-height: calc(1.25em * 3);
+    position: relative;
+  }
+
+  @supports (-webkit-line-clamp: 3) {
+    .line-clamp-3 {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      max-height: none;
+    }
+  }
+
+  @supports not (-webkit-line-clamp: 3) {
+    .line-clamp-3::after {
+      content: "…";
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      padding-left: 0.25rem;
+      background: linear-gradient(to right, transparent, hsl(var(--card)) 40%);
+    }
   }
 
   /* Hide scrollbar for tabs and other scrollable elements */
