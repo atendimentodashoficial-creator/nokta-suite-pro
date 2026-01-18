@@ -587,36 +587,38 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                 if (activeInstances.length === 0) return null;
                 
                 return (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground">
-                          <Wifi className="h-3.5 w-3.5 text-green-500" />
-                          <span>{activeInstances.length} instância{activeInstances.length > 1 ? 's' : ''}</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" align="start" className="p-2">
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-medium mb-2">Instâncias ativas:</p>
-                          {activeInstances.map(inst => (
-                            <div key={inst.id} className="flex items-center justify-between gap-4 text-xs">
-                              <span className="flex items-center gap-1.5">
-                                <Wifi className="h-3 w-3 text-green-500" />
-                                {inst.nome}
-                              </span>
-                              {inst.lastSendAt ? (
-                                <span className="text-muted-foreground">
-                                  {formatDistanceToNow(new Date(inst.lastSendAt), { addSuffix: true, locale: ptBR })}
+                  <div className="flex justify-start">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-6 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground -ml-2">
+                            <Wifi className="h-3.5 w-3.5 text-green-500" />
+                            <span>{activeInstances.length} instância{activeInstances.length > 1 ? 's' : ''}</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start" className="p-2">
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-medium mb-2">Instâncias ativas:</p>
+                            {activeInstances.map(inst => (
+                              <div key={inst.id} className="flex items-center justify-between gap-4 text-xs">
+                                <span className="flex items-center gap-1.5">
+                                  <Wifi className="h-3 w-3 text-green-500" />
+                                  {inst.nome}
                                 </span>
-                              ) : (
-                                <span className="text-muted-foreground">Sem envios</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                                {inst.lastSendAt ? (
+                                  <span className="text-muted-foreground">
+                                    {formatDistanceToNow(new Date(inst.lastSendAt), { addSuffix: true, locale: ptBR })}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">Sem envios</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 );
               })()}
 
