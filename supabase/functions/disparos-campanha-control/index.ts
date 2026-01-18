@@ -22,6 +22,64 @@ interface DisparosInstancia {
   is_active: boolean;
 }
 
+/**
+ * Check if an instance is truly connected to WhatsApp
+ * Uses a lightweight status check to verify actual connectivity
+ */
+async function checkInstanceConnection(instance: DisparosInstancia): Promise<boolean> {
+  try {
+    const baseUrl = instance.base_url.replace(/\/+$/, '');
+    
+    const response = await fetch(`${baseUrl}/instance/status`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "token": instance.api_key,
+      },
+    });
+
+    if (!response.ok) {
+      console.log(`[Instance Check] ${instance.nome}: Status check failed with ${response.status}`);
+      return false;
+    }
+
+    const statusData = await response.json();
+    
+    const nestedStatus = statusData?.status;
+    const instanceStatus = statusData?.instance?.status;
+    
+    // Check for definitive connected state
+    const loggedIn = nestedStatus?.loggedIn === true || statusData?.loggedIn === true;
+    const jid = nestedStatus?.jid ?? statusData?.jid;
+    const connected = nestedStatus?.connected === true || statusData?.connected === true;
+    
+    // Check for transitional states
+    const isConnecting = instanceStatus === "connecting" || instanceStatus === "starting";
+    
+    // Check for disconnected state
+    const isDisconnected = instanceStatus === "disconnected" || 
+                           instanceStatus === "close" || 
+                           instanceStatus === "DISCONNECTED" ||
+                           nestedStatus?.connected === false ||
+                           statusData?.connected === false;
+    
+    const hasValidJid = jid != null && String(jid).length > 0;
+    const isReallyConnected = loggedIn === true && 
+                              hasValidJid && 
+                              !isConnecting && 
+                              !isDisconnected &&
+                              (connected === true || connected === undefined);
+
+    console.log(`[Instance Check] ${instance.nome}: loggedIn=${loggedIn}, jid=${hasValidJid ? 'yes' : 'no'}, connected=${connected}, isReallyConnected=${isReallyConnected}`);
+    
+    return isReallyConnected;
+  } catch (error: any) {
+    console.error(`[Instance Check] ${instance.nome}: Error checking connection:`, error.message);
+    return false;
+  }
+}
+
 interface CampanhaVariacao {
   id: string;
   bloco: number;
@@ -146,7 +204,36 @@ serve(async (req) => {
       throw new Error("Nenhuma instância de disparos configurada");
     }
 
-    console.log(`Campaign ${campanha_id} will use ${instancias.length} instance(s): ${instancias.map(i => i.nome).join(", ")}`);
+    // CRITICAL: Verify which instances are actually connected before starting campaign
+    console.log(`Checking connection status for ${instancias.length} instance(s)...`);
+    const connectionChecks = await Promise.all(
+      instancias.map(async (inst) => ({
+        instance: inst,
+        connected: await checkInstanceConnection(inst)
+      }))
+    );
+    
+    // Filter to only actually connected instances
+    const connectedInstances = connectionChecks
+      .filter(check => check.connected)
+      .map(check => check.instance);
+    
+    const disconnectedNames = connectionChecks
+      .filter(check => !check.connected)
+      .map(check => check.instance.nome);
+    
+    if (disconnectedNames.length > 0) {
+      console.log(`WARNING: ${disconnectedNames.length} instance(s) not connected: ${disconnectedNames.join(", ")}`);
+    }
+    
+    if (connectedInstances.length === 0) {
+      throw new Error(`Nenhuma instância está conectada ao WhatsApp. Verifique as conexões: ${instancias.map(i => i.nome).join(", ")}`);
+    }
+    
+    // Use only connected instances
+    instancias = connectedInstances;
+
+    console.log(`Campaign ${campanha_id} will use ${instancias.length} connected instance(s): ${instancias.map(i => i.nome).join(", ")}`);
     console.log(`Campaign has ${blocos.length} block(s) with total ${variacoes?.length || 0} variations`);
 
     if (action === "start" || action === "continue") {
@@ -626,36 +713,27 @@ async function processCampaign(
   }
 
   /**
-   * Smart instance selection algorithm
+   * Smart instance selection algorithm with real-time connectivity check
+   * Now async to verify instance is actually connected before selecting
    */
-  function selectNextInstance(): DisparosInstancia {
-    if (instancias.length === 1) {
-      const inst = instancias[0];
-      const stats = instanceStats.get(inst.id)!;
-      stats.sends++;
-      stats.lastSendTime = Date.now();
-      lastUsedInstanceId = inst.id;
-      return inst;
-    }
-
-    // Filter out the last used instance to NEVER repeat consecutively
-    const availableInstances = instancias.filter(inst => inst.id !== lastUsedInstanceId);
+  async function selectNextInstance(): Promise<DisparosInstancia | null> {
+    // Create a working list of instances, sorted by score
+    const candidateInstances = [...instancias];
     
-    if (availableInstances.length === 0) {
-      const inst = instancias[0];
-      const stats = instanceStats.get(inst.id)!;
-      stats.sends++;
-      stats.lastSendTime = Date.now();
-      lastUsedInstanceId = inst.id;
-      return inst;
-    }
-
-    // Score each instance: lower score = better candidate
-    const scored = availableInstances.map(inst => {
-      const stats = instanceStats.get(inst.id)!;
-      const sendScore = stats.sends * 1000;
-      const timeScore = stats.lastSendTime > 0 
-        ? Math.max(0, 500 - (Date.now() - stats.lastSendTime) / 100)
+    // Filter out the last used instance to prefer rotation
+    const preferredInstances = candidateInstances.filter(inst => inst.id !== lastUsedInstanceId);
+    
+    // Try preferred instances first, then fallback to all
+    const instancesToTry = preferredInstances.length > 0 
+      ? [...preferredInstances, ...candidateInstances.filter(inst => inst.id === lastUsedInstanceId)]
+      : candidateInstances;
+    
+    // Score and sort instances
+    const scoredInstances = instancesToTry.map(inst => {
+      const stats = instanceStats.get(inst.id);
+      const sendScore = (stats?.sends || 0) * 1000;
+      const timeScore = (stats?.lastSendTime || 0) > 0 
+        ? Math.max(0, 500 - (Date.now() - (stats?.lastSendTime || 0)) / 100)
         : 0;
       const randomFactor = Math.random() * 50;
       
@@ -664,17 +742,27 @@ async function processCampaign(
         score: sendScore + timeScore + randomFactor
       };
     });
-
-    scored.sort((a, b) => a.score - b.score);
     
-    const selected = scored[0].instance;
+    scoredInstances.sort((a, b) => a.score - b.score);
     
-    const stats = instanceStats.get(selected.id)!;
-    stats.sends++;
-    stats.lastSendTime = Date.now();
-    lastUsedInstanceId = selected.id;
+    // Try each instance in order until we find one that's connected
+    for (const { instance } of scoredInstances) {
+      const isConnected = await checkInstanceConnection(instance);
+      
+      if (isConnected) {
+        const stats = instanceStats.get(instance.id)!;
+        stats.sends++;
+        stats.lastSendTime = Date.now();
+        lastUsedInstanceId = instance.id;
+        return instance;
+      } else {
+        console.log(`[Smart Rotation] Instance ${instance.nome} is NOT connected, trying next...`);
+      }
+    }
     
-    return selected;
+    // No connected instances found
+    console.error(`[Smart Rotation] No connected instances available!`);
+    return null;
   }
 
   for (const contato of contatos) {
@@ -741,8 +829,35 @@ async function processCampaign(
       return;
     }
 
-    // Select instance using smart rotation algorithm
-    const currentInstance = selectNextInstance();
+    // Select instance using smart rotation algorithm with real-time connectivity check
+    const currentInstance = await selectNextInstance();
+    
+    if (!currentInstance) {
+      // No connected instances available - mark contact as failed and continue
+      console.error(`No connected instances available for contact ${contato.numero}`);
+      await supabase
+        .from("disparos_campanha_contatos")
+        .update({
+          status: "failed",
+          enviado_em: new Date().toISOString(),
+          erro: "Nenhuma instância conectada disponível"
+        })
+        .eq("id", contato.id);
+      falhas++;
+      processedCount++;
+      
+      // Update campaign progress
+      await supabase
+        .from("disparos_campanhas")
+        .update({
+          enviados,
+          falhas,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", campanha.id);
+      
+      continue;
+    }
     
     console.log(`[Smart Rotation] Selected instance: ${currentInstance.nome} (sends in batch: ${instanceStats.get(currentInstance.id)!.sends})`);
 
