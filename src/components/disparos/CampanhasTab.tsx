@@ -591,8 +591,8 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-6 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground -ml-2">
-                            <Wifi className="h-3.5 w-3.5 text-green-500" />
+                          <Button variant="ghost" size="sm" className="h-7 px-2.5 gap-1.5 text-sm text-muted-foreground hover:text-foreground -ml-2">
+                            <Wifi className="h-4 w-4 text-green-500" />
                             <span>{activeInstances.length} instância{activeInstances.length > 1 ? 's' : ''}</span>
                           </Button>
                         </TooltipTrigger>
