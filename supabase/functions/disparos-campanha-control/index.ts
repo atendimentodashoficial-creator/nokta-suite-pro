@@ -48,31 +48,45 @@ async function checkInstanceConnection(instance: DisparosInstancia): Promise<boo
     
     const nestedStatus = statusData?.status;
     const instanceStatus = statusData?.instance?.status;
-    
-    // Check for definitive connected state
+
+    // Some providers return fields at root, others under "status".
+    // IMPORTANT: keep `connected` as boolean | undefined (do not coerce to false)
+    // so we can treat "not reported" as acceptable.
     const loggedIn = nestedStatus?.loggedIn === true || statusData?.loggedIn === true;
     const jid = nestedStatus?.jid ?? statusData?.jid;
-    const connected = nestedStatus?.connected === true || statusData?.connected === true;
-    
+    const connectedRaw: boolean | undefined = (nestedStatus?.connected ?? statusData?.connected) as
+      | boolean
+      | undefined;
+
     // Check for transitional states
     const isConnecting = instanceStatus === "connecting" || instanceStatus === "starting";
-    
-    // Check for disconnected state
-    const isDisconnected = instanceStatus === "disconnected" || 
-                           instanceStatus === "close" || 
-                           instanceStatus === "DISCONNECTED" ||
-                           nestedStatus?.connected === false ||
-                           statusData?.connected === false;
-    
-    const hasValidJid = jid != null && String(jid).length > 0;
-    const isReallyConnected = loggedIn === true && 
-                              hasValidJid && 
-                              !isConnecting && 
-                              !isDisconnected &&
-                              (connected === true || connected === undefined);
 
-    console.log(`[Instance Check] ${instance.nome}: loggedIn=${loggedIn}, jid=${hasValidJid ? 'yes' : 'no'}, connected=${connected}, isReallyConnected=${isReallyConnected}`);
-    
+    // Check for disconnected state
+    const isDisconnected =
+      instanceStatus === "disconnected" ||
+      instanceStatus === "close" ||
+      instanceStatus === "DISCONNECTED" ||
+      connectedRaw === false;
+
+    const hasValidJid = jid != null && String(jid).length > 0;
+
+    // Only consider truly connected if:
+    // 1) loggedIn is true
+    // 2) jid exists
+    // 3) not connecting
+    // 4) not explicitly disconnected
+    // 5) connected flag is true OR not provided
+    const isReallyConnected =
+      loggedIn === true &&
+      hasValidJid &&
+      !isConnecting &&
+      !isDisconnected &&
+      (connectedRaw === true || connectedRaw === undefined);
+
+    console.log(
+      `[Instance Check] ${instance.nome}: loggedIn=${loggedIn}, jid=${hasValidJid ? "yes" : "no"}, connected=${connectedRaw}, instanceStatus=${instanceStatus}, isReallyConnected=${isReallyConnected}`,
+    );
+
     return isReallyConnected;
   } catch (error: any) {
     console.error(`[Instance Check] ${instance.nome}: Error checking connection:`, error.message);
