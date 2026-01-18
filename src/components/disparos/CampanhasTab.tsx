@@ -317,19 +317,36 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
     }
 
     try {
-      // Get current disabled instances
+      // Get current campaign data
       const { data: campanha } = await supabase
         .from("disparos_campanhas")
-        .select("disabled_instancias_ids")
+        .select("disabled_instancias_ids, instance_rotation_state")
         .eq("id", campanhaId)
         .single();
 
       const currentDisabled: string[] = (campanha?.disabled_instancias_ids as string[]) || [];
       const newDisabled = currentDisabled.filter(id => id !== instanceId);
 
+      // Reset the instance stats in rotation state to match the minimum sends
+      // This prevents the reactivated instance from being forced to "catch up"
+      const rotationState = (campanha?.instance_rotation_state as Record<string, { sends: number; lastSendAt: number }>) || {};
+      
+      // Find minimum sends among all instances
+      const allSends = Object.values(rotationState).map(s => s.sends || 0);
+      const minSends = allSends.length > 0 ? Math.min(...allSends) : 0;
+      
+      // Reset the reactivated instance to match minimum
+      const updatedRotationState = {
+        ...rotationState,
+        [instanceId]: { sends: minSends, lastSendAt: 0 }
+      };
+
       await supabase
         .from("disparos_campanhas")
-        .update({ disabled_instancias_ids: newDisabled })
+        .update({ 
+          disabled_instancias_ids: newDisabled,
+          instance_rotation_state: updatedRotationState
+        })
         .eq("id", campanhaId);
 
       toast.success("Instância reativada na campanha");
