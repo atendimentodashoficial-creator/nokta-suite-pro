@@ -956,8 +956,8 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                   </div>
 
                   {/* Column Content */}
-                  <ScrollArea className="flex-1 p-2 min-w-0">
-                    <div className="space-y-2 min-w-0 pl-1 pr-4">
+                  <ScrollArea className="flex-1 p-2">
+                    <div className="space-y-2">
                       {columnChats.map((chat) => (
                         <Card
                           key={chat.id}
