@@ -888,6 +888,7 @@ export type Database = {
           delay_bloco_min: number
           delay_max: number
           delay_min: number
+          disabled_instancias_ids: string[] | null
           enviados: number
           falhas: number
           finalizado_em: string | null
@@ -914,6 +915,7 @@ export type Database = {
           delay_bloco_min?: number
           delay_max?: number
           delay_min?: number
+          disabled_instancias_ids?: string[] | null
           enviados?: number
           falhas?: number
           finalizado_em?: string | null
@@ -940,6 +942,7 @@ export type Database = {
           delay_bloco_min?: number
           delay_max?: number
           delay_min?: number
+          disabled_instancias_ids?: string[] | null
           enviados?: number
           falhas?: number
           finalizado_em?: string | null
