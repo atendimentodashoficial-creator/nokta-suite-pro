@@ -876,7 +876,7 @@ export function WhatsAppKanban({
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-sm truncate text-ellipsis whitespace-nowrap overflow-hidden block">
-                              {chat.contact_name}
+                              {truncateText(chat.contact_name, 20)}
                             </h4>
                             <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                               {formatPhoneNumber(chat.contact_number)}
@@ -959,7 +959,7 @@ export function WhatsAppKanban({
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h4 className="font-medium text-sm truncate text-ellipsis whitespace-nowrap overflow-hidden block">
-                                  {chat.contact_name}
+                                  {truncateText(chat.contact_name, 20)}
                                 </h4>
                                 <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                                   {formatPhoneNumber(chat.contact_number)}
