@@ -869,7 +869,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-sm truncate text-ellipsis whitespace-nowrap overflow-hidden block">
-                              {truncateText(chat.contact_name || formatPhoneNumber(chat.contact_number), 15)}
+                              {truncateText(chat.contact_name || formatPhoneNumber(chat.contact_number), 18)}
                             </h4>
                             <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                               {formatPhoneNumber(chat.contact_number)}
@@ -984,7 +984,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h4 className="font-medium text-sm truncate text-ellipsis whitespace-nowrap overflow-hidden block">
-                                  {truncateText(chat.contact_name || formatPhoneNumber(chat.contact_number), 15)}
+                                  {truncateText(chat.contact_name || formatPhoneNumber(chat.contact_number), 18)}
                                 </h4>
                                 <p className="text-xs text-muted-foreground truncate text-ellipsis whitespace-nowrap overflow-hidden block">
                                   {formatPhoneNumber(chat.contact_number)}
