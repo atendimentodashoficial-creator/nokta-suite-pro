@@ -39,6 +39,7 @@ interface Campanha {
   next_send_at: string | null;
   instancias_ids: string[] | null;
   disabled_instancias_ids: string[] | null;
+  instance_rotation_state: unknown;
 }
 
 interface CampanhasTabProps {
@@ -370,14 +371,17 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   const getActiveInstances = (campanha: Campanha) => {
     const configuredIds = campanha.instancias_ids || [];
     const disabledIds = campanha.disabled_instancias_ids || [];
+    const rotationState = (campanha.instance_rotation_state || {}) as Record<string, { sends: number; lastSendAt: string | null }>;
     
     return configuredIds
       .filter(id => !disabledIds.includes(id))
       .map(id => {
         const instance = instancias.find(i => i.id === id);
-        return { id, nome: instance?.nome || null };
+        const stateEntry = rotationState[id];
+        const lastSendAt = stateEntry?.lastSendAt || null;
+        return { id, nome: instance?.nome || null, lastSendAt };
       })
-      .filter(i => i.nome !== null) as { id: string; nome: string }[];
+      .filter(i => i.nome !== null) as { id: string; nome: string; lastSendAt: string | null }[];
   };
 
   const getStatusBadge = (status: string) => {
@@ -593,6 +597,11 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                       >
                         <Wifi className="h-3 w-3" />
                         {inst.nome}
+                        {inst.lastSendAt && (
+                          <span className="text-muted-foreground ml-1">
+                            ({format(new Date(inst.lastSendAt), "HH:mm", { locale: ptBR })})
+                          </span>
+                        )}
                       </Badge>
                     ))}
                   </div>
