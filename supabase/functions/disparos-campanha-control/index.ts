@@ -731,50 +731,68 @@ async function processCampaign(
    * Now async to verify instance is actually connected before selecting
    */
   async function selectNextInstance(): Promise<DisparosInstancia | null> {
-    // Create a working list of instances, sorted by score
     const candidateInstances = [...instancias];
-    
-    // Filter out the last used instance to prefer rotation
-    const preferredInstances = candidateInstances.filter(inst => inst.id !== lastUsedInstanceId);
-    
-    // Try preferred instances first, then fallback to all
-    const instancesToTry = preferredInstances.length > 0 
-      ? [...preferredInstances, ...candidateInstances.filter(inst => inst.id === lastUsedInstanceId)]
-      : candidateInstances;
-    
-    // Score and sort instances
-    const scoredInstances = instancesToTry.map(inst => {
-      const stats = instanceStats.get(inst.id);
-      const sendScore = (stats?.sends || 0) * 1000;
-      const timeScore = (stats?.lastSendTime || 0) > 0 
-        ? Math.max(0, 500 - (Date.now() - (stats?.lastSendTime || 0)) / 100)
-        : 0;
-      const randomFactor = Math.random() * 50;
-      
-      return {
-        instance: inst,
-        score: sendScore + timeScore + randomFactor
-      };
-    });
-    
-    scoredInstances.sort((a, b) => a.score - b.score);
-    
-    // Try each instance in order until we find one that's connected
-    for (const { instance } of scoredInstances) {
+
+    // If we have more than one instance available, enforce "no immediate repeat".
+    // We do a TWO-PHASE selection:
+    // 1) Try all instances EXCEPT the last used (sorted by score)
+    // 2) Only if none are connected, fallback to last used (if it is connected)
+    const lastInstance = lastUsedInstanceId
+      ? candidateInstances.find((i) => i.id === lastUsedInstanceId) ?? null
+      : null;
+
+    const nonLastCandidates =
+      lastUsedInstanceId && candidateInstances.length > 1
+        ? candidateInstances.filter((i) => i.id !== lastUsedInstanceId)
+        : candidateInstances;
+
+    const scoredNonLast = nonLastCandidates
+      .map((inst) => {
+        const stats = instanceStats.get(inst.id);
+        const sendScore = (stats?.sends || 0) * 1000;
+        const timeScore =
+          (stats?.lastSendTime || 0) > 0
+            ? Math.max(0, 500 - (Date.now() - (stats?.lastSendTime || 0)) / 100)
+            : 0;
+        const randomFactor = Math.random() * 50;
+
+        return {
+          instance: inst,
+          score: sendScore + timeScore + randomFactor,
+        };
+      })
+      .sort((a, b) => a.score - b.score);
+
+    // Phase 1: try non-last candidates
+    for (const { instance } of scoredNonLast) {
       const isConnected = await checkInstanceConnection(instance);
-      
-      if (isConnected) {
-        const stats = instanceStats.get(instance.id)!;
+      if (!isConnected) {
+        console.log(`[Smart Rotation] Instance ${instance.nome} is NOT connected, trying next...`);
+        continue;
+      }
+
+      const stats = instanceStats.get(instance.id)!;
+      stats.sends++;
+      stats.lastSendTime = Date.now();
+      lastUsedInstanceId = instance.id;
+      return instance;
+    }
+
+    // Phase 2: fallback to last used ONLY if no alternative is connected
+    if (lastInstance) {
+      const lastConnected = await checkInstanceConnection(lastInstance);
+      if (lastConnected) {
+        console.log(
+          `[Smart Rotation] No alternative connected. Falling back to last used instance: ${lastInstance.nome}`,
+        );
+        const stats = instanceStats.get(lastInstance.id)!;
         stats.sends++;
         stats.lastSendTime = Date.now();
-        lastUsedInstanceId = instance.id;
-        return instance;
-      } else {
-        console.log(`[Smart Rotation] Instance ${instance.nome} is NOT connected, trying next...`);
+        lastUsedInstanceId = lastInstance.id;
+        return lastInstance;
       }
     }
-    
-    // No connected instances found
+
     console.error(`[Smart Rotation] No connected instances available!`);
     return null;
   }
