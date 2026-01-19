@@ -8,11 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Calendar, UserX, CalendarPlus, Trash2, Edit, Send } from "lucide-react";
+import { Calendar, UserX, CalendarPlus, Trash2, Edit } from "lucide-react";
 import { fromZonedTime } from "date-fns-tz";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
 import { EditarClienteDialog } from "@/components/clientes/EditarClienteDialog";
-import { EnviarConversaoDialog } from "@/components/leads/EnviarConversaoDialog";
 import { Lead } from "@/hooks/useLeads";
 import { getLast8Digits } from "@/utils/phoneFormat";
 
@@ -44,7 +43,6 @@ export function LeadActions({
   const [agendamentoOpen, setAgendamentoOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editarClienteOpen, setEditarClienteOpen] = useState(false);
-  const [conversaoOpen, setConversaoOpen] = useState(false);
   const [leadData, setLeadData] = useState<{ nome: string; telefone?: string; email?: string } | undefined>();
   const [leadCompleto, setLeadCompleto] = useState<Lead | null>(null);
 
@@ -279,15 +277,6 @@ export function LeadActions({
             Sem Interesse
           </Button>
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setConversaoOpen(true)}
-            className="w-full text-blue-600 border-blue-200 hover:bg-blue-50"
-          >
-            <Send className="h-4 w-4 mr-2" />
-            Conversão
-          </Button>
         </div>
       )}
 
@@ -375,23 +364,6 @@ export function LeadActions({
           cliente={leadCompleto}
           open={editarClienteOpen}
           onOpenChange={setEditarClienteOpen}
-        />
-      )}
-
-      {/* Dialog Enviar Conversão */}
-      {leadCompleto && (
-        <EnviarConversaoDialog
-          open={conversaoOpen}
-          onOpenChange={setConversaoOpen}
-          leadId={leadCompleto.id}
-          customerName={leadCompleto.nome}
-          customerPhone={leadCompleto.telefone}
-          customerEmail={leadCompleto.email || undefined}
-          utmSource={leadCompleto.utm_source || undefined}
-          utmCampaign={leadCompleto.utm_campaign || undefined}
-          fbclid={leadCompleto.fbclid || undefined}
-          defaultValue={leadCompleto.valor_tratamento || undefined}
-          defaultEventType="Lead"
         />
       )}
     </>
