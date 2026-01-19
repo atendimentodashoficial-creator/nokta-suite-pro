@@ -144,6 +144,8 @@ interface Chat {
   user_id?: string;
   instancia_id?: string | null;
   instancia_nome?: string | null;
+  instancia_original_id?: string | null;
+  instancia_original_nome?: string | null;
   // Optional fields used to keep the chat list preview in sync
   last_message?: string | null;
   last_message_time?: string | null;
@@ -289,17 +291,24 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         .maybeSingle();
 
       if (existingChat) {
-        // A chat already exists on that instance
-        toast.error("Já existe um chat com este número na instância selecionada");
-        setChangeInstanceOpen(false);
-        return;
+        // Soft-delete the existing chat on target instance to allow migration
+        await supabase
+          .from("disparos_chats")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", existingChat.id);
       }
+
+      // Store original instance info if not already set (first migration)
+      const originalId = chat.instancia_original_id || chat.instancia_id;
+      const originalNome = chat.instancia_original_nome || chat.instancia_nome;
 
       const { error } = await supabase
         .from("disparos_chats")
         .update({ 
           instancia_id: newInstanceId,
-          instancia_nome: newInstance.nome
+          instancia_nome: newInstance.nome,
+          instancia_original_id: originalId,
+          instancia_original_nome: originalNome
         })
         .eq("id", chat.id);
 
@@ -310,6 +319,8 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         ...chat,
         instancia_id: newInstanceId,
         instancia_nome: newInstance.nome,
+        instancia_original_id: originalId,
+        instancia_original_nome: originalNome,
       });
 
       toast.success(`Instância alterada para ${newInstance.nome}`);
@@ -1155,8 +1166,23 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
                 </Button>
               </div>
             )}
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
               {formatPhoneForDisplay(chat.contact_number)}
+              {chat.instancia_nome && (
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  chat.instancia_original_id && chat.instancia_original_id !== chat.instancia_id
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  <Wifi className="h-2.5 w-2.5" />
+                  {chat.instancia_nome}
+                  {chat.instancia_original_id && chat.instancia_original_id !== chat.instancia_id && (
+                    <span className="opacity-70" title={`Migrado de: ${chat.instancia_original_nome}`}>
+                      ← {chat.instancia_original_nome}
+                    </span>
+                  )}
+                </span>
+              )}
             </p>
           </div>
         </div>
