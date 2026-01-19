@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, Calendar, Tag, DollarSign, CalendarCheck, Edit, Plus, RefreshCw, UserCheck, ChevronDown, ShoppingBag, Clock, CreditCard, Trash2, MessageCircle, Send, History, CalendarX } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Calendar, Tag, DollarSign, CalendarCheck, Edit, Plus, RefreshCw, UserCheck, ChevronDown, ShoppingBag, Clock, CreditCard, Trash2, MessageCircle, Send, History, CalendarX, FileText, Copy, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useTabPersistence } from "@/hooks/useTabPersistence";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusConfig = {
   agendado: {
@@ -84,6 +85,7 @@ export default function ClienteDetalhes() {
   const [novaFaturaOpen, setNovaFaturaOpen] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [faturaSelecionada, setFaturaSelecionada] = useState<any>(null);
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
   const {
     data: clientes
   } = useLeads("cliente");
@@ -254,8 +256,82 @@ export default function ClienteDetalhes() {
               </div>
             </div>
           </div>
+
+          {/* Botão para enviar formulário de dados completos */}
+          <div className="pt-3 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Formulário de Dados</p>
+                <p className="text-xs text-muted-foreground">Envie o link para o cliente completar seus dados</p>
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setFormDialogOpen(true)}
+                      className="gap-1.5"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Enviar formulário
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Enviar link do formulário para o cliente preencher</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Dialog para enviar formulário */}
+      <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Enviar Formulário de Dados
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Envie este link para o cliente preencher ou atualizar seus dados pessoais (email, endereço, data de nascimento, etc).
+            </p>
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Link do formulário:</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs bg-background p-2 rounded flex-1 overflow-hidden text-ellipsis">
+                  {`${window.location.origin}/cliente-form/${cliente.id}`}
+                </code>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/cliente-form/${cliente.id}`);
+                    toast({ title: "Link copiado!" });
+                  }}
+                  className="h-8 w-8"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={() => window.open(`${window.location.origin}/cliente-form/${cliente.id}`, "_blank")}
+                variant="outline"
+                className="w-full"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Abrir formulário
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Métricas do Cliente */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
