@@ -140,6 +140,8 @@ interface Chat {
   chat_id: string;
   contact_name: string;
   contact_number: string;
+  normalized_number?: string;
+  user_id?: string;
   instancia_id?: string | null;
   instancia_nome?: string | null;
   // Optional fields used to keep the chat list preview in sync
@@ -273,6 +275,25 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     try {
       const newInstance = instanciasDisponiveis.find(i => i.id === newInstanceId);
       if (!newInstance) throw new Error("Instância não encontrada");
+
+      // Get the normalized number from chat or derive from contact_number
+      const normalizedNum = chat.normalized_number || chat.contact_number.replace(/\D/g, '');
+
+      // Check if there's already a chat with the same number on the target instance
+      const { data: existingChat } = await supabase
+        .from("disparos_chats")
+        .select("id")
+        .eq("normalized_number", normalizedNum)
+        .eq("instancia_id", newInstanceId)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (existingChat) {
+        // A chat already exists on that instance
+        toast.error("Já existe um chat com este número na instância selecionada");
+        setChangeInstanceOpen(false);
+        return;
+      }
 
       const { error } = await supabase
         .from("disparos_chats")
