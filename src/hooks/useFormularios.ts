@@ -135,6 +135,8 @@ export interface FormularioConfig {
   meta_pixel_id: string | null;
   meta_pixel_evento: string | null;
   meta_pixel_enabled: boolean;
+  meta_access_token: string | null;
+  meta_test_event_code: string | null;
   ga4_measurement_id: string | null;
   ga4_evento: string | null;
   ga4_enabled: boolean;

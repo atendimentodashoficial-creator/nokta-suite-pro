@@ -1815,9 +1815,11 @@ export type Database = {
           google_ads_conversion_label: string | null
           google_ads_enabled: boolean | null
           id: string
+          meta_access_token: string | null
           meta_pixel_enabled: boolean | null
           meta_pixel_evento: string | null
           meta_pixel_id: string | null
+          meta_test_event_code: string | null
           scripts_customizados: string | null
           timeout_minutos: number | null
           updated_at: string
@@ -1834,9 +1836,11 @@ export type Database = {
           google_ads_conversion_label?: string | null
           google_ads_enabled?: boolean | null
           id?: string
+          meta_access_token?: string | null
           meta_pixel_enabled?: boolean | null
           meta_pixel_evento?: string | null
           meta_pixel_id?: string | null
+          meta_test_event_code?: string | null
           scripts_customizados?: string | null
           timeout_minutos?: number | null
           updated_at?: string
@@ -1853,9 +1857,11 @@ export type Database = {
           google_ads_conversion_label?: string | null
           google_ads_enabled?: boolean | null
           id?: string
+          meta_access_token?: string | null
           meta_pixel_enabled?: boolean | null
           meta_pixel_evento?: string | null
           meta_pixel_id?: string | null
+          meta_test_event_code?: string | null
           scripts_customizados?: string | null
           timeout_minutos?: number | null
           updated_at?: string
