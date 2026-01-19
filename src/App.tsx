@@ -27,6 +27,7 @@ import Instagram from "./pages/Instagram";
 import Formularios from "./pages/Formularios";
 import FormularioCaptura from "./pages/FormularioCaptura";
 import FormularioConversao from "./pages/FormularioConversao";
+import FormularioCliente from "./pages/FormularioCliente";
 import FormularioPublico from "./pages/FormularioPublico";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/formulario/:templateId" element={<FormularioPublico />} />
           <Route path="/formularioig/:formSlug" element={<FormularioCaptura />} />
           <Route path="/conversao/:faturaId" element={<FormularioConversao />} />
+          <Route path="/cliente-form/:clienteId" element={<FormularioCliente />} />
           <Route
             path="/"
             element={
