@@ -21,6 +21,8 @@ export interface ConversionEventData {
   utm_campaign?: string;
   fbclid?: string;
   external_id?: string;
+  // Event timestamp
+  data_fatura?: string;
 }
 
 /**
@@ -104,7 +106,8 @@ export async function sendMetaConversionEvent(
 export async function sendPurchaseConversion(
   faturaId: string,
   clienteId: string,
-  valor: number
+  valor: number,
+  dataFatura?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Fetch lead data for customer info and attribution (including new fields)
@@ -136,6 +139,7 @@ export async function sendPurchaseConversion(
       utm_campaign: lead?.utm_campaign || undefined,
       fbclid: lead?.fbclid || undefined,
       external_id: clienteId,
+      data_fatura: dataFatura,
     });
   } catch (error) {
     console.error("Meta Conversion: Error in sendPurchaseConversion", error);
