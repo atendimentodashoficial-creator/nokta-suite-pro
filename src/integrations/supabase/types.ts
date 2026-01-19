@@ -1044,6 +1044,8 @@ export type Database = {
           id: string
           instancia_id: string | null
           instancia_nome: string | null
+          instancia_original_id: string | null
+          instancia_original_nome: string | null
           last_message: string | null
           last_message_time: string | null
           last_read_at: string | null
@@ -1065,6 +1067,8 @@ export type Database = {
           id?: string
           instancia_id?: string | null
           instancia_nome?: string | null
+          instancia_original_id?: string | null
+          instancia_original_nome?: string | null
           last_message?: string | null
           last_message_time?: string | null
           last_read_at?: string | null
@@ -1086,6 +1090,8 @@ export type Database = {
           id?: string
           instancia_id?: string | null
           instancia_nome?: string | null
+          instancia_original_id?: string | null
+          instancia_original_nome?: string | null
           last_message?: string | null
           last_message_time?: string | null
           last_read_at?: string | null
@@ -1101,6 +1107,13 @@ export type Database = {
           {
             foreignKeyName: "disparos_chats_instancia_id_fkey"
             columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "disparos_instancias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disparos_chats_instancia_original_id_fkey"
+            columns: ["instancia_original_id"]
             isOneToOne: false
             referencedRelation: "disparos_instancias"
             referencedColumns: ["id"]
