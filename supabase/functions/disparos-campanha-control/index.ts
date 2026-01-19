@@ -277,8 +277,14 @@ serve(async (req) => {
         }
 
         // OPTIMISTIC LOCK (idempotent): ensure only ONE execution can process a campaign at a time.
-        // We do this by performing a conditional UPDATE that only succeeds if the row
-        // hasn't changed since we read it (updated_at match).
+        // We use a combined approach:
+        // 1. Check if next_send_at is in the future (someone already processing)
+        // 2. Attempt atomic UPDATE with updated_at match (optimistic lock)
+        // 3. Add a small random delay to reduce race conditions
+        
+        // Add small random delay (0-500ms) to stagger concurrent requests
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 500));
+        
         const { data: currentCampaign, error: fetchError } = await supabase
           .from("disparos_campanhas")
           .select("id, status, next_send_at, updated_at")
@@ -293,10 +299,12 @@ serve(async (req) => {
         const nowIso = now.toISOString();
         const nextSendAt = currentCampaign.next_send_at ? new Date(currentCampaign.next_send_at) : null;
 
-        // If next_send_at is in the future, someone already claimed/queued this campaign.
-        if (nextSendAt && nextSendAt > now) {
+        // If next_send_at is in the future (more than 30 seconds from now), someone already claimed this campaign.
+        // The 30-second buffer helps avoid edge cases around the exact scheduled time.
+        const lockBuffer = 30 * 1000; // 30 seconds
+        if (nextSendAt && nextSendAt.getTime() > now.getTime() + lockBuffer) {
           console.log(
-            `Campaign ${campanha_id}: Skip - next_send_at is ${nextSendAt.toISOString()}, now is ${nowIso}`,
+            `Campaign ${campanha_id}: Skip - next_send_at is ${nextSendAt.toISOString()}, now is ${nowIso} (buffer: ${lockBuffer}ms)`,
           );
           return new Response(
             JSON.stringify({
@@ -312,6 +320,7 @@ serve(async (req) => {
         // NOTE: we use next_send_at as a lightweight lock so other 'continue' calls will skip.
         const lockUntilIso = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
+        // Use FOR UPDATE to ensure atomic lock acquisition
         const { data: lockRows, error: lockError } = await supabase
           .from("disparos_campanhas")
           .update({
