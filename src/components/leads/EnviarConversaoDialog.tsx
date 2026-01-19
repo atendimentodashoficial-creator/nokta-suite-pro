@@ -147,9 +147,8 @@ export function EnviarConversaoDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Lead">Lead - Novo contato</SelectItem>
-                <SelectItem value="InitiateCheckout">InitiateCheckout - Agendamento</SelectItem>
+                <SelectItem value="CompleteRegistration">CompleteRegistration - Agendamento confirmado</SelectItem>
                 <SelectItem value="Purchase">Purchase - Venda fechada</SelectItem>
-                <SelectItem value="CompleteRegistration">CompleteRegistration - Cadastro completo</SelectItem>
               </SelectContent>
             </Select>
           </div>

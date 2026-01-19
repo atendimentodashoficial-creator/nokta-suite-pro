@@ -211,6 +211,10 @@ export function EditarFaturaDialog({
         valorParcela = (valorFinal - valorEntrada) / numeroParcelas;
       }
 
+      // Check if status is changing to "fechado" and if Purchase wasn't already sent
+      const statusChangingToFechado = data.status === "fechado" && fatura.status !== "fechado";
+      const purchaseAlreadySent = !!fatura.pixel_event_sent_at;
+
       // Update fatura
       const { error: faturaError } = await supabase
         .from("faturas")
@@ -261,16 +265,54 @@ export function EditarFaturaDialog({
       }
 
       // Return data for onSuccess handler
-      return { newStatus: data.status, valorFinal };
+      return { 
+        newStatus: data.status, 
+        valorFinal,
+        dataFatura: data.data_fatura,
+        shouldSendPurchase: statusChangingToFechado && !purchaseAlreadySent
+      };
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
       queryClient.invalidateQueries({ queryKey: ["fatura-upsells"] });
       
-      // Purchase conversion is now sent manually via "Conferir e enviar" button in PixelStatusBadge
-      // No automatic sending when invoice status changes
+      // Automatically send Purchase event when status changes to "fechado" (idempotent)
+      if (result.shouldSendPurchase) {
+        try {
+          const { sendPurchaseConversion } = await import("@/hooks/useMetaConversions");
+          
+          const conversionResult = await sendPurchaseConversion(
+            fatura.id,
+            fatura.cliente_id,
+            result.valorFinal,
+            result.dataFatura || undefined
+          );
+          
+          if (conversionResult.success) {
+            // Mark as sent
+            await supabase
+              .from("faturas")
+              .update({ 
+                pixel_event_sent_at: new Date().toISOString(),
+                pixel_status: "enviado"
+              })
+              .eq("id", fatura.id);
+            
+            console.log("Meta Conversion: Purchase sent automatically for fatura", fatura.id);
+            toast.success("Fatura atualizada e evento Purchase enviado ao Meta!");
+          } else {
+            console.log("Meta Conversion: Purchase not sent -", conversionResult.error);
+            toast.success("Fatura atualizada com sucesso!");
+          }
+        } catch (error) {
+          console.error("Meta Conversion: Failed to send Purchase", error);
+          toast.success("Fatura atualizada com sucesso!");
+          // Don't throw - this shouldn't block the fatura update
+        }
+      } else {
+        toast.success("Fatura atualizada com sucesso!");
+      }
       
-      toast.success("Fatura atualizada com sucesso!");
       onOpenChange(false);
     },
     onError: (error) => {

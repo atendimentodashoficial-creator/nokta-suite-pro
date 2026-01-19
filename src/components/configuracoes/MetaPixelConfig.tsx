@@ -163,7 +163,7 @@ export function MetaPixelConfig() {
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div>
                 <p className="font-medium">Lead</p>
-                <p className="text-sm text-muted-foreground">Quando um novo lead é criado</p>
+                <p className="text-sm text-muted-foreground">Automático quando um novo lead é criado via formulário</p>
               </div>
               <Switch
                 checked={eventosAtivos.lead}
@@ -173,19 +173,19 @@ export function MetaPixelConfig() {
 
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div>
-                <p className="font-medium">InitiateCheckout</p>
-                <p className="text-sm text-muted-foreground">Quando um agendamento é confirmado</p>
+                <p className="font-medium">CompleteRegistration</p>
+                <p className="text-sm text-muted-foreground">Automático quando um agendamento é confirmado (lead qualificado)</p>
               </div>
               <Switch
-                checked={eventosAtivos.initiate_checkout}
-                onCheckedChange={() => toggleEvento("initiate_checkout")}
+                checked={eventosAtivos.complete_registration}
+                onCheckedChange={() => toggleEvento("complete_registration")}
               />
             </div>
 
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div>
                 <p className="font-medium">Purchase</p>
-                <p className="text-sm text-muted-foreground">Enviado manualmente após conferência dos dados</p>
+                <p className="text-sm text-muted-foreground">Automático quando uma fatura é fechada/paga</p>
               </div>
               <Switch
                 checked={eventosAtivos.purchase}
@@ -193,14 +193,14 @@ export function MetaPixelConfig() {
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex items-center justify-between p-3 border rounded-lg opacity-50">
               <div>
-                <p className="font-medium">CompleteRegistration</p>
-                <p className="text-sm text-muted-foreground">Quando um lead vira cliente</p>
+                <p className="font-medium">InitiateCheckout <span className="text-xs text-muted-foreground">(desativado)</span></p>
+                <p className="text-sm text-muted-foreground">Não utilizado - funil simplificado: Lead → CompleteRegistration → Purchase</p>
               </div>
               <Switch
-                checked={eventosAtivos.complete_registration}
-                onCheckedChange={() => toggleEvento("complete_registration")}
+                checked={false}
+                disabled
               />
             </div>
           </div>

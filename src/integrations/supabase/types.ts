@@ -51,6 +51,7 @@ export type Database = {
           data_agendamento: string
           data_follow_up: string | null
           id: string
+          meta_event_sent_at: string | null
           numero_reagendamentos: number
           observacoes: string | null
           origem_agendamento: string | null
@@ -71,6 +72,7 @@ export type Database = {
           data_agendamento: string
           data_follow_up?: string | null
           id?: string
+          meta_event_sent_at?: string | null
           numero_reagendamentos?: number
           observacoes?: string | null
           origem_agendamento?: string | null
@@ -91,6 +93,7 @@ export type Database = {
           data_agendamento?: string
           data_follow_up?: string | null
           id?: string
+          meta_event_sent_at?: string | null
           numero_reagendamentos?: number
           observacoes?: string | null
           origem_agendamento?: string | null

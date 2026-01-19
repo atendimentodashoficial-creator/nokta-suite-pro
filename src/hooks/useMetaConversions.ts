@@ -146,3 +146,55 @@ export async function sendPurchaseConversion(
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
+
+/**
+ * Fetches lead data and sends a CompleteRegistration conversion event
+ * Used when an agendamento is confirmed (lead qualificado)
+ */
+export async function sendCompleteRegistrationConversion(
+  agendamentoId: string,
+  clienteId: string,
+  dataAgendamento?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Fetch lead data for customer info and attribution
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("nome, telefone, email, utm_source, utm_campaign, fbclid, genero, data_nascimento, cidade, estado, cep")
+      .eq("id", clienteId)
+      .single();
+
+    if (!lead) {
+      console.log("Meta Conversion: Lead not found for CompleteRegistration, sending basic event");
+    }
+
+    // Use agendamento date for event_time if available
+    const eventData: ConversionEventData = {
+      event_name: "CompleteRegistration",
+      agendamento_id: agendamentoId,
+      lead_id: clienteId,
+      customer_phone: lead?.telefone,
+      customer_email: lead?.email || undefined,
+      customer_name: lead?.nome,
+      customer_gender: (lead as any)?.genero || undefined,
+      customer_date_of_birth: (lead as any)?.data_nascimento || undefined,
+      customer_city: (lead as any)?.cidade || undefined,
+      customer_state: (lead as any)?.estado || undefined,
+      customer_zip: (lead as any)?.cep || undefined,
+      utm_source: lead?.utm_source || undefined,
+      utm_campaign: lead?.utm_campaign || undefined,
+      fbclid: lead?.fbclid || undefined,
+      external_id: clienteId,
+    };
+
+    // Pass the agendamento date as data_fatura (reusing the field for event_time)
+    if (dataAgendamento) {
+      eventData.data_fatura = dataAgendamento;
+    }
+
+    return await sendMetaConversionEvent(eventData);
+  } catch (error) {
+    console.error("Meta Conversion: Error in sendCompleteRegistrationConversion", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}

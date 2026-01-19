@@ -257,10 +257,42 @@ export function NovaFaturaDialog({
         await supabase.from("fatura_upsells").insert(upsellsToInsert);
       }
 
-      // Purchase conversion is now sent manually via "Conferir e enviar" button in PixelStatusBadge
-      // No automatic sending when invoice is created
+      // Automatically send Purchase event if created with status "fechado"
+      if (faturaResult && data.status === "fechado") {
+        try {
+          const { sendPurchaseConversion } = await import("@/hooks/useMetaConversions");
+          
+          const conversionResult = await sendPurchaseConversion(
+            faturaResult.id,
+            clienteId,
+            valorFinal,
+            data.data_fatura || undefined
+          );
+          
+          if (conversionResult.success) {
+            // Mark as sent
+            await supabase
+              .from("faturas")
+              .update({ 
+                pixel_event_sent_at: new Date().toISOString(),
+                pixel_status: "enviado"
+              })
+              .eq("id", faturaResult.id);
+            
+            console.log("Meta Conversion: Purchase sent automatically for new fatura", faturaResult.id);
+            toast.success("Fatura criada e evento Purchase enviado ao Meta!");
+          } else {
+            console.log("Meta Conversion: Purchase not sent -", conversionResult.error);
+            toast.success("Fatura criada com sucesso!");
+          }
+        } catch (error) {
+          console.error("Meta Conversion: Failed to send Purchase", error);
+          toast.success("Fatura criada com sucesso!");
+        }
+      } else {
+        toast.success("Fatura criada com sucesso!");
+      }
 
-      toast.success("Fatura criada com sucesso!");
       onOpenChange(false);
       form.reset();
     } catch (error) {
