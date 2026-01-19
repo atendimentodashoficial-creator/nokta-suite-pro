@@ -22,7 +22,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
-import { PixelStatusBadge } from "@/components/faturas/PixelStatusBadge";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 
@@ -261,17 +260,6 @@ export default function Faturas() {
                       </p>
                     </div>}
 
-                  {/* Meta Pixel Status */}
-                  <div className="pt-3 border-t border-border mt-4">
-                    <PixelStatusBadge
-                      faturaId={fatura.id}
-                      clienteId={(fatura.leads as any)?.id}
-                      clienteTelefone={(fatura.leads as any)?.telefone || ""}
-                      clienteNome={(fatura.leads as any)?.nome}
-                      clienteOrigem={(fatura.leads as any)?.origem}
-                      pixelStatus={fatura.pixel_status as any}
-                    />
-                  </div>
 
                   <div className="flex-1" />
 
