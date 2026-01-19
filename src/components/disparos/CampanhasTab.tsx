@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3, WifiOff, RotateCcw, Wifi, ArrowRight } from "lucide-react";
+import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3, WifiOff, RotateCcw, Wifi, ArrowRight, Type } from "lucide-react";
 import { EditarCampanhaDialog } from "./EditarCampanhaDialog";
 import { ContatosCampanhaDialog } from "./ContatosCampanhaDialog";
 import { RelatorioCampanhaDialog } from "./RelatorioCampanhaDialog";
@@ -8,6 +8,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -63,6 +66,9 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   const [campanhaRelatorio, setCampanhaRelatorio] = useState<string | null>(null);
   const [instanceConnectionStatus, setInstanceConnectionStatus] = useState<Record<string, boolean | null>>({});
   const [checkingInstance, setCheckingInstance] = useState<string | null>(null);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [campanhaToRename, setCampanhaToRename] = useState<{ id: string; nome: string } | null>(null);
+  const [newCampanhaName, setNewCampanhaName] = useState("");
 
   const loadCampanhas = async () => {
     try {
@@ -276,6 +282,32 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
     } catch (error: any) {
       console.error("Error duplicating campaign:", error);
       toast.error(error.message || "Erro ao duplicar campanha");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Rename campaign
+  const handleRenameCampanha = async () => {
+    if (!campanhaToRename || !newCampanhaName.trim()) return;
+
+    try {
+      setActionLoading(campanhaToRename.id);
+      const { error } = await supabase
+        .from("disparos_campanhas")
+        .update({ nome: newCampanhaName.trim() })
+        .eq("id", campanhaToRename.id);
+
+      if (error) throw error;
+
+      toast.success("Nome da campanha atualizado!");
+      loadCampanhas();
+      setRenameDialogOpen(false);
+      setCampanhaToRename(null);
+      setNewCampanhaName("");
+    } catch (error: any) {
+      console.error("Error renaming campaign:", error);
+      toast.error("Erro ao renomear campanha");
     } finally {
       setActionLoading(null);
     }
@@ -532,15 +564,30 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                     </>
                   )}
                   {campanha.status === "running" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handlePauseCampanha(campanha.id)}
-                      disabled={actionLoading === campanha.id}
-                    >
-                      <Pause className="h-4 w-4 mr-1" />
-                      Pausar
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handlePauseCampanha(campanha.id)}
+                        disabled={actionLoading === campanha.id}
+                      >
+                        <Pause className="h-4 w-4 mr-1" />
+                        Pausar
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setCampanhaToRename({ id: campanha.id, nome: campanha.nome });
+                          setNewCampanhaName(campanha.nome);
+                          setRenameDialogOpen(true);
+                        }}
+                        disabled={actionLoading === campanha.id}
+                        title="Renomear campanha"
+                      >
+                        <Type className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                   {campanha.status === "paused" && (
                     <>
@@ -565,6 +612,21 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </>
+                  )}
+                  {campanha.status === "completed" && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        setCampanhaToRename({ id: campanha.id, nome: campanha.nome });
+                        setNewCampanhaName(campanha.nome);
+                        setRenameDialogOpen(true);
+                      }}
+                      disabled={actionLoading === campanha.id}
+                      title="Renomear campanha"
+                    >
+                      <Type className="h-4 w-4" />
+                    </Button>
                   )}
                   <Button
                     size="icon"
@@ -856,6 +918,21 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                     <Pencil className="h-4 w-4" />
                   </Button>
                 )}
+                {(campanha.status === "running" || campanha.status === "completed") && (
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      setCampanhaToRename({ id: campanha.id, nome: campanha.nome });
+                      setNewCampanhaName(campanha.nome);
+                      setRenameDialogOpen(true);
+                    }}
+                    disabled={actionLoading === campanha.id}
+                    title="Renomear"
+                  >
+                    <Type className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   size="icon"
                   variant="outline"
@@ -931,6 +1008,51 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
         onOpenChange={setRelatorioDialogOpen}
         campanhaId={campanhaRelatorio}
       />
+
+      {/* Rename Campaign Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={(open) => {
+        setRenameDialogOpen(open);
+        if (!open) {
+          setCampanhaToRename(null);
+          setNewCampanhaName("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Renomear Campanha</DialogTitle>
+            <DialogDescription>
+              Digite o novo nome para a campanha
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="campaign-name">Nome da campanha</Label>
+              <Input
+                id="campaign-name"
+                value={newCampanhaName}
+                onChange={(e) => setNewCampanhaName(e.target.value)}
+                placeholder="Nome da campanha"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newCampanhaName.trim()) {
+                    handleRenameCampanha();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleRenameCampanha} 
+              disabled={!newCampanhaName.trim() || actionLoading === campanhaToRename?.id}
+            >
+              {actionLoading === campanhaToRename?.id ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
