@@ -256,9 +256,13 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   // Load available instances for switching
   useEffect(() => {
     const loadInstancias = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
       const { data } = await supabase
         .from("disparos_instancias")
         .select("id, nome")
+        .eq("user_id", user.id)
         .eq("is_active", true)
         .order("nome");
       setInstanciasDisponiveis(data || []);
