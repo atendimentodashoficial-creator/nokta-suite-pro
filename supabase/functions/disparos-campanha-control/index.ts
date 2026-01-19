@@ -356,15 +356,22 @@ serve(async (req) => {
       }
 
       // Update campaign status (only set iniciado_em on first start)
+      // CRITICAL: For "start" action, also set a lock via next_send_at to prevent
+      // the frontend scheduler from calling "continue" immediately after "start"
       if (action === "start") {
+        const startLockUntilIso = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes lock
+        
         await supabase
           .from("disparos_campanhas")
           .update({
             status: "running",
             iniciado_em: campanha.iniciado_em || new Date().toISOString(),
-            next_send_at: null // Clear any previous scheduling
+            next_send_at: startLockUntilIso, // Lock to prevent concurrent executions during start
+            updated_at: new Date().toISOString()
           })
           .eq("id", campanha_id);
+        
+        console.log(`Campaign ${campanha_id}: START action - locked until ${startLockUntilIso} to prevent scheduler race condition`);
       }
 
       // Reset any "sending" contacts that got stuck (from failed executions)
