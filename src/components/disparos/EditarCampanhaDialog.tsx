@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
-import { Upload, FileText, Image, Video, Music, X, Plus, Trash2, Users, Kanban, Phone, Shuffle, ChevronDown, ChevronUp, Layers, Copy, FileDown, List, ClipboardPaste, RefreshCw } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from "react";
+import { Upload, FileText, Image, Video, Music, X, Plus, Trash2, Users, Kanban, Phone, Shuffle, ChevronDown, ChevronUp, Layers, Copy, FileDown, List, ClipboardPaste, RefreshCw, ChevronLeft, ChevronRight, CheckSquare, Square } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -113,6 +114,59 @@ export function EditarCampanhaDialog({
   const [showAllContacts, setShowAllContacts] = useState(false);
   const [previewMessages, setPreviewMessages] = useState<Record<number, { variacaoIdx: number; text: string; mediaPreview?: string | null; tipo: string }>>({});
   const [previewKey, setPreviewKey] = useState(0);
+
+  // Pagination and selection for all contacts view
+  const [allContactsPage, setAllContactsPage] = useState(1);
+  const [allContactsPerPage, setAllContactsPerPage] = useState(50);
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+  const [allContactsFilterOrigens, setAllContactsFilterOrigens] = useState<Set<string>>(new Set());
+
+  // Lista de origens únicas para o dropdown
+  const origensUnicas = useMemo(() => {
+    const origens = new Set<string>();
+    contatos.forEach((c: any) => {
+      if (c.origem) origens.add(c.origem);
+    });
+    return Array.from(origens).sort();
+  }, [contatos]);
+
+  // Contatos filtrados por origem (multi-select)
+  const contatosFiltradosPorOrigem = useMemo(() => {
+    if (allContactsFilterOrigens.size === 0) return contatos;
+    return contatos.filter((c: any) => c.origem && allContactsFilterOrigens.has(c.origem));
+  }, [contatos, allContactsFilterOrigens]);
+
+  // Toggle origem filter
+  const toggleOrigemFilter = (origem: string) => {
+    setAllContactsFilterOrigens(prev => {
+      const next = new Set(prev);
+      if (next.has(origem)) {
+        next.delete(origem);
+      } else {
+        next.add(origem);
+      }
+      return next;
+    });
+    setAllContactsPage(1);
+  };
+
+  // Toggle contact selection
+  const toggleContactSelection = (numero: string) => {
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(numero)) {
+        next.delete(numero);
+      } else {
+        next.add(numero);
+      }
+      return next;
+    });
+  };
+
+  // Initialize selected contacts when contacts load
+  useEffect(() => {
+    setSelectedContacts(new Set(contatos.map(c => c.numero)));
+  }, [contatos.length]);
 
   // Generate random preview for all blocks
   const generateRandomPreview = useCallback(() => {
@@ -1908,33 +1962,270 @@ export function EditarCampanhaDialog({
       </Dialog>
 
       {/* All Contacts Dialog */}
-      <Dialog open={showAllContacts} onOpenChange={setShowAllContacts}>
+      <Dialog open={showAllContacts} onOpenChange={(open) => {
+        setShowAllContacts(open);
+        if (!open) {
+          setAllContactsPage(1);
+          setAllContactsFilterOrigens(new Set());
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Lista de Contatos ({contatos.length})</DialogTitle>
             <DialogDescription>
-              Visualização completa de todos os contatos da campanha
+              {selectedContacts.size} de {contatos.length} selecionados para envio
+              {allContactsFilterOrigens.size > 0 && (
+                <span className="ml-2 text-primary">
+                  (mostrando {contatosFiltradosPorOrigem.length} de {allContactsFilterOrigens.size} lista{allContactsFilterOrigens.size > 1 ? 's' : ''})
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <ScrollArea className="h-[60vh] pr-4">
-              <div className="space-y-1">
-                {contatos.map((c, idx) => (
-                  <div key={c.numero} className="flex items-center justify-between p-2 hover:bg-muted rounded text-sm border-b last:border-b-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-8">{idx + 1}.</span>
-                      <span>
-                        {c.nome ? `${c.nome} - ` : ""}{c.numero}
+
+          {/* Filter by origin - Multi-select */}
+          {origensUnicas.length > 0 && (
+            <div className="flex flex-col gap-2 pb-2">
+              <div className="flex items-center gap-2">
+                <List className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Filtrar por lista:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 min-w-48 justify-between">
+                      <span className="truncate">
+                        {allContactsFilterOrigens.size === 0 
+                          ? "Todas as listas" 
+                          : `${allContactsFilterOrigens.size} selecionada${allContactsFilterOrigens.size > 1 ? 's' : ''}`}
                       </span>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeContato(c.numero)}>
-                      <X className="h-3 w-3" />
+                      <ChevronDown className="h-3 w-3 ml-2 shrink-0" />
                     </Button>
-                  </div>
-                ))}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0" align="start">
+                    <div className="p-2 border-b">
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="flex-1 h-7 text-xs"
+                          onClick={() => setAllContactsFilterOrigens(new Set(origensUnicas))}
+                        >
+                          Todas
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="flex-1 h-7 text-xs"
+                          onClick={() => setAllContactsFilterOrigens(new Set())}
+                        >
+                          Limpar
+                        </Button>
+                      </div>
+                    </div>
+                    <ScrollArea className="max-h-48">
+                      <div className="p-2 space-y-1">
+                        {origensUnicas.map(origem => (
+                          <div 
+                            key={origem} 
+                            className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer"
+                            onClick={() => toggleOrigemFilter(origem)}
+                          >
+                            <Checkbox 
+                              checked={allContactsFilterOrigens.has(origem)} 
+                              onCheckedChange={() => toggleOrigemFilter(origem)}
+                            />
+                            <span className="text-sm truncate flex-1">{origem}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {contatos.filter((c: any) => c.origem === origem).length}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+                {allContactsFilterOrigens.size > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setAllContactsFilterOrigens(new Set())} className="h-8 px-2">
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              {allContactsFilterOrigens.size > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {Array.from(allContactsFilterOrigens).map(origem => (
+                    <Badge key={origem} variant="secondary" className="text-xs gap-1">
+                      {origem}
+                      <X 
+                        className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                        onClick={() => toggleOrigemFilter(origem)}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Selection and pagination controls */}
+          <div className="flex flex-col gap-2 pb-2 border-b">
+            <div className="flex items-center gap-1 flex-wrap">
+              <Button variant="default" size="sm" className="text-xs px-2 h-7" onClick={() => {
+                setSelectedContacts(new Set(contatos.map(c => c.numero)));
+              }}>
+                <CheckSquare className="h-3 w-3 mr-1" />
+                Marcar Todos
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
+                setSelectedContacts(new Set());
+              }}>
+                <Square className="h-3 w-3 mr-1" />
+                Desmarcar Todos
+              </Button>
+              <div className="w-px h-5 bg-border mx-1" />
+              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
+                const pageContacts = contatosFiltradosPorOrigem.slice(
+                  (allContactsPage - 1) * allContactsPerPage, 
+                  allContactsPage * allContactsPerPage
+                );
+                setSelectedContacts(prev => {
+                  const next = new Set(prev);
+                  pageContacts.forEach(c => next.add(c.numero));
+                  return next;
+                });
+              }}>
+                <CheckSquare className="h-3 w-3 mr-1" />
+                Marcar Página
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
+                const pageContacts = contatosFiltradosPorOrigem.slice(
+                  (allContactsPage - 1) * allContactsPerPage, 
+                  allContactsPage * allContactsPerPage
+                );
+                setSelectedContacts(prev => {
+                  const next = new Set(prev);
+                  pageContacts.forEach(c => next.delete(c.numero));
+                  return next;
+                });
+              }}>
+                <Square className="h-3 w-3 mr-1" />
+                Desmarcar Página
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="h-[50vh] pr-4">
+              <div className="space-y-1">
+                {contatosFiltradosPorOrigem
+                  .slice((allContactsPage - 1) * allContactsPerPage, allContactsPage * allContactsPerPage)
+                  .map((c, idx) => {
+                    const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
+                    const isSelected = selectedContacts.has(c.numero);
+                    return (
+                      <div 
+                        key={`${globalIdx}-${c.numero}`} 
+                        className={`flex items-center justify-between p-2 hover:bg-muted rounded text-sm border-b last:border-b-0 cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                        onClick={() => toggleContactSelection(c.numero)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <Checkbox 
+                            checked={isSelected} 
+                            onCheckedChange={() => toggleContactSelection(c.numero)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span className="text-xs text-muted-foreground w-8">{globalIdx + 1}.</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">
+                              {c.nome ? `${c.nome} - ` : ""}{c.numero}
+                            </span>
+                            {(c as any).origem && (
+                              <span className="text-[10px] text-muted-foreground truncate">
+                                {(c as any).origem}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeContato(c.numero);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    );
+                  })}
               </div>
             </ScrollArea>
           </div>
+
+          {/* Pagination */}
+          {(() => {
+            const totalPages = Math.ceil(contatosFiltradosPorOrigem.length / allContactsPerPage);
+            return (
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    disabled={allContactsPage <= 1}
+                    onClick={() => setAllContactsPage(p => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-1 text-sm">
+                    <span>Página</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={totalPages || 1}
+                      value={allContactsPage}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val) && val >= 1 && val <= (totalPages || 1)) {
+                          setAllContactsPage(val);
+                        }
+                      }}
+                      className="w-16 h-8 text-center"
+                    />
+                    <span>de {totalPages || 1}</span>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    disabled={allContactsPage >= totalPages}
+                    onClick={() => setAllContactsPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Por página:</span>
+                  <Select value={String(allContactsPerPage)} onValueChange={(v) => {
+                    setAllContactsPerPage(Number(v));
+                    setAllContactsPage(1);
+                  }}>
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="200">200</SelectItem>
+                      <SelectItem value="500">500</SelectItem>
+                      <SelectItem value="1000">1000</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="flex justify-between items-center pt-4 border-t">
             <Button variant="destructive" size="sm" onClick={() => {
               clearAll();
