@@ -142,6 +142,13 @@ export default function FormularioPublico() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [formConfig, setFormConfig] = useState<FormConfig | null>(null);
   const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
+  const [submittedLeadData, setSubmittedLeadData] = useState<{
+    leadId: string;
+    nome: string;
+    email: string;
+    telefone: string;
+  } | null>(null);
+  const metaEventSentRef = useRef(false);
   const stepStartTime = useRef<Date>(new Date());
   const abandonWarmupDone = useRef(false);
   const imageCarouselRef = useRef<HTMLDivElement>(null);
@@ -328,6 +335,56 @@ export default function FormularioPublico() {
       window.removeEventListener("pagehide", handleBeforeUnload);
     };
   }, [sessionId, sessionToken, currentStep, formData, submitted, isPreview]);
+
+  // Fire Meta Lead event ONLY when thank you page is shown (submitted = true)
+  useEffect(() => {
+    // Only fire when:
+    // 1. Form is submitted (thank you page is visible)
+    // 2. We have the lead data
+    // 3. Config and formConfig are available
+    // 4. Meta Pixel is enabled
+    // 5. Event hasn't been sent yet (prevent duplicate fires)
+    // 6. Not in preview mode
+    if (
+      !submitted ||
+      !submittedLeadData ||
+      !config ||
+      !formConfig?.meta_pixel_enabled ||
+      !formConfig?.meta_pixel_id ||
+      metaEventSentRef.current ||
+      isPreview
+    ) {
+      return;
+    }
+
+    // Mark as sent immediately to prevent duplicate fires
+    metaEventSentRef.current = true;
+
+    console.log("=== THANK YOU PAGE: Firing Meta Lead event ===");
+    console.log("Lead ID:", submittedLeadData.leadId);
+    console.log("Form:", config.nome);
+
+    sendMetaFormLeadEvent(
+      {
+        email: submittedLeadData.email,
+        phone: submittedLeadData.telefone,
+        customerName: submittedLeadData.nome,
+        externalId: submittedLeadData.leadId,
+        contentName: config.nome,
+        contentType: "lead_form",
+        templateId: config.id,
+        userId: config.user_id,
+      },
+      formConfig.meta_pixel_id,
+      formConfig.meta_pixel_enabled
+    )
+      .then((result) => {
+        console.log("Meta Lead event result (thank you page):", result);
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar evento Meta (thank you page):", error);
+      });
+  }, [submitted, submittedLeadData, config, formConfig, isPreview]);
 
 
   const validateField = (tipo: string, value: unknown, obrigatorio: boolean): string | null => {
@@ -564,30 +621,13 @@ export default function FormularioPublico() {
         }
       }
 
-      // Fire Meta Pixel and Conversion API Lead event
-      if (formConfig?.meta_pixel_enabled && formConfig?.meta_pixel_id) {
-        try {
-          console.log("Firing Meta Lead event for form:", config.nome);
-          const result = await sendMetaFormLeadEvent(
-            {
-              email: email,
-              phone: telefone,
-              customerName: nome,
-              externalId: newLeadId,
-              contentName: config.nome,
-              contentType: "lead_form",
-              templateId: config.id,
-              userId: config.user_id,
-            },
-            formConfig.meta_pixel_id,
-            formConfig.meta_pixel_enabled
-          );
-          console.log("Meta Lead event result:", result);
-        } catch (metaError) {
-          console.error("Erro ao enviar evento Meta:", metaError);
-          // Don't throw - form submission was successful
-        }
-      }
+      // Store lead data for Meta event (will be sent when thank you page is shown)
+      setSubmittedLeadData({
+        leadId: newLeadId,
+        nome: nome || "",
+        email: email || "",
+        telefone: telefone,
+      });
 
     } catch (err) {
       console.error("Erro ao enviar formulário:", err);
@@ -755,30 +795,13 @@ export default function FormularioPublico() {
         }
       }
 
-      // Fire Meta Pixel and Conversion API Lead event
-      if (formConfig?.meta_pixel_enabled && formConfig?.meta_pixel_id) {
-        try {
-          console.log("Firing Meta Lead event for form:", config.nome);
-          const result = await sendMetaFormLeadEvent(
-            {
-              email: email,
-              phone: telefone,
-              customerName: nome,
-              externalId: newLeadId,
-              contentName: config.nome,
-              contentType: "lead_form",
-              templateId: config.id,
-              userId: config.user_id,
-            },
-            formConfig.meta_pixel_id,
-            formConfig.meta_pixel_enabled
-          );
-          console.log("Meta Lead event result:", result);
-        } catch (metaError) {
-          console.error("Erro ao enviar evento Meta:", metaError);
-          // Don't throw - form submission was successful
-        }
-      }
+      // Store lead data for Meta event (will be sent when thank you page is shown)
+      setSubmittedLeadData({
+        leadId: newLeadId,
+        nome: nome || "",
+        email: email || "",
+        telefone: telefone,
+      });
     } catch (err) {
       console.error("Erro ao enviar formulário:", err);
       setError("Erro ao enviar dados. Tente novamente.");
