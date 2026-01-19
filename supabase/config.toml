@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.formulario-whatsapp-notify]
 verify_jwt = false
+
+[functions.formulario-meta-conversion]
+verify_jwt = false

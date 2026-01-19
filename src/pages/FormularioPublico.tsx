@@ -13,7 +13,7 @@ import { Loader2, CheckCircle2, AlertCircle, ChevronRight, ChevronLeft } from "l
 import { z } from "zod";
 import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
 import { formatPhoneByCountry, getPhonePlaceholder, stripCountryCode } from "@/utils/phoneFormat";
-
+import { sendMetaFormLeadEvent, initMetaPixel } from "@/utils/metaFormConversion";
 interface EtapaConfig {
   id: string;
   ordem: number;
@@ -92,6 +92,13 @@ interface TemplateConfig {
   formularios_etapas: EtapaConfig[];
 }
 
+interface FormConfig {
+  meta_pixel_id: string | null;
+  meta_pixel_enabled: boolean | null;
+  meta_access_token: string | null;
+  meta_test_event_code: string | null;
+}
+
 // Helper to extract YouTube/Vimeo embed URL
 const getVideoEmbedUrl = (url: string): string | null => {
   if (!url) return null;
@@ -133,6 +140,8 @@ export default function FormularioPublico() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [formConfig, setFormConfig] = useState<FormConfig | null>(null);
+  const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
   const stepStartTime = useRef<Date>(new Date());
   const abandonWarmupDone = useRef(false);
   const imageCarouselRef = useRef<HTMLDivElement>(null);
@@ -187,6 +196,23 @@ export default function FormularioPublico() {
       setLoading(false);
       setStartTime(new Date());
       stepStartTime.current = new Date();
+
+      // Load form config (Meta Pixel settings) if not preview
+      if (!isPreview) {
+        const { data: fConfig } = await supabase
+          .from("formularios_config")
+          .select("meta_pixel_id, meta_pixel_enabled, meta_access_token, meta_test_event_code")
+          .eq("user_id", data.user_id)
+          .maybeSingle();
+        
+        if (fConfig) {
+          setFormConfig(fConfig as FormConfig);
+          // Initialize Meta Pixel if configured
+          if (fConfig.meta_pixel_enabled && fConfig.meta_pixel_id) {
+            initMetaPixel(fConfig.meta_pixel_id);
+          }
+        }
+      }
 
       // Create session if not preview
       if (!isPreview) {
@@ -480,10 +506,12 @@ export default function FormularioPublico() {
 
       const telefone = normalizeTelefone(telefoneRaw);
 
-      // Create lead
+      // Create lead - generate ID client-side for tracking
+      const newLeadId = crypto.randomUUID();
       const { error: leadError } = await supabase
         .from("formularios_leads")
         .insert({
+          id: newLeadId,
           template_id: config.id,
           user_id: config.user_id,
           sessao_id: sessionId,
@@ -496,6 +524,8 @@ export default function FormularioPublico() {
         });
 
       if (leadError) throw leadError;
+      
+      setCreatedLeadId(newLeadId);
 
       // Mark session as completed
       if (sessionId) {
@@ -534,7 +564,30 @@ export default function FormularioPublico() {
         }
       }
 
-      // TODO: Trigger pixels here based on config
+      // Fire Meta Pixel and Conversion API Lead event
+      if (formConfig?.meta_pixel_enabled && formConfig?.meta_pixel_id) {
+        try {
+          console.log("Firing Meta Lead event for form:", config.nome);
+          const result = await sendMetaFormLeadEvent(
+            {
+              email: email,
+              phone: telefone,
+              customerName: nome,
+              externalId: newLeadId,
+              contentName: config.nome,
+              contentType: "lead_form",
+              templateId: config.id,
+              userId: config.user_id,
+            },
+            formConfig.meta_pixel_id,
+            formConfig.meta_pixel_enabled
+          );
+          console.log("Meta Lead event result:", result);
+        } catch (metaError) {
+          console.error("Erro ao enviar evento Meta:", metaError);
+          // Don't throw - form submission was successful
+        }
+      }
 
     } catch (err) {
       console.error("Erro ao enviar formulário:", err);
@@ -645,9 +698,12 @@ export default function FormularioPublico() {
 
       telefone = normalizeTelefone(telefoneRaw);
 
+      // Create lead - generate ID client-side for tracking
+      const newLeadId = crypto.randomUUID();
       const { error: leadError } = await supabase
         .from("formularios_leads")
         .insert({
+          id: newLeadId,
           template_id: config.id,
           user_id: config.user_id,
           sessao_id: sessionId,
@@ -660,6 +716,8 @@ export default function FormularioPublico() {
         });
 
       if (leadError) throw leadError;
+
+      setCreatedLeadId(newLeadId);
 
       if (sessionId) {
         await supabase
@@ -693,6 +751,31 @@ export default function FormularioPublico() {
           }
         } catch (whatsappError) {
           console.error("Erro ao enviar notificação WhatsApp:", whatsappError);
+          // Don't throw - form submission was successful
+        }
+      }
+
+      // Fire Meta Pixel and Conversion API Lead event
+      if (formConfig?.meta_pixel_enabled && formConfig?.meta_pixel_id) {
+        try {
+          console.log("Firing Meta Lead event for form:", config.nome);
+          const result = await sendMetaFormLeadEvent(
+            {
+              email: email,
+              phone: telefone,
+              customerName: nome,
+              externalId: newLeadId,
+              contentName: config.nome,
+              contentType: "lead_form",
+              templateId: config.id,
+              userId: config.user_id,
+            },
+            formConfig.meta_pixel_id,
+            formConfig.meta_pixel_enabled
+          );
+          console.log("Meta Lead event result:", result);
+        } catch (metaError) {
+          console.error("Erro ao enviar evento Meta:", metaError);
           // Don't throw - form submission was successful
         }
       }
