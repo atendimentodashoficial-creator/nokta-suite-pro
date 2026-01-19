@@ -369,54 +369,73 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   };
 
   // Get active instances for a campaign (configured minus disabled)
-  // Sorted by "next to send" - lowest score first (same logic as backend)
+  // Sorted by "next to send" - lowest score first (mirrors backend heuristics)
   const getActiveInstances = (campanha: Campanha) => {
     const configuredIds = campanha.instancias_ids || [];
     const disabledIds = campanha.disabled_instancias_ids || [];
-    const rotationState = (campanha.instance_rotation_state || {}) as Record<string, { sends: number; lastSendAt: string | null }>;
+    const rotationState = (campanha.instance_rotation_state || {}) as Record<
+      string,
+      { sends?: number; lastSendAt?: string | number | null }
+    >;
     const lastUsedInstanceId = campanha.last_instance_id;
-    
+
+    const toTs = (value: string | number | null | undefined) => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === "number") return value > 0 ? value : null;
+      const ts = Date.parse(value);
+      return Number.isFinite(ts) ? ts : null;
+    };
+
     const activeInstances = configuredIds
-      .filter(id => !disabledIds.includes(id))
-      .map(id => {
-        const instance = instancias.find(i => i.id === id);
+      .filter((id) => !disabledIds.includes(id))
+      .map((id) => {
+        const instance = instancias.find((i) => i.id === id);
         const stateEntry = rotationState[id];
         const sends = stateEntry?.sends || 0;
-        const lastSendAt = stateEntry?.lastSendAt || null;
-        return { id, nome: instance?.nome || null, lastSendAt, sends };
+        const lastSendAtRaw = stateEntry?.lastSendAt ?? null;
+        return { id, nome: instance?.nome || null, lastSendAt: lastSendAtRaw, sends };
       })
-      .filter(i => i.nome !== null) as { id: string; nome: string; lastSendAt: string | null; sends: number }[];
-    
-    // Find minimum sends
-    const minSends = Math.min(...activeInstances.map(i => i.sends), 0);
-    
-    // Sort by score (lower = next to send)
+      .filter((i) => i.nome !== null) as {
+      id: string;
+      nome: string;
+      lastSendAt: string | number | null;
+      sends: number;
+    }[];
+
+    const minSends = activeInstances.length > 0 ? Math.min(...activeInstances.map((i) => i.sends)) : 0;
+
+    const getScore = (inst: (typeof activeInstances)[number]) => {
+      let score = 0;
+
+      // Send penalty: 50 points per send above minimum
+      score += (inst.sends - minSends) * 50;
+
+      // Recency penalty: up to 30 points if used within the last 30s
+      const lastTs = toTs(inst.lastSendAt);
+      if (lastTs) {
+        const timeSinceLastSend = Date.now() - lastTs;
+        if (timeSinceLastSend < 30_000) {
+          score += Math.max(0, 30 - timeSinceLastSend / 1000);
+        }
+      }
+
+      // Anti-repetition: avoid using the same instance twice in a row
+      if (inst.id === lastUsedInstanceId) score += 100;
+
+      return score;
+    };
+
     return activeInstances.sort((a, b) => {
-      const now = Date.now();
-      
-      // Calculate scores like backend
-      const getScore = (inst: typeof a) => {
-        let score = 0;
-        
-        // Send penalty: 50 points per send above minimum
-        score += (inst.sends - minSends) * 50;
-        
-        // Recency penalty: up to 30 points if used recently
-        if (inst.lastSendAt) {
-          const timeSinceLastSend = now - new Date(inst.lastSendAt).getTime();
-          const recencyPenalty = Math.max(0, 30 - (timeSinceLastSend / 1000)); // decreases over 30s
-          score += recencyPenalty;
-        }
-        
-        // Anti-repetition: big penalty if was last used
-        if (inst.id === lastUsedInstanceId) {
-          score += 100;
-        }
-        
-        return score;
-      };
-      
-      return getScore(a) - getScore(b);
+      const scoreA = getScore(a);
+      const scoreB = getScore(b);
+      if (scoreA !== scoreB) return scoreA - scoreB;
+
+      // Tie-breaker: prefer the one with older lastSendAt
+      const ta = toTs(a.lastSendAt) ?? -1;
+      const tb = toTs(b.lastSendAt) ?? -1;
+      if (ta !== tb) return ta - tb;
+
+      return a.nome.localeCompare(b.nome);
     });
   };
 
@@ -628,37 +647,46 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-7 px-2.5 gap-1.5 text-sm text-muted-foreground hover:text-foreground -ml-2">
-                            <Wifi className="h-4 w-4 text-green-500" />
+                            <Wifi className="h-4 w-4 text-primary" />
                             <span>{activeInstances.length} instância{activeInstances.length > 1 ? 's' : ''}</span>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="start" className="p-2">
                           <div className="space-y-1.5">
                             <p className="text-xs font-medium mb-2">Instâncias ativas:</p>
-                            {activeInstances.map((inst, index) => (
-                              <div key={inst.id} className={`flex items-center justify-between gap-4 text-xs ${index === 0 ? 'bg-green-100 dark:bg-green-900/30 -mx-1 px-1 py-0.5 rounded' : ''}`}>
-                                <span className="flex items-center gap-1.5">
-                                  {index === 0 ? (
-                                    <ArrowRight className="h-3 w-3 text-green-600" />
-                                  ) : (
-                                    <Wifi className="h-3 w-3 text-green-500" />
-                                  )}
-                                  {inst.nome}
-                                  {index === 0 && (
-                                    <Badge variant="outline" className="text-[10px] h-4 px-1 text-green-600 border-green-600">
-                                      próxima
-                                    </Badge>
-                                  )}
-                                </span>
-                                {inst.lastSendAt ? (
-                                  <span className="text-muted-foreground">
-                                    {formatDistanceToNow(new Date(inst.lastSendAt), { addSuffix: true, locale: ptBR })}
+                            {activeInstances.map((inst, index) => {
+                              const raw = inst.lastSendAt;
+                              const date = raw ? new Date(typeof raw === 'number' ? raw : raw) : null;
+                              const hasValidDate = !!date && !Number.isNaN(date.getTime());
+
+                              return (
+                                <div
+                                  key={inst.id}
+                                  className={`flex items-center justify-between gap-4 text-xs ${index === 0 ? 'bg-accent/40 -mx-1 px-1 py-0.5 rounded' : ''}`}
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    {index === 0 ? (
+                                      <ArrowRight className="h-3 w-3 text-primary" />
+                                    ) : (
+                                      <Wifi className="h-3 w-3 text-primary" />
+                                    )}
+                                    {inst.nome}
+                                    {index === 0 && (
+                                      <Badge variant="outline" className="text-[10px] h-4 px-1 text-primary border-primary">
+                                        próxima
+                                      </Badge>
+                                    )}
                                   </span>
-                                ) : (
-                                  <span className="text-muted-foreground">Sem envios</span>
-                                )}
-                              </div>
-                            ))}
+                                  {hasValidDate ? (
+                                    <span className="text-muted-foreground">
+                                      {formatDistanceToNow(date, { addSuffix: true, locale: ptBR })}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">Sem envios</span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </TooltipContent>
                       </Tooltip>
