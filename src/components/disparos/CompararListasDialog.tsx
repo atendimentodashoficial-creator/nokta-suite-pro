@@ -126,6 +126,28 @@ export function CompararListasDialog({
     return contatos;
   };
 
+  // Normalize phone for comparison - returns array of possible matches
+  // to handle 9th digit inconsistencies in Brazilian numbers
+  const getPhoneVariants = (phone: string): string[] => {
+    const digits = phone.replace(/\D/g, '');
+    const last8 = digits.slice(-8);
+    const last9 = digits.slice(-9);
+    
+    // If the 9th-to-last digit is '9', also check without it
+    // This handles cases where one list has 9 and other doesn't
+    const variants = [last8];
+    
+    if (last9.startsWith('9') && last9.length === 9) {
+      // Number has 9th digit - also compare with last 8 (without the 9)
+      variants.push(last9);
+    } else if (digits.length >= 8) {
+      // Number might not have 9th digit - also check with 9 prepended
+      variants.push('9' + last8);
+    }
+    
+    return variants;
+  };
+
   const getLast8Digits = (phone: string): string => {
     const digits = phone.replace(/\D/g, '');
     return digits.slice(-8);
@@ -177,23 +199,37 @@ export function CompararListasDialog({
 
       if (error) throw error;
 
-      const contatosLast8Map = new Map<string, string[]>();
+      // Build map using all phone variants for better matching
+      const contatosVariantsMap = new Map<string, string[]>();
       
       for (const contato of contatosCampanha || []) {
-        const last8 = getLast8Digits(contato.numero);
-        
-        if (!contatosLast8Map.has(last8)) {
-          contatosLast8Map.set(last8, []);
-        }
+        const variants = getPhoneVariants(contato.numero);
         const campanha = campanhas.find(c => c.id === contato.campanha_id);
-        if (campanha && !contatosLast8Map.get(last8)!.includes(campanha.nome)) {
-          contatosLast8Map.get(last8)!.push(campanha.nome);
+        
+        for (const variant of variants) {
+          if (!contatosVariantsMap.has(variant)) {
+            contatosVariantsMap.set(variant, []);
+          }
+          if (campanha && !contatosVariantsMap.get(variant)!.includes(campanha.nome)) {
+            contatosVariantsMap.get(variant)!.push(campanha.nome);
+          }
         }
       }
 
       const resultado: ContatoComparacao[] = contatosLista.map(contato => {
-        const last8 = getLast8Digits(contato.numero);
-        const campanhasEncontradas = contatosLast8Map.get(last8) || [];
+        const variants = getPhoneVariants(contato.numero);
+        
+        // Check all variants for matches
+        let campanhasEncontradas: string[] = [];
+        for (const variant of variants) {
+          const found = contatosVariantsMap.get(variant) || [];
+          for (const camp of found) {
+            if (!campanhasEncontradas.includes(camp)) {
+              campanhasEncontradas.push(camp);
+            }
+          }
+        }
+        
         return {
           numero: contato.numero,
           nome: contato.nome,
@@ -227,9 +263,11 @@ export function CompararListasDialog({
 
       if (error) throw error;
 
+      // Use normalized key (last 8 digits) for grouping duplicates
       const contatosMap = new Map<string, { numero: string; nome?: string; campanhas: Set<string> }>();
       
       for (const contato of contatosCampanha || []) {
+        // Use last 8 as primary key for grouping
         const last8 = getLast8Digits(contato.numero);
         const campanha = campanhas.find(c => c.id === contato.campanha_id);
         
