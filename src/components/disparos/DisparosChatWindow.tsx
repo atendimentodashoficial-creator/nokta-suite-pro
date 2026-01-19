@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { RefreshCw, Send, Calendar, Trash2, MessageSquare, Image, Mic, Forward, X, ArrowLeft, Pencil, Check, ChevronDown } from "lucide-react";
+import { RefreshCw, Send, Calendar, Trash2, MessageSquare, Image, Mic, Forward, X, ArrowLeft, Pencil, Check, ChevronDown, Repeat, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -219,6 +227,9 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   const [expandedAudioBlocos, setExpandedAudioBlocos] = useState<Record<string, boolean>>({});
   const [expandedTextSemBloco, setExpandedTextSemBloco] = useState(true);
   const [expandedAudioSemBloco, setExpandedAudioSemBloco] = useState(true);
+  const [instanciasDisponiveis, setInstanciasDisponiveis] = useState<{ id: string; nome: string }[]>([]);
+  const [changeInstanceOpen, setChangeInstanceOpen] = useState(false);
+  const [changingInstance, setChangingInstance] = useState(false);
 
   // Atualizar cache sempre que mensagens mudarem
   useEffect(() => {
@@ -237,6 +248,58 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
       setMessages([]);
     }
   }, [chat.id]);
+
+  // Load available instances for switching
+  useEffect(() => {
+    const loadInstancias = async () => {
+      const { data } = await supabase
+        .from("disparos_instancias")
+        .select("id, nome")
+        .eq("is_active", true)
+        .order("nome");
+      setInstanciasDisponiveis(data || []);
+    };
+    loadInstancias();
+  }, []);
+
+  // Handle changing the instance for this chat
+  const handleChangeInstance = async (newInstanceId: string) => {
+    if (newInstanceId === chat.instancia_id) {
+      setChangeInstanceOpen(false);
+      return;
+    }
+    
+    setChangingInstance(true);
+    try {
+      const newInstance = instanciasDisponiveis.find(i => i.id === newInstanceId);
+      if (!newInstance) throw new Error("Instância não encontrada");
+
+      const { error } = await supabase
+        .from("disparos_chats")
+        .update({ 
+          instancia_id: newInstanceId,
+          instancia_nome: newInstance.nome
+        })
+        .eq("id", chat.id);
+
+      if (error) throw error;
+
+      // Update local chat state
+      onChatUpdated?.({
+        ...chat,
+        instancia_id: newInstanceId,
+        instancia_nome: newInstance.nome,
+      });
+
+      toast.success(`Instância alterada para ${newInstance.nome}`);
+      setChangeInstanceOpen(false);
+    } catch (error: any) {
+      console.error("Error changing instance:", error);
+      toast.error("Erro ao trocar instância");
+    } finally {
+      setChangingInstance(false);
+    }
+  };
 
   const updateChatPreview = (preview: string) => {
     const nowIso = new Date().toISOString();
@@ -1078,6 +1141,48 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         </div>
         {/* Ícones fixos à direita */}
         <div className="flex gap-1 flex-shrink-0 items-center">
+          {/* Dropdown para trocar instância */}
+          <DropdownMenu open={changeInstanceOpen} onOpenChange={setChangeInstanceOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Trocar instância de atendimento"
+                disabled={changingInstance}
+              >
+                <Repeat className={`w-4 h-4 ${changingInstance ? 'animate-spin' : ''}`} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="flex items-center gap-2">
+                <Wifi className="h-3 w-3" />
+                Trocar instância
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {instanciasDisponiveis.length === 0 ? (
+                <DropdownMenuItem disabled>
+                  Nenhuma instância disponível
+                </DropdownMenuItem>
+              ) : (
+                instanciasDisponiveis.map(inst => (
+                  <DropdownMenuItem
+                    key={inst.id}
+                    onClick={() => handleChangeInstance(inst.id)}
+                    className={inst.id === chat.instancia_id ? "bg-accent" : ""}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span>{inst.nome}</span>
+                      {inst.id === chat.instancia_id && (
+                        <Check className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
           <Button
             variant="ghost"
             size="icon"
