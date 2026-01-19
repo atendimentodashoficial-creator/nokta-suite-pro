@@ -130,8 +130,8 @@ export const useUpdateAgendamentoStatus = () => {
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
       
-      // Send CompleteRegistration when status changes to "confirmado" (idempotent)
-      if (data._newStatus === "confirmado" && data._wasNotSent) {
+      // Send CompleteRegistration when status changes to "realizado" (compareceu) - idempotent
+      if (data._newStatus === "realizado" && data._wasNotSent) {
         try {
           // Dynamically import to avoid circular dependencies
           const { sendCompleteRegistrationConversion } = await import("@/hooks/useMetaConversions");
@@ -149,7 +149,7 @@ export const useUpdateAgendamentoStatus = () => {
               .update({ meta_event_sent_at: new Date().toISOString() })
               .eq("id", data.id);
             
-            console.log("Meta Conversion: CompleteRegistration sent automatically for agendamento", data.id);
+            console.log("Meta Conversion: CompleteRegistration sent automatically for agendamento (compareceu)", data.id);
           }
         } catch (error) {
           console.error("Meta Conversion: Failed to send CompleteRegistration", error);
