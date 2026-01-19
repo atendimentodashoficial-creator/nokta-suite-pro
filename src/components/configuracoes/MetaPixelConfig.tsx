@@ -192,17 +192,6 @@ export function MetaPixelConfig() {
                 onCheckedChange={() => toggleEvento("purchase")}
               />
             </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg opacity-50">
-              <div>
-                <p className="font-medium">InitiateCheckout <span className="text-xs text-muted-foreground">(desativado)</span></p>
-                <p className="text-sm text-muted-foreground">Não utilizado - funil simplificado: Lead → CompleteRegistration → Purchase</p>
-              </div>
-              <Switch
-                checked={false}
-                disabled
-              />
-            </div>
           </div>
         </div>
 
