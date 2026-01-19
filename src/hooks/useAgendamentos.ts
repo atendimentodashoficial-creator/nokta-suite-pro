@@ -21,6 +21,7 @@ export interface Agendamento {
   aviso_3dias: boolean;
   origem_agendamento: string | null;
   origem_instancia_nome: string | null;
+  meta_event_sent_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -73,7 +74,7 @@ export const useCreateAgendamento = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (agendamento: Omit<Agendamento, "id" | "created_at" | "updated_at" | "user_id">) => {
+    mutationFn: async (agendamento: Omit<Agendamento, "id" | "created_at" | "updated_at" | "user_id" | "meta_event_sent_at">) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
@@ -99,6 +100,15 @@ export const useUpdateAgendamentoStatus = () => {
   
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: StatusAgendamento }) => {
+      // First, fetch the agendamento to check if CompleteRegistration was already sent
+      const { data: agendamento, error: fetchError } = await supabase
+        .from("agendamentos")
+        .select("*, meta_event_sent_at, cliente_id, data_agendamento")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       const { data, error } = await supabase
         .from("agendamentos")
         .update({ status })
@@ -107,10 +117,45 @@ export const useUpdateAgendamentoStatus = () => {
         .single();
 
       if (error) throw error;
-      return data;
+      
+      // Return both the updated data and original agendamento info for onSuccess
+      return { 
+        ...data, 
+        _wasNotSent: !agendamento.meta_event_sent_at,
+        _clienteId: agendamento.cliente_id,
+        _dataAgendamento: agendamento.data_agendamento,
+        _newStatus: status
+      };
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+      
+      // Send CompleteRegistration when status changes to "confirmado" (idempotent)
+      if (data._newStatus === "confirmado" && data._wasNotSent) {
+        try {
+          // Dynamically import to avoid circular dependencies
+          const { sendCompleteRegistrationConversion } = await import("@/hooks/useMetaConversions");
+          
+          const result = await sendCompleteRegistrationConversion(
+            data.id,
+            data._clienteId,
+            data._dataAgendamento
+          );
+          
+          if (result.success) {
+            // Mark as sent
+            await supabase
+              .from("agendamentos")
+              .update({ meta_event_sent_at: new Date().toISOString() })
+              .eq("id", data.id);
+            
+            console.log("Meta Conversion: CompleteRegistration sent automatically for agendamento", data.id);
+          }
+        } catch (error) {
+          console.error("Meta Conversion: Failed to send CompleteRegistration", error);
+          // Don't throw - this shouldn't block the status update
+        }
+      }
     },
   });
 };
