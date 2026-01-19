@@ -19,10 +19,12 @@ export default function FormulariosConfiguracoes() {
   const [googleAdsConversionLabel, setGoogleAdsConversionLabel] = useState("");
   const [googleAdsEnabled, setGoogleAdsEnabled] = useState(false);
 
-  // Meta Pixel
+  // Meta Pixel & Conversions API
   const [metaPixelId, setMetaPixelId] = useState("");
   const [metaPixelEvento, setMetaPixelEvento] = useState("Lead");
   const [metaPixelEnabled, setMetaPixelEnabled] = useState(false);
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaTestEventCode, setMetaTestEventCode] = useState("");
 
   // GA4
   const [ga4MeasurementId, setGa4MeasurementId] = useState("");
@@ -47,6 +49,8 @@ export default function FormulariosConfiguracoes() {
       setMetaPixelId(config.meta_pixel_id || "");
       setMetaPixelEvento(config.meta_pixel_evento || "Lead");
       setMetaPixelEnabled(config.meta_pixel_enabled || false);
+      setMetaAccessToken(config.meta_access_token || "");
+      setMetaTestEventCode(config.meta_test_event_code || "");
       setGa4MeasurementId(config.ga4_measurement_id || "");
       setGa4Evento(config.ga4_evento || "form_submission");
       setGa4Enabled(config.ga4_enabled || false);
@@ -65,6 +69,8 @@ export default function FormulariosConfiguracoes() {
       meta_pixel_id: metaPixelId || null,
       meta_pixel_evento: metaPixelEvento || "Lead",
       meta_pixel_enabled: metaPixelEnabled,
+      meta_access_token: metaAccessToken || null,
+      meta_test_event_code: metaTestEventCode || null,
       ga4_measurement_id: ga4MeasurementId || null,
       ga4_evento: ga4Evento || "form_submission",
       ga4_enabled: ga4Enabled,
@@ -134,12 +140,12 @@ export default function FormulariosConfiguracoes() {
 
           <Separator />
 
-          {/* Meta Pixel */}
+          {/* Meta Pixel & Conversions API */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium">Meta Pixel (Facebook/Instagram)</h4>
-                <p className="text-sm text-muted-foreground">Rastreie conversões nas plataformas Meta</p>
+                <h4 className="font-medium">Meta Pixel & API de Conversões</h4>
+                <p className="text-sm text-muted-foreground">Rastreie conversões nas plataformas Meta (Facebook/Instagram)</p>
               </div>
               <Switch
                 checked={metaPixelEnabled}
@@ -147,22 +153,61 @@ export default function FormulariosConfiguracoes() {
               />
             </div>
             {metaPixelEnabled && (
-              <div className="grid grid-cols-2 gap-4 pl-4 border-l-2 border-primary/20">
-                <div className="space-y-2">
-                  <Label>Pixel ID</Label>
-                  <Input
-                    value={metaPixelId}
-                    onChange={(e) => setMetaPixelId(e.target.value)}
-                    placeholder="XXXXXXXXXXXXXXX"
-                  />
+              <div className="space-y-4 pl-4 border-l-2 border-primary/20">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Pixel ID</Label>
+                    <Input
+                      value={metaPixelId}
+                      onChange={(e) => setMetaPixelId(e.target.value)}
+                      placeholder="XXXXXXXXXXXXXXX"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      ID do seu Pixel encontrado no Gerenciador de Eventos
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Evento de Conversão</Label>
+                    <Input
+                      value={metaPixelEvento}
+                      onChange={(e) => setMetaPixelEvento(e.target.value)}
+                      placeholder="Lead"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Nome do evento (Lead, CompleteRegistration, etc.)
+                    </p>
+                  </div>
                 </div>
+                
+                <Separator className="my-2" />
+                
                 <div className="space-y-2">
-                  <Label>Evento</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>Access Token (API de Conversões)</Label>
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Recomendado</span>
+                  </div>
                   <Input
-                    value={metaPixelEvento}
-                    onChange={(e) => setMetaPixelEvento(e.target.value)}
-                    placeholder="Lead"
+                    type="password"
+                    value={metaAccessToken}
+                    onChange={(e) => setMetaAccessToken(e.target.value)}
+                    placeholder="EAAxxxxxxx..."
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Token de acesso para enviar eventos server-side via API de Conversões. 
+                    Obtenha no <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Gerenciador de Eventos</a> → Configurações → Gerar Token de Acesso
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Código de Evento de Teste (Opcional)</Label>
+                  <Input
+                    value={metaTestEventCode}
+                    onChange={(e) => setMetaTestEventCode(e.target.value)}
+                    placeholder="TEST12345"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use para testar eventos na ferramenta de Eventos de Teste do Meta
+                  </p>
                 </div>
               </div>
             )}
