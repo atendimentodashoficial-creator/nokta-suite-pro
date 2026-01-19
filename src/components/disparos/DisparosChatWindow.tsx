@@ -231,7 +231,8 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   const [expandedAudioBlocos, setExpandedAudioBlocos] = useState<Record<string, boolean>>({});
   const [expandedTextSemBloco, setExpandedTextSemBloco] = useState(true);
   const [expandedAudioSemBloco, setExpandedAudioSemBloco] = useState(true);
-  const [instanciasDisponiveis, setInstanciasDisponiveis] = useState<{ id: string; nome: string }[]>([]);
+  const [instanciasDisponiveis, setInstanciasDisponiveis] = useState<{ id: string; nome: string; base_url: string; api_key: string }[]>([]);
+  const [instanciasStatus, setInstanciasStatus] = useState<Record<string, 'loading' | 'connected' | 'disconnected'>>({});
   const [changeInstanceOpen, setChangeInstanceOpen] = useState(false);
   const [changingInstance, setChangingInstance] = useState(false);
 
@@ -261,7 +262,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
       
       const { data } = await supabase
         .from("disparos_instancias")
-        .select("id, nome")
+        .select("id, nome, base_url, api_key")
         .eq("user_id", user.id)
         .eq("is_active", true)
         .order("nome");
@@ -269,6 +270,37 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     };
     loadInstancias();
   }, []);
+
+  // Check connection status when dropdown opens
+  useEffect(() => {
+    if (!changeInstanceOpen || instanciasDisponiveis.length === 0) return;
+    
+    const checkAllStatuses = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Set all to loading initially
+      const loadingStatus: Record<string, 'loading'> = {};
+      instanciasDisponiveis.forEach(i => { loadingStatus[i.id] = 'loading'; });
+      setInstanciasStatus(loadingStatus);
+
+      // Check each instance in parallel
+      await Promise.all(instanciasDisponiveis.map(async (inst) => {
+        try {
+          const response = await supabase.functions.invoke("uazapi-check-status", {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            body: { base_url: inst.base_url, api_key: inst.api_key }
+          });
+          const isConnected = response.data?.status === 'connected';
+          setInstanciasStatus(prev => ({ ...prev, [inst.id]: isConnected ? 'connected' : 'disconnected' }));
+        } catch {
+          setInstanciasStatus(prev => ({ ...prev, [inst.id]: 'disconnected' }));
+        }
+      }));
+    };
+
+    checkAllStatuses();
+  }, [changeInstanceOpen, instanciasDisponiveis]);
 
   // Handle changing the instance for this chat
   const handleChangeInstance = async (newInstanceId: string) => {
@@ -1216,20 +1248,36 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
                   Nenhuma instância disponível
                 </DropdownMenuItem>
               ) : (
-                instanciasDisponiveis.map(inst => (
-                  <DropdownMenuItem
-                    key={inst.id}
-                    onClick={() => handleChangeInstance(inst.id)}
-                    className={inst.id === chat.instancia_id ? "bg-accent" : ""}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span>{inst.nome}</span>
-                      {inst.id === chat.instancia_id && (
-                        <Check className="h-4 w-4 text-primary" />
-                      )}
-                    </div>
-                  </DropdownMenuItem>
-                ))
+                instanciasDisponiveis.map(inst => {
+                  const status = instanciasStatus[inst.id];
+                  return (
+                    <DropdownMenuItem
+                      key={inst.id}
+                      onClick={() => handleChangeInstance(inst.id)}
+                      className={inst.id === chat.instancia_id ? "bg-accent" : ""}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <div className="flex items-center gap-2">
+                          {/* Status indicator */}
+                          <span 
+                            className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                              status === 'loading' 
+                                ? 'bg-muted-foreground animate-pulse' 
+                                : status === 'connected' 
+                                  ? 'bg-green-500' 
+                                  : 'bg-red-500'
+                            }`}
+                            title={status === 'loading' ? 'Verificando...' : status === 'connected' ? 'Conectada' : 'Desconectada'}
+                          />
+                          <span>{inst.nome}</span>
+                        </div>
+                        {inst.id === chat.instancia_id && (
+                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  );
+                })
               )}
             </DropdownMenuContent>
           </DropdownMenu>
