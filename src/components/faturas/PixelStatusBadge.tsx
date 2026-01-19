@@ -55,6 +55,7 @@ export function PixelStatusBadge({
   const [dobText, setDobText] = useState<string>("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [faturaValor, setFaturaValor] = useState<number | null>(null);
+  const [dataFatura, setDataFatura] = useState<string | null>(null);
   const [loadingLeadData, setLoadingLeadData] = useState(false);
   const [sendFormDialogOpen, setSendFormDialogOpen] = useState(false);
   const [sendingForm, setSendingForm] = useState(false);
@@ -138,15 +139,16 @@ export function PixelStatusBadge({
         .eq("id", clienteId)
         .maybeSingle();
       
-      // Fetch fatura value
+      // Fetch fatura value and date
       const { data: faturaResult } = await supabase
         .from("faturas")
-        .select("valor")
+        .select("valor, data_fatura")
         .eq("id", faturaId)
         .maybeSingle();
       
       setLeadData(leadResult);
       setFaturaValor(faturaResult?.valor || null);
+      setDataFatura(faturaResult?.data_fatura || null);
       setReviewDialogOpen(true);
     } catch (error) {
       console.error("Error loading lead data:", error);
@@ -254,6 +256,8 @@ export function PixelStatusBadge({
           customer_state: leadData?.estado,
           customer_zip: leadData?.cep,
           external_id: clienteId,
+          // Use data_fatura for event_time
+          data_fatura: dataFatura,
         },
         headers: {
           Authorization: `Bearer ${session.session?.access_token}`,

@@ -270,7 +270,19 @@ serve(async (req) => {
 
     // Generate unique event ID for deduplication
     const eventId = crypto.randomUUID();
-    const eventTime = Math.floor(Date.now() / 1000);
+    
+    // Use data_fatura timestamp if provided, otherwise use current time
+    const { data_fatura } = body;
+    let eventTime: number;
+    if (data_fatura) {
+      // Parse the date string and convert to Unix timestamp (seconds)
+      const faturaDate = new Date(data_fatura);
+      eventTime = Math.floor(faturaDate.getTime() / 1000);
+      console.log(`Using data_fatura for event_time: ${data_fatura} -> ${eventTime}`);
+    } else {
+      eventTime = Math.floor(Date.now() / 1000);
+      console.log(`Using current time for event_time: ${eventTime}`);
+    }
 
     // =====================================================
     // Build user_data following Meta's guidelines exactly
@@ -406,7 +418,7 @@ serve(async (req) => {
       event_name,
       event_time: eventTime,
       event_id: eventId,
-      action_source: "system_generated", // Using system_generated since events come from CRM
+      action_source: "business_messaging", // Events from CRM/business interactions
       user_data: userData,
     };
 
