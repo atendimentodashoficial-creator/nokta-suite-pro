@@ -42,7 +42,7 @@ export default function Disparos() {
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useTabPersistence("tab", "conversas");
-  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [viewMode, setViewMode] = useTabPersistence("view", "list");
   const [chats, setChats] = useState<any[]>([]);
   const [chatsLoaded, setChatsLoaded] = useState(false);
   const [filteredChats, setFilteredChats] = useState<any[]>([]);
