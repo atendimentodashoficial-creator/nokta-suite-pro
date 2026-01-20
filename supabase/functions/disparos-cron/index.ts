@@ -39,13 +39,11 @@ Deno.serve(async (req) => {
     console.log(`[CRON] Starting disparos cron at ${now.toISOString()}`);
 
     // Find all running campaigns that are ready to continue
-    // Only process SHORT delay campaigns (delay_min < 60) via cron
-    // Long delay campaigns are handled by the frontend scheduler to avoid duplicate processing
+    // Process ALL campaigns regardless of delay - cron is the primary scheduler
     const { data: campanhas, error: campanhasError } = await supabase
       .from("disparos_campanhas")
       .select("id, nome, user_id, next_send_at, status, delay_min")
       .eq("status", "running")
-      .lt("delay_min", 60) // Only short delay campaigns
       .or(`next_send_at.is.null,next_send_at.lte.${now.toISOString()}`);
 
     if (campanhasError) {
