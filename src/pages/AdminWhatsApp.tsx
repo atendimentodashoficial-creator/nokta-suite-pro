@@ -21,6 +21,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { useTabPersistence } from "@/hooks/useTabPersistence";
+
 export default function AdminWhatsApp() {
   const {
     user
@@ -38,7 +40,7 @@ export default function AdminWhatsApp() {
   const [newChatCountryCode, setNewChatCountryCode] = useState("55");
   const [hasConfig, setHasConfig] = useState(false);
   const [instanceConnectedAt, setInstanceConnectedAt] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [viewMode, setViewMode] = useTabPersistence("view", "list");
 
   // Selection state for bulk delete
   const [isSelectionMode, setIsSelectionMode] = useState(false);
