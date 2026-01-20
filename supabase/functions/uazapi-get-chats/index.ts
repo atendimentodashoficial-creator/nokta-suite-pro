@@ -5,6 +5,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
+
 interface Chat {
   id: string;
   name: string;
@@ -92,13 +101,10 @@ serve(async (req) => {
       .eq("is_active", true)
       .single();
 
-    if (configError || !config) {
-      console.error("UAZapi config not found:", configError);
-      return new Response(JSON.stringify({ error: "UAZapi não configurado. Configure suas credenciais primeiro." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+     if (configError || !config) {
+       console.error("UAZapi config not found:", configError);
+       throw new HttpError(400, "UAZapi não configurado. Configure suas credenciais primeiro.");
+     }
 
     // Use the LATEST of updated_at (last config save) as the filter for old conversations
     // This ensures that when reconnecting an instance, old chats are not imported
@@ -145,14 +151,14 @@ serve(async (req) => {
       const text = await response.text().catch(() => "");
       console.error("UAZapi error response:", text);
       
-      if (response.status === 401 || response.status === 403) {
-        throw new Error("API Key inválida ou sem permissão. Verifique sua chave da UAZapi.");
-      }
-      if (response.status === 404) {
-        throw new Error("Endpoint não encontrado. Verifique se a URL base está correta (ex: https://sua-instancia.uazapi.com)");
-      }
+       if (response.status === 401 || response.status === 403) {
+         throw new HttpError(401, "API Key inválida ou sem permissão. Verifique sua chave da UAZapi.");
+       }
+       if (response.status === 404) {
+         throw new HttpError(400, "Endpoint não encontrado. Verifique se a URL base está correta (ex: https://sua-instancia.uazapi.com)");
+       }
       
-      throw new Error(`Erro UAZapi (${response.status}): ${text || response.statusText}`);
+       throw new HttpError(502, `Erro UAZapi (${response.status}): ${text || response.statusText}`);
     }
 
     const raw = await response.json().catch(async () => {
@@ -552,7 +558,7 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (error) {
+   } catch (error) {
     console.error("Error in uazapi-get-chats:", error);
     try {
       console.error("Error in uazapi-get-chats (serialized):", JSON.stringify(error));
@@ -561,13 +567,20 @@ serve(async (req) => {
     }
 
     // Update sync status with error
-    const errAny: any = error;
+     const errAny: any = error;
     const errorMessage =
       error instanceof Error
         ? error.message
         : errAny?.message
           ? String(errAny.message)
           : "Unknown error";
+
+     const statusCode =
+       error instanceof HttpError
+         ? error.status
+         : typeof errAny?.status === "number"
+           ? errAny.status
+           : 500;
     try {
       const authHeaderRetry = req.headers.get("Authorization");
       if (authHeaderRetry) {
@@ -591,8 +604,8 @@ serve(async (req) => {
       console.error("Error updating sync status:", e);
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+     return new Response(JSON.stringify({ error: errorMessage }), {
+       status: statusCode,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
