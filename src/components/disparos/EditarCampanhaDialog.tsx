@@ -1497,6 +1497,10 @@ export function EditarCampanhaDialog({
                   {/* Delay entre blocos */}
                   {blocos.length > 1 && (
                     <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-muted-foreground" />
+                        <Label>Intervalo entre blocos ({delayBlocoMin} a {delayBlocoMax} seg)</Label>
+                      </div>
                       <div className="flex items-center gap-4">
                         <div className="flex-1 space-y-2">
                           <div className="flex justify-between text-sm text-muted-foreground">
