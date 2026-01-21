@@ -758,99 +758,68 @@ async function processCampaign(
   }
 
   /**
-   * STRICT ROUND-ROBIN instance selection algorithm with real-time connectivity check
+   * CYCLIC ROUND-ROBIN instance selection algorithm
    * 
-   * Rules (in order of priority):
-   * 1. Always select the instance with the LOWEST send count (forces balanced distribution)
-   * 2. If multiple instances have the same lowest count, prefer one that is NOT the last used
-   * 3. Small random factor for tie-breaking between equal candidates
+   * CRITICAL: This is a TRUE round-robin that cycles through instances in order.
+   * It does NOT try to "catch up" instances with lower counts - this was the bug!
+   * 
+   * Rules:
+   * 1. Maintain a fixed order of instances (sorted by ID for consistency)
+   * 2. Always pick the NEXT instance in the rotation after the last used one
+   * 3. Skip disconnected instances but continue the cycle
    * 4. Never repeat the same instance twice in a row UNLESS it's the only connected one
    */
   async function selectNextInstance(): Promise<DisparosInstancia | null> {
     const candidateInstances = [...instancias];
     
     if (candidateInstances.length === 0) {
-      console.error(`[Strict Round-Robin] No instances configured!`);
+      console.error(`[Cyclic Round-Robin] No instances configured!`);
       return null;
     }
 
-    // Find the minimum send count among all instances
-    const sendCounts = candidateInstances.map((inst) => instanceStats.get(inst.id)?.sends ?? 0);
-    const minSends = Math.min(...sendCounts);
+    // CRITICAL: Sort by ID for consistent ordering across all executions
+    // This ensures the rotation order is always the same
+    candidateInstances.sort((a, b) => a.id.localeCompare(b.id));
     
-    console.log(`[Strict Round-Robin] Instance send counts: ${candidateInstances.map(i => `${i.nome}=${instanceStats.get(i.id)?.sends ?? 0}`).join(', ')} | Min=${minSends}`);
+    console.log(`[Cyclic Round-Robin] Instance order: ${candidateInstances.map((i, idx) => `${idx}:${i.nome}`).join(' -> ')}`);
+    console.log(`[Cyclic Round-Robin] Last used: ${lastUsedInstanceId ? candidateInstances.find(i => i.id === lastUsedInstanceId)?.nome : 'none'}`);
 
-    // Get all instances that have the minimum send count (eligible for selection)
-    const eligibleInstances = candidateInstances.filter(
-      (inst) => (instanceStats.get(inst.id)?.sends ?? 0) === minSends
-    );
+    // Find the index of the last used instance
+    let lastUsedIndex = lastUsedInstanceId 
+      ? candidateInstances.findIndex((i) => i.id === lastUsedInstanceId)
+      : -1;
     
-    console.log(`[Strict Round-Robin] Eligible instances (with minSends=${minSends}): ${eligibleInstances.map(i => i.nome).join(', ')}`);
+    // Start from the NEXT instance after the last used one
+    const startIndex = (lastUsedIndex + 1) % candidateInstances.length;
+    
+    console.log(`[Cyclic Round-Robin] Starting search from index ${startIndex} (${candidateInstances[startIndex]?.nome})`);
 
-    // Among eligible instances, prefer those that are NOT the last used (to avoid repeating)
-    const nonLastEligible = eligibleInstances.filter((inst) => inst.id !== lastUsedInstanceId);
-    
-    // Determine the pool to select from
-    let selectionPool = nonLastEligible.length > 0 ? nonLastEligible : eligibleInstances;
-    
-    // Add small random shuffle for tie-breaking
-    selectionPool = selectionPool.sort(() => Math.random() - 0.5);
-    
-    console.log(`[Strict Round-Robin] Selection pool (after excluding last if possible): ${selectionPool.map(i => i.nome).join(', ')}`);
-
-    // Try each candidate in the selection pool until we find a connected one
-    for (const instance of selectionPool) {
+    // Try each instance in cyclic order starting from startIndex
+    for (let offset = 0; offset < candidateInstances.length; offset++) {
+      const currentIndex = (startIndex + offset) % candidateInstances.length;
+      const instance = candidateInstances[currentIndex];
+      
+      // Check if this instance is connected
       const isConnected = await checkInstanceConnection(instance);
+      
       if (!isConnected) {
-        console.log(`[Strict Round-Robin] Instance ${instance.nome} is NOT connected, skipping...`);
+        console.log(`[Cyclic Round-Robin] Instance ${instance.nome} (idx=${currentIndex}) is NOT connected, trying next...`);
         await markInstanceAsDisabled(instance.id, instance.nome);
         continue;
       }
 
-      console.log(`[Strict Round-Robin] SELECTED: ${instance.nome} (sends=${instanceStats.get(instance.id)?.sends ?? 0} -> ${(instanceStats.get(instance.id)?.sends ?? 0) + 1})`);
+      // Found a connected instance!
       const stats = instanceStats.get(instance.id)!;
+      const prevSends = stats.sends;
       stats.sends++;
       stats.lastSendTime = Date.now();
       lastUsedInstanceId = instance.id;
+      
+      console.log(`[Cyclic Round-Robin] SELECTED: ${instance.nome} (idx=${currentIndex}, sends=${prevSends} -> ${stats.sends})`);
       return instance;
     }
 
-    // If no non-last-used candidate was connected, try the last used as fallback
-    if (nonLastEligible.length > 0 && lastUsedInstanceId) {
-      const lastInstance = eligibleInstances.find((i) => i.id === lastUsedInstanceId);
-      if (lastInstance) {
-        const isConnected = await checkInstanceConnection(lastInstance);
-        if (isConnected) {
-          console.log(`[Strict Round-Robin] FALLBACK to last used: ${lastInstance.nome}`);
-          const stats = instanceStats.get(lastInstance.id)!;
-          stats.sends++;
-          stats.lastSendTime = Date.now();
-          return lastInstance;
-        } else {
-          await markInstanceAsDisabled(lastInstance.id, lastInstance.nome);
-        }
-      }
-    }
-
-    // Last resort: try ALL instances regardless of send count (some might have been skipped due to being disconnected)
-    console.log(`[Strict Round-Robin] Primary selection failed, trying all instances as fallback...`);
-    for (const instance of candidateInstances.sort(() => Math.random() - 0.5)) {
-      if (selectionPool.some(i => i.id === instance.id)) continue; // Already tried
-      
-      const isConnected = await checkInstanceConnection(instance);
-      if (isConnected) {
-        console.log(`[Strict Round-Robin] FALLBACK SELECTED: ${instance.nome}`);
-        const stats = instanceStats.get(instance.id)!;
-        stats.sends++;
-        stats.lastSendTime = Date.now();
-        lastUsedInstanceId = instance.id;
-        return instance;
-      } else {
-        await markInstanceAsDisabled(instance.id, instance.nome);
-      }
-    }
-
-    console.error(`[Strict Round-Robin] No connected instances available!`);
+    console.error(`[Cyclic Round-Robin] No connected instances available after checking all ${candidateInstances.length}!`);
     return null;
   }
 
