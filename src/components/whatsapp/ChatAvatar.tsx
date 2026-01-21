@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { getInitials, normalizePhoneNumber, getLast8Digits } from "@/utils/whatsapp";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { User } from "lucide-react";
 
 interface ChatAvatarProps {
   chat: {
@@ -9,9 +17,11 @@ interface ChatAvatarProps {
     contact_number: string;
   };
   size?: "sm" | "md" | "lg";
+  showProfileOption?: boolean;
 }
 
-export const ChatAvatar = ({ chat, size = "md" }: ChatAvatarProps) => {
+export const ChatAvatar = ({ chat, size = "md", showProfileOption = true }: ChatAvatarProps) => {
+  const navigate = useNavigate();
   const [leadStatus, setLeadStatus] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
 
@@ -115,11 +125,37 @@ export const ChatAvatar = ({ chat, size = "md" }: ChatAvatarProps) => {
     return "bg-muted";
   };
 
-  return (
-    <Avatar className={sizeClasses[size]}>
+  const handleOpenProfile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (leadId && leadStatus === "cliente") {
+      navigate(`/clientes/${leadId}`);
+    }
+  };
+
+  const avatarElement = (
+    <Avatar className={`${sizeClasses[size]} ${showProfileOption && leadId && leadStatus === "cliente" ? "cursor-pointer hover:ring-2 hover:ring-primary transition-all" : ""}`}>
       <AvatarFallback className={getAvatarColor()}>
         {getInitials(chat.contact_name)}
       </AvatarFallback>
     </Avatar>
   );
+
+  // Show dropdown only for clients
+  if (showProfileOption && leadId && leadStatus === "cliente") {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          {avatarElement}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuItem onClick={handleOpenProfile}>
+            <User className="w-4 h-4 mr-2" />
+            Ver perfil do cliente
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  return avatarElement;
 };
