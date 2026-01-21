@@ -758,62 +758,56 @@ async function processCampaign(
   }
 
   /**
-   * Smart instance selection algorithm with real-time connectivity check
-   * Now uses a UNIFIED scoring approach - all instances compete equally with penalties
-   * instead of completely excluding the last used instance
+   * STRICT ROUND-ROBIN instance selection algorithm with real-time connectivity check
+   * 
+   * Rules (in order of priority):
+   * 1. Always select the instance with the LOWEST send count (forces balanced distribution)
+   * 2. If multiple instances have the same lowest count, prefer one that is NOT the last used
+   * 3. Small random factor for tie-breaking between equal candidates
+   * 4. Never repeat the same instance twice in a row UNLESS it's the only connected one
    */
   async function selectNextInstance(): Promise<DisparosInstancia | null> {
     const candidateInstances = [...instancias];
-    const now = Date.now();
+    
+    if (candidateInstances.length === 0) {
+      console.error(`[Strict Round-Robin] No instances configured!`);
+      return null;
+    }
 
-    // Use RELATIVE sends to avoid starving an instance forever when it has historical sends.
-    // We only care about balancing between currently available instances.
-    const sendsByInstance = candidateInstances.map((inst) => instanceStats.get(inst.id)?.sends ?? 0);
-    const minSends = sendsByInstance.length > 0 ? Math.min(...sendsByInstance) : 0;
+    // Find the minimum send count among all instances
+    const sendCounts = candidateInstances.map((inst) => instanceStats.get(inst.id)?.sends ?? 0);
+    const minSends = Math.min(...sendCounts);
+    
+    console.log(`[Strict Round-Robin] Instance send counts: ${candidateInstances.map(i => `${i.nome}=${instanceStats.get(i.id)?.sends ?? 0}`).join(', ')} | Min=${minSends}`);
 
-    // Score ALL instances (including last used) with appropriate penalties
-    const scoredCandidates = candidateInstances
-      .map((inst) => {
-        const stats = instanceStats.get(inst.id);
-        const sends = stats?.sends ?? 0;
-        const lastSendTime = stats?.lastSendTime ?? 0;
+    // Get all instances that have the minimum send count (eligible for selection)
+    const eligibleInstances = candidateInstances.filter(
+      (inst) => (instanceStats.get(inst.id)?.sends ?? 0) === minSends
+    );
+    
+    console.log(`[Strict Round-Robin] Eligible instances (with minSends=${minSends}): ${eligibleInstances.map(i => i.nome).join(', ')}`);
 
-        // Penalize instances that have sent more THAN the least-used instance.
-        // Lower weight (30) to allow fairer distribution
-        const relativeSends = Math.max(0, sends - minSends);
-        const sendPenalty = relativeSends * 30;
+    // Among eligible instances, prefer those that are NOT the last used (to avoid repeating)
+    const nonLastEligible = eligibleInstances.filter((inst) => inst.id !== lastUsedInstanceId);
+    
+    // Determine the pool to select from
+    let selectionPool = nonLastEligible.length > 0 ? nonLastEligible : eligibleInstances;
+    
+    // Add small random shuffle for tie-breaking
+    selectionPool = selectionPool.sort(() => Math.random() - 0.5);
+    
+    console.log(`[Strict Round-Robin] Selection pool (after excluding last if possible): ${selectionPool.map(i => i.nome).join(', ')}`);
 
-        // Slightly penalize instances used very recently (helps spread load).
-        const recencyPenalty =
-          lastSendTime > 0 ? Math.max(0, 30 - (now - lastSendTime) / 1000) : 0;
-
-        // Add penalty for last used instance to avoid immediate repeat
-        // But NOT exclusion - just a moderate penalty that can be overcome if it has fewer sends
-        const lastUsedPenalty = (inst.id === lastUsedInstanceId && candidateInstances.length > 1) ? 25 : 0;
-
-        const randomFactor = Math.random() * 5;
-
-        const score = sendPenalty + recencyPenalty + lastUsedPenalty + randomFactor;
-        
-        console.log(`[Smart Rotation] Instance ${inst.nome}: sends=${sends}, relativeSends=${relativeSends}, sendPenalty=${sendPenalty.toFixed(1)}, recencyPenalty=${recencyPenalty.toFixed(1)}, lastUsedPenalty=${lastUsedPenalty}, random=${randomFactor.toFixed(1)}, TOTAL=${score.toFixed(1)}`);
-
-        return {
-          instance: inst,
-          score,
-        };
-      })
-      .sort((a, b) => a.score - b.score);
-
-    // Try all candidates in order of score (lowest score = best candidate)
-    for (const { instance, score } of scoredCandidates) {
+    // Try each candidate in the selection pool until we find a connected one
+    for (const instance of selectionPool) {
       const isConnected = await checkInstanceConnection(instance);
       if (!isConnected) {
-        console.log(`[Smart Rotation] Instance ${instance.nome} is NOT connected, marking as disabled...`);
+        console.log(`[Strict Round-Robin] Instance ${instance.nome} is NOT connected, skipping...`);
         await markInstanceAsDisabled(instance.id, instance.nome);
         continue;
       }
 
-      console.log(`[Smart Rotation] SELECTED: ${instance.nome} with score ${score.toFixed(1)}`);
+      console.log(`[Strict Round-Robin] SELECTED: ${instance.nome} (sends=${instanceStats.get(instance.id)?.sends ?? 0} -> ${(instanceStats.get(instance.id)?.sends ?? 0) + 1})`);
       const stats = instanceStats.get(instance.id)!;
       stats.sends++;
       stats.lastSendTime = Date.now();
@@ -821,7 +815,42 @@ async function processCampaign(
       return instance;
     }
 
-    console.error(`[Smart Rotation] No connected instances available!`);
+    // If no non-last-used candidate was connected, try the last used as fallback
+    if (nonLastEligible.length > 0 && lastUsedInstanceId) {
+      const lastInstance = eligibleInstances.find((i) => i.id === lastUsedInstanceId);
+      if (lastInstance) {
+        const isConnected = await checkInstanceConnection(lastInstance);
+        if (isConnected) {
+          console.log(`[Strict Round-Robin] FALLBACK to last used: ${lastInstance.nome}`);
+          const stats = instanceStats.get(lastInstance.id)!;
+          stats.sends++;
+          stats.lastSendTime = Date.now();
+          return lastInstance;
+        } else {
+          await markInstanceAsDisabled(lastInstance.id, lastInstance.nome);
+        }
+      }
+    }
+
+    // Last resort: try ALL instances regardless of send count (some might have been skipped due to being disconnected)
+    console.log(`[Strict Round-Robin] Primary selection failed, trying all instances as fallback...`);
+    for (const instance of candidateInstances.sort(() => Math.random() - 0.5)) {
+      if (selectionPool.some(i => i.id === instance.id)) continue; // Already tried
+      
+      const isConnected = await checkInstanceConnection(instance);
+      if (isConnected) {
+        console.log(`[Strict Round-Robin] FALLBACK SELECTED: ${instance.nome}`);
+        const stats = instanceStats.get(instance.id)!;
+        stats.sends++;
+        stats.lastSendTime = Date.now();
+        lastUsedInstanceId = instance.id;
+        return instance;
+      } else {
+        await markInstanceAsDisabled(instance.id, instance.nome);
+      }
+    }
+
+    console.error(`[Strict Round-Robin] No connected instances available!`);
     return null;
   }
 
