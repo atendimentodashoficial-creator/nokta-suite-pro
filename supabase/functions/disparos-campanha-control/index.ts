@@ -759,57 +759,53 @@ async function processCampaign(
 
   /**
    * Smart instance selection algorithm with real-time connectivity check
-   * Now async to verify instance is actually connected before selecting
+   * Now uses a UNIFIED scoring approach - all instances compete equally with penalties
+   * instead of completely excluding the last used instance
    */
   async function selectNextInstance(): Promise<DisparosInstancia | null> {
     const candidateInstances = [...instancias];
-
-    // If we have more than one instance available, enforce "no immediate repeat".
-    // We do a TWO-PHASE selection:
-    // 1) Try all instances EXCEPT the last used (sorted by score)
-    // 2) Only if none are connected, fallback to last used (if it is connected)
-    const lastInstance = lastUsedInstanceId
-      ? candidateInstances.find((i) => i.id === lastUsedInstanceId) ?? null
-      : null;
-
-    const nonLastCandidates =
-      lastUsedInstanceId && candidateInstances.length > 1
-        ? candidateInstances.filter((i) => i.id !== lastUsedInstanceId)
-        : candidateInstances;
-
     const now = Date.now();
 
     // Use RELATIVE sends to avoid starving an instance forever when it has historical sends.
     // We only care about balancing between currently available instances.
-    const sendsByInstance = nonLastCandidates.map((inst) => instanceStats.get(inst.id)?.sends ?? 0);
+    const sendsByInstance = candidateInstances.map((inst) => instanceStats.get(inst.id)?.sends ?? 0);
     const minSends = sendsByInstance.length > 0 ? Math.min(...sendsByInstance) : 0;
 
-    const scoredNonLast = nonLastCandidates
+    // Score ALL instances (including last used) with appropriate penalties
+    const scoredCandidates = candidateInstances
       .map((inst) => {
         const stats = instanceStats.get(inst.id);
         const sends = stats?.sends ?? 0;
         const lastSendTime = stats?.lastSendTime ?? 0;
 
         // Penalize instances that have sent more THAN the least-used instance.
-        // Keep this weight low; otherwise one instance can be "locked out" for a long time.
+        // Lower weight (30) to allow fairer distribution
         const relativeSends = Math.max(0, sends - minSends);
-        const sendPenalty = relativeSends * 50;
+        const sendPenalty = relativeSends * 30;
 
         // Slightly penalize instances used very recently (helps spread load).
         const recencyPenalty =
           lastSendTime > 0 ? Math.max(0, 30 - (now - lastSendTime) / 1000) : 0;
 
+        // Add penalty for last used instance to avoid immediate repeat
+        // But NOT exclusion - just a moderate penalty that can be overcome if it has fewer sends
+        const lastUsedPenalty = (inst.id === lastUsedInstanceId && candidateInstances.length > 1) ? 25 : 0;
+
         const randomFactor = Math.random() * 5;
+
+        const score = sendPenalty + recencyPenalty + lastUsedPenalty + randomFactor;
+        
+        console.log(`[Smart Rotation] Instance ${inst.nome}: sends=${sends}, relativeSends=${relativeSends}, sendPenalty=${sendPenalty.toFixed(1)}, recencyPenalty=${recencyPenalty.toFixed(1)}, lastUsedPenalty=${lastUsedPenalty}, random=${randomFactor.toFixed(1)}, TOTAL=${score.toFixed(1)}`);
 
         return {
           instance: inst,
-          score: sendPenalty + recencyPenalty + randomFactor,
+          score,
         };
       })
       .sort((a, b) => a.score - b.score);
 
-    // Phase 1: try non-last candidates
-    for (const { instance } of scoredNonLast) {
+    // Try all candidates in order of score (lowest score = best candidate)
+    for (const { instance, score } of scoredCandidates) {
       const isConnected = await checkInstanceConnection(instance);
       if (!isConnected) {
         console.log(`[Smart Rotation] Instance ${instance.nome} is NOT connected, marking as disabled...`);
@@ -817,29 +813,12 @@ async function processCampaign(
         continue;
       }
 
+      console.log(`[Smart Rotation] SELECTED: ${instance.nome} with score ${score.toFixed(1)}`);
       const stats = instanceStats.get(instance.id)!;
       stats.sends++;
       stats.lastSendTime = Date.now();
       lastUsedInstanceId = instance.id;
       return instance;
-    }
-
-    // Phase 2: fallback to last used ONLY if no alternative is connected
-    if (lastInstance) {
-      const lastConnected = await checkInstanceConnection(lastInstance);
-      if (lastConnected) {
-        console.log(
-          `[Smart Rotation] No alternative connected. Falling back to last used instance: ${lastInstance.nome}`,
-        );
-        const stats = instanceStats.get(lastInstance.id)!;
-        stats.sends++;
-        stats.lastSendTime = Date.now();
-        lastUsedInstanceId = lastInstance.id;
-        return lastInstance;
-      } else {
-        console.log(`[Smart Rotation] Last instance ${lastInstance.nome} also disconnected, marking as disabled...`);
-        await markInstanceAsDisabled(lastInstance.id, lastInstance.nome);
-      }
     }
 
     console.error(`[Smart Rotation] No connected instances available!`);
