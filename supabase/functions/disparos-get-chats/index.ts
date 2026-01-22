@@ -127,7 +127,24 @@ serve(async (req) => {
       }
     }
 
-    // Fetch chats from ALL instances in parallel
+    // Fetch chats from ALL instances in parallel with timeout protection
+    const FETCH_TIMEOUT_MS = 15000; // 15 seconds per instance
+    
+    const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs: number): Promise<Response> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+        });
+        return response;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+    
     const instancePromises = configs.map(async (config) => {
       const baseUrl = config.base_url.replace(/\/+$/, '');
       const endpoint = `${baseUrl}/chat/find`;
@@ -137,7 +154,7 @@ serve(async (req) => {
       try {
         // Use a reasonable limit to prevent timeouts (UAZapi may have many old chats)
         // Sync focuses on recent conversations - old chats arrive via webhook when they have new messages
-        const response = await fetch(endpoint, {
+        const response = await fetchWithTimeout(endpoint, {
           method: "POST",
           headers: {
             "Accept": "application/json",
@@ -146,10 +163,10 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             sort: "-wa_lastMsgTimestamp",
-            limit: 500,
+            limit: 300, // Reduced to prevent timeouts
             offset: 0,
           }),
-        });
+        }, FETCH_TIMEOUT_MS);
 
         if (!response.ok) {
           const text = await response.text();
@@ -170,13 +187,24 @@ serve(async (req) => {
         console.log(`Found ${chats.length} chats from instance ${config.nome}`);
         return { config, chats, error: null };
       } catch (instanceError: any) {
+        // Handle abort (timeout) differently
+        if (instanceError.name === 'AbortError') {
+          console.error(`Timeout fetching instance ${config.nome} after ${FETCH_TIMEOUT_MS}ms`);
+          return { config, chats: [], error: `Timeout after ${FETCH_TIMEOUT_MS / 1000}s` };
+        }
         console.error(`Error fetching instance ${config.nome}:`, instanceError);
         return { config, chats: [], error: instanceError.message };
       }
     });
 
-    // Wait for ALL instances to complete
+    // Wait for ALL instances to complete (with individual timeouts, all will finish)
     const instanceResults = await Promise.all(instancePromises);
+    
+    // Log any errors but continue with successful results
+    const failedInstances = instanceResults.filter(r => r.error);
+    if (failedInstances.length > 0) {
+      console.warn(`${failedInstances.length} instance(s) had errors:`, failedInstances.map(f => `${f.config.nome}: ${f.error}`));
+    }
 
     // Collect all chats to upsert in a single batch
     const chatsToUpsert: any[] = [];
