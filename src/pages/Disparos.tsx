@@ -142,7 +142,9 @@ export default function Disparos() {
         .from('disparos_chats')
         .select('*')
         .is('deleted_at', null)
-        .order('last_message_time', { ascending: false, nullsFirst: false });
+        .order('last_message_time', { ascending: false, nullsFirst: false })
+        .limit(1000); // Ensure we don't hit query limits
+        
       if (error) throw error;
       const deduped = dedupeChatsByInstanceAndPhone(data || []);
 
@@ -240,36 +242,62 @@ export default function Disparos() {
         session = sessionData.session;
       }
 
-      const response = await supabase.functions.invoke('disparos-get-chats', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      // Use a timeout to prevent the UI from hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second total timeout
 
-      if (response.error) {
-        const anyErr: any = response.error;
-        let detailedMessage = response.error.message;
-        try {
-          const resp: Response | undefined = anyErr?.context?.response;
-          if (resp) {
-            const text = await resp.text();
-            if (text) {
-              try {
-                const parsed = JSON.parse(text);
-                detailedMessage = parsed?.error || parsed?.message || detailedMessage;
-              } catch {
-                detailedMessage = text;
+      try {
+        const response = await supabase.functions.invoke('disparos-get-chats', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.error) {
+          const anyErr: any = response.error;
+          let detailedMessage = response.error.message;
+          try {
+            const resp: Response | undefined = anyErr?.context?.response;
+            if (resp) {
+              const text = await resp.text();
+              if (text) {
+                try {
+                  const parsed = JSON.parse(text);
+                  detailedMessage = parsed?.error || parsed?.message || detailedMessage;
+                } catch {
+                  detailedMessage = text;
+                }
               }
             }
+          } catch {}
+          
+          // Log error but still load cached chats from database
+          console.error('Sync error (loading cached data):', detailedMessage);
+          if (!silent) {
+            toast.warning('Sincronização parcial - carregando dados do cache');
           }
-        } catch {}
-        throw new Error(detailedMessage);
+        }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.error('Sync timeout - loading cached data');
+          if (!silent) {
+            toast.warning('Sincronização demorou muito - carregando dados do cache');
+          }
+        } else {
+          throw fetchError;
+        }
       }
 
+      // Always load chats from database (even if sync failed, show cached data)
       await loadChats();
       // With webhook configured, real-time updates handle message arrival.
       // This sync is just a fallback to catch any missed data.
     } catch (error: any) {
       console.error('Error syncing disparos chats:', error);
       if (!silent) toast.error(error.message || 'Erro ao sincronizar chats');
+      // Still try to load cached chats on error
+      await loadChats();
     } finally {
       setIsSyncing(false);
     }
