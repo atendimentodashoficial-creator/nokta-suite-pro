@@ -20,6 +20,7 @@ interface AdminUser {
   email: string;
   user_metadata?: {
     full_name?: string;
+    display_order?: number;
   };
 }
 
@@ -33,7 +34,13 @@ export const AdminClientSwitcher = ({ collapsed = false }: AdminClientSwitcherPr
   const location = useLocation();
 
   const currentUserEmail = user?.email || "";
-  const users = (adminUsers as AdminUser[]) || [];
+  
+  // Sort users by display_order from user_metadata (same order as admin panel)
+  const users = [...((adminUsers as AdminUser[]) || [])].sort((a, b) => {
+    const orderA = a.user_metadata?.display_order ?? 9999;
+    const orderB = b.user_metadata?.display_order ?? 9999;
+    return orderA - orderB;
+  });
 
   const handleSwitchToUser = async (userEmail: string) => {
     if (userEmail === currentUserEmail) return;
