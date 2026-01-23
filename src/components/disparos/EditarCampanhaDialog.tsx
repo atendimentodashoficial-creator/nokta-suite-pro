@@ -1405,7 +1405,7 @@ export function EditarCampanhaDialog({
                                               className="text-sm"
                                             />
                                             <p className="text-xs text-muted-foreground">
-                                              Variáveis: {"{nome}"} - Nome do contato
+                                              Variáveis: {"{nome}"} - Nome completo | {"{primeironome}"} - Primeiro nome
                                             </p>
                                           </div>
                                         ) : (
