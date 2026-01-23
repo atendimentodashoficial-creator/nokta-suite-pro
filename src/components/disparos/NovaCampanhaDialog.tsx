@@ -1436,7 +1436,7 @@ export function NovaCampanhaDialog({
                                       mensagem: e.target.value
                                     })} rows={2} className="text-sm" />
                                     <p className="text-xs text-muted-foreground">
-                                      Variáveis: {"{nome}"} - Nome do contato
+                                      Variáveis: {"{nome}"} - Nome completo | {"{primeironome}"} - Primeiro nome
                                     </p>
                                   </div> : <div className="space-y-2">
                                     <div className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer hover:border-primary transition-colors" onClick={() => {

@@ -907,7 +907,7 @@ export function TemplatesTab() {
                   {editingTemplate ? "Editar Template" : "Novo Template"}
                 </DialogTitle>
                 <DialogDescription>
-                  Configure blocos e variações de mensagem. Use {"{nome}"} para nome do contato e {"{opção1|opção2}"} para variações.
+                  Configure blocos e variações de mensagem. Use {"{nome}"} para nome completo, {"{primeironome}"} para primeiro nome e {"{opção1|opção2}"} para variações.
                 </DialogDescription>
               </DialogHeader>
 

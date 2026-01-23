@@ -974,11 +974,19 @@ async function processCampaign(
         // Prepare message with variable substitution
         let mensagem = randomVariacao.mensagem || "";
         
-        // First, replace {nome} variable
+        // Replace {nome} variable (full name)
         if (contato.nome) {
           mensagem = mensagem.replace(/\{nome\}/gi, contato.nome);
         } else {
           mensagem = mensagem.replace(/\{nome\}/gi, "");
+        }
+        
+        // Replace {primeironome} variable (first name only)
+        if (contato.nome) {
+          const primeiroNome = contato.nome.split(' ')[0];
+          mensagem = mensagem.replace(/\{primeironome\}/gi, primeiroNome);
+        } else {
+          mensagem = mensagem.replace(/\{primeironome\}/gi, "");
         }
         
         // Then, process spintax variations
