@@ -277,8 +277,14 @@ serve(async (req) => {
         // Format phone number for display when no name is available
         const formattedPhone = chat.phone || contactNumber;
         
-        // Use instance-specific key for deduplication (need to check existing chat first)
-        const instanciaId = config.id === "legacy_config" ? null : config.id;
+        // Use instance-specific key for deduplication
+        // CRITICAL: instancia_id must NEVER be null for Disparos chats
+        // If config.id is "legacy_config" (which shouldn't happen now), skip this chat
+        if (config.id === "legacy_config") {
+          console.log(`[SYNC] Skipping ${contactNumber} - legacy config without instance ID`);
+          continue;
+        }
+        const instanciaId = config.id;
         const dedupeKey = `${config.id}:${last8}`;
         
         // Get existing chat to preserve name if needed
@@ -381,6 +387,12 @@ serve(async (req) => {
           }
           
           // Create the new chat with history_cleared_at if it was deleted
+          // CRITICAL: Never create a chat without instancia_id
+          if (!instanciaId) {
+            console.error(`[SYNC] CRITICAL: Attempted to create chat without instancia_id for ${contactNumber}`);
+            continue;
+          }
+          
           const { error: insertError } = await supabase
             .from("disparos_chats")
             .insert({
