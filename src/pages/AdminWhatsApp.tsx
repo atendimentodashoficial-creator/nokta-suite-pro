@@ -40,6 +40,7 @@ export default function AdminWhatsApp() {
   const [newChatCountryCode, setNewChatCountryCode] = useState("55");
   const [hasConfig, setHasConfig] = useState(false);
   const [instanceConnectedAt, setInstanceConnectedAt] = useState<string | null>(null);
+  const [uazapiAuthError, setUazapiAuthError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useTabPersistence("view", "list");
 
   // Selection state for bulk delete
@@ -160,6 +161,7 @@ export default function AdminWhatsApp() {
       if (!user?.id) {
         setMainInstance(null);
         setHasConfig(false);
+        setUazapiAuthError(null);
         setConnectionStatus('disconnected');
         return null;
       }
@@ -184,6 +186,7 @@ export default function AdminWhatsApp() {
         if (instance) {
           setMainInstance(instance);
           setHasConfig(true);
+          setUazapiAuthError(null);
           
           // Set instanceConnectedAt to filter old chats.
           // IMPORTANT: this must be STABLE. Using updated_at makes the cutoff move forward on every sync,
@@ -208,12 +211,14 @@ export default function AdminWhatsApp() {
       setMainInstance(null);
       setHasConfig(false);
       setInstanceConnectedAt(null);
+      setUazapiAuthError(null);
       setConnectionStatus('disconnected');
       return null;
     } catch {
       setMainInstance(null);
       setHasConfig(false);
       setInstanceConnectedAt(null);
+      setUazapiAuthError(null);
       setConnectionStatus('disconnected');
       return null;
     }
@@ -771,9 +776,11 @@ export default function AdminWhatsApp() {
         // Supabase FunctionsHttpError often hides the body behind context.response
         const anyErr: any = response.error;
         let detailedMessage = response.error.message;
+        let status: number | undefined;
         try {
           const resp: Response | undefined = anyErr?.context?.response;
           if (resp) {
+            status = resp.status;
             const text = await resp.text();
             if (text) {
               try {
@@ -787,14 +794,28 @@ export default function AdminWhatsApp() {
         } catch {
           // ignore parsing issues
         }
+
+        // If provider auth failed, surface a persistent CTA and pause auto-sync.
+        if (status === 401 || /invalid token/i.test(detailedMessage) || /api key inv[áa]lida/i.test(detailedMessage)) {
+          setUazapiAuthError(detailedMessage);
+        }
+
         throw new Error(detailedMessage);
       }
 
       // Sync completed silently - no toast
+      setUazapiAuthError(null);
       await loadChats();
     } catch (error: any) {
       console.error('Error syncing chats:', error);
       toast.error(error.message || 'Erro ao sincronizar chats');
+
+      // Even when sync fails, keep UI usable with cached DB data.
+      try {
+        await loadChats();
+      } catch {
+        // ignore
+      }
     } finally {
       setIsSyncing(false);
     }
@@ -1057,12 +1078,14 @@ export default function AdminWhatsApp() {
   // Auto-sync every 60 seconds
   useEffect(() => {
     if (!hasConfig) return;
+    // Stop background sync when provider auth is failing (prevents repeated 401s + toasts).
+    if (uazapiAuthError) return;
     const interval = setInterval(() => {
       syncChats();
     }, 60000); // 60 seconds
 
     return () => clearInterval(interval);
-  }, [hasConfig]);
+  }, [hasConfig, uazapiAuthError]);
 
   // Realtime: keep unread badge and last message preview in sync with batching/debounce
   useEffect(() => {
@@ -1480,6 +1503,19 @@ export default function AdminWhatsApp() {
 
       {/* Search and actions bar - Same as Disparos layout */}
       {showMainHeader && <div className="flex-shrink-0 border-b bg-card px-4 py-2">
+          {uazapiAuthError && (
+            <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-sm">
+                  <p className="font-medium text-destructive">Não foi possível sincronizar: credencial inválida</p>
+                  <p className="text-muted-foreground">{uazapiAuthError}</p>
+                </div>
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/configuracoes?tab=conexoes">Ir para Conexões</Link>
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <Input
