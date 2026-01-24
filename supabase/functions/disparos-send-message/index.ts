@@ -36,12 +36,14 @@ serve(async (req) => {
     }
 
     // Get the chat to find which instance it belongs to
+    // CRITICAL: We must use the instance that the chat is associated with
+    // Never fall back to a different instance - this causes mismatches in the UI
     let config: any = null;
     
     if (db_chat_id) {
       const { data: chatData } = await supabase
         .from("disparos_chats")
-        .select("instancia_id")
+        .select("instancia_id, instancia_nome")
         .eq("id", db_chat_id)
         .single();
 
@@ -56,25 +58,18 @@ serve(async (req) => {
 
         if (instancia) {
           config = instancia;
+        } else {
+          // Instance exists but is not active or was deleted
+          throw new Error(`A instância "${chatData.instancia_nome || 'associada'}" não está ativa. Reconecte-a em Conexões → Disparos.`);
         }
+      } else {
+        // Chat has no instancia_id - this is a data integrity issue
+        console.error(`Chat ${db_chat_id} has no instancia_id - data integrity issue`);
+        throw new Error("Este chat não está vinculado a nenhuma instância. Abra a conversa pela lista de chats correta.");
       }
     }
 
-    // Fallback: try to get any active instance for this user
-    if (!config) {
-      const { data: instancias } = await supabase
-        .from("disparos_instancias")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1);
-
-      if (instancias && instancias.length > 0) {
-        config = instancias[0];
-      }
-    }
-
-    // No legacy fallback - Disparos tab only uses disparos_instancias
+    // No fallback allowed - we must always use the chat's instance
     if (!config) {
       throw new Error("Nenhuma instância de Disparos configurada. Configure em Conexões → Disparos.");
     }
