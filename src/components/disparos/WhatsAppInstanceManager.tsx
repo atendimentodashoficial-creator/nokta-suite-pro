@@ -257,9 +257,23 @@ export function WhatsAppInstanceManager({
       setApiKey("");
       onInstancesChange();
 
-      // Immediately open QR Code flow (like before)
+      // Check if instance is already connected before showing QR code
       if (data) {
-        await handleConnect(data);
+        const { data: session } = await supabase.auth.getSession();
+        
+        const statusResponse = await supabase.functions.invoke("uazapi-check-status", {
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          body: { base_url: baseUrl.trim(), api_key: apiKey.trim() },
+        });
+
+        if (statusResponse.data?.connected) {
+          // Already connected - no need to show QR code
+          toast.success("WhatsApp já está conectado!");
+          setConnectionStatus(prev => ({ ...prev, [data.id]: 'connected' }));
+        } else {
+          // Not connected - show QR code dialog
+          await handleConnect(data);
+        }
       }
     } catch (error: any) {
       toast.error(error.message || "Erro ao adicionar");
