@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { Link2, CheckCircle2, XCircle, Eye, EyeOff, Loader2, RefreshCw, Plus, Trash2, Bot, Database, ChevronDown, ChevronRight, Crosshair, Instagram } from "lucide-react";
+import { Link2, CheckCircle2, XCircle, Eye, EyeOff, Loader2, RefreshCw, Plus, Trash2, Bot, Database, ChevronDown, ChevronRight, Crosshair, Instagram, Mic } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,11 +121,25 @@ export default function Conexoes() {
     message: string;
   } | null>(null);
 
+  // ===== Fireflies State =====
+  const [hasFirefliesKey, setHasFirefliesKey] = useState(false);
+  const [loadingFireflies, setLoadingFireflies] = useState(true);
+  const [showFirefliesKey, setShowFirefliesKey] = useState(false);
+  const [firefliesApiKey, setFirefliesApiKey] = useState("");
+  const [newFirefliesKey, setNewFirefliesKey] = useState("");
+  const [savingFireflies, setSavingFireflies] = useState(false);
+  const [testingFireflies, setTestingFireflies] = useState(false);
+  const [firefliesTestResult, setFirefliesTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
   // ===== Collapsible States (default collapsed) =====
   const [metaOpen, setMetaOpen] = useState(false);
   const [googleAdsOpen, setGoogleAdsOpen] = useState(false);
   const [openAIOpen, setOpenAIOpen] = useState(false);
   const [apifyOpen, setApifyOpen] = useState(false);
+  const [firefliesOpen, setFirefliesOpen] = useState(false);
   const [metaPixelOpen, setMetaPixelOpen] = useState(false);
   const [instagramOpen, setInstagramOpen] = useState(false);
 
@@ -138,6 +152,7 @@ export default function Conexoes() {
       loadLinkedGoogleAdsAccounts();
       checkOpenAIConfig();
       loadApifyConfig();
+      loadFirefliesConfig();
       setLoadingDisparosInstancias(false);
     }
   }, [user]);
@@ -427,6 +442,121 @@ export default function Conexoes() {
       });
     } finally {
       setTestingApify(false);
+    }
+  };
+
+  // ===== Fireflies Functions =====
+  const loadFirefliesConfig = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("fireflies_config")
+        .select("*")
+        .eq("user_id", user?.id)
+        .single();
+      if (!error && data) {
+        setHasFirefliesKey(true);
+        setFirefliesApiKey(data.api_key);
+      }
+    } catch (error) {
+      console.error("Error loading Fireflies config:", error);
+    } finally {
+      setLoadingFireflies(false);
+    }
+  };
+
+  const saveFirefliesConfig = async () => {
+    const keyToSave = newFirefliesKey.trim() || firefliesApiKey;
+    if (!keyToSave) {
+      toast({
+        title: "Erro",
+        description: "Por favor, insira a API Key",
+        variant: "destructive"
+      });
+      return;
+    }
+    setSavingFireflies(true);
+    try {
+      const { error } = await supabase.from("fireflies_config").upsert({
+        user_id: user?.id,
+        api_key: keyToSave,
+        is_active: true,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: "user_id"
+      });
+      if (error) throw error;
+      setHasFirefliesKey(true);
+      setFirefliesApiKey(keyToSave);
+      setNewFirefliesKey("");
+      toast({
+        title: "Configuração salva!",
+        description: "API Key do Fireflies configurada com sucesso"
+      });
+    } catch (error) {
+      console.error("Error saving Fireflies config:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar a configuração",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingFireflies(false);
+    }
+  };
+
+  const testFirefliesConnection = async () => {
+    const keyToTest = newFirefliesKey.trim() || firefliesApiKey;
+    if (!keyToTest) {
+      toast({
+        title: "Erro",
+        description: "Nenhuma API Key configurada",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (newFirefliesKey.trim()) {
+      await saveFirefliesConfig();
+    }
+    
+    setTestingFireflies(true);
+    setFirefliesTestResult(null);
+    try {
+      // Test with Fireflies GraphQL API
+      const response = await fetch("https://api.fireflies.ai/graphql", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${keyToTest}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          query: `{ user { name email } }`
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data?.user) {
+          setFirefliesTestResult({
+            success: true,
+            message: `Conectado como ${data.data.user.name || data.data.user.email || "usuário Fireflies"}`
+          });
+        } else if (data.errors) {
+          throw new Error(data.errors[0]?.message || "API Key inválida");
+        } else {
+          throw new Error("Resposta inválida da API");
+        }
+      } else {
+        throw new Error("API Key inválida");
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro ao testar conexão";
+      setFirefliesTestResult({
+        success: false,
+        message: errorMessage
+      });
+    } finally {
+      setTestingFireflies(false);
     }
   };
 
@@ -1521,6 +1651,67 @@ export default function Conexoes() {
                   {apifyTestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
                   <span className={`text-sm ${apifyTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
                     {apifyTestResult.message}
+                  </span>
+                </div>
+              </div>}
+          </div>
+          </CardContent>
+        </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Fireflies Card */}
+      <Collapsible open={firefliesOpen} onOpenChange={setFirefliesOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 dark:bg-orange-950 rounded-lg">
+                    <Mic className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Fireflies.ai</CardTitle>
+                    <CardDescription>
+                      Configure a API Key do Fireflies para transcrição e resumos de reuniões
+                    </CardDescription>
+                  </div>
+                </div>
+                {firefliesOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <div>
+              <Label>API Key</Label>
+              <div className="flex gap-2 mt-1">
+                <Input type={showFirefliesKey ? "text" : "password"} value={firefliesApiKey} onChange={e => setFirefliesApiKey(e.target.value)} placeholder="" className="font-mono text-sm" />
+                <Button variant="outline" size="icon" onClick={() => setShowFirefliesKey(!showFirefliesKey)}>
+                  {showFirefliesKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Obtenha sua API Key em <a href="https://fireflies.ai/integrations" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">fireflies.ai/integrations</a>
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={testFirefliesConnection} disabled={testingFireflies}>
+                {testingFireflies ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Testar Conexão
+              </Button>
+              <Button onClick={saveFirefliesConfig} disabled={savingFireflies}>
+                {savingFireflies ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+              </Button>
+            </div>
+
+            {firefliesTestResult && <div className={`p-3 rounded-lg border ${firefliesTestResult.success ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'}`}>
+                <div className="flex items-center gap-2">
+                  {firefliesTestResult.success ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                  <span className={`text-sm ${firefliesTestResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
+                    {firefliesTestResult.message}
                   </span>
                 </div>
               </div>}
