@@ -24,6 +24,7 @@ import {
   EyeOff,
   CheckCircle2,
   XCircle,
+  Send,
 } from "lucide-react";
 
 interface ExtractedBusiness {
@@ -61,10 +62,12 @@ export function CompararListasDialog({ open, onOpenChange }: CompararListasDialo
   const [selectedLists, setSelectedLists] = useState<string[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+  const [campanhaContactsMap, setCampanhaContactsMap] = useState<Map<string, string[]>>(new Map());
 
   useEffect(() => {
     if (open && user) {
       loadListas();
+      loadCampanhaContacts();
     }
   }, [open, user]);
 
@@ -95,6 +98,47 @@ export function CompararListasDialog({ open, onOpenChange }: CompararListasDialo
     }
   };
 
+  // Load ALL campaign contacts (including archived) to check for already sent numbers
+  const loadCampanhaContacts = async () => {
+    if (!user) return;
+    try {
+      // Get all campaigns for this user
+      const { data: campanhas, error: campError } = await supabase
+        .from("disparos_campanhas")
+        .select("id, nome")
+        .eq("user_id", user.id);
+
+      if (campError) throw campError;
+      if (!campanhas || campanhas.length === 0) return;
+
+      // Get ALL contacts from ALL campaigns (including archived ones for complete history)
+      const { data: contatos, error: contError } = await supabase
+        .from("disparos_campanha_contatos")
+        .select("numero, campanha_id")
+        .in("campanha_id", campanhas.map(c => c.id));
+
+      if (contError) throw contError;
+
+      // Build map of normalized phone -> campaign names
+      const phoneMap = new Map<string, string[]>();
+      for (const contato of contatos || []) {
+        const normalized = normalizePhone(contato.numero);
+        const campanha = campanhas.find(c => c.id === contato.campanha_id);
+        if (!campanha) continue;
+
+        if (!phoneMap.has(normalized)) {
+          phoneMap.set(normalized, []);
+        }
+        if (!phoneMap.get(normalized)!.includes(campanha.nome)) {
+          phoneMap.get(normalized)!.push(campanha.nome);
+        }
+      }
+      setCampanhaContactsMap(phoneMap);
+    } catch (error) {
+      console.error("Error loading campaign contacts:", error);
+    }
+  };
+
   const normalizePhone = (phone: string): string => {
     const digits = phone.replace(/\D/g, '');
     return digits.slice(-8);
@@ -106,7 +150,7 @@ export function CompararListasDialog({ open, onOpenChange }: CompararListasDialo
     const selectedListsData = listas.filter(l => selectedLists.includes(l.id));
     
     // Build phone count map across all selected lists
-    const phoneOccurrences = new Map<string, { count: number; lists: string[]; business: ExtractedBusiness }>();
+    const phoneOccurrences = new Map<string, { count: number; lists: string[]; business: ExtractedBusiness; campanhas: string[] }>();
     
     selectedListsData.forEach(lista => {
       const seenInThisList = new Set<string>();
@@ -117,32 +161,46 @@ export function CompararListasDialog({ open, onOpenChange }: CompararListasDialo
         seenInThisList.add(normalized);
         
         const existing = phoneOccurrences.get(normalized);
+        // Check if this phone was used in any campaign
+        const campanhasUsadas = campanhaContactsMap.get(normalized) || [];
+        
         if (existing) {
           existing.count++;
           existing.lists.push(lista.nome);
+          // Merge campaign info
+          campanhasUsadas.forEach(c => {
+            if (!existing.campanhas.includes(c)) {
+              existing.campanhas.push(c);
+            }
+          });
         } else {
           phoneOccurrences.set(normalized, { 
             count: 1, 
             lists: [lista.nome], 
-            business 
+            business,
+            campanhas: campanhasUsadas
           });
         }
       });
     });
 
-    const duplicates: { business: ExtractedBusiness; lists: string[] }[] = [];
-    const unique: { business: ExtractedBusiness; list: string }[] = [];
+    const duplicates: { business: ExtractedBusiness; lists: string[]; campanhas: string[] }[] = [];
+    const unique: { business: ExtractedBusiness; list: string; campanhas: string[] }[] = [];
+    let jaEnviadosCount = 0;
 
     phoneOccurrences.forEach((value) => {
+      if (value.campanhas.length > 0) {
+        jaEnviadosCount++;
+      }
       if (value.count > 1) {
-        duplicates.push({ business: value.business, lists: value.lists });
+        duplicates.push({ business: value.business, lists: value.lists, campanhas: value.campanhas });
       } else {
-        unique.push({ business: value.business, list: value.lists[0] });
+        unique.push({ business: value.business, list: value.lists[0], campanhas: value.campanhas });
       }
     });
 
-    return { duplicates, unique, total: phoneOccurrences.size };
-  }, [selectedLists, listas]);
+    return { duplicates, unique, total: phoneOccurrences.size, jaEnviadosCount };
+  }, [selectedLists, listas, campanhaContactsMap]);
 
   const toggleList = (listId: string) => {
     setSelectedLists(prev => 
@@ -270,18 +328,22 @@ export function CompararListasDialog({ open, onOpenChange }: CompararListasDialo
         ) : comparisonResult && (
           <div className="space-y-4">
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="p-4 bg-muted/50 rounded-lg text-center">
-                <p className="text-2xl font-bold">{comparisonResult.total}</p>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="p-3 bg-muted/50 rounded-lg text-center">
+                <p className="text-xl font-bold">{comparisonResult.total}</p>
                 <p className="text-xs text-muted-foreground">Total únicos</p>
               </div>
-              <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg text-center border border-green-200 dark:border-green-800">
-                <p className="text-2xl font-bold text-green-600">{comparisonResult.unique.length}</p>
+              <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg text-center border border-green-200 dark:border-green-800">
+                <p className="text-xl font-bold text-green-600">{comparisonResult.unique.length}</p>
                 <p className="text-xs text-muted-foreground">Só em 1 lista</p>
               </div>
-              <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg text-center border border-orange-200 dark:border-orange-800">
-                <p className="text-2xl font-bold text-orange-600">{comparisonResult.duplicates.length}</p>
+              <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg text-center border border-orange-200 dark:border-orange-800">
+                <p className="text-xl font-bold text-orange-600">{comparisonResult.duplicates.length}</p>
                 <p className="text-xs text-muted-foreground">Repetidos</p>
+              </div>
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg text-center border border-blue-200 dark:border-blue-800">
+                <p className="text-xl font-bold text-blue-600">{comparisonResult.jaEnviadosCount}</p>
+                <p className="text-xs text-muted-foreground">Já enviados</p>
               </div>
             </div>
 
@@ -319,19 +381,32 @@ export function CompararListasDialog({ open, onOpenChange }: CompararListasDialo
                     </div>
                   ) : (
                     comparisonResult.duplicates.map((item, index) => (
-                      <div key={index} className="p-3 border rounded-lg border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
+                      <div key={index} className={`p-3 border rounded-lg ${item.campanhas.length > 0 ? 'border-blue-300 bg-blue-50/50 dark:bg-blue-950/20' : 'border-orange-200 bg-orange-50/50 dark:bg-orange-950/20'}`}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm truncate">{item.business.name}</p>
                             <p className="text-xs text-muted-foreground font-mono">{item.business.phone}</p>
                           </div>
-                          <Badge variant="outline" className="text-[10px] border-orange-400 text-orange-600 shrink-0">
-                            Em {item.lists.length} listas
-                          </Badge>
+                          <div className="flex flex-col gap-1 items-end shrink-0">
+                            <Badge variant="outline" className="text-[10px] border-orange-400 text-orange-600">
+                              Em {item.lists.length} listas
+                            </Badge>
+                            {item.campanhas.length > 0 && (
+                              <Badge variant="outline" className="text-[10px] border-blue-400 text-blue-600 gap-1">
+                                <Send className="h-2.5 w-2.5" />
+                                Já enviado
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {item.lists.join(", ")}
+                          Listas: {item.lists.join(", ")}
                         </p>
+                        {item.campanhas.length > 0 && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Campanhas: {item.campanhas.join(", ")}
+                          </p>
+                        )}
                       </div>
                     ))
                   )
@@ -343,16 +418,29 @@ export function CompararListasDialog({ open, onOpenChange }: CompararListasDialo
                     </div>
                   ) : (
                     comparisonResult.unique.map((item, index) => (
-                      <div key={index} className="p-3 border rounded-lg">
+                      <div key={index} className={`p-3 border rounded-lg ${item.campanhas.length > 0 ? 'border-blue-300 bg-blue-50/50 dark:bg-blue-950/20' : ''}`}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm truncate">{item.business.name}</p>
                             <p className="text-xs text-muted-foreground font-mono">{item.business.phone}</p>
                           </div>
-                          <Badge variant="secondary" className="text-[10px] shrink-0">
-                            {item.list}
-                          </Badge>
+                          <div className="flex flex-col gap-1 items-end shrink-0">
+                            <Badge variant="secondary" className="text-[10px]">
+                              {item.list}
+                            </Badge>
+                            {item.campanhas.length > 0 && (
+                              <Badge variant="outline" className="text-[10px] border-blue-400 text-blue-600 gap-1">
+                                <Send className="h-2.5 w-2.5" />
+                                Já enviado
+                              </Badge>
+                            )}
+                          </div>
                         </div>
+                        {item.campanhas.length > 0 && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Campanhas: {item.campanhas.join(", ")}
+                          </p>
+                        )}
                       </div>
                     ))
                   )
