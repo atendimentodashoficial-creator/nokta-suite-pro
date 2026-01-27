@@ -218,11 +218,12 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
         .select("*")
         .eq("campanha_id", campanhaId);
 
-      // Load contacts
+      // Load contacts (only non-archived)
       const { data: contatos } = await supabase
         .from("disparos_campanha_contatos")
         .select("numero, nome")
-        .eq("campanha_id", campanhaId);
+        .eq("campanha_id", campanhaId)
+        .eq("archived", false);
 
       // Create new campaign
       const { data: novaCampanha, error: novaCampanhaError } = await supabase

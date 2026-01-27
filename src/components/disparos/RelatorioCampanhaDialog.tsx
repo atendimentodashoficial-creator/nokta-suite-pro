@@ -153,11 +153,12 @@ export function RelatorioCampanhaDialog({
       if (campanhaError) throw campanhaError;
       setCampanha(campanhaData);
 
-      // Load contacts stats
+      // Load contacts stats (only non-archived)
       const { data: contatos, error: contatosError } = await supabase
         .from("disparos_campanha_contatos")
         .select("status")
-        .eq("campanha_id", campanhaId);
+        .eq("campanha_id", campanhaId)
+        .eq("archived", false);
 
       if (!contatosError && contatos) {
         const stats = {
@@ -180,12 +181,13 @@ export function RelatorioCampanhaDialog({
         setBlocosCount(uniqueBlocks.size);
       }
 
-      // Load response stats from chats
+      // Load response stats from chats (only non-archived)
       const { data: contSent } = await supabase
         .from("disparos_campanha_contatos")
         .select("numero")
         .eq("campanha_id", campanhaId)
-        .eq("status", "sent");
+        .eq("status", "sent")
+        .eq("archived", false);
 
       if (contSent && contSent.length > 0) {
         // Check for responses in chats

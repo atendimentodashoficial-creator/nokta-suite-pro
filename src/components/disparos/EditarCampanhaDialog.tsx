@@ -303,11 +303,12 @@ export function EditarCampanhaDialog({
         }
       }
 
-      // Load only pending contacts (exclude already sent/failed)
+      // Load only pending contacts (exclude archived/sent/failed)
       const { data: contatosData, error: contatosError } = await supabase
         .from("disparos_campanha_contatos")
         .select("numero, nome, status")
-        .eq("campanha_id", campanhaId);
+        .eq("campanha_id", campanhaId)
+        .eq("archived", false);
 
       if (contatosError) throw contatosError;
 
@@ -881,11 +882,12 @@ export function EditarCampanhaDialog({
         .single();
 
       if (existingCampanha && existingCampanha.iniciado_em && existingCampanha.enviados > 0) {
-        // Get contacts stats for snapshot
+        // Get contacts stats for snapshot (non-archived only)
         const { data: contatosSnapshot } = await supabase
           .from("disparos_campanha_contatos")
           .select("status")
-          .eq("campanha_id", campanhaId);
+          .eq("campanha_id", campanhaId)
+          .eq("archived", false);
 
         const contatoStats = {
           total: contatosSnapshot?.length || 0,
@@ -951,11 +953,12 @@ export function EditarCampanhaDialog({
         primeiraMediaBase64 = `data:${primeiraVariacao.mediaFile.type};base64,${btoa(binary)}`;
       }
 
-      // Get existing contacts to compare
+      // Get existing contacts to compare (non-archived only)
       const { data: existingContacts } = await supabase
         .from("disparos_campanha_contatos")
         .select("numero, status, enviado_em")
-        .eq("campanha_id", campanhaId);
+        .eq("campanha_id", campanhaId)
+        .eq("archived", false);
 
       // Create a map of existing contacts with their status
       const existingContactsMap = new Map<string, { status: string; enviado_em: string | null }>();
@@ -1072,12 +1075,12 @@ export function EditarCampanhaDialog({
         .insert(variacoesToInsert);
       if (variacoesError) throw variacoesError;
 
-      // Handle contacts - when campaign was executed, remove sent/failed and keep only pending + new
+      // Handle contacts - when campaign was executed, archive sent/failed and keep only pending + new
       if (shouldPreserveStats) {
-        // Delete ALL sent and failed contacts - they are archived in the snapshot
+        // Archive sent and failed contacts instead of deleting - preserves history for comparison
         await supabase
           .from("disparos_campanha_contatos")
-          .delete()
+          .update({ archived: true })
           .eq("campanha_id", campanhaId)
           .in("status", ["sent", "failed"]);
 

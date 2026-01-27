@@ -54,6 +54,7 @@ export function ContatosCampanhaDialog({
         .from("disparos_campanha_contatos")
         .select("*")
         .eq("campanha_id", campanhaId)
+        .eq("archived", false)
         .order("enviado_em", { ascending: false, nullsFirst: false });
 
       if (error) throw error;

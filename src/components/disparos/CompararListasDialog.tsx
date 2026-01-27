@@ -192,9 +192,10 @@ export function CompararListasDialog({
     try {
       const contatosLista = parseListaContatos(listaInput);
       
+      // Include both active and archived contacts for complete history comparison
       const { data: contatosCampanha, error } = await supabase
         .from("disparos_campanha_contatos")
-        .select("numero, campanha_id")
+        .select("numero, campanha_id, archived")
         .in("campanha_id", Array.from(selectedCampanhas));
 
       if (error) throw error;
@@ -256,9 +257,10 @@ export function CompararListasDialog({
 
     setIsLoading(true);
     try {
+      // Include both active and archived contacts for complete history comparison
       const { data: contatosCampanha, error } = await supabase
         .from("disparos_campanha_contatos")
-        .select("numero, nome, campanha_id")
+        .select("numero, nome, campanha_id, archived")
         .in("campanha_id", Array.from(selectedCampanhas));
 
       if (error) throw error;

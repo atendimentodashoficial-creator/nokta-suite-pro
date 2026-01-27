@@ -382,6 +382,7 @@ serve(async (req) => {
         .update({ status: "pending" })
         .eq("campanha_id", campanha_id)
         .eq("status", "sending")
+        .eq("archived", false)
         .lt("created_at", twoMinutesAgo) // Only reset if stuck for more than 2 minutes
         .select("id");
       
@@ -395,6 +396,7 @@ serve(async (req) => {
         .select("*")
         .eq("campanha_id", campanha_id)
         .eq("status", "pending")
+        .eq("archived", false)
         .order("created_at", { ascending: true });
 
       if (contatosError) throw contatosError;
@@ -1166,6 +1168,7 @@ async function processCampaign(
     .select("id")
     .eq("campanha_id", campanha.id)
     .eq("status", "pending")
+    .eq("archived", false)
     .limit(1);
 
   if (remainingContacts && remainingContacts.length > 0) {
