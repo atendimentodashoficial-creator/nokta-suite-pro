@@ -17,6 +17,7 @@ export const ALL_FEATURES = [
   { key: "extrator", label: "Extrator", href: "/extrator" },
   { key: "instagram", label: "Instagram", href: "/instagram" },
   { key: "formularios", label: "Formulários", href: "/formularios" },
+  { key: "reunioes", label: "Reuniões", href: "/reunioes" },
   { key: "meta-ads", label: "Meta Ads", href: "/metricas-campanhas" },
   { key: "google-ads", label: "Google Ads", href: "/google-ads" },
   { key: "configuracoes", label: "Configurações", href: "/configuracoes" },

@@ -1,4 +1,4 @@
-import { Calendar, DollarSign, TrendingUp, Settings, UserCog, FileText, LogOut, MessageSquare, UserX, Handshake, UserPlus, Users, ChevronLeft, ChevronRight, Send, Database, Instagram, Wallet, ClipboardList } from "lucide-react";
+import { Calendar, DollarSign, TrendingUp, Settings, UserCog, FileText, LogOut, MessageSquare, UserX, Handshake, UserPlus, Users, ChevronLeft, ChevronRight, Send, Database, Instagram, Wallet, ClipboardList, Video } from "lucide-react";
 import { MetaIcon } from "@/components/icons/MetaIcon";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ const hrefToFeatureKey: Record<string, string> = {
   "/extrator": "extrator",
   "/instagram": "instagram",
   "/formularios": "formularios",
+  "/reunioes": "reunioes",
   "/metricas-campanhas": "meta-ads",
   "/google-ads": "google-ads",
   "/configuracoes": "configuracoes",
@@ -45,6 +46,7 @@ export const navigation = [
   { name: "Extrator", href: "/extrator", icon: Database },
   { name: "Instagram", href: "/instagram", icon: Instagram },
   { name: "Formulários", href: "/formularios", icon: ClipboardList },
+  { name: "Reuniões", href: "/reunioes", icon: Video },
   { name: "Meta Ads", href: "/metricas-campanhas", icon: MetaIcon },
   { name: "Google Ads", href: "/google-ads", icon: ({ className }: { className?: string }) => <img src={googleAdsIcon} alt="Google Ads" className={cn("h-5 w-5 shrink-0 brightness-0 invert", className)} /> },
   { name: "Configurações", href: "/configuracoes", icon: Settings },

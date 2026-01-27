@@ -3535,6 +3535,51 @@ export type Database = {
         }
         Relationships: []
       }
+      reunioes: {
+        Row: {
+          created_at: string
+          data_reuniao: string
+          duracao_minutos: number | null
+          fireflies_id: string
+          id: string
+          participantes: string[] | null
+          resumo_ia: string | null
+          status: string
+          titulo: string
+          transcricao: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_reuniao: string
+          duracao_minutos?: number | null
+          fireflies_id: string
+          id?: string
+          participantes?: string[] | null
+          resumo_ia?: string | null
+          status?: string
+          titulo: string
+          transcricao?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data_reuniao?: string
+          duracao_minutos?: number | null
+          fireflies_id?: string
+          id?: string
+          participantes?: string[] | null
+          resumo_ia?: string | null
+          status?: string
+          titulo?: string
+          transcricao?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       stripe_config: {
         Row: {
           created_at: string | null
