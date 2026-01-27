@@ -49,10 +49,10 @@ export function UserPermissionsDialog({ open, onOpenChange, userId, userName }: 
 
       if (error) throw error;
 
-      // Inicializar todas as features como habilitadas
+      // Inicializar features com seus valores padrão
       const initialPermissions: Record<string, boolean> = {};
       ALL_FEATURES.forEach(f => {
-        initialPermissions[f.key] = true;
+        initialPermissions[f.key] = f.defaultEnabled;
       });
 
       // Aplicar permissões existentes
@@ -162,7 +162,7 @@ export function UserPermissionsDialog({ open, onOpenChange, userId, userName }: 
                     </Label>
                     <Switch
                       id={feature.key}
-                      checked={permissions[feature.key] ?? true}
+                      checked={permissions[feature.key] ?? feature.defaultEnabled}
                       onCheckedChange={() => handleTogglePermission(feature.key)}
                     />
                   </div>
