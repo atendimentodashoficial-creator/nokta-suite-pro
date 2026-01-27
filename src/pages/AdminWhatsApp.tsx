@@ -1075,14 +1075,14 @@ export default function AdminWhatsApp() {
     })();
   }, []);
 
-  // Auto-sync every 60 seconds
+  // Auto-sync every 120 seconds - Realtime handles active chat updates
   useEffect(() => {
     if (!hasConfig) return;
     // Stop background sync when provider auth is failing (prevents repeated 401s + toasts).
     if (uazapiAuthError) return;
     const interval = setInterval(() => {
       syncChats();
-    }, 60000); // 60 seconds
+    }, 120000); // 120 seconds
 
     return () => clearInterval(interval);
   }, [hasConfig, uazapiAuthError]);
