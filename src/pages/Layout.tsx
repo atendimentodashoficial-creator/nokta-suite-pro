@@ -5,12 +5,13 @@ import { Sidebar, SidebarContent } from "@/components/layout/Sidebar";
 import { AdminClientSwitcher } from "@/components/layout/AdminClientSwitcher";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { useDisparosCampaignScheduler } from "@/hooks/useDisparosCampaignScheduler";
+// Frontend scheduler removed - backend cron handles all campaign scheduling
+// This saves cloud credits without any functional impact
 import { cn } from "@/lib/utils";
 import noktaLogoDefault from "@/assets/nokta-logo.png";
 
 export default function Layout() {
-  useDisparosCampaignScheduler();
+  // useDisparosCampaignScheduler removed - cron is sufficient
 
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
