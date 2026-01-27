@@ -3535,6 +3535,77 @@ export type Database = {
         }
         Relationships: []
       }
+      reuniao_campos_preenchidos: {
+        Row: {
+          campo_descricao: string | null
+          campo_nome: string
+          created_at: string
+          id: string
+          ordem: number
+          reuniao_id: string
+          valor: string | null
+        }
+        Insert: {
+          campo_descricao?: string | null
+          campo_nome: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          reuniao_id: string
+          valor?: string | null
+        }
+        Update: {
+          campo_descricao?: string | null
+          campo_nome?: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          reuniao_id?: string
+          valor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reuniao_campos_preenchidos_reuniao_id_fkey"
+            columns: ["reuniao_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reuniao_template_campos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          ordem: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reunioes: {
         Row: {
           created_at: string
