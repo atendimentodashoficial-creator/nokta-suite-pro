@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, ExternalLink } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { TemplateCamposDialog } from "@/components/reunioes/TemplateCamposDialog";
+import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDialog";
 
 interface Reuniao {
   id: string;
@@ -27,6 +29,7 @@ interface Reuniao {
 export default function Reunioes() {
   const { user } = useAuth();
   const [syncing, setSyncing] = useState(false);
+  const [selectedReuniao, setSelectedReuniao] = useState<Reuniao | null>(null);
 
   const { data: reunioes, isLoading, refetch } = useQuery({
     queryKey: ["reunioes", user?.id],
@@ -112,14 +115,17 @@ export default function Reunioes() {
           <h1 className="text-2xl font-bold">Reuniões</h1>
         </div>
         
-        <Button 
-          onClick={handleSync} 
-          disabled={syncing || !firefliesConfig?.api_key}
-          className="gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-          Sincronizar Fireflies
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <TemplateCamposDialog />
+          <Button 
+            onClick={handleSync} 
+            disabled={syncing || !firefliesConfig?.api_key}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            Sincronizar Fireflies
+          </Button>
+        </div>
       </div>
 
       {/* Warning if no Fireflies config */}
@@ -207,7 +213,12 @@ export default function Reunioes() {
               </CardContent>
 
               <div className="p-4 pt-0 mt-auto">
-                <Button variant="outline" size="sm" className="w-full gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full gap-2"
+                  onClick={() => setSelectedReuniao(reuniao)}
+                >
                   <FileText className="w-4 h-4" />
                   Ver Detalhes
                 </Button>
@@ -228,6 +239,13 @@ export default function Reunioes() {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog de detalhes */}
+      <ReuniaoDetalhesDialog 
+        reuniao={selectedReuniao}
+        open={!!selectedReuniao}
+        onOpenChange={(open) => !open && setSelectedReuniao(null)}
+      />
     </div>
   );
 }
