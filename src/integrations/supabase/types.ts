@@ -765,6 +765,7 @@ export type Database = {
       }
       disparos_campanha_contatos: {
         Row: {
+          archived: boolean | null
           campanha_id: string
           created_at: string
           enviado_em: string | null
@@ -775,6 +776,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          archived?: boolean | null
           campanha_id: string
           created_at?: string
           enviado_em?: string | null
@@ -785,6 +787,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          archived?: boolean | null
           campanha_id?: string
           created_at?: string
           enviado_em?: string | null
