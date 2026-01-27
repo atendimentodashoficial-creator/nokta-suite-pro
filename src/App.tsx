@@ -28,6 +28,7 @@ import Formularios from "./pages/Formularios";
 import FormularioCaptura from "./pages/FormularioCaptura";
 import FormularioCliente from "./pages/FormularioCliente";
 import FormularioPublico from "./pages/FormularioPublico";
+import Reunioes from "./pages/Reunioes";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="extrator" element={<Extrator />} />
             <Route path="instagram" element={<Instagram />} />
             <Route path="formularios" element={<Formularios />} />
+            <Route path="reunioes" element={<Reunioes />} />
             <Route path="financeiro" element={<Dashboard />} />
             <Route path="metricas-campanhas" element={<MetricasCampanhas />} />
             <Route path="google-ads" element={<GoogleAdsMetrics />} />

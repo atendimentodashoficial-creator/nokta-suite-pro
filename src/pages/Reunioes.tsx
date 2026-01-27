@@ -32,12 +32,12 @@ export default function Reunioes() {
     queryKey: ["reunioes", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("reunioes")
+        .from("reunioes" as any)
         .select("*")
         .order("data_reuniao", { ascending: false });
       
       if (error) throw error;
-      return data as Reuniao[];
+      return (data || []) as unknown as Reuniao[];
     },
     enabled: !!user?.id,
   });
