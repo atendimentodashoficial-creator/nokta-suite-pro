@@ -713,6 +713,8 @@ export default function AdminWhatsApp() {
 
             if (webhookResponse.data?.success) {
               toast.success("Webhook configurado!");
+              // Sync chats after first successful connection to load existing conversations
+              syncChats();
             } else {
               console.error("Webhook config failed:", webhookResponse.data);
               toast.error("Erro ao configurar webhook: " + (webhookResponse.data?.error || "Erro desconhecido"));
@@ -1075,16 +1077,8 @@ export default function AdminWhatsApp() {
     })();
   }, []);
 
-  // Smart sync: only sync automatically when no chats exist (first connection)
-  // After first sync, rely on webhooks/Realtime for updates - saves cloud credits
-  useEffect(() => {
-    if (!hasConfig) return;
-    if (uazapiAuthError) return;
-    // Only auto-sync if user has no chats yet (first connection scenario)
-    if (chats.length === 0 && !isSyncing) {
-      syncChats();
-    }
-  }, [hasConfig, uazapiAuthError, chats.length]);
+  // Sync is now manual only (via refresh button) or triggered after first instance connection
+  // This saves cloud credits - webhooks/Realtime handle ongoing message updates
 
   // Realtime: keep unread badge and last message preview in sync with batching/debounce
   useEffect(() => {
