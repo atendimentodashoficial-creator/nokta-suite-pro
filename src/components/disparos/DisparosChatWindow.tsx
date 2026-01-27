@@ -229,8 +229,8 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   const [sendingAudioId, setSendingAudioId] = useState<string | null>(null);
   const [expandedTextBlocos, setExpandedTextBlocos] = useState<Record<string, boolean>>({});
   const [expandedAudioBlocos, setExpandedAudioBlocos] = useState<Record<string, boolean>>({});
-  const [expandedTextSemBloco, setExpandedTextSemBloco] = useState(true);
-  const [expandedAudioSemBloco, setExpandedAudioSemBloco] = useState(true);
+  const [expandedTextSemBloco, setExpandedTextSemBloco] = useState(false);
+  const [expandedAudioSemBloco, setExpandedAudioSemBloco] = useState(false);
   const [instanciasDisponiveis, setInstanciasDisponiveis] = useState<{ id: string; nome: string; base_url: string; api_key: string }[]>([]);
   const [instanciasStatus, setInstanciasStatus] = useState<Record<string, 'loading' | 'connected' | 'disconnected'>>({});
   const [changeInstanceOpen, setChangeInstanceOpen] = useState(false);
@@ -1501,14 +1501,14 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
                           return (
                             <Collapsible 
                               key={bloco.id}
-                              open={expandedTextBlocos[bloco.id] !== false}
+                              open={expandedTextBlocos[bloco.id] === true}
                               onOpenChange={() => setExpandedTextBlocos(prev => ({ ...prev, [bloco.id]: !prev[bloco.id] }))}
                             >
                               <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 rounded hover:bg-muted/50 transition-colors">
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                   {bloco.titulo} ({mensagensDoBloco.length})
                                 </span>
-                                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expandedTextBlocos[bloco.id] !== false ? 'rotate-180' : ''}`} />
+                                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expandedTextBlocos[bloco.id] === true ? 'rotate-180' : ''}`} />
                               </CollapsibleTrigger>
                               <CollapsibleContent className="space-y-1 mt-1">
                                 {mensagensDoBloco.map((msg) => (
@@ -1622,14 +1622,14 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
                           return (
                             <Collapsible 
                               key={bloco.id}
-                              open={expandedAudioBlocos[bloco.id] !== false}
+                              open={expandedAudioBlocos[bloco.id] === true}
                               onOpenChange={() => setExpandedAudioBlocos(prev => ({ ...prev, [bloco.id]: !prev[bloco.id] }))}
                             >
                               <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 rounded hover:bg-muted/50 transition-colors">
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                   {bloco.titulo} ({audiosDoBloco.length})
                                 </span>
-                                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expandedAudioBlocos[bloco.id] !== false ? 'rotate-180' : ''}`} />
+                                <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expandedAudioBlocos[bloco.id] === true ? 'rotate-180' : ''}`} />
                               </CollapsibleTrigger>
                               <CollapsibleContent className="space-y-1 mt-1">
                                 {audiosDoBloco.map((audio) => (
