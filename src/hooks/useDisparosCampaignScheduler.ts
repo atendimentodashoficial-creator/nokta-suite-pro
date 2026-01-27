@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-const CHECK_INTERVAL_MS = 15000;
+const CHECK_INTERVAL_MS = 60000; // 60s - backend cron handles primary scheduling
 
 export function useDisparosCampaignScheduler() {
   const { user } = useAuth();
