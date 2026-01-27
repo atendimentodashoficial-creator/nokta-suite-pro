@@ -1075,17 +1075,16 @@ export default function AdminWhatsApp() {
     })();
   }, []);
 
-  // Auto-sync every 120 seconds - Realtime handles active chat updates
+  // Smart sync: only sync automatically when no chats exist (first connection)
+  // After first sync, rely on webhooks/Realtime for updates - saves cloud credits
   useEffect(() => {
     if (!hasConfig) return;
-    // Stop background sync when provider auth is failing (prevents repeated 401s + toasts).
     if (uazapiAuthError) return;
-    const interval = setInterval(() => {
+    // Only auto-sync if user has no chats yet (first connection scenario)
+    if (chats.length === 0 && !isSyncing) {
       syncChats();
-    }, 120000); // 120 seconds
-
-    return () => clearInterval(interval);
-  }, [hasConfig, uazapiAuthError]);
+    }
+  }, [hasConfig, uazapiAuthError, chats.length]);
 
   // Realtime: keep unread badge and last message preview in sync with batching/debounce
   useEffect(() => {
