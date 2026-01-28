@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, Check } from "lucide-react";
+import { CalendarIcon, Check, Video } from "lucide-react";
 import { formatPhone, normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, extractCountryCode, stripCountryCode } from "@/utils/phoneFormat";
 import {
   Dialog,
@@ -36,6 +36,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useCreateAgendamento, useAgendamentos } from "@/hooks/useAgendamentos";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
@@ -43,11 +45,12 @@ import { useProfissionais } from "@/hooks/useProfissionais";
 import { useEscalas, useAusencias } from "@/hooks/useEscalas";
 import { useLeads } from "@/hooks/useLeads";
 import { useTiposAgendamento } from "@/hooks/useTiposAgendamento";
+import { useUserFeatureAccess } from "@/hooks/useUserFeatureAccess";
+import { useGoogleCalendarStatus } from "@/hooks/useGoogleCalendarStatus";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatInTimeZone } from "date-fns-tz";
 import { CountryCodeSelect, countries } from "@/components/whatsapp/CountryCodeSelect";
-
 // Calcular próxima data disponível para um profissional
 const calcularProximaDataDisponivel = (
   profissionalId: string,
@@ -267,6 +270,7 @@ export function NovoAgendamentoDialog({
   const [clienteSuggestions, setClienteSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [countryCode, setCountryCode] = useState("55");
+  const [agendarGoogleMeet, setAgendarGoogleMeet] = useState(false);
   
   // Track if name was manually edited by user - prevents auto-fill from overwriting
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
@@ -274,6 +278,13 @@ export function NovoAgendamentoDialog({
   const [lastAutoFilledPhone, setLastAutoFilledPhone] = useState<string | null>(null);
   // Ensure initial auto-fill runs at most once per (dialog open + phone)
   const initialAutofillKeyRef = useRef<string | null>(null);
+  
+  // Google Calendar and feature access
+  const { isFeatureEnabled } = useUserFeatureAccess();
+  const { data: gcalStatus } = useGoogleCalendarStatus();
+  const reunioesEnabled = isFeatureEnabled("reunioes");
+  const googleCalendarConnected = gcalStatus?.isConnected || false;
+  const showGoogleMeetOption = reunioesEnabled && googleCalendarConnected;
 
   const queryClient = useQueryClient();
   const createAgendamento = useCreateAgendamento();
@@ -764,6 +775,9 @@ export function NovoAgendamentoDialog({
       // Criar o agendamento com origem
       const origemAgendamento = origem || "Manual";
       
+      // Get procedimento name for Google Meet description
+      const procedimentoSelecionado = procedimentos?.find(p => p.id === data.procedimento_id);
+      
       await createAgendamento.mutateAsync({
         cliente_id: finalClienteId,
         tipo: data.tipo as any,
@@ -781,11 +795,46 @@ export function NovoAgendamentoDialog({
         origem_instancia_nome: origemInstanciaNome || null,
       });
 
-      toast.success("Agendamento criado com sucesso!");
+      // Se opção de Google Meet está ativa, criar evento no Google Calendar
+      if (agendarGoogleMeet && showGoogleMeetOption) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const gcalRes = await supabase.functions.invoke("google-calendar-create-event", {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+              body: {
+                titulo: `Reunião com ${data.nome}${procedimentoSelecionado ? ` - ${procedimentoSelecionado.nome}` : ""}`,
+                descricao: data.observacoes || undefined,
+                dataHora: dataHora.toISOString(),
+                duracaoMinutos: tempoAtendimento,
+                participanteEmail: data.email || undefined,
+                participanteNome: data.nome,
+                procedimentoNome: procedimentoSelecionado?.nome,
+              },
+            });
+            
+            if (gcalRes.error) {
+              console.error("Erro ao criar evento Google Calendar:", gcalRes.error);
+              toast.warning("Agendamento criado, mas houve erro ao criar reunião no Google Calendar");
+            } else if (gcalRes.data?.meetLink) {
+              toast.success(`Reunião Google Meet criada! Link: ${gcalRes.data.meetLink}`);
+            } else {
+              toast.success("Evento criado no Google Calendar!");
+            }
+          }
+        } catch (gcalError) {
+          console.error("Erro ao criar evento Google Calendar:", gcalError);
+          toast.warning("Agendamento criado, mas houve erro ao criar reunião no Google Calendar");
+        }
+      } else {
+        toast.success("Agendamento criado com sucesso!");
+      }
+
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       onOpenChange(false);
       form.reset();
+      setAgendarGoogleMeet(false);
     } catch (error) {
       console.error("Erro ao criar agendamento:", error);
       toast.error("Erro ao criar agendamento");
@@ -1082,6 +1131,28 @@ export function NovoAgendamentoDialog({
                 </FormItem>
               )}
             />
+
+            {/* Opção Google Meet - só aparece se feature reuniões habilitada e Google Calendar conectado */}
+            {showGoogleMeetOption && (
+              <div className="flex items-center justify-between rounded-lg border p-4 bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Video className="h-5 w-5 text-primary" />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="google-meet-toggle" className="font-medium">
+                      Agendar Reunião Google Meet
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Criar evento no Google Calendar com link de videoconferência
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="google-meet-toggle"
+                  checked={agendarGoogleMeet}
+                  onCheckedChange={setAgendarGoogleMeet}
+                />
+              </div>
+            )}
 
             <FormField
               control={form.control}
