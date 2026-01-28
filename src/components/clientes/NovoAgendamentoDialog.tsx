@@ -46,6 +46,7 @@ import { useProfissionais } from "@/hooks/useProfissionais";
 import { useEscalas, useAusencias } from "@/hooks/useEscalas";
 import { useLeads } from "@/hooks/useLeads";
 import { useTiposAgendamento } from "@/hooks/useTiposAgendamento";
+import { useQuery } from "@tanstack/react-query";
 import { useUserFeatureAccess } from "@/hooks/useUserFeatureAccess";
 import { useGoogleCalendarStatus } from "@/hooks/useGoogleCalendarStatus";
 import { cn } from "@/lib/utils";
@@ -299,6 +300,22 @@ export function NovoAgendamentoDialog({
   const { data: ausencias } = useAusencias();
   const { data: todosClientes } = useLeads("cliente");
   const { tiposAtivos, isLoading: isLoadingTipos } = useTiposAgendamento();
+  
+  // Buscar reuniões para verificar horários ocupados
+  const { data: reunioes } = useQuery({
+    queryKey: ["reunioes-disponibilidade"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reunioes")
+        .select("id, data_reuniao, duracao_minutos, profissional_id, status")
+        .not("profissional_id", "is", null)
+        .neq("status", "cancelado");
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open,
+  });
 
   // Extrair código do país e número limpo do initialData
   const initialPhoneData = useMemo(() => {
@@ -543,8 +560,8 @@ export function NovoAgendamentoDialog({
         });
       }
       
-      // Remover horários já ocupados
-      const horariosOcupados = todosAgendamentos
+      // Remover horários já ocupados por AGENDAMENTOS
+      const horariosOcupadosAgendamentos = todosAgendamentos
         ?.filter(ag => {
           if (ag.profissional_id !== prof.id) return false;
           if (ag.status === "cancelado") return false;
@@ -552,6 +569,18 @@ export function NovoAgendamentoDialog({
           return agData === dataStr;
         })
         .map(ag => formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+      
+      // Remover horários já ocupados por REUNIÕES
+      const horariosOcupadosReunioes = reunioes
+        ?.filter(r => {
+          if (r.profissional_id !== prof.id) return false;
+          const rData = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
+          return rData === dataStr;
+        })
+        .map(r => formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+      
+      // Combinar horários ocupados
+      const horariosOcupados = [...horariosOcupadosAgendamentos, ...horariosOcupadosReunioes];
       
       const horariosLivres = [...new Set(todosHorarios)]
         .filter(h => !horariosOcupados.includes(h))
@@ -576,7 +605,7 @@ export function NovoAgendamentoDialog({
         proximaDataDisponivel: proximaData,
       };
     }) || [];
-  }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, tempoAtendimento]);
+  }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, reunioes, tempoAtendimento]);
 
   // Função para atualizar nome em todos os registros relacionados
   const atualizarNomeEmTodosRegistros = async (userId: string, last8Digits: string, novoNome: string) => {
