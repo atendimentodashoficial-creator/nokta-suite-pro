@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Pencil, GripVertical, Check, X, Shield, Settings } from "lucide-react";
 import { AdminNotificationsConfig } from "@/components/admin/AdminNotificationsConfig";
+import { AdminInstanceManager } from "@/components/admin/AdminInstanceManager";
 import { UserPermissionsDialog } from "@/components/admin/UserPermissionsDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -1103,7 +1104,8 @@ export default function AdminDashboard() {
       </TabsContent>
 
           {/* Aba Configurações */}
-          <TabsContent value="settings" className="space-y-8">
+          <TabsContent value="settings" className="space-y-6">
+            <AdminInstanceManager />
             <AdminNotificationsConfig users={users} />
           </TabsContent>
     </Tabs>
