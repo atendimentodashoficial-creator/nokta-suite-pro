@@ -296,20 +296,10 @@ export default function Reunioes() {
                     {reunioesDodia.map((reuniao) => (
                       <Card 
                         key={reuniao.id} 
-                        className="shadow-card hover:shadow-elegant transition-all duration-300 animate-fade-in relative"
+                        className="shadow-card hover:shadow-elegant transition-all duration-300 animate-fade-in"
                       >
-                        {/* Botão de excluir no canto superior direito */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setReuniaoParaExcluir(reuniao)}
-                          title="Excluir reunião"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <CardContent className="p-5 pt-8 space-y-4">
-                          {/* Horário e Status */}
+                        <CardContent className="p-5 space-y-4">
+                          {/* Horário, Status e Excluir */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <Clock className="w-4 h-4" />
@@ -322,7 +312,18 @@ export default function Reunioes() {
                                 </span>
                               )}
                             </div>
-                            {getStatusBadge(reuniao.status)}
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(reuniao.status)}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => setReuniaoParaExcluir(reuniao)}
+                                title="Excluir reunião"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
 
                           {/* Título */}
