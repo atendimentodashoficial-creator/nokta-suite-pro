@@ -1,5 +1,8 @@
 project_id = "rgaqvlsjaapjhlhevsrf"
 
+[functions.admin-notifications-cron]
+verify_jwt = false
+
 [functions.enviar-avisos-agendamento]
 verify_jwt = false
 
