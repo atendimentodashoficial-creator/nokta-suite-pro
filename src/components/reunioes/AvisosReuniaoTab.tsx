@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw, Save } from "lucide-react";
+import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw, Save, Eye, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
@@ -805,18 +806,28 @@ export function AvisosReuniaoTab() {
               </p>
             </div>
 
-            {/* Preview */}
-            <div className="space-y-2">
-              <Label>Preview da mensagem</Label>
-              <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap">
-                {formMensagem
-                  .replace('{nome}', 'Maria Silva')
-                  .replace('{data}', '15/01/2026')
-                  .replace('{horario}', '14:30')
-                  .replace('{link_call}', 'https://meet.google.com/abc-xyz')
-                  .replace('{titulo}', 'Reunião de Consultoria')}
-              </div>
-            </div>
+            {/* Preview colapsável */}
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between p-2 h-auto">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Eye className="h-4 w-4" />
+                    <span>Preview da mensagem</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap">
+                  {formMensagem
+                    .replace('{nome}', 'Maria Silva')
+                    .replace('{data}', '15/01/2026')
+                    .replace('{horario}', '14:30')
+                    .replace('{link_call}', 'https://meet.google.com/abc-xyz')
+                    .replace('{titulo}', 'Reunião de Consultoria')}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Ativo */}
             <div className="flex items-center justify-between pt-2">
