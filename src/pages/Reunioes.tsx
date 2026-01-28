@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock, Trash2, MessageCircle } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock, Trash2, MessageCircle, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +42,8 @@ interface Reuniao {
   created_at: string;
   cliente_id: string | null;
   cliente_telefone: string | null;
+  profissional_id: string | null;
+  profissionais?: { nome: string } | null;
 }
 
 export default function Reunioes() {
@@ -63,7 +65,7 @@ export default function Reunioes() {
       // Reuniões só do Fireflies (sem google_event_id) ficam ocultas para vinculação manual
       const { data, error } = await supabase
         .from("reunioes" as any)
-        .select("*")
+        .select("*, profissionais(nome)")
         .not("google_event_id", "is", null)
         .order("data_reuniao", { ascending: false });
       
@@ -326,12 +328,22 @@ export default function Reunioes() {
                             </div>
                           </div>
 
-                          {/* Título */}
+                          {/* Título - remove "Reunião com [nome]" prefix */}
                           <h3 className="font-semibold text-lg line-clamp-2">
-                            {reuniao.titulo}
+                            {reuniao.titulo.replace(/^Reunião com\s+[^-–]+\s*[-–]\s*/i, "").trim() || reuniao.titulo}
                           </h3>
 
-                          {/* Participantes */}
+                          {/* Profissional */}
+                          {reuniao.profissionais?.nome && (
+                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                              <User className="w-4 h-4 mt-0.5 shrink-0" />
+                              <span className="line-clamp-1">
+                                {reuniao.profissionais.nome}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Participantes (Cliente) */}
                           {reuniao.participantes && reuniao.participantes.length > 0 && (
                             <div className="flex items-start gap-2 text-sm text-muted-foreground">
                               <Users className="w-4 h-4 mt-0.5 shrink-0" />

@@ -813,7 +813,7 @@ export function NovoAgendamentoDialog({
             const gcalRes = await supabase.functions.invoke("google-calendar-create-event", {
               headers: { Authorization: `Bearer ${session.access_token}` },
               body: {
-                titulo: `Reunião com ${data.nome}${procedimentoSelecionado ? ` - ${procedimentoSelecionado.nome}` : ""}`,
+                titulo: procedimentoSelecionado?.nome || "Reunião",
                 descricao: data.observacoes || undefined,
                 dataHora: dataHora.toISOString(),
                 duracaoMinutos: tempoAtendimento,
@@ -821,6 +821,7 @@ export function NovoAgendamentoDialog({
                 participanteNome: data.nome,
                 participanteTelefone: telefoneNormalizado, // Para envio de aviso imediato
                 procedimentoNome: procedimentoSelecionado?.nome,
+                profissionalId: data.profissional_id || null,
                 skipLocalSave: criarNaAgendaApp, // Se também vai criar na agenda do app, não salva na reunioes pelo edge function
                 // Passar instância do chat para manter consistência de número
                 instanciaId: origemInstanciaId || null,
@@ -855,12 +856,13 @@ export function NovoAgendamentoDialog({
               .from("reunioes")
               .insert({
                 user_id: session.user.id,
-                titulo: `Reunião com ${data.nome}${procedimentoSelecionado ? ` - ${procedimentoSelecionado.nome}` : ""}`,
+                titulo: procedimentoSelecionado?.nome || "Reunião",
                 data_reuniao: dataHora.toISOString(),
                 duracao_minutos: tempoAtendimento,
                 participantes: participantes,
                 status: "agendado",
                 cliente_telefone: telefoneNormalizado,
+                profissional_id: data.profissional_id || null,
               })
               .select()
               .single();
