@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock, Trash2, MessageCircle, User, Phone } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, XCircle, Trash2, MessageCircle, User, Phone } from "lucide-react";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -301,110 +301,113 @@ export default function Reunioes() {
                         key={reuniao.id} 
                         className="shadow-card hover:shadow-elegant transition-all duration-300 animate-fade-in"
                       >
-                        <CardContent className="p-5 space-y-4">
-                          {/* Horário, Status e Excluir */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Clock className="w-4 h-4" />
-                              <span className="font-medium text-foreground">
-                                {format(new Date(reuniao.data_reuniao), "HH:mm")}
-                              </span>
-                              {reuniao.duracao_minutos && (
-                                <span className="text-xs">
-                                  ({formatDuration(reuniao.duracao_minutos)})
-                                </span>
-                              )}
+                        <CardContent className="p-4 flex-1 flex flex-col">
+                          <div className="space-y-3 flex-1">
+                            {/* Cabeçalho: Hora e Nome do Cliente */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-semibold text-base">
+                                    {format(new Date(reuniao.data_reuniao), "HH:mm")}
+                                  </span>
+                                  {reuniao.duracao_minutos && (
+                                    <span className="text-xs text-muted-foreground">
+                                      ({formatDuration(reuniao.duracao_minutos)})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {getStatusBadge(reuniao.status)}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => setReuniaoParaExcluir(reuniao)}
+                                    title="Excluir reunião"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              {/* Nome do Cliente como Título */}
+                              <h3 className="font-semibold text-lg text-foreground">
+                                {reuniao.participantes && reuniao.participantes.length > 0
+                                  ? reuniao.participantes.join(", ")
+                                  : "Cliente não informado"}
+                              </h3>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {getStatusBadge(reuniao.status)}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => setReuniaoParaExcluir(reuniao)}
-                                title="Excluir reunião"
+
+                            {/* Telefone */}
+                            {reuniao.cliente_telefone && (
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                                <span className="truncate">{formatPhoneDisplay(reuniao.cliente_telefone)}</span>
+                              </div>
+                            )}
+
+                            {/* Profissional */}
+                            {reuniao.profissionais?.nome && (
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <User className="h-3.5 w-3.5 flex-shrink-0" />
+                                <span className="truncate">{reuniao.profissionais.nome}</span>
+                              </div>
+                            )}
+
+                            {/* Assunto/Título da Reunião */}
+                            {reuniao.titulo && (
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                                <span className="truncate">
+                                  {reuniao.titulo.replace(/^Reunião com\s+[^-–]+\s*[-–]\s*/i, "").trim() || reuniao.titulo}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Link da call */}
+                            {reuniao.meet_link && (
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <Link2 className="h-3.5 w-3.5 flex-shrink-0" />
+                                <a 
+                                  href={reuniao.meet_link} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline truncate"
+                                >
+                                  Acessar reunião
+                                </a>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Ações - Botões */}
+                          <div className="mt-4 pt-3 border-t border-border space-y-2">
+                            <div className="flex flex-wrap gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 gap-2"
+                                onClick={() => setSelectedReuniao(reuniao)}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <FileText className="w-4 h-4" />
+                                Ver Detalhes
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => {
+                                  setReuniaoParaVincular(reuniao);
+                                  setVincularDialogOpen(true);
+                                }}
+                                title={reuniao.transcricao ? "Vincular outra transcrição do Fireflies" : "Vincular transcrição do Fireflies"}
+                              >
+                                <FileText className="w-4 h-4" />
+                                {reuniao.transcricao ? "Vincular outra" : "Vincular"}
                               </Button>
                             </div>
-                          </div>
-
-                          {/* Título - remove "Reunião com [nome]" prefix */}
-                          <h3 className="font-semibold text-lg line-clamp-2">
-                            {reuniao.titulo.replace(/^Reunião com\s+[^-–]+\s*[-–]\s*/i, "").trim() || reuniao.titulo}
-                          </h3>
-
-                          {/* Profissional */}
-                          {reuniao.profissionais?.nome && (
-                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                              <User className="w-4 h-4 mt-0.5 shrink-0" />
-                              <span className="line-clamp-1">
-                                {reuniao.profissionais.nome}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Participantes (Cliente) */}
-                          {reuniao.participantes && reuniao.participantes.length > 0 && (
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <Users className="h-3.5 w-3.5 flex-shrink-0" />
-                              <span className="truncate">
-                                {reuniao.participantes.join(", ")}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Telefone */}
-                          {reuniao.cliente_telefone && (
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <Phone className="h-3.5 w-3.5 flex-shrink-0" />
-                              <span className="truncate">{formatPhoneDisplay(reuniao.cliente_telefone)}</span>
-                            </div>
-                          )}
-
-                          {/* Link da call */}
-                          {reuniao.meet_link && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Link2 className="w-4 h-4 shrink-0" />
-                              <a 
-                                href={reuniao.meet_link} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline truncate"
-                              >
-                                Acessar reunião
-                              </a>
-                            </div>
-                          )}
-
-
-                          {/* Botões de ação - Ver Detalhes e Vincular */}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="flex-1 gap-2"
-                              onClick={() => setSelectedReuniao(reuniao)}
-                            >
-                              <FileText className="w-4 h-4" />
-                              Ver Detalhes
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2"
-                              onClick={() => {
-                                setReuniaoParaVincular(reuniao);
-                                setVincularDialogOpen(true);
-                              }}
-                              title={reuniao.transcricao ? "Vincular outra transcrição do Fireflies" : "Vincular transcrição do Fireflies"}
-                            >
-                              <FileText className="w-4 h-4" />
-                              {reuniao.transcricao ? "Vincular outra" : "Vincular"}
-                            </Button>
-                          </div>
                           
-                          {/* Grid de Ícones - Reagendar, WhatsApp, Desmarcar */}
+                            {/* Grid de Ícones - Reagendar, WhatsApp, Desmarcar */}
                           {reuniao.status !== "cancelado" && (
                             <div className="grid grid-cols-3 gap-2 pt-2">
                               <Button 
@@ -443,6 +446,7 @@ export default function Reunioes() {
                               </Button>
                             </div>
                           )}
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
