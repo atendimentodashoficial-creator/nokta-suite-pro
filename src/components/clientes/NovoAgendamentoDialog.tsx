@@ -565,24 +565,59 @@ export function NovoAgendamentoDialog({
         });
       }
       
-      // Remover horários já ocupados por AGENDAMENTOS
-      const horariosOcupadosAgendamentos = todosAgendamentos
+      // Remover horários já ocupados por AGENDAMENTOS (considerando duração)
+      const horariosOcupadosAgendamentos: string[] = [];
+      todosAgendamentos
         ?.filter(ag => {
           if (ag.profissional_id !== prof.id) return false;
           if (ag.status === "cancelado") return false;
           const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
           return agData === dataStr;
         })
-        .map(ag => formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+        .forEach(ag => {
+          const horaInicio = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm');
+          // Obter duração do procedimento do agendamento
+          const procDuracao = procedimentos?.find(p => p.id === ag.procedimento_id)?.tempo_atendimento_minutos 
+            || procedimentos?.find(p => p.id === ag.procedimento_id)?.duracao_minutos 
+            || 60;
+          
+          // Gerar todos os slots que este agendamento ocupa
+          const [h, m] = horaInicio.split(':').map(Number);
+          let minutoAtual = h * 60 + m;
+          const minutoFim = minutoAtual + procDuracao;
+          
+          while (minutoAtual < minutoFim) {
+            const hora = Math.floor(minutoAtual / 60);
+            const min = minutoAtual % 60;
+            horariosOcupadosAgendamentos.push(`${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+            minutoAtual += intervaloEfetivo;
+          }
+        });
       
-      // Remover horários já ocupados por REUNIÕES
-      const horariosOcupadosReunioes = reunioes
+      // Remover horários já ocupados por REUNIÕES (considerando duração)
+      const horariosOcupadosReunioes: string[] = [];
+      reunioes
         ?.filter(r => {
           if (r.profissional_id !== prof.id) return false;
           const rData = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
           return rData === dataStr;
         })
-        .map(r => formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+        .forEach(r => {
+          const horaInicio = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm');
+          const reuniaoDuracao = r.duracao_minutos || 30;
+          
+          // Gerar todos os slots que esta reunião ocupa
+          const [h, m] = horaInicio.split(':').map(Number);
+          let minutoAtual = h * 60 + m;
+          const minutoFim = minutoAtual + reuniaoDuracao;
+          
+          while (minutoAtual < minutoFim) {
+            const hora = Math.floor(minutoAtual / 60);
+            const min = minutoAtual % 60;
+            horariosOcupadosReunioes.push(`${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+            minutoAtual += intervaloEfetivo;
+          }
+        });
       
       // Combinar horários ocupados
       const horariosOcupados = [...horariosOcupadosAgendamentos, ...horariosOcupadosReunioes];
