@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.formulario-meta-conversion]
 verify_jwt = false
+
+[functions.process-reuniao-summary]
+verify_jwt = false

@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, Clock, FileText, Users } from "lucide-react";
+import { Calendar, Clock, FileText, Users, Sparkles, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface Reuniao {
   id: string;
@@ -40,6 +43,8 @@ interface ReuniaoDetalhesDialogProps {
 }
 
 export function ReuniaoDetalhesDialog({ reuniao, open, onOpenChange }: ReuniaoDetalhesDialogProps) {
+  const queryClient = useQueryClient();
+
   const { data: camposPreenchidos, isLoading } = useQuery({
     queryKey: ["reuniao-campos-preenchidos", reuniao?.id],
     queryFn: async () => {
@@ -55,6 +60,41 @@ export function ReuniaoDetalhesDialog({ reuniao, open, onOpenChange }: ReuniaoDe
       return (data || []) as unknown as CampoPreenchido[];
     },
     enabled: !!reuniao?.id && open,
+  });
+
+  const { data: hasTemplateFields } = useQuery({
+    queryKey: ["has-template-campos"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("reuniao_template_campos" as any)
+        .select("*", { count: "exact", head: true })
+        .eq("ativo", true);
+      
+      if (error) throw error;
+      return (count || 0) > 0;
+    },
+    enabled: open,
+  });
+
+  const processMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("process-reuniao-summary", {
+        body: { reuniaoId: reuniao?.id },
+      });
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reuniao-campos-preenchidos", reuniao?.id] });
+      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
+      toast.success("Reunião resumida com sucesso!");
+    },
+    onError: (error) => {
+      console.error("Error processing summary:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao processar resumo");
+    },
   });
 
   const formatDuration = (minutes: number | null) => {
@@ -140,9 +180,30 @@ export function ReuniaoDetalhesDialog({ reuniao, open, onOpenChange }: ReuniaoDe
                   {reuniao.resumo_ia}
                 </p>
               </div>
+            ) : reuniao.transcricao && hasTemplateFields ? (
+              <div className="text-center py-6 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Esta reunião tem transcrição mas ainda não foi resumida.
+                </p>
+                <Button
+                  onClick={() => processMutation.mutate()}
+                  disabled={processMutation.isPending}
+                  className="gap-2"
+                >
+                  {processMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  Gerar Resumo com IA
+                </Button>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground italic text-center py-4">
-                Resumo ainda não processado. Configure o template e sincronize novamente.
+                {!reuniao.transcricao 
+                  ? "Aguardando transcrição. Vincule uma transcrição do Fireflies primeiro."
+                  : "Configure os campos do template para gerar resumos personalizados."
+                }
               </p>
             )}
 
