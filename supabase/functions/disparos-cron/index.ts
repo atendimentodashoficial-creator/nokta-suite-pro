@@ -38,6 +38,22 @@ Deno.serve(async (req) => {
     const now = new Date();
     console.log(`[CRON] Starting disparos cron at ${now.toISOString()}`);
 
+    // === Run admin notifications cron (low balance alerts + scheduled reports) ===
+    try {
+      console.log("[CRON] Triggering admin-notifications-cron...");
+      const adminNotifResponse = await fetch(`${SUPABASE_URL}/functions/v1/admin-notifications-cron`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Cron-Secret": CRON_SECRET,
+        },
+      });
+      const adminNotifResult = await adminNotifResponse.json();
+      console.log("[CRON] Admin notifications result:", adminNotifResult);
+    } catch (adminErr: any) {
+      console.error("[CRON] Error calling admin-notifications-cron:", adminErr.message);
+    }
+
     // Find all running campaigns that are ready to continue
     // Process ALL campaigns regardless of delay - cron is the primary scheduler
     const { data: campanhas, error: campanhasError } = await supabase
