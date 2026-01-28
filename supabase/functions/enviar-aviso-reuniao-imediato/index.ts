@@ -152,9 +152,9 @@ serve(async (req) => {
       );
     }
 
-    // Get active WhatsApp instances for this user
+    // Get active WhatsApp instances for this user (from disparos_instancias)
     const { data: instancias, error: instanciasError } = await supabase
-      .from("whatsapp_config")
+      .from("disparos_instancias")
       .select("*")
       .eq("user_id", userId)
       .eq("is_active", true)
@@ -163,7 +163,7 @@ serve(async (req) => {
     if (instanciasError || !instancias || instancias.length === 0) {
       console.error("No active WhatsApp instance:", instanciasError);
       return new Response(
-        JSON.stringify({ success: false, error: "Nenhuma instância WhatsApp ativa" }),
+        JSON.stringify({ success: false, error: "Nenhuma instância WhatsApp ativa configurada" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
