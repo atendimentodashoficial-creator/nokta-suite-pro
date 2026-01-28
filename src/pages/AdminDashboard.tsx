@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Pencil, GripVertical, Check, X, Shield } from "lucide-react";
+import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Pencil, GripVertical, Check, X, Shield, Settings } from "lucide-react";
+import { AdminNotificationsConfig } from "@/components/admin/AdminNotificationsConfig";
 import { UserPermissionsDialog } from "@/components/admin/UserPermissionsDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -604,6 +605,10 @@ export default function AdminDashboard() {
           <TabsList className="h-8 mx-auto mb-8">
             <TabsTrigger value="metrics" className="text-xs px-3 h-7">Métricas</TabsTrigger>
             <TabsTrigger value="dashboard" className="text-xs px-3 h-7">Dashboard</TabsTrigger>
+            <TabsTrigger value="settings" className="text-xs px-3 h-7">
+              <Settings className="h-3 w-3 mr-1" />
+              Configurações
+            </TabsTrigger>
           </TabsList>
 
           {/* Aba Métricas - Informações Gerais */}
@@ -1096,6 +1101,11 @@ export default function AdminDashboard() {
           </Card>
         </div>
       </TabsContent>
+
+          {/* Aba Configurações */}
+          <TabsContent value="settings" className="space-y-8">
+            <AdminNotificationsConfig users={users} />
+          </TabsContent>
     </Tabs>
   </main>
     </div>;
