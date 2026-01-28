@@ -293,7 +293,7 @@ Deno.serve(async (req) => {
       console.log('[admin-keyword-handler] Generating report...');
 
       try {
-        const reportPeriod = parseInt(notifConfig.campaign_report_period || '7');
+        const reportPeriod = parseInt(notifConfig.keyword_report_period || notifConfig.campaign_report_period || '7');
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - reportPeriod);
