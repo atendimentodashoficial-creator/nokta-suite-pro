@@ -260,7 +260,28 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
   const handleDeleteInstance = async (instanceId: string) => {
     try {
       const adminToken = localStorage.getItem("admin_token");
+      
+      // Find the instance to get its details for UAZAPI deletion
+      const instancia = instances.find(i => i.id === instanceId);
+      
+      // First, try to delete from UAZAPI server
+      if (instancia) {
+        try {
+          await supabase.functions.invoke("uazapi-admin-delete-instance", {
+            headers: { Authorization: `Bearer ${adminToken}` },
+            body: {
+              instance_name: instancia.instance_name || instancia.nome || instanceId,
+              base_url: instancia.base_url,
+              api_key: instancia.api_key,
+            },
+          });
+          console.log("Instance deleted from UAZAPI server");
+        } catch (e) {
+          console.log("UAZAPI admin delete call failed (continuing with local deletion):", e);
+        }
+      }
 
+      // Then delete from database
       const { data, error } = await supabase.functions.invoke("admin-manage-users", {
         headers: { Authorization: `Bearer ${adminToken}` },
         body: {
