@@ -48,6 +48,7 @@ serve(async (req) => {
       keywordReport,
       keywordBalanceMessage,
       keywordReportMessage,
+      keywordReportPeriod,
       keywordCooldownHours,
       adminInstanciaId,
       instanceId,
@@ -257,6 +258,7 @@ serve(async (req) => {
             keyword_report: keywordReport || 'relatorio',
             keyword_balance_message: keywordBalanceMessage || null,
             keyword_report_message: keywordReportMessage || null,
+            keyword_report_period: keywordReportPeriod || '7',
             keyword_cooldown_hours: keywordCooldownHours ?? 1,
             admin_instancia_id: adminInstanciaId || null,
             updated_at: new Date().toISOString()
