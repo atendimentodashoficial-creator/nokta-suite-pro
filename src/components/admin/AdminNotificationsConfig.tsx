@@ -73,7 +73,23 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
           low_balance_threshold: 100,
           low_balance_message: "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
           campaign_reports_enabled: true,
-          campaign_report_message: "📊 *Relatório de Campanha*\n\n*Disparo:* {nome_campanha}\nEnviados: {enviados}\nFalhas: {falhas}\nStatus: {status}\n\n*Meta Ads:*\nConversas: {conversas}\nGasto: R$ {gasto}\nCPC: R$ {cpc}\nCPM: R$ {cpm}\nCTR: {ctr}%\nCusto/Conversa: R$ {custo_conversa}",
+          campaign_report_message: `📊 Resultado dos últimos {periodo_dias} dias de anúncios no Meta Ads:
+
+{data_inicio} - {data_fim}
+
+🔹*Valor Gasto:* _R$ {gasto}_
+
+🔹*Total de Leads:* _{conversas}_
+
+🔹*Custo por Lead:* _R$ {custo_conversa}_
+
+🔹*Total de Cliques:* _{cliques}_
+
+🔹*Custo por Clique:* _R$ {cpc}_
+
+🔹*Impressões:* _{impressoes}_
+
+🔹*Alcance:* _{alcance}_`,
           campaign_report_period: "7",
         },
       }));
@@ -349,13 +365,17 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                               placeholder="Mensagem do relatório de campanha..."
                             />
                             <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground font-medium">Variáveis de Disparo:</p>
+                              <p className="text-xs text-muted-foreground font-medium">Variáveis de Período:</p>
                               <p className="text-xs text-muted-foreground">
-                                {"{nome_campanha}"}, {"{enviados}"}, {"{falhas}"}, {"{status}"}
+                                {"{periodo_dias}"}, {"{data_inicio}"}, {"{data_fim}"}
                               </p>
                               <p className="text-xs text-muted-foreground font-medium mt-2">Variáveis Meta Ads:</p>
                               <p className="text-xs text-muted-foreground">
                                 {"{conversas}"}, {"{gasto}"}, {"{impressoes}"}, {"{cliques}"}, {"{alcance}"}, {"{cpc}"}, {"{cpm}"}, {"{ctr}"}, {"{custo_conversa}"}
+                              </p>
+                              <p className="text-xs text-muted-foreground font-medium mt-2">Variáveis de Disparo:</p>
+                              <p className="text-xs text-muted-foreground">
+                                {"{nome_campanha}"}, {"{enviados}"}, {"{falhas}"}, {"{status}"}
                               </p>
                             </div>
                           </div>
