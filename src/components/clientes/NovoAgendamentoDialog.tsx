@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, Check, Video } from "lucide-react";
+import { CalendarIcon, Check, Video, Calendar as CalendarIconSolid } from "lucide-react";
 import { formatPhone, normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, extractCountryCode, stripCountryCode } from "@/utils/phoneFormat";
 import {
   Dialog,
@@ -38,6 +38,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useCreateAgendamento, useAgendamentos } from "@/hooks/useAgendamentos";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
@@ -270,7 +271,8 @@ export function NovoAgendamentoDialog({
   const [clienteSuggestions, setClienteSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [countryCode, setCountryCode] = useState("55");
-  const [agendarGoogleMeet, setAgendarGoogleMeet] = useState(false);
+  // "none" = não criar reunião, "google" = só Google, "app" = só app, "both" = ambos
+  const [tipoCalendario, setTipoCalendario] = useState<"none" | "google" | "app" | "both">("none");
   
   // Track if name was manually edited by user - prevents auto-fill from overwriting
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
@@ -795,8 +797,11 @@ export function NovoAgendamentoDialog({
         origem_instancia_nome: origemInstanciaNome || null,
       });
 
-      // Se opção de Google Meet está ativa, criar evento no Google Calendar
-      if (agendarGoogleMeet && showGoogleMeetOption) {
+      const criarNoGoogleCalendar = (tipoCalendario === "google" || tipoCalendario === "both") && showGoogleMeetOption;
+      const criarNaAgendaApp = tipoCalendario === "app" || tipoCalendario === "both";
+
+      // Se opção de Google Calendar está ativa, criar evento no Google Calendar
+      if (criarNoGoogleCalendar) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
@@ -810,6 +815,7 @@ export function NovoAgendamentoDialog({
                 participanteEmail: data.email || undefined,
                 participanteNome: data.nome,
                 procedimentoNome: procedimentoSelecionado?.nome,
+                skipLocalSave: criarNaAgendaApp, // Se também vai criar na agenda do app, não salva na reunioes pelo edge function
               },
             });
             
@@ -826,15 +832,48 @@ export function NovoAgendamentoDialog({
           console.error("Erro ao criar evento Google Calendar:", gcalError);
           toast.warning("Agendamento criado, mas houve erro ao criar reunião no Google Calendar");
         }
-      } else {
+      }
+
+      // Se opção de agenda do app está ativa, criar na tabela reunioes (sem Google)
+      if (criarNaAgendaApp) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const participantes = data.email ? [data.nome, data.email] : [data.nome];
+            
+            const { error: reuniaoError } = await supabase
+              .from("reunioes")
+              .insert({
+                user_id: session.user.id,
+                titulo: `Reunião com ${data.nome}${procedimentoSelecionado ? ` - ${procedimentoSelecionado.nome}` : ""}`,
+                data_reuniao: dataHora.toISOString(),
+                duracao_minutos: tempoAtendimento,
+                participantes: participantes,
+                status: "agendado",
+              });
+
+            if (reuniaoError) {
+              console.error("Erro ao criar reunião na agenda do app:", reuniaoError);
+              toast.warning("Erro ao criar reunião na agenda do app");
+            } else if (!criarNoGoogleCalendar) {
+              toast.success("Reunião criada na agenda do app!");
+            }
+          }
+        } catch (appError) {
+          console.error("Erro ao criar reunião na agenda do app:", appError);
+        }
+      }
+
+      if (!criarNoGoogleCalendar && !criarNaAgendaApp) {
         toast.success("Agendamento criado com sucesso!");
       }
 
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
       onOpenChange(false);
       form.reset();
-      setAgendarGoogleMeet(false);
+      setTipoCalendario("none");
     } catch (error) {
       console.error("Erro ao criar agendamento:", error);
       toast.error("Erro ao criar agendamento");
@@ -1132,25 +1171,72 @@ export function NovoAgendamentoDialog({
               )}
             />
 
-            {/* Opção Google Meet - só aparece se feature reuniões habilitada e Google Calendar conectado */}
-            {showGoogleMeetOption && (
-              <div className="flex items-center justify-between rounded-lg border p-4 bg-muted/30">
+            {/* Opção de Calendário - só aparece se feature reuniões habilitada */}
+            {reunioesEnabled && (
+              <div className="rounded-lg border p-4 bg-muted/30 space-y-4">
                 <div className="flex items-center gap-3">
                   <Video className="h-5 w-5 text-primary" />
                   <div className="space-y-0.5">
-                    <Label htmlFor="google-meet-toggle" className="font-medium">
-                      Agendar Reunião Google Meet
+                    <Label className="font-medium">
+                      Agendar Reunião
                     </Label>
                     <p className="text-sm text-muted-foreground">
-                      Criar evento no Google Calendar com link de videoconferência
+                      Escolha onde criar a reunião
                     </p>
                   </div>
                 </div>
-                <Switch
-                  id="google-meet-toggle"
-                  checked={agendarGoogleMeet}
-                  onCheckedChange={setAgendarGoogleMeet}
-                />
+                
+                <RadioGroup
+                  value={tipoCalendario}
+                  onValueChange={(value) => setTipoCalendario(value as "none" | "google" | "app" | "both")}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
+                    <RadioGroupItem value="none" id="calendar-none" />
+                    <Label htmlFor="calendar-none" className="flex-1 cursor-pointer">
+                      <span className="font-medium">Não criar reunião</span>
+                      <p className="text-sm text-muted-foreground">Apenas criar o agendamento</p>
+                    </Label>
+                  </div>
+                  
+                  {googleCalendarConnected && (
+                    <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
+                      <RadioGroupItem value="google" id="calendar-google" />
+                      <Label htmlFor="calendar-google" className="flex-1 cursor-pointer">
+                        <span className="font-medium flex items-center gap-2">
+                          <Video className="h-4 w-4" />
+                          Apenas Google Calendar
+                        </span>
+                        <p className="text-sm text-muted-foreground">Criar evento com link do Google Meet</p>
+                      </Label>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
+                    <RadioGroupItem value="app" id="calendar-app" />
+                    <Label htmlFor="calendar-app" className="flex-1 cursor-pointer">
+                      <span className="font-medium flex items-center gap-2">
+                        <CalendarIconSolid className="h-4 w-4" />
+                        Apenas agenda do App
+                      </span>
+                      <p className="text-sm text-muted-foreground">Criar reunião apenas na agenda interna</p>
+                    </Label>
+                  </div>
+                  
+                  {googleCalendarConnected && (
+                    <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
+                      <RadioGroupItem value="both" id="calendar-both" />
+                      <Label htmlFor="calendar-both" className="flex-1 cursor-pointer">
+                        <span className="font-medium flex items-center gap-2">
+                          <Video className="h-4 w-4" />
+                          <CalendarIconSolid className="h-4 w-4" />
+                          Ambos os calendários
+                        </span>
+                        <p className="text-sm text-muted-foreground">Criar no Google Calendar e na agenda do App</p>
+                      </Label>
+                    </div>
+                  )}
+                </RadioGroup>
               </div>
             )}
 
