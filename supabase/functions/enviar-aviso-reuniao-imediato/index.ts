@@ -185,24 +185,42 @@ serve(async (req) => {
         // Replace variables in message
         const mensagem = replaceVariables(aviso.mensagem, reuniao, clienteNome);
 
-        // Send WhatsApp message
-        const sendUrl = `${instancia.base_url}/sendText/${instancia.instance_name}`;
+        // Send WhatsApp message (UAZapi padrão usado em Disparos)
+        const baseUrl = String(instancia.base_url || "").replace(/\/+$/, "");
+        const sendUrl = `${baseUrl}/send/text`;
+
         const sendResponse = await fetch(sendUrl, {
           method: "POST",
           headers: {
+            Accept: "application/json",
             "Content-Type": "application/json",
-            Authorization: `Bearer ${instancia.api_key}`,
+            token: String(instancia.api_key || ""),
           },
           body: JSON.stringify({
-            phone: normalizedPhone,
-            message: mensagem,
+            number: normalizedPhone,
+            text: mensagem,
           }),
         });
 
-        const sendResult = await sendResponse.json();
+        const responseText = await sendResponse.text();
+        let sendResult: any = null;
+        try {
+          sendResult = responseText ? JSON.parse(responseText) : null;
+        } catch {
+          sendResult = { raw: responseText };
+        }
 
         if (!sendResponse.ok) {
-          console.error(`Error sending message for aviso "${aviso.nome}":`, sendResult);
+          console.error(`Error sending message for aviso "${aviso.nome}":`, {
+            status: sendResponse.status,
+            body: sendResult,
+          });
+          const erroDetalhado =
+            sendResult?.message ||
+            sendResult?.error ||
+            (typeof sendResult?.raw === "string" && sendResult.raw) ||
+            responseText ||
+            `Erro ao enviar mensagem (${sendResponse.status})`;
           
           // Log the failure
           await supabase.from("avisos_reuniao_log").insert({
@@ -215,7 +233,7 @@ serve(async (req) => {
             dias_antes: 0,
             mensagem_enviada: mensagem,
             status: "erro",
-            erro: sendResult.message || "Erro ao enviar mensagem",
+            erro: erroDetalhado,
           });
           
           continue;
