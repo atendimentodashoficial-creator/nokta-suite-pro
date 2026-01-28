@@ -95,6 +95,8 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
   const { data: escalas } = useEscalas();
   const { data: ausencias } = useAusencias();
   const [todasReunioes, setTodasReunioes] = useState<any[]>([]);
+  // Opção para mostrar horários de 15 em 15 min
+  const [mostrarHorarios15min, setMostrarHorarios15min] = useState(false);
 
   // Buscar reuniões para verificar ocupação
   useEffect(() => {
@@ -130,8 +132,8 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
   const dataWatch = form.watch("data_reuniao");
   const profissionalWatch = form.watch("profissional_id");
 
-  // Duração padrão para reuniões (30 min de intervalo)
-  const intervaloMinutos = 30;
+  // Intervalo efetivo para geração de horários
+  const intervaloMinutos = mostrarHorarios15min ? 15 : 30;
 
   // Calcular horários disponíveis para o profissional selecionado
   const horariosDisponiveis = useMemo(() => {
@@ -189,7 +191,7 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
     return [...new Set(todosHorarios)]
       .filter(h => !horariosOcupados.includes(h))
       .sort();
-  }, [dataWatch, profissionalWatch, escalas, ausencias, todosAgendamentos, todasReunioes, reuniao]);
+  }, [dataWatch, profissionalWatch, escalas, ausencias, todosAgendamentos, todasReunioes, reuniao, intervaloMinutos]);
 
   const reagendarMutation = useMutation({
     mutationFn: async (data: ReagendamentoFormData) => {
@@ -323,7 +325,18 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
             {dataWatch && profissionalWatch && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <FormLabel>Horário</FormLabel>
+                  <div className="flex items-center gap-3">
+                    <FormLabel className="mb-0">Horário</FormLabel>
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={mostrarHorarios15min}
+                        onChange={(e) => setMostrarHorarios15min(e.target.checked)}
+                        className="w-3 h-3 rounded border-muted-foreground/50"
+                      />
+                      15 min
+                    </label>
+                  </div>
                   {form.watch("hora") && (
                     <span className="text-xs text-primary font-medium">
                       ✓ {form.watch("hora")} selecionado
