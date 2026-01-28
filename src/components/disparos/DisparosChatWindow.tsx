@@ -492,8 +492,14 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         }
       }
     } catch (error: any) {
-      console.error('Error loading messages:', error);
-      toast.error(error.message || 'Erro ao carregar mensagens');
+      // Silent handling for network errors - don't show toast for "Failed to fetch"
+      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      if (isNetworkError) {
+        console.warn('Network error loading messages (silent):', error.message);
+      } else {
+        console.error('Error loading messages:', error);
+        toast.error(error.message || 'Erro ao carregar mensagens');
+      }
     } finally {
       setIsLoadingMessages(false);
       setIsLoadingMore(false);

@@ -80,8 +80,13 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
       if (error) throw error;
       setCampanhas((data || []) as Campanha[]);
     } catch (error: any) {
-      console.error("Error loading campaigns:", error);
-      toast.error("Erro ao carregar campanhas");
+      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      if (isNetworkError) {
+        console.warn("Network error loading campaigns (silent):", error.message);
+      } else {
+        console.error("Error loading campaigns:", error);
+        toast.error("Erro ao carregar campanhas");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +102,10 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
       if (error) throw error;
       setInstancias((data || []) as DisparosInstancia[]);
     } catch (error: any) {
-      console.error("Error loading instances:", error);
+      const isNetworkError = error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError');
+      if (!isNetworkError) {
+        console.error("Error loading instances:", error);
+      }
     }
   };
 
