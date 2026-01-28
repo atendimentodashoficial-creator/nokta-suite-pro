@@ -16,12 +16,14 @@ export type Database = {
     Tables: {
       admin_client_notifications: {
         Row: {
+          admin_instancia_id: string | null
           campaign_report_message: string | null
           campaign_report_period: string | null
           campaign_reports_enabled: boolean | null
           created_at: string | null
+          destination_type: string | null
+          destination_value: string | null
           id: string
-          instancia_id: string | null
           low_balance_enabled: boolean | null
           low_balance_message: string | null
           low_balance_threshold: number | null
@@ -29,12 +31,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          admin_instancia_id?: string | null
           campaign_report_message?: string | null
           campaign_report_period?: string | null
           campaign_reports_enabled?: boolean | null
           created_at?: string | null
+          destination_type?: string | null
+          destination_value?: string | null
           id?: string
-          instancia_id?: string | null
           low_balance_enabled?: boolean | null
           low_balance_message?: string | null
           low_balance_threshold?: number | null
@@ -42,12 +46,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          admin_instancia_id?: string | null
           campaign_report_message?: string | null
           campaign_report_period?: string | null
           campaign_reports_enabled?: boolean | null
           created_at?: string | null
+          destination_type?: string | null
+          destination_value?: string | null
           id?: string
-          instancia_id?: string | null
           low_balance_enabled?: boolean | null
           low_balance_message?: string | null
           low_balance_threshold?: number | null
@@ -56,13 +62,46 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "admin_client_notifications_instancia_id_fkey"
-            columns: ["instancia_id"]
+            foreignKeyName: "admin_client_notifications_admin_instancia_id_fkey"
+            columns: ["admin_instancia_id"]
             isOneToOne: false
-            referencedRelation: "disparos_instancias"
+            referencedRelation: "admin_notification_instances"
             referencedColumns: ["id"]
           },
         ]
+      }
+      admin_notification_instances: {
+        Row: {
+          api_key: string
+          base_url: string
+          created_at: string | null
+          id: string
+          instance_name: string | null
+          is_active: boolean | null
+          nome: string
+          updated_at: string | null
+        }
+        Insert: {
+          api_key: string
+          base_url: string
+          created_at?: string | null
+          id?: string
+          instance_name?: string | null
+          is_active?: boolean | null
+          nome: string
+          updated_at?: string | null
+        }
+        Update: {
+          api_key?: string
+          base_url?: string
+          created_at?: string | null
+          id?: string
+          instance_name?: string | null
+          is_active?: boolean | null
+          nome?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       admin_users: {
         Row: {

@@ -199,36 +199,28 @@ serve(async (req) => {
         // Obter configuração de notificações do cliente
         const { data: config, error: getError } = await supabase
           .from('admin_client_notifications')
-          .select('*, disparos_instancias(id, nome)')
+          .select('*')
           .eq('user_id', userId)
           .maybeSingle();
 
         if (getError) throw getError;
 
-        // Também obter lista de instâncias do cliente para seleção
-        const { data: instancias, error: instError } = await supabase
-          .from('disparos_instancias')
-          .select('id, nome, is_active')
-          .eq('user_id', userId)
-          .eq('is_active', true);
-
-        if (instError) throw instError;
-
         return new Response(
-          JSON.stringify({ success: true, config, instancias }),
+          JSON.stringify({ success: true, config }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       case 'update_notification_config': {
-        const { instanciaId, lowBalanceEnabled, lowBalanceThreshold, lowBalanceMessage, campaignReportsEnabled, campaignReportMessage, campaignReportPeriod } = await req.json();
+        const { destinationType, destinationValue, lowBalanceEnabled, lowBalanceThreshold, lowBalanceMessage, campaignReportsEnabled, campaignReportMessage, campaignReportPeriod } = await req.json();
 
         // Upsert configuração
         const { error: upsertError } = await supabase
           .from('admin_client_notifications')
           .upsert({
             user_id: userId,
-            instancia_id: instanciaId || null,
+            destination_type: destinationType || 'number',
+            destination_value: destinationValue || null,
             low_balance_enabled: lowBalanceEnabled ?? true,
             low_balance_threshold: lowBalanceThreshold ?? 100,
             low_balance_message: lowBalanceMessage || null,
@@ -252,7 +244,7 @@ serve(async (req) => {
         // Obter todas configurações de notificações (para listar no admin)
         const { data: configs, error: getError } = await supabase
           .from('admin_client_notifications')
-          .select('*, disparos_instancias(id, nome)');
+          .select('*');
 
         if (getError) throw getError;
 
