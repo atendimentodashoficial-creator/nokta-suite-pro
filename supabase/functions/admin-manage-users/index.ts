@@ -221,7 +221,7 @@ serve(async (req) => {
       }
 
       case 'update_notification_config': {
-        const { instanciaId, lowBalanceEnabled, lowBalanceThreshold, lowBalanceMessage, campaignReportsEnabled, campaignReportMessage } = await req.json();
+        const { instanciaId, lowBalanceEnabled, lowBalanceThreshold, lowBalanceMessage, campaignReportsEnabled, campaignReportMessage, campaignReportPeriod } = await req.json();
 
         // Upsert configuração
         const { error: upsertError } = await supabase
@@ -234,6 +234,7 @@ serve(async (req) => {
             low_balance_message: lowBalanceMessage || null,
             campaign_reports_enabled: campaignReportsEnabled ?? true,
             campaign_report_message: campaignReportMessage || null,
+            campaign_report_period: campaignReportPeriod || '7',
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id'

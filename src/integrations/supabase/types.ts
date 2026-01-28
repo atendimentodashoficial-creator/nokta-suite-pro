@@ -17,6 +17,7 @@ export type Database = {
       admin_client_notifications: {
         Row: {
           campaign_report_message: string | null
+          campaign_report_period: string | null
           campaign_reports_enabled: boolean | null
           created_at: string | null
           id: string
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           campaign_report_message?: string | null
+          campaign_report_period?: string | null
           campaign_reports_enabled?: boolean | null
           created_at?: string | null
           id?: string
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           campaign_report_message?: string | null
+          campaign_report_period?: string | null
           campaign_reports_enabled?: boolean | null
           created_at?: string | null
           id?: string
