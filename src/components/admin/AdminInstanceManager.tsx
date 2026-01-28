@@ -109,8 +109,8 @@ export function AdminInstanceManager() {
       const adminToken = localStorage.getItem("admin_token");
       const { data, error } = await supabase.functions.invoke("uazapi-check-status", {
         body: { 
-          baseUrl: instance.base_url,
-          apiKey: instance.api_key
+          base_url: instance.base_url,
+          api_key: instance.api_key
         },
         headers: { Authorization: `Bearer ${adminToken}` }
       });
@@ -199,8 +199,8 @@ export function AdminInstanceManager() {
       const adminToken = localStorage.getItem("admin_token");
       const { data, error } = await supabase.functions.invoke("uazapi-admin-get-qrcode", {
         body: { 
-          baseUrl: instance.base_url,
-          apiKey: instance.api_key
+          base_url: instance.base_url,
+          api_key: instance.api_key
         },
         headers: { Authorization: `Bearer ${adminToken}` }
       });
