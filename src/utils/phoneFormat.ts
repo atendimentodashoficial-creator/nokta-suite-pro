@@ -282,6 +282,29 @@ export const normalizePhone = (phone: string): string => {
   return phone.replace(/\D/g, '');
 };
 
+// Remove duplicação de código de país (ex: 555534... -> 5534...)
+export const removeDuplicateCountryCode = (phone: string): string => {
+  const digits = phone.replace(/\D/g, '');
+  
+  // Detectar padrões de duplicação comuns
+  // Brasil: 5555... -> 55...
+  if (digits.startsWith('5555') && digits.length >= 15) {
+    return digits.slice(2); // Remove os primeiros 2 dígitos (o "55" duplicado)
+  }
+  
+  // USA/Canada: 11... -> 1...
+  if (digits.startsWith('11') && digits.length >= 12) {
+    return digits.slice(1);
+  }
+  
+  // Portugal: 351351... -> 351...
+  if (digits.startsWith('351351') && digits.length >= 15) {
+    return digits.slice(3);
+  }
+  
+  return digits;
+};
+
 // Lista de códigos de país ordenados por tamanho (maiores primeiro para evitar match parcial)
 const countryCodes = [
   "351", "33", "39", "44", "49", // 3 dígitos ou 2 dígitos
@@ -319,8 +342,8 @@ export const getLast8Digits = (phone: string): string => {
 };
 
 export const formatPhoneDisplay = (phone: string): string => {
-  // Remove tudo que não é número
-  const numbers = phone.replace(/\D/g, '');
+  // Remove tudo que não é número e corrige duplicação de código de país
+  const numbers = removeDuplicateCountryCode(phone);
   
   // Se tiver 12 dígitos: 55 + DDD(2) + número(8) - telefone fixo
   if (numbers.length === 12) {
