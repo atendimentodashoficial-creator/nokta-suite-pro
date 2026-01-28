@@ -1150,7 +1150,7 @@ export default function AdminDashboard() {
           {/* Aba Configurações */}
           <TabsContent value="settings" className="space-y-6">
             <AdminInstanceManager />
-            <AdminNotificationsConfig users={users} />
+            <AdminNotificationsConfig users={users} isActive={activeAdminTab === "settings"} />
           </TabsContent>
     </Tabs>
   </main>
