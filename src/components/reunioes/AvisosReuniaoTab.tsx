@@ -664,16 +664,16 @@ export function AvisosReuniaoTab() {
                       <span>Envio imediato (ao agendar)</span>
                     </div>
                   </SelectItem>
-                  <SelectItem value="dias_antes">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      <span>Dias antes da reunião</span>
-                    </div>
-                  </SelectItem>
                   <SelectItem value="reagendamento">
                     <div className="flex items-center gap-2">
                       <RefreshCw className="h-4 w-4 text-blue-500" />
                       <span>Ao reagendar reunião</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="dias_antes">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>Dias antes da reunião</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
