@@ -17,6 +17,7 @@ interface AvisoAgendamento {
   intervalo_max: number;
   last_check_at: string | null;
   procedimento_id: string | null;
+  tipo_gatilho: string; // 'dias_antes' | 'reagendamento'
 }
 
 interface WhatsAppConfig {
@@ -43,6 +44,8 @@ interface PendingAviso {
   leadOrigem: string | null;
   leadInstanciaNome: string | null;
   agendamentoInstanciaNome: string | null;
+  tipoGatilho: string;
+  numeroReagendamentos?: number;
 }
 
 // Configuration
@@ -275,6 +278,15 @@ async function processAviso(
         updateData[aviso.flagField] = true;
 
         await supabase.from("agendamentos").update(updateData).eq("id", aviso.agendamentoId);
+      }
+
+      // For reagendamento type, update ultimo_reagendamento_avisado
+      if (aviso.tipoGatilho === 'reagendamento' && aviso.numeroReagendamentos !== undefined) {
+        await supabase
+          .from("agendamentos")
+          .update({ ultimo_reagendamento_avisado: aviso.numeroReagendamentos })
+          .eq("id", aviso.agendamentoId);
+        console.log(`Updated ultimo_reagendamento_avisado to ${aviso.numeroReagendamentos} for agendamento ${aviso.agendamentoId}`);
       }
 
       // Log the sent aviso
@@ -534,6 +546,8 @@ Deno.serve(async (req) => {
           origem_agendamento,
           origem_instancia_nome,
           procedimento_id,
+          numero_reagendamentos,
+          ultimo_reagendamento_avisado,
           leads!inner(id, nome, telefone, origem, instancia_nome),
           procedimentos(nome),
           profissionais(nome)
@@ -554,27 +568,50 @@ Deno.serve(async (req) => {
       // Build pending list for this aviso
       const pendingAvisos: PendingAviso[] = [];
       
-      // Get all agendamentos that match dias_antes and optionally procedimento_id
-      const matchingAgendamentos = (agendamentos as any[]).filter(ag => {
-        const dataAgendamento = new Date(ag.data_agendamento);
-        const dataAgendamentoSP = new Date(dataAgendamento.getTime());
-        dataAgendamentoSP.setHours(0, 0, 0, 0);
+      // Different filtering logic based on tipo_gatilho
+      let matchingAgendamentos: any[] = [];
+      
+      if (aviso.tipo_gatilho === 'reagendamento') {
+        // For reagendamento type: find appointments that have been rescheduled but not yet notified
+        matchingAgendamentos = (agendamentos as any[]).filter(ag => {
+          // Check if this appointment has been rescheduled since last notification
+          const numReagendamentos = ag.numero_reagendamentos || 0;
+          const ultimoAvisado = ag.ultimo_reagendamento_avisado || 0;
+          
+          if (numReagendamentos <= ultimoAvisado) return false;
+          
+          // If aviso has a specific procedimento_id, filter by it
+          if (aviso.procedimento_id && ag.procedimento_id !== aviso.procedimento_id) {
+            return false;
+          }
+          
+          return true;
+        });
+        
+        console.log(`Found ${matchingAgendamentos.length} rescheduled appointments for aviso "${aviso.nome}"`);
+      } else {
+        // Default: dias_antes behavior
+        matchingAgendamentos = (agendamentos as any[]).filter(ag => {
+          const dataAgendamento = new Date(ag.data_agendamento);
+          const dataAgendamentoSP = new Date(dataAgendamento.getTime());
+          dataAgendamentoSP.setHours(0, 0, 0, 0);
 
-        const hojeDateSP = new Date(saoPauloNow);
-        hojeDateSP.setHours(0, 0, 0, 0);
+          const hojeDateSP = new Date(saoPauloNow);
+          hojeDateSP.setHours(0, 0, 0, 0);
 
-        const diffDays = Math.round((dataAgendamentoSP.getTime() - hojeDateSP.getTime()) / (1000 * 60 * 60 * 24));
-        
-        // Check if dias_antes matches
-        if (diffDays !== aviso.dias_antes) return false;
-        
-        // If aviso has a specific procedimento_id, filter by it
-        if (aviso.procedimento_id && ag.procedimento_id !== aviso.procedimento_id) {
-          return false;
-        }
-        
-        return true;
-      });
+          const diffDays = Math.round((dataAgendamentoSP.getTime() - hojeDateSP.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Check if dias_antes matches
+          if (diffDays !== aviso.dias_antes) return false;
+          
+          // If aviso has a specific procedimento_id, filter by it
+          if (aviso.procedimento_id && ag.procedimento_id !== aviso.procedimento_id) {
+            return false;
+          }
+          
+          return true;
+        });
+      }
 
       if (matchingAgendamentos.length === 0) {
         console.log(`No matching appointments for aviso "${aviso.nome}" (dias_antes=${aviso.dias_antes})`);
@@ -604,17 +641,19 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Determine flag field
+        // Determine flag field (only for dias_antes type)
         let flagField = "";
-        if (aviso.dias_antes === 0) {
-          flagField = "aviso_dia";
-          if (ag.aviso_dia) continue;
-        } else if (aviso.dias_antes === 1) {
-          flagField = "aviso_dia_anterior";
-          if (ag.aviso_dia_anterior) continue;
-        } else if (aviso.dias_antes === 3) {
-          flagField = "aviso_3dias";
-          if (ag.aviso_3dias) continue;
+        if (aviso.tipo_gatilho !== 'reagendamento') {
+          if (aviso.dias_antes === 0) {
+            flagField = "aviso_dia";
+            if (ag.aviso_dia) continue;
+          } else if (aviso.dias_antes === 1) {
+            flagField = "aviso_dia_anterior";
+            if (ag.aviso_dia_anterior) continue;
+          } else if (aviso.dias_antes === 3) {
+            flagField = "aviso_3dias";
+            if (ag.aviso_3dias) continue;
+          }
         }
 
         const telefone = ag.leads?.telefone;
@@ -639,6 +678,8 @@ Deno.serve(async (req) => {
           leadOrigem: ag.origem_agendamento || ag.leads?.origem || null,
           leadInstanciaNome: ag.leads?.instancia_nome || null,
           agendamentoInstanciaNome: ag.origem_instancia_nome || null,
+          tipoGatilho: aviso.tipo_gatilho || 'dias_antes',
+          numeroReagendamentos: ag.numero_reagendamentos || 0,
         });
       }
 

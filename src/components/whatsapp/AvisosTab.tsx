@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Calendar, Clock, Save, Loader2, User, MessageSquare, Plus, Trash2, Edit, X, Check, CheckCircle2, Send, AlertCircle, TrendingUp, MessageCircle, FileText } from "lucide-react";
+import { Bell, Calendar, Clock, Save, Loader2, User, MessageSquare, Plus, Trash2, Edit, X, Check, CheckCircle2, Send, AlertCircle, TrendingUp, MessageCircle, FileText, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -67,6 +67,7 @@ interface AvisoAgendamento {
   intervalo_min: number;
   intervalo_max: number;
   procedimento_id: string | null;
+  tipo_gatilho: string;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +106,7 @@ export function AvisosTab() {
   const [formIntervaloUnit, setFormIntervaloUnit] = useState<"seconds" | "minutes">("seconds");
   const [formAtivo, setFormAtivo] = useState(true);
   const [formProcedimentoId, setFormProcedimentoId] = useState<string | null>(null);
+  const [formTipoGatilho, setFormTipoGatilho] = useState<string>('dias_antes');
 
   const { data: agendamentos } = useAgendamentos();
   const { data: procedimentos } = useProcedimentos();
@@ -239,6 +241,7 @@ export function AvisosTab() {
     setFormIntervaloUnit("seconds");
     setFormAtivo(true);
     setFormProcedimentoId(null);
+    setFormTipoGatilho('dias_antes');
     setEditingAviso(null);
   };
 
@@ -267,6 +270,7 @@ export function AvisosTab() {
     }
     setFormAtivo(aviso.ativo);
     setFormProcedimentoId(aviso.procedimento_id || null);
+    setFormTipoGatilho(aviso.tipo_gatilho || 'dias_antes');
     setIsDialogOpen(true);
   };
 
@@ -320,13 +324,14 @@ export function AvisosTab() {
           .update({
             nome: formNome.trim(),
             mensagem: formMensagem.trim(),
-            dias_antes: formDiasAntes,
+            dias_antes: formTipoGatilho === 'dias_antes' ? formDiasAntes : 0,
             horario_envio: formHorarioEnvio,
             intervalo_min: intervaloMinSec,
             intervalo_max: intervaloMaxSec,
             ativo: formAtivo,
             next_check_at: nextCheckAt,
             procedimento_id: formProcedimentoId,
+            tipo_gatilho: formTipoGatilho,
           })
           .eq('id', editingAviso.id);
 
@@ -340,13 +345,14 @@ export function AvisosTab() {
             user_id: user.id,
             nome: formNome.trim(),
             mensagem: formMensagem.trim(),
-            dias_antes: formDiasAntes,
+            dias_antes: formTipoGatilho === 'dias_antes' ? formDiasAntes : 0,
             horario_envio: formHorarioEnvio,
             intervalo_min: intervaloMinSec,
             intervalo_max: intervaloMaxSec,
             ativo: formAtivo,
             next_check_at: nextCheckAt,
             procedimento_id: formProcedimentoId,
+            tipo_gatilho: formTipoGatilho,
           });
 
         if (error) throw error;
@@ -426,7 +432,8 @@ export function AvisosTab() {
   };
 
   // Format period text
-  const formatPeriodo = (dias: number) => {
+  const formatPeriodo = (dias: number, tipoGatilho?: string) => {
+    if (tipoGatilho === 'reagendamento') return 'Ao reagendar';
     if (dias === 0) return 'No dia';
     if (dias === 1) return '1 dia antes';
     return `${dias} dias antes`;
@@ -514,8 +521,12 @@ export function AvisosTab() {
                     </CardTitle>
                     <CardDescription className="mt-1">
                       <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {formatPeriodo(aviso.dias_antes)}
+                        {aviso.tipo_gatilho === 'reagendamento' ? (
+                          <RefreshCw className="h-3 w-3" />
+                        ) : (
+                          <Calendar className="h-3 w-3" />
+                        )}
+                        {formatPeriodo(aviso.dias_antes, aviso.tipo_gatilho)}
                       </span>
                       <span className="flex items-center gap-1 mt-0.5">
                         <Clock className="h-3 w-3" />
@@ -907,6 +918,39 @@ export function AvisosTab() {
               />
             </div>
 
+            {/* Tipo de gatilho */}
+            <div className="space-y-2">
+              <Label>Tipo de gatilho</Label>
+              <Select 
+                value={formTipoGatilho} 
+                onValueChange={(v) => setFormTipoGatilho(v)}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="dias_antes">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>Dias antes do agendamento</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="reagendamento">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      <span>Ao reagendar</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formTipoGatilho === 'reagendamento' 
+                  ? "Aviso será enviado automaticamente quando um agendamento for reagendado"
+                  : "Aviso será enviado X dias antes do agendamento"
+                }
+              </p>
+            </div>
+
             {/* Procedimento específico */}
             <div className="space-y-2">
               <Label>Procedimento (opcional)</Label>
@@ -930,23 +974,25 @@ export function AvisosTab() {
               </p>
             </div>
 
-            {/* Período e horário */}
+            {/* Período e horário - only show dias_antes for dias_antes type */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="diasAntes">Dias antes do agendamento</Label>
-                <Input
-                  id="diasAntes"
-                  type="number"
-                  min={0}
-                  max={30}
-                  value={formDiasAntes}
-                  onChange={(e) => setFormDiasAntes(parseInt(e.target.value) || 0)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  0 = no dia do agendamento
-                </p>
-              </div>
-              <div className="space-y-2">
+              {formTipoGatilho === 'dias_antes' && (
+                <div className="space-y-2">
+                  <Label htmlFor="diasAntes">Dias antes do agendamento</Label>
+                  <Input
+                    id="diasAntes"
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={formDiasAntes}
+                    onChange={(e) => setFormDiasAntes(parseInt(e.target.value) || 0)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    0 = no dia do agendamento
+                  </p>
+                </div>
+              )}
+              <div className={`space-y-2 ${formTipoGatilho === 'reagendamento' ? 'col-span-2' : ''}`}>
                 <Label htmlFor="horarioEnvio">Horário de envio</Label>
                 <Input
                   id="horarioEnvio"
@@ -954,6 +1000,11 @@ export function AvisosTab() {
                   value={formHorarioEnvio}
                   onChange={(e) => setFormHorarioEnvio(e.target.value)}
                 />
+                {formTipoGatilho === 'reagendamento' && (
+                  <p className="text-xs text-muted-foreground">
+                    O aviso será enviado neste horário após o reagendamento
+                  </p>
+                )}
               </div>
               <div className="space-y-4 md:col-span-2">
                 <div className="flex items-center justify-between">

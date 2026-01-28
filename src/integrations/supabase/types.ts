@@ -60,6 +60,7 @@ export type Database = {
           profissional_id: string | null
           status: Database["public"]["Enums"]["status_agendamento"]
           tipo: string
+          ultimo_reagendamento_avisado: number | null
           updated_at: string
           user_id: string
         }
@@ -81,6 +82,7 @@ export type Database = {
           profissional_id?: string | null
           status?: Database["public"]["Enums"]["status_agendamento"]
           tipo?: string
+          ultimo_reagendamento_avisado?: number | null
           updated_at?: string
           user_id: string
         }
@@ -102,6 +104,7 @@ export type Database = {
           profissional_id?: string | null
           status?: Database["public"]["Enums"]["status_agendamento"]
           tipo?: string
+          ultimo_reagendamento_avisado?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -429,6 +432,7 @@ export type Database = {
           next_check_at: string | null
           nome: string
           procedimento_id: string | null
+          tipo_gatilho: string
           updated_at: string
           user_id: string
         }
@@ -445,6 +449,7 @@ export type Database = {
           next_check_at?: string | null
           nome: string
           procedimento_id?: string | null
+          tipo_gatilho?: string
           updated_at?: string
           user_id: string
         }
@@ -461,6 +466,7 @@ export type Database = {
           next_check_at?: string | null
           nome?: string
           procedimento_id?: string | null
+          tipo_gatilho?: string
           updated_at?: string
           user_id?: string
         }
