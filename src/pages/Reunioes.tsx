@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { TemplateCamposDialog } from "@/components/reunioes/TemplateCamposDialog";
 import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDialog";
 import { AvisosReuniaoTab } from "@/components/reunioes/AvisosReuniaoTab";
+import { VincularClienteDialog } from "@/components/reunioes/VincularClienteDialog";
 
 interface Reuniao {
   id: string;
@@ -28,6 +29,8 @@ interface Reuniao {
   meet_link: string | null;
   status: string;
   created_at: string;
+  cliente_id: string | null;
+  cliente_telefone: string | null;
 }
 
 export default function Reunioes() {
@@ -35,6 +38,8 @@ export default function Reunioes() {
   const [syncing, setSyncing] = useState(false);
   const [selectedReuniao, setSelectedReuniao] = useState<Reuniao | null>(null);
   const [activeTab, setActiveTab] = useState("reunioes");
+  const [vincularDialogOpen, setVincularDialogOpen] = useState(false);
+  const [reuniaoParaVincular, setReuniaoParaVincular] = useState<Reuniao | null>(null);
 
   const { data: reunioes, isLoading, refetch } = useQuery({
     queryKey: ["reunioes", user?.id],
@@ -263,16 +268,31 @@ export default function Reunioes() {
                             </p>
                           )}
 
-                          {/* Botão Ver Detalhes */}
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full gap-2 mt-2"
-                            onClick={() => setSelectedReuniao(reuniao)}
-                          >
-                            <FileText className="w-4 h-4" />
-                            Ver Detalhes
-                          </Button>
+                          {/* Botões de ação */}
+                          <div className="flex gap-2 mt-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1 gap-2"
+                              onClick={() => setSelectedReuniao(reuniao)}
+                            >
+                              <FileText className="w-4 h-4" />
+                              Ver Detalhes
+                            </Button>
+                            <Button
+                              variant={reuniao.cliente_id ? "secondary" : "outline"}
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => {
+                                setReuniaoParaVincular(reuniao);
+                                setVincularDialogOpen(true);
+                              }}
+                              title={reuniao.cliente_id ? "Cliente vinculado" : "Vincular cliente"}
+                            >
+                              <User className="w-4 h-4" />
+                              {reuniao.cliente_id ? "Vinculado" : "Vincular"}
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
@@ -306,6 +326,16 @@ export default function Reunioes() {
         open={!!selectedReuniao}
         onOpenChange={(open) => !open && setSelectedReuniao(null)}
       />
+
+      {/* Dialog de vincular cliente */}
+      {reuniaoParaVincular && (
+        <VincularClienteDialog
+          open={vincularDialogOpen}
+          onOpenChange={setVincularDialogOpen}
+          reuniaoId={reuniaoParaVincular.id}
+          clienteIdAtual={reuniaoParaVincular.cliente_id}
+        />
+      )}
     </div>
   );
 }
