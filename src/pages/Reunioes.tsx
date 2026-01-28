@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock, Trash2, MessageCircle, User } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock, Trash2, MessageCircle, User, Phone } from "lucide-react";
+import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -343,20 +344,21 @@ export default function Reunioes() {
                             </div>
                           )}
 
-                          {/* Participantes (Cliente) e Telefone */}
+                          {/* Participantes (Cliente) */}
                           {reuniao.participantes && reuniao.participantes.length > 0 && (
-                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                              <Users className="w-4 h-4 mt-0.5 shrink-0" />
-                              <div className="flex flex-col">
-                                <span className="line-clamp-1">
-                                  {reuniao.participantes.join(", ")}
-                                </span>
-                                {reuniao.cliente_telefone && (
-                                  <span className="text-xs opacity-75">
-                                    {reuniao.cliente_telefone}
-                                  </span>
-                                )}
-                              </div>
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Users className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate">
+                                {reuniao.participantes.join(", ")}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Telefone */}
+                          {reuniao.cliente_telefone && (
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate">{formatPhoneDisplay(reuniao.cliente_telefone)}</span>
                             </div>
                           )}
 
