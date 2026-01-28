@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -54,6 +54,7 @@ export default function Reunioes() {
   const [reuniaoParaVincular, setReuniaoParaVincular] = useState<Reuniao | null>(null);
   const [reuniaoParaDesmarcar, setReuniaoParaDesmarcar] = useState<Reuniao | null>(null);
   const [reuniaoParaReagendar, setReuniaoParaReagendar] = useState<Reuniao | null>(null);
+  const [reuniaoParaExcluir, setReuniaoParaExcluir] = useState<Reuniao | null>(null);
 
   const { data: reunioes, isLoading, refetch } = useQuery({
     queryKey: ["reunioes", user?.id],
@@ -151,6 +152,36 @@ export default function Reunioes() {
     onError: (error) => {
       console.error("Erro ao desmarcar:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao desmarcar reunião");
+    },
+  });
+
+  const excluirMutation = useMutation({
+    mutationFn: async (reuniaoId: string) => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data, error } = await supabase.functions.invoke("google-calendar-delete-event", {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+        body: { reuniaoId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
+      toast.success("Reunião excluída com sucesso!");
+      setReuniaoParaExcluir(null);
+    },
+    onError: (error) => {
+      console.error("Erro ao excluir:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao excluir reunião");
     },
   });
 
@@ -265,9 +296,19 @@ export default function Reunioes() {
                     {reunioesDodia.map((reuniao) => (
                       <Card 
                         key={reuniao.id} 
-                        className="shadow-card hover:shadow-elegant transition-all duration-300 animate-fade-in"
+                        className="shadow-card hover:shadow-elegant transition-all duration-300 animate-fade-in relative"
                       >
-                        <CardContent className="p-5 space-y-4">
+                        {/* Botão de excluir no canto superior direito */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setReuniaoParaExcluir(reuniao)}
+                          title="Excluir reunião"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                        <CardContent className="p-5 pt-8 space-y-4">
                           {/* Horário e Status */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-muted-foreground">
@@ -438,6 +479,28 @@ export default function Reunioes() {
               onClick={() => reuniaoParaDesmarcar && desmarcarMutation.mutate(reuniaoParaDesmarcar.id)}
             >
               Desmarcar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de confirmação para excluir */}
+      <AlertDialog open={!!reuniaoParaExcluir} onOpenChange={(open) => !open && setReuniaoParaExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Reunião</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a reunião "{reuniaoParaExcluir?.titulo}"?
+              Esta ação irá remover a reunião permanentemente do sistema e do Google Calendar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => reuniaoParaExcluir && excluirMutation.mutate(reuniaoParaExcluir.id)}
+            >
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
