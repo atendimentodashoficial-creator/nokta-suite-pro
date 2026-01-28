@@ -29,6 +29,7 @@ import FormularioCaptura from "./pages/FormularioCaptura";
 import FormularioCliente from "./pages/FormularioCliente";
 import FormularioPublico from "./pages/FormularioPublico";
 import Reunioes from "./pages/Reunioes";
+import GoogleCalendarCallback from "./pages/GoogleCalendarCallback";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
       <AuthProvider>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/google-calendar/callback" element={<GoogleCalendarCallback />} />
           <Route path="/formulario/:templateId" element={<FormularioPublico />} />
           <Route path="/formularioig/:formSlug" element={<FormularioCaptura />} />
           <Route path="/cliente-form/:clienteId" element={<FormularioCliente />} />
