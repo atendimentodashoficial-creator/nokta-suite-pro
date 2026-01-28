@@ -99,6 +99,92 @@ interface SortableUserCardProps {
   onPermissions: (userId: string, userName: string) => void;
 }
 
+// Componente para linha de tabela arrastável (desktop)
+interface SortableUserRowProps extends SortableUserCardProps {}
+
+const SortableUserRow = ({ user, onEdit, onBlock, onUnblock, onLogin, onPermissions }: SortableUserRowProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: user.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const expiryDate = (user.user_metadata as any)?.expiry_date;
+  const isExpired = expiryDate && new Date(expiryDate) < new Date();
+  const displayName = user.user_metadata?.full_name || user.email;
+
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell className="w-8 px-2">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none p-1">
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </TableCell>
+      <TableCell className="font-medium">
+        <div>
+          <span>{displayName}</span>
+          {user.user_metadata?.full_name && (
+            <span className="text-xs text-muted-foreground block">{user.email}</span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
+      <TableCell>{user.leadsCount || 0}</TableCell>
+      <TableCell>{user.agendamentosCount || 0}</TableCell>
+      <TableCell>
+        {user.faturasCount || 0}{' '}
+        (<span className="text-[#fba82d]">{user.faturasCountNegociacao || 0}</span>/<span className="text-[#00b312]">{user.faturasCountFechadas || 0}</span>)
+      </TableCell>
+      <TableCell>
+        {new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        }).format(user.totalFaturado || 0)}
+      </TableCell>
+      <TableCell className="text-[#fba82d]">
+        {new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        }).format(user.emNegociacao || 0)}
+      </TableCell>
+      <TableCell className="text-[#00b312]">
+        {new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        }).format(user.totalPago || 0)}
+      </TableCell>
+      <TableCell>
+        {user.banned_until ? (
+          <Badge variant="destructive" className="cursor-pointer hover:opacity-80" onClick={() => onUnblock(user.id)} title="Clique para ativar">
+            Inativo
+          </Badge>
+        ) : isExpired ? (
+          <Badge variant="secondary">Expirado</Badge>
+        ) : (
+          <Badge variant="default" className="cursor-pointer hover:opacity-80" onClick={() => onBlock(user.id)} title="Clique para inativar">
+            Ativo
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => onEdit(user.id, user.user_metadata?.full_name || '')} title="Editar nome">
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onPermissions(user.id, displayName)} title="Gerenciar permissões">
+            <Shield className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onLogin(user.email)} title="Acessar como este usuário">
+            <ExternalLink className="w-4 h-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
 const SortableUserCard = ({ user, onEdit, onBlock, onUnblock, onLogin, onPermissions }: SortableUserCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: user.id });
   
@@ -748,106 +834,64 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-            {/* Versão Desktop - Tabela */}
-            {!isMobile && <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}>
-                      <div className="flex items-center">Email<SortIcon field="email" /></div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('created_at')}>
-                      <div className="flex items-center">Data de Criação<SortIcon field="created_at" /></div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('leadsCount')}>
-                      <div className="flex items-center">Leads<SortIcon field="leadsCount" /></div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('agendamentosCount')}>
-                      <div className="flex items-center">Agendamentos<SortIcon field="agendamentosCount" /></div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('faturasCount')}>
-                      <div className="flex items-center">Faturas<SortIcon field="faturasCount" /></div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('totalFaturado')}>
-                      <div className="flex items-center">Previsto<SortIcon field="totalFaturado" /></div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('emNegociacao')}>
-                      <div className="flex items-center">Negociação<SortIcon field="emNegociacao" /></div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('totalPago')}>
-                      <div className="flex items-center">Pago<SortIcon field="totalPago" /></div>
-                    </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
-                      <div className="flex items-center">Status<SortIcon field="status" /></div>
-                    </TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedUsers.map(user => {
-                    const expiryDate = (user.user_metadata as any)?.expiry_date;
-                    const isExpired = expiryDate && new Date(expiryDate) < new Date();
-                    const displayName = user.user_metadata?.full_name || user.email;
-                    return <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          <div>
-                            <span>{displayName}</span>
-                            {user.user_metadata?.full_name && (
-                              <span className="text-xs text-muted-foreground block">{user.email}</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
-                        <TableCell>{user.leadsCount || 0}</TableCell>
-                        <TableCell>{user.agendamentosCount || 0}</TableCell>
-                        <TableCell>
-                          {user.faturasCount || 0}{' '}
-                          (<span className="text-[#fba82d]">{user.faturasCountNegociacao || 0}</span>/<span className="text-[#00b312]">{user.faturasCountFechadas || 0}</span>)
-                        </TableCell>
-                        <TableCell>
-                          {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL'
-                        }).format(user.totalFaturado || 0)}
-                        </TableCell>
-                        <TableCell className="text-[#fba82d]">
-                          {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL'
-                        }).format(user.emNegociacao || 0)}
-                        </TableCell>
-                        <TableCell className="text-[#00b312]">
-                          {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL'
-                        }).format(user.totalPago || 0)}
-                        </TableCell>
-                        <TableCell>
-                          {user.banned_until ? <Badge variant="destructive" className="cursor-pointer hover:opacity-80" onClick={() => handleUnblockUser(user.id)} title="Clique para ativar">
-                              Inativo
-                            </Badge> : isExpired ? <Badge variant="secondary">Expirado</Badge> : <Badge variant="default" className="cursor-pointer hover:opacity-80" onClick={() => handleBlockUser(user.id)} title="Clique para inativar">
-                              Ativo
-                            </Badge>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleOpenEditDialog(user.id, user.user_metadata?.full_name || '')} title="Editar nome">
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => {
-                              setSelectedUserForPermissions({ id: user.id, name: displayName });
-                              setPermissionsDialogOpen(true);
-                            }} title="Gerenciar permissões">
-                              <Shield className="w-4 h-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleLoginAsUser(user.email)} title="Acessar como este usuário">
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>;
-                  })}
-                </TableBody>
-              </Table>}
+            {/* Versão Desktop - Tabela com Drag and Drop */}
+            {!isMobile && (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-8 px-2"></TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('email')}>
+                          <div className="flex items-center">Email<SortIcon field="email" /></div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('created_at')}>
+                          <div className="flex items-center">Data de Criação<SortIcon field="created_at" /></div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('leadsCount')}>
+                          <div className="flex items-center">Leads<SortIcon field="leadsCount" /></div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('agendamentosCount')}>
+                          <div className="flex items-center">Agendamentos<SortIcon field="agendamentosCount" /></div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('faturasCount')}>
+                          <div className="flex items-center">Faturas<SortIcon field="faturasCount" /></div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('totalFaturado')}>
+                          <div className="flex items-center">Previsto<SortIcon field="totalFaturado" /></div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('emNegociacao')}>
+                          <div className="flex items-center">Negociação<SortIcon field="emNegociacao" /></div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('totalPago')}>
+                          <div className="flex items-center">Pago<SortIcon field="totalPago" /></div>
+                        </TableHead>
+                        <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
+                          <div className="flex items-center">Status<SortIcon field="status" /></div>
+                        </TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map(user => (
+                        <SortableUserRow 
+                          key={user.id} 
+                          user={user}
+                          onEdit={handleOpenEditDialog}
+                          onBlock={handleBlockUser}
+                          onUnblock={handleUnblockUser}
+                          onLogin={handleLoginAsUser}
+                          onPermissions={(userId, userName) => {
+                            setSelectedUserForPermissions({ id: userId, name: userName });
+                            setPermissionsDialogOpen(true);
+                          }}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                </SortableContext>
+              </DndContext>
+            )}
 
             {/* Versão Mobile - Cards com Drag and Drop */}
             {isMobile && (
