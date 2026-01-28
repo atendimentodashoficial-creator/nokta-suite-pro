@@ -431,7 +431,7 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
                       </div>
 
                       {config.low_balance_enabled && (
-                        <div className="space-y-4 pl-4 border-l-2 border-amber-500/30">
+                        <div className="space-y-4 pl-4">
                           <div className="space-y-2">
                             <Label htmlFor={`threshold-${user.id}`}>Limite de Saldo (R$)</Label>
                             <Input
@@ -489,7 +489,7 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
                       </div>
 
                       {config.campaign_reports_enabled && (
-                        <div className="space-y-4 pl-4 border-l-2 border-blue-500/30">
+                        <div className="space-y-4 pl-4">
                           {/* Período do Relatório */}
                           <div className="space-y-2">
                             <Label className="flex items-center gap-2">
@@ -572,7 +572,7 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
                       </div>
 
                       {config.keyword_enabled && (
-                        <div className="space-y-4 pl-4 border-l-2 border-purple-500/30">
+                        <div className="space-y-4 pl-4">
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`keyword-balance-${user.id}`}>
