@@ -102,7 +102,7 @@ async function checkInstanceConnected(baseUrl: string, apiKey: string): Promise<
   };
 }
 
-// Format date for message
+// Format date for message (only day/month)
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   const utc = date.getTime() + date.getTimezoneOffset() * 60000;
@@ -111,9 +111,8 @@ function formatDate(dateStr: string): string {
   
   const day = saoPauloDate.getDate().toString().padStart(2, "0");
   const month = (saoPauloDate.getMonth() + 1).toString().padStart(2, "0");
-  const year = saoPauloDate.getFullYear();
   
-  return `${day}/${month}/${year}`;
+  return `${day}/${month}`;
 }
 
 // Format time for message
