@@ -550,6 +550,120 @@ export type Database = {
           },
         ]
       }
+      avisos_reuniao: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          dias_antes: number
+          envio_imediato: boolean
+          horario_envio: string
+          id: string
+          intervalo_max: number
+          intervalo_min: number
+          last_check_at: string | null
+          mensagem: string
+          next_check_at: string | null
+          nome: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          dias_antes?: number
+          envio_imediato?: boolean
+          horario_envio?: string
+          id?: string
+          intervalo_max?: number
+          intervalo_min?: number
+          last_check_at?: string | null
+          mensagem: string
+          next_check_at?: string | null
+          nome: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          dias_antes?: number
+          envio_imediato?: boolean
+          horario_envio?: string
+          id?: string
+          intervalo_max?: number
+          intervalo_min?: number
+          last_check_at?: string | null
+          mensagem?: string
+          next_check_at?: string | null
+          nome?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      avisos_reuniao_log: {
+        Row: {
+          aviso_id: string | null
+          aviso_nome: string
+          cliente_nome: string
+          cliente_telefone: string
+          created_at: string
+          dias_antes: number
+          enviado_em: string
+          erro: string | null
+          id: string
+          mensagem_enviada: string
+          reuniao_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          aviso_id?: string | null
+          aviso_nome: string
+          cliente_nome: string
+          cliente_telefone: string
+          created_at?: string
+          dias_antes: number
+          enviado_em?: string
+          erro?: string | null
+          id?: string
+          mensagem_enviada: string
+          reuniao_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          aviso_id?: string | null
+          aviso_nome?: string
+          cliente_nome?: string
+          cliente_telefone?: string
+          created_at?: string
+          dias_antes?: number
+          enviado_em?: string
+          erro?: string | null
+          id?: string
+          mensagem_enviada?: string
+          reuniao_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avisos_reuniao_log_aviso_id_fkey"
+            columns: ["aviso_id"]
+            isOneToOne: false
+            referencedRelation: "avisos_reuniao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avisos_reuniao_log_reuniao_id_fkey"
+            columns: ["reuniao_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocos_audios_predefinidos: {
         Row: {
           created_at: string
@@ -3647,6 +3761,11 @@ export type Database = {
       }
       reunioes: {
         Row: {
+          aviso_3dias: boolean | null
+          aviso_dia: boolean | null
+          aviso_dia_anterior: boolean | null
+          cliente_id: string | null
+          cliente_telefone: string | null
           created_at: string
           data_reuniao: string
           duracao_minutos: number | null
@@ -3663,6 +3782,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          aviso_3dias?: boolean | null
+          aviso_dia?: boolean | null
+          aviso_dia_anterior?: boolean | null
+          cliente_id?: string | null
+          cliente_telefone?: string | null
           created_at?: string
           data_reuniao: string
           duracao_minutos?: number | null
@@ -3679,6 +3803,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          aviso_3dias?: boolean | null
+          aviso_dia?: boolean | null
+          aviso_dia_anterior?: boolean | null
+          cliente_id?: string | null
+          cliente_telefone?: string | null
           created_at?: string
           data_reuniao?: string
           duracao_minutos?: number | null
@@ -3694,7 +3823,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reunioes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reunioes_agendadas: {
         Row: {
