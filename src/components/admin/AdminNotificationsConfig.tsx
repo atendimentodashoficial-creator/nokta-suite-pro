@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -64,6 +64,87 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
   const [hasLoadedBalances, setHasLoadedBalances] = useState(false);
 
   const [adminInstances, setAdminInstances] = useState<AdminInstance[]>([]);
+
+  // Evita fazer upsert de defaults repetidamente para o mesmo usuário
+  const ensuredConfigRef = useRef<Record<string, boolean>>({});
+
+  const buildDefaultConfig = (userId: string): NotificationConfig => ({
+    user_id: userId,
+    admin_instancia_id: null,
+    destination_type: "number",
+    destination_value: null,
+    low_balance_enabled: false,
+    low_balance_threshold: 100,
+    low_balance_message:
+      "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
+    campaign_reports_enabled: false,
+    campaign_report_message: `📊 Resultado dos últimos {periodo_dias} dias de anúncios no Meta Ads:
+
+{data_inicio} - {data_fim}
+
+🔹*Valor Gasto:* _R$ {gasto}_
+
+🔹*Total de Leads:* _{conversas}_
+
+🔹*Custo por Lead:* _R$ {custo_conversa}_
+
+🔹*Total de Cliques:* _{cliques}_
+
+🔹*Custo por Clique:* _R$ {cpc}_
+
+🔹*Impressões:* _{impressoes}_
+
+🔹*Alcance:* _{alcance}_`,
+    campaign_report_period: "7",
+    keyword_enabled: false,
+    keyword_balance: "saldo",
+    keyword_report: "relatorio",
+  });
+
+  const upsertNotificationConfig = async (userId: string, config: NotificationConfig) => {
+    const adminToken = localStorage.getItem("admin_token");
+    const { error } = await supabase.functions.invoke("admin-manage-users", {
+      body: {
+        action: "update_notification_config",
+        userId,
+        adminInstanciaId: config.admin_instancia_id,
+        destinationType: config.destination_type,
+        destinationValue: config.destination_value,
+        lowBalanceEnabled: config.low_balance_enabled,
+        lowBalanceThreshold: config.low_balance_threshold,
+        lowBalanceMessage: config.low_balance_message,
+        campaignReportsEnabled: config.campaign_reports_enabled,
+        campaignReportMessage: config.campaign_report_message,
+        campaignReportPeriod: config.campaign_report_period,
+        keywordEnabled: config.keyword_enabled,
+        keywordBalance: config.keyword_balance,
+        keywordReport: config.keyword_report,
+      },
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+
+    if (error) throw error;
+  };
+
+  const autoSavePatch = async (userId: string, patch: Partial<NotificationConfig>) => {
+    const current = configs[userId];
+    if (!current) return;
+    const next: NotificationConfig = { ...current, ...patch };
+
+    // Atualiza UI imediatamente
+    setConfigs((prev) => ({ ...prev, [userId]: next }));
+
+    // Persiste no backend para o webhook conseguir achar a config
+    setSaving((prev) => ({ ...prev, [userId]: true }));
+    try {
+      await upsertNotificationConfig(userId, next);
+    } catch (err) {
+      console.error("Erro ao salvar automaticamente configuração:", err);
+      toast.error("Não foi possível salvar automaticamente. Clique em 'Salvar Configurações'.");
+    } finally {
+      setSaving((prev) => ({ ...prev, [userId]: false }));
+    }
+  };
 
   // Carregar instâncias admin e configs ao montar
   useEffect(() => {
@@ -166,40 +247,23 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
 
       if (error) throw error;
 
+      const nextConfig: NotificationConfig = data.config || buildDefaultConfig(userId);
+
       setConfigs((prev) => ({
         ...prev,
-        [userId]: data.config || {
-          user_id: userId,
-          admin_instancia_id: null,
-          destination_type: "number",
-          destination_value: null,
-          low_balance_enabled: false,
-          low_balance_threshold: 100,
-          low_balance_message: "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
-          campaign_reports_enabled: false,
-          campaign_report_message: `📊 Resultado dos últimos {periodo_dias} dias de anúncios no Meta Ads:
-
-{data_inicio} - {data_fim}
-
-🔹*Valor Gasto:* _R$ {gasto}_
-
-🔹*Total de Leads:* _{conversas}_
-
-🔹*Custo por Lead:* _R$ {custo_conversa}_
-
-🔹*Total de Cliques:* _{cliques}_
-
-🔹*Custo por Clique:* _R$ {cpc}_
-
-🔹*Impressões:* _{impressoes}_
-
-🔹*Alcance:* _{alcance}_`,
-          campaign_report_period: "7",
-          keyword_enabled: false,
-          keyword_balance: "saldo",
-          keyword_report: "relatorio",
-        },
+        [userId]: nextConfig,
       }));
+
+      // Se ainda não existe registro no banco, cria automaticamente (default) para o webhook não falhar.
+      if (!data.config && !ensuredConfigRef.current[userId]) {
+        ensuredConfigRef.current[userId] = true;
+        try {
+          await upsertNotificationConfig(userId, nextConfig);
+        } catch (err) {
+          console.error("Erro ao criar config default no backend:", err);
+          // Silencioso: o botão Salvar continua disponível
+        }
+      }
     } catch (error) {
       console.error("Erro ao carregar configuração:", error);
       toast.error("Erro ao carregar configuração");
@@ -230,30 +294,9 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
   const saveConfig = async (userId: string) => {
     setSaving((prev) => ({ ...prev, [userId]: true }));
     try {
-      const adminToken = localStorage.getItem("admin_token");
       const config = configs[userId];
 
-      const { error } = await supabase.functions.invoke("admin-manage-users", {
-          body: {
-            action: "update_notification_config",
-            userId,
-            adminInstanciaId: config.admin_instancia_id,
-            destinationType: config.destination_type,
-            destinationValue: config.destination_value,
-            lowBalanceEnabled: config.low_balance_enabled,
-            lowBalanceThreshold: config.low_balance_threshold,
-            lowBalanceMessage: config.low_balance_message,
-            campaignReportsEnabled: config.campaign_reports_enabled,
-            campaignReportMessage: config.campaign_report_message,
-            campaignReportPeriod: config.campaign_report_period,
-            keywordEnabled: config.keyword_enabled,
-            keywordBalance: config.keyword_balance,
-            keywordReport: config.keyword_report,
-          },
-        headers: { Authorization: `Bearer ${adminToken}` },
-      });
-
-      if (error) throw error;
+      await upsertNotificationConfig(userId, config);
 
       toast.success("Configuração salva com sucesso!");
     } catch (error) {
@@ -405,7 +448,7 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
                           <>
                             <Select
                               value={config.admin_instancia_id || ""}
-                              onValueChange={(value) => updateConfig(user.id, "admin_instancia_id", value || null)}
+                              onValueChange={(value) => autoSavePatch(user.id, { admin_instancia_id: value || null })}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione uma instância" />
@@ -618,9 +661,7 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
                         </div>
                         <Switch
                           checked={config.keyword_enabled}
-                          onCheckedChange={(checked) =>
-                            updateConfig(user.id, "keyword_enabled", checked)
-                          }
+                          onCheckedChange={(checked) => autoSavePatch(user.id, { keyword_enabled: checked })}
                         />
                       </div>
 
