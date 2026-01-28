@@ -43,6 +43,7 @@ interface NotificationConfig {
   keyword_report: string;
   keyword_balance_message: string;
   keyword_report_message: string;
+  keyword_report_period: string;
   keyword_cooldown_hours: number;
 }
 
@@ -115,6 +116,7 @@ Período: {data_inicio} a {data_fim}
 🔹 *Custo por Lead:* R$ {custo_conversa}
 🔹 *Cliques:* {cliques}
 🔹 *Impressões:* {impressoes}`,
+    keyword_report_period: "7",
     keyword_cooldown_hours: 1,
   });
 
