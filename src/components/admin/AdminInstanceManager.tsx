@@ -227,6 +227,18 @@ export function AdminInstanceManager() {
 
   const handleDeleteInstance = async (instanceId: string) => {
     try {
+      // Primeiro, limpar referências em admin_client_notifications
+      const { error: updateError } = await supabase
+        .from("admin_client_notifications")
+        .update({ admin_instancia_id: null })
+        .eq("admin_instancia_id", instanceId);
+
+      if (updateError) {
+        console.error("Erro ao limpar referências:", updateError);
+        // Continue mesmo com erro - pode não haver referências
+      }
+
+      // Agora excluir a instância
       const { error } = await supabase
         .from("admin_notification_instances")
         .delete()
