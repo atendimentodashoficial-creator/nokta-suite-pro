@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Phone, User, Link2, Users } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { TemplateCamposDialog } from "@/components/reunioes/TemplateCamposDialog";
 import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDialog";
 import { AvisosReuniaoTab } from "@/components/reunioes/AvisosReuniaoTab";
-import { VincularClienteDialog } from "@/components/reunioes/VincularClienteDialog";
+import { VincularTranscricaoDialog } from "@/components/reunioes/VincularTranscricaoDialog";
 
 interface Reuniao {
   id: string;
@@ -279,19 +279,22 @@ export default function Reunioes() {
                               <FileText className="w-4 h-4" />
                               Ver Detalhes
                             </Button>
-                            <Button
-                              variant={reuniao.cliente_id ? "secondary" : "outline"}
-                              size="sm"
-                              className="gap-2"
-                              onClick={() => {
-                                setReuniaoParaVincular(reuniao);
-                                setVincularDialogOpen(true);
-                              }}
-                              title={reuniao.cliente_id ? "Cliente vinculado" : "Vincular cliente"}
-                            >
-                              <User className="w-4 h-4" />
-                              {reuniao.cliente_id ? "Vinculado" : "Vincular"}
-                            </Button>
+                            {/* Botão de vincular transcrição - só mostra se não tem transcrição ainda */}
+                            {!reuniao.transcricao && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => {
+                                  setReuniaoParaVincular(reuniao);
+                                  setVincularDialogOpen(true);
+                                }}
+                                title="Vincular transcrição do Fireflies"
+                              >
+                                <FileText className="w-4 h-4" />
+                                Vincular
+                              </Button>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -327,13 +330,13 @@ export default function Reunioes() {
         onOpenChange={(open) => !open && setSelectedReuniao(null)}
       />
 
-      {/* Dialog de vincular cliente */}
+      {/* Dialog de vincular transcrição */}
       {reuniaoParaVincular && (
-        <VincularClienteDialog
+        <VincularTranscricaoDialog
           open={vincularDialogOpen}
           onOpenChange={setVincularDialogOpen}
           reuniaoId={reuniaoParaVincular.id}
-          clienteIdAtual={reuniaoParaVincular.cliente_id}
+          reuniaoTitulo={reuniaoParaVincular.titulo}
         />
       )}
     </div>
