@@ -582,6 +582,7 @@ export type Database = {
           next_check_at: string | null
           nome: string
           procedimento_id: string | null
+          tipo_gatilho: string
           updated_at: string
           user_id: string
         }
@@ -599,6 +600,7 @@ export type Database = {
           next_check_at?: string | null
           nome: string
           procedimento_id?: string | null
+          tipo_gatilho?: string
           updated_at?: string
           user_id: string
         }
@@ -616,6 +618,7 @@ export type Database = {
           next_check_at?: string | null
           nome?: string
           procedimento_id?: string | null
+          tipo_gatilho?: string
           updated_at?: string
           user_id?: string
         }
@@ -3807,6 +3810,7 @@ export type Database = {
           status: string
           titulo: string
           transcricao: string | null
+          ultimo_reagendamento_avisado: number | null
           updated_at: string
           user_id: string
         }
@@ -3829,6 +3833,7 @@ export type Database = {
           status?: string
           titulo: string
           transcricao?: string | null
+          ultimo_reagendamento_avisado?: number | null
           updated_at?: string
           user_id: string
         }
@@ -3851,6 +3856,7 @@ export type Database = {
           status?: string
           titulo?: string
           transcricao?: string | null
+          ultimo_reagendamento_avisado?: number | null
           updated_at?: string
           user_id?: string
         }
