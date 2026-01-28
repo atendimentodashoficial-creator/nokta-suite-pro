@@ -377,7 +377,7 @@ export function AdminInstanceManager() {
         }
 
         if (confirmedCount >= requiredConfirmations) {
-          console.log("[Admin] Connection confirmed (stable)! Closing dialog...");
+          console.log("[Admin] Connection confirmed (stable)! Closing dialog and configuring webhook...");
           clearInterval(interval);
           pollingIntervalRef.current = null;
           setQrDialogOpen(false);
@@ -388,6 +388,32 @@ export function AdminInstanceManager() {
             [instance.id]: { connected: true, phone, loading: false } 
           }));
           toast.success("WhatsApp conectado com sucesso!");
+          
+          // Configure webhook after successful connection (same as Disparos)
+          try {
+            const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "rgaqvlsjaapjhlhevsrf";
+            const webhookUrl = `https://${projectId}.supabase.co/functions/v1/whatsapp-webhook?instance=${instance.id}`;
+            
+            const webhookResponse = await supabase.functions.invoke("uazapi-set-webhook", {
+              headers: { Authorization: `Bearer ${adminToken}` },
+              body: {
+                base_url: instance.base_url,
+                api_key: instance.api_key,
+                webhook_url: webhookUrl,
+                instancia_id: instance.id,
+              },
+            });
+
+            if (webhookResponse.data?.success) {
+              console.log("[Admin] Webhook configured successfully");
+              toast.success("Webhook configurado automaticamente!");
+            } else {
+              console.warn("[Admin] Webhook config failed:", webhookResponse.data);
+              toast.warning("Webhook não configurado automaticamente");
+            }
+          } catch (webhookError) {
+            console.error("[Admin] Error configuring webhook:", webhookError);
+          }
         }
       } catch (error) {
         console.error("Polling error:", error);
