@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface User {
@@ -23,7 +24,9 @@ interface NotificationConfig {
   instancia_id: string | null;
   low_balance_enabled: boolean;
   low_balance_threshold: number;
+  low_balance_message: string;
   campaign_reports_enabled: boolean;
+  campaign_report_message: string;
   disparos_instancias?: {
     id: string;
     nome: string;
@@ -67,7 +70,9 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
           instancia_id: null,
           low_balance_enabled: true,
           low_balance_threshold: 100,
+          low_balance_message: "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
           campaign_reports_enabled: true,
+          campaign_report_message: "Relatório de Campanha\n\nCampanha: {nome_campanha}\nEnviados: {enviados}\nFalhas: {falhas}\nStatus: {status}",
         },
       }));
 
@@ -109,14 +114,16 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
       const config = configs[userId];
 
       const { error } = await supabase.functions.invoke("admin-manage-users", {
-        body: {
-          action: "update_notification_config",
-          userId,
-          instanciaId: config.instancia_id,
-          lowBalanceEnabled: config.low_balance_enabled,
-          lowBalanceThreshold: config.low_balance_threshold,
-          campaignReportsEnabled: config.campaign_reports_enabled,
-        },
+          body: {
+            action: "update_notification_config",
+            userId,
+            instanciaId: config.instancia_id,
+            lowBalanceEnabled: config.low_balance_enabled,
+            lowBalanceThreshold: config.low_balance_threshold,
+            lowBalanceMessage: config.low_balance_message,
+            campaignReportsEnabled: config.campaign_reports_enabled,
+            campaignReportMessage: config.campaign_report_message,
+          },
         headers: { Authorization: `Bearer ${adminToken}` },
       });
 
@@ -235,20 +242,41 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                       </div>
 
                       {config.low_balance_enabled && (
-                        <div className="space-y-2 pl-4 border-l-2 border-amber-500/30">
-                          <Label htmlFor={`threshold-${user.id}`}>Limite de Saldo (R$)</Label>
-                          <Input
-                            id={`threshold-${user.id}`}
-                            type="number"
-                            value={config.low_balance_threshold}
-                            onChange={(e) =>
-                              updateConfig(user.id, "low_balance_threshold", parseFloat(e.target.value) || 0)
-                            }
-                            className="w-32"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Aviso será enviado quando o saldo ficar abaixo deste valor
-                          </p>
+                        <div className="space-y-4 pl-4 border-l-2 border-amber-500/30">
+                          <div className="space-y-2">
+                            <Label htmlFor={`threshold-${user.id}`}>Limite de Saldo (R$)</Label>
+                            <Input
+                              id={`threshold-${user.id}`}
+                              type="number"
+                              value={config.low_balance_threshold}
+                              onChange={(e) =>
+                                updateConfig(user.id, "low_balance_threshold", parseFloat(e.target.value) || 0)
+                              }
+                              className="w-32"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Aviso será enviado quando o saldo ficar abaixo deste valor
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`low-balance-msg-${user.id}`} className="flex items-center gap-2">
+                              <Edit3 className="h-3 w-3" />
+                              Mensagem do Aviso
+                            </Label>
+                            <Textarea
+                              id={`low-balance-msg-${user.id}`}
+                              value={config.low_balance_message || ""}
+                              onChange={(e) =>
+                                updateConfig(user.id, "low_balance_message", e.target.value)
+                              }
+                              rows={4}
+                              placeholder="Mensagem de aviso de saldo baixo..."
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Variáveis disponíveis: {"{saldo}"} - valor atual do saldo
+                            </p>
+                          </div>
                         </div>
                       )}
 
@@ -270,6 +298,27 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                           }
                         />
                       </div>
+
+                      {config.campaign_reports_enabled && (
+                        <div className="space-y-2 pl-4 border-l-2 border-blue-500/30">
+                          <Label htmlFor={`campaign-report-msg-${user.id}`} className="flex items-center gap-2">
+                            <Edit3 className="h-3 w-3" />
+                            Mensagem do Relatório
+                          </Label>
+                          <Textarea
+                            id={`campaign-report-msg-${user.id}`}
+                            value={config.campaign_report_message || ""}
+                            onChange={(e) =>
+                              updateConfig(user.id, "campaign_report_message", e.target.value)
+                            }
+                            rows={5}
+                            placeholder="Mensagem do relatório de campanha..."
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Variáveis: {"{nome_campanha}"}, {"{enviados}"}, {"{falhas}"}, {"{status}"}
+                          </p>
+                        </div>
+                      )}
 
                       {/* Botão Salvar */}
                       <Button
