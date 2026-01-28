@@ -180,24 +180,29 @@ serve(async (req) => {
 
     // adminClient já foi criado no início da função
 
-    // Buscar token do Facebook do usuário
-    const { data: fbConfig, error: configError } = await adminClient
-      .from("facebook_config")
-      .select("access_token")
-      .eq("user_id", user.id)
-      .single();
+    // IMPORTANTE: a action get_account_balance faz lookup do token do usuário alvo
+    // mais abaixo. Se tentarmos validar aqui, o painel admin quebra com HTTP 400.
+    let accessToken: string | null = null;
+    if (action !== "get_account_balance") {
+      // Buscar token do Facebook do usuário (fluxo normal)
+      const { data: fbConfig, error: configError } = await adminClient
+        .from("facebook_config")
+        .select("access_token")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-    console.log("FB Config found:", !!fbConfig?.access_token);
-    console.log("Config Error:", configError?.message);
+      console.log("FB Config found:", !!fbConfig?.access_token);
+      console.log("Config Error:", configError?.message);
 
-    if (configError || !fbConfig?.access_token) {
-      return new Response(
-        JSON.stringify({ error: "Token do Facebook não configurado" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (configError || !fbConfig?.access_token) {
+        return new Response(
+          JSON.stringify({ error: "Token do Facebook não configurado" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      accessToken = fbConfig.access_token;
     }
-
-    const accessToken = fbConfig.access_token;
 
     if (action === "get_account_info") {
       if (!ad_account_id) {
