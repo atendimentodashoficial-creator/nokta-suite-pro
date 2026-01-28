@@ -6,12 +6,100 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+type InstanciaConfig = {
+  id: string;
+  user_id: string;
+  base_url: string;
+  api_key: string;
+  nome?: string | null;
+  instance_name?: string | null;
+  is_active?: boolean | null;
+};
+
 // Normalize phone number to WhatsApp format
 function normalizePhone(phone: string): string {
   let cleaned = phone.replace(/\D/g, "");
   if (cleaned.startsWith("0")) cleaned = cleaned.slice(1);
   if (!cleaned.startsWith("55") && cleaned.length <= 11) cleaned = "55" + cleaned;
   return cleaned;
+}
+
+// Generate candidates with/without 9th digit to maximize deliverability
+function buildPhoneCandidates(phone: string): string[] {
+  const cleaned = phone.replace(/\D/g, "");
+  const candidates = new Set<string>();
+
+  const base = normalizePhone(cleaned);
+  candidates.add(base);
+
+  // 55 + DDD + 8 digits -> try adding 9 after DDD
+  if (base.startsWith("55") && base.length === 12) {
+    candidates.add(base.slice(0, 4) + "9" + base.slice(4));
+  }
+
+  // 55 + DDD + 9 digits -> try removing 9 after DDD
+  if (base.startsWith("55") && base.length === 13) {
+    candidates.add(base.slice(0, 4) + base.slice(5));
+  }
+
+  // Local 10 digits (DDD + 8)
+  if (!cleaned.startsWith("55") && cleaned.length === 10) {
+    const with9 = cleaned.slice(0, 2) + "9" + cleaned.slice(2);
+    candidates.add("55" + cleaned);
+    candidates.add("55" + with9);
+  }
+
+  // Local 11 digits (DDD + 9)
+  if (!cleaned.startsWith("55") && cleaned.length === 11) {
+    candidates.add("55" + cleaned);
+  }
+
+  return Array.from(candidates).filter((x) => x.length >= 12);
+}
+
+async function checkInstanceConnected(baseUrl: string, apiKey: string): Promise<{ ok: boolean; status: string }> {
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
+  const statusResponse = await fetch(`${normalizedBaseUrl}/instance/status`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "token": apiKey,
+    },
+  });
+
+  if (!statusResponse.ok) {
+    await statusResponse.text().catch(() => null);
+    return { ok: false, status: `unknown (${statusResponse.status})` };
+  }
+
+  const statusData = await statusResponse.json().catch(() => null);
+  if (!statusData) return { ok: false, status: "unknown" };
+
+  const nestedStatus = statusData?.status;
+  const instanceStatus = statusData?.instance?.status;
+  const loggedIn = nestedStatus?.loggedIn === true || statusData?.loggedIn === true;
+  const jid = nestedStatus?.jid ?? statusData?.jid;
+  const connected = nestedStatus?.connected === true || statusData?.connected === true;
+
+  const isConnecting = instanceStatus === "connecting" || instanceStatus === "starting";
+  const isDisconnected = instanceStatus === "disconnected" ||
+    instanceStatus === "close" ||
+    instanceStatus === "DISCONNECTED" ||
+    nestedStatus?.connected === false ||
+    statusData?.connected === false;
+
+  const hasValidJid = jid != null && String(jid).length > 0;
+  const isReallyConnected = loggedIn === true &&
+    hasValidJid &&
+    !isConnecting &&
+    !isDisconnected &&
+    (connected === true || connected === undefined);
+
+  return {
+    ok: isReallyConnected,
+    status: isReallyConnected ? "connected" : (isConnecting ? "connecting" : (isDisconnected ? "disconnected" : "waiting")),
+  };
 }
 
 // Format date for message
@@ -91,11 +179,37 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { reuniaoId, userId, clienteTelefone, clienteNome } = body;
+    const { reuniaoId, userId: userIdFromBody, clienteTelefone, clienteNome, instanciaId, instanciaNome } = body;
 
-    console.log(`Starting immediate notification for reuniao ${reuniaoId}, user ${userId}`);
+    // Auth: allow either a real user JWT (from the app) OR an internal call using the service role key.
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Não autenticado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    if (!reuniaoId || !userId) {
+    const token = authHeader.replace("Bearer ", "").trim();
+    const isInternalServiceCall = token === supabaseKey;
+
+    let resolvedUserId: string | null = null;
+    if (isInternalServiceCall) {
+      resolvedUserId = userIdFromBody || null;
+    } else {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Não autenticado" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      resolvedUserId = user.id;
+    }
+
+    console.log(`Starting immediate notification for reuniao ${reuniaoId}, user ${resolvedUserId}`);
+
+    if (!reuniaoId || !resolvedUserId) {
       return new Response(
         JSON.stringify({ success: false, error: "reuniaoId and userId are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -132,7 +246,7 @@ serve(async (req) => {
     const { data: avisosImediatos, error: avisosError } = await supabase
       .from("avisos_reuniao")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", resolvedUserId)
       .eq("ativo", true)
       .eq("envio_imediato", true);
 
@@ -152,24 +266,96 @@ serve(async (req) => {
       );
     }
 
-    // Get active WhatsApp instances for this user (from disparos_instancias)
-    const { data: instancias, error: instanciasError } = await supabase
-      .from("disparos_instancias")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .limit(1);
+    // Pick instance: prefer the one from Disparos chat (instanciaId / instanciaNome)
+    let instancia: InstanciaConfig | null = null;
 
-    if (instanciasError || !instancias || instancias.length === 0) {
-      console.error("No active WhatsApp instance:", instanciasError);
+    if (instanciaId) {
+      const { data: byId } = await supabase
+        .from("disparos_instancias")
+        .select("*")
+        .eq("id", String(instanciaId))
+        .eq("user_id", resolvedUserId)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (byId) instancia = byId as any;
+    }
+
+    if (!instancia && instanciaNome) {
+      const escaped = String(instanciaNome).replace(/,/g, "");
+      const { data: byName, error: byNameError } = await supabase
+        .from("disparos_instancias")
+        .select("*")
+        .eq("user_id", resolvedUserId)
+        .eq("is_active", true)
+        .or(`nome.eq.${escaped},instance_name.eq.${escaped}`)
+        .limit(1);
+
+      if (byNameError) {
+        console.error("Error fetching instance by name:", byNameError);
+      }
+
+      if (byName && byName.length > 0) instancia = byName[0] as any;
+    }
+
+    if (!instancia) {
+      const { data: instancias, error: instanciasError } = await supabase
+        .from("disparos_instancias")
+        .select("*")
+        .eq("user_id", resolvedUserId)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (instanciasError || !instancias || instancias.length === 0) {
+        console.error("No active WhatsApp instance:", instanciasError);
+        return new Response(
+          JSON.stringify({ success: false, error: "Nenhuma instância WhatsApp ativa configurada" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      instancia = instancias[0] as any;
+    }
+
+    if (!instancia) {
       return new Response(
         JSON.stringify({ success: false, error: "Nenhuma instância WhatsApp ativa configurada" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const instancia = instancias[0];
-    const normalizedPhone = normalizePhone(telefone);
+    const baseUrl = String(instancia.base_url || "").replace(/\/+$/, "");
+    const apiKey = String(instancia.api_key || "");
+
+    // Ensure connectivity before sending
+    const status = await checkInstanceConnected(baseUrl, apiKey);
+    if (!status.ok) {
+      const msg = "WhatsApp disconnected";
+
+      await supabase.from("avisos_reuniao_log").insert({
+        user_id: resolvedUserId,
+        aviso_id: null,
+        aviso_nome: "(envio_imediato)",
+        reuniao_id: reuniaoId,
+        cliente_nome: clienteNome || reuniao.participantes?.[0] || "Cliente",
+        cliente_telefone: telefone,
+        dias_antes: 0,
+        mensagem_enviada: "",
+        status: "erro",
+        erro: msg,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Instância WhatsApp desconectada. Reconecte em Conexões → Disparos (QR Code).",
+          sent: 0,
+          total: avisosImediatos.length,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const phoneCandidates = buildPhoneCandidates(telefone);
     let sentCount = 0;
 
     for (const aviso of avisosImediatos) {
@@ -186,45 +372,54 @@ serve(async (req) => {
         const mensagem = replaceVariables(aviso.mensagem, reuniao, clienteNome);
 
         // Send WhatsApp message (UAZapi padrão usado em Disparos)
-        const baseUrl = String(instancia.base_url || "").replace(/\/+$/, "");
         const sendUrl = `${baseUrl}/send/text`;
 
-        const sendResponse = await fetch(sendUrl, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            token: String(instancia.api_key || ""),
-          },
-          body: JSON.stringify({
-            number: normalizedPhone,
-            text: mensagem,
-          }),
-        });
+        let deliveredTo: string | null = null;
+        let lastError: string | null = null;
 
-        const responseText = await sendResponse.text();
-        let sendResult: any = null;
-        try {
-          sendResult = responseText ? JSON.parse(responseText) : null;
-        } catch {
-          sendResult = { raw: responseText };
-        }
-
-        if (!sendResponse.ok) {
-          console.error(`Error sending message for aviso "${aviso.nome}":`, {
-            status: sendResponse.status,
-            body: sendResult,
+        for (const candidate of phoneCandidates) {
+          const sendResponse = await fetch(sendUrl, {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              token: apiKey,
+            },
+            body: JSON.stringify({
+              number: candidate,
+              text: mensagem,
+            }),
           });
-          const erroDetalhado =
+
+          const responseText = await sendResponse.text();
+          let sendResult: any = null;
+          try {
+            sendResult = responseText ? JSON.parse(responseText) : null;
+          } catch {
+            sendResult = { raw: responseText };
+          }
+
+          if (sendResponse.ok) {
+            deliveredTo = candidate;
+            break;
+          }
+
+          lastError =
             sendResult?.message ||
             sendResult?.error ||
             (typeof sendResult?.raw === "string" && sendResult.raw) ||
             responseText ||
             `Erro ao enviar mensagem (${sendResponse.status})`;
-          
-          // Log the failure
+
+          console.error(`Error sending message for aviso "${aviso.nome}" to ${candidate}:`, {
+            status: sendResponse.status,
+            body: sendResult,
+          });
+        }
+
+        if (!deliveredTo) {
           await supabase.from("avisos_reuniao_log").insert({
-            user_id: userId,
+            user_id: resolvedUserId,
             aviso_id: aviso.id,
             aviso_nome: aviso.nome,
             reuniao_id: reuniaoId,
@@ -233,18 +428,17 @@ serve(async (req) => {
             dias_antes: 0,
             mensagem_enviada: mensagem,
             status: "erro",
-            erro: erroDetalhado,
+            erro: lastError || "Erro ao enviar mensagem",
           });
-          
           continue;
         }
 
-        console.log(`Successfully sent immediate notification "${aviso.nome}" to ${normalizedPhone}`);
+        console.log(`Successfully sent immediate notification "${aviso.nome}" to ${deliveredTo}`);
         sentCount++;
 
         // Log the success
         await supabase.from("avisos_reuniao_log").insert({
-          user_id: userId,
+          user_id: resolvedUserId,
           aviso_id: aviso.id,
           aviso_nome: aviso.nome,
           reuniao_id: reuniaoId,
@@ -260,7 +454,7 @@ serve(async (req) => {
         
         // Log the error
         await supabase.from("avisos_reuniao_log").insert({
-          user_id: userId,
+          user_id: resolvedUserId,
           aviso_id: aviso.id,
           aviso_nome: aviso.nome,
           reuniao_id: reuniaoId,
@@ -276,7 +470,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
+        success: sentCount > 0, 
         message: `${sentCount} aviso(s) imediato(s) enviado(s)`,
         sent: sentCount,
         total: avisosImediatos.length
