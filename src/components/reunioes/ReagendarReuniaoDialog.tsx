@@ -56,24 +56,38 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
       const newDate = new Date(date);
       newDate.setHours(hours, minutes, 0, 0);
 
-      const { error } = await supabase
-        .from("reunioes" as any)
-        .update({
-          data_reuniao: newDate.toISOString(),
-          status: "agendado",
-        })
-        .eq("id", reuniao.id);
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data, error } = await supabase.functions.invoke("google-calendar-update-event", {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+        body: { 
+          reuniaoId: reuniao.id,
+          novaDataHora: newDate.toISOString(),
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["reunioes"] });
-      toast.success("Reunião reagendada com sucesso!");
+      if (data?.warning) {
+        toast.warning(data.warning);
+      } else {
+        toast.success("Reunião reagendada com sucesso!");
+      }
       onOpenChange(false);
     },
     onError: (error) => {
       console.error("Erro ao reagendar:", error);
-      toast.error("Erro ao reagendar reunião");
+      toast.error(error instanceof Error ? error.message : "Erro ao reagendar reunião");
     },
   });
 
