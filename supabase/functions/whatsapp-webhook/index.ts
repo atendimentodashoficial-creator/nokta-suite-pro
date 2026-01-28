@@ -693,6 +693,11 @@ Deno.serve(async (req) => {
     const mediaPlaceholder = getMediaPlaceholder(normalizedPayload.message);
     const messageText = rawText || mediaPlaceholder || '';
 
+    // Some providers may resend outbound messages (sent by our API) as if they were inbound.
+    // If we don't guard against that, keyword triggers can enter a loop:
+    // user sends "saldo" -> we reply with "Saldo Meta Ads" -> webhook receives our reply -> triggers again -> ...
+    const wasSentByApi = Boolean((normalizedPayload.message as any)?.wasSentByApi);
+
     // === Extract quoted message info (for reply messages) ===
     const msgForQuote = normalizedPayload.message as any;
     const ctxForQuote = msgForQuote?.content?.contextInfo || msgForQuote?.contextInfo;
@@ -738,7 +743,7 @@ Deno.serve(async (req) => {
     if (isAdminNotificationInstance && adminNotificationInstanceId) {
       console.log('[Admin Instance] Webhook received for admin notification instance:', adminNotificationInstanceId);
 
-      if (!isFromMe && messageText) {
+      if (!isFromMe && !wasSentByApi && messageText) {
         // Deduplicate admin instance webhook events too (provider retries can cause duplicates)
         const msgAny = normalizedPayload.message as any;
         const messageId = String(msgAny?.messageid || msgAny?.id || '').trim();
@@ -849,7 +854,7 @@ Deno.serve(async (req) => {
     }
 
     // === Check for admin keyword triggers (only for incoming messages) ===
-    if (!isFromMe && messageText && !isDuplicate) {
+    if (!isFromMe && !wasSentByApi && messageText && !isDuplicate) {
       console.log('[Keyword Check] Checking for admin keyword triggers...');
       try {
         // Call the admin keyword handler asynchronously (fire and forget)
