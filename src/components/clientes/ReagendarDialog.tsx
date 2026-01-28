@@ -84,7 +84,7 @@ const calcularProximaDataDisponivel = (
         const horariosIntervalo = gerarHorariosIntervalo(
           escala.hora_inicio,
           escala.hora_fim,
-          30 // Intervalo fixo de 30 minutos
+          tempoAtendimento
         );
         horariosDay.push(...horariosIntervalo);
       }
@@ -162,6 +162,8 @@ export function ReagendarDialog({
   agendamento,
 }: ReagendarDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Opção para mostrar horários de 15 em 15 min
+  const [mostrarHorarios15min, setMostrarHorarios15min] = useState(false);
   const queryClient = useQueryClient();
   const { data: procedimentos } = useProcedimentos();
   const { data: profissionais } = useProfissionais();
@@ -206,6 +208,9 @@ export function ReagendarDialog({
     return proc?.tempo_atendimento_minutos || proc?.duracao_minutos || 60;
   }, [procedimentoWatch, procedimentos]);
 
+  // Intervalo efetivo para geração de horários
+  const intervaloEfetivo = mostrarHorarios15min ? 15 : tempoAtendimento;
+
   // Calcular profissionais disponíveis com seus horários
   const profissionaisDisponiveis = useMemo(() => {
     if (!dataWatch || !procedimentoWatch) return [];
@@ -229,7 +234,7 @@ export function ReagendarDialog({
           const horariosIntervalo = gerarHorariosIntervalo(
             escala.hora_inicio,
             escala.hora_fim,
-            30 // Intervalo fixo de 30 minutos
+            intervaloEfetivo
           );
           todosHorarios.push(...horariosIntervalo);
         });
@@ -267,7 +272,7 @@ export function ReagendarDialog({
         proximaDataDisponivel: proximaData,
       };
     }) || [];
-  }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, tempoAtendimento, agendamento]);
+  }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, intervaloEfetivo, tempoAtendimento, agendamento]);
 
   const onSubmit = async (data: ReagendamentoFormData) => {
     if (!agendamento) return;
@@ -428,7 +433,18 @@ export function ReagendarDialog({
             {dataWatch && procedimentoWatch && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <FormLabel>Selecione Profissional e Horário</FormLabel>
+                  <div className="flex items-center gap-3">
+                    <FormLabel className="mb-0">Selecione Profissional e Horário</FormLabel>
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={mostrarHorarios15min}
+                        onChange={(e) => setMostrarHorarios15min(e.target.checked)}
+                        className="w-3 h-3 rounded border-muted-foreground/50"
+                      />
+                      15 min
+                    </label>
+                  </div>
                   {profissionalWatch && form.watch("hora") && (
                     <span className="text-xs text-primary font-medium">
                       ✓ {profissionais?.find(p => p.id === profissionalWatch)?.nome} às {form.watch("hora")}
