@@ -342,25 +342,6 @@ export function AvisosReuniaoTab() {
         </div>
       </div>
 
-      {/* Variáveis disponíveis */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Variáveis Disponíveis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{"{nome}"}</Badge>
-            <Badge variant="secondary">{"{data}"}</Badge>
-            <Badge variant="secondary">{"{horario}"}</Badge>
-            <Badge variant="secondary">{"{link_call}"}</Badge>
-            <Badge variant="secondary">{"{titulo}"}</Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Use <code className="bg-muted px-1 rounded">{"{link_call}"}</code> para incluir o link do Google Meet automaticamente.
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Avisos Imediatos */}
       {avisosImediatos.length > 0 && (
         <div className="space-y-4">
