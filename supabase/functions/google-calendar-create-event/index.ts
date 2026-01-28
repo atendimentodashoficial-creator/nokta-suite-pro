@@ -42,7 +42,8 @@ serve(async (req) => {
       duracaoMinutos = 60,
       participanteEmail,
       participanteNome,
-      procedimentoNome 
+      procedimentoNome,
+      skipLocalSave = false, // Se true, não salva na tabela reunioes (usado quando ambos calendários são criados)
     } = body;
 
     if (!titulo || !dataHora) {
@@ -179,32 +180,39 @@ serve(async (req) => {
       (ep: { entryPointType: string }) => ep.entryPointType === "video"
     )?.uri || null;
 
-    // Save meeting to reunioes table
-    const participantes = participanteEmail ? [participanteEmail] : [];
-    if (participanteNome && !participantes.includes(participanteNome)) {
-      participantes.unshift(participanteNome);
-    }
+    let reuniaoId = null;
 
-    const { data: reuniaoData, error: reuniaoError } = await supabase
-      .from("reunioes")
-      .insert({
-        user_id: user.id,
-        google_event_id: eventData.id,
-        titulo: titulo,
-        data_reuniao: startDate.toISOString(),
-        duracao_minutos: duracaoMinutos,
-        participantes: participantes,
-        meet_link: meetLink,
-        status: "agendado",
-      })
-      .select()
-      .single();
+    // Save meeting to reunioes table only if not skipped
+    if (!skipLocalSave) {
+      const participantes = participanteEmail ? [participanteEmail] : [];
+      if (participanteNome && !participantes.includes(participanteNome)) {
+        participantes.unshift(participanteNome);
+      }
 
-    if (reuniaoError) {
-      console.error("Error saving reuniao to database:", reuniaoError);
-      // Don't fail the request, the calendar event was created successfully
+      const { data: reuniaoData, error: reuniaoError } = await supabase
+        .from("reunioes")
+        .insert({
+          user_id: user.id,
+          google_event_id: eventData.id,
+          titulo: titulo,
+          data_reuniao: startDate.toISOString(),
+          duracao_minutos: duracaoMinutos,
+          participantes: participantes,
+          meet_link: meetLink,
+          status: "agendado",
+        })
+        .select()
+        .single();
+
+      if (reuniaoError) {
+        console.error("Error saving reuniao to database:", reuniaoError);
+        // Don't fail the request, the calendar event was created successfully
+      } else {
+        console.log("Reuniao saved to database:", reuniaoData?.id);
+        reuniaoId = reuniaoData?.id;
+      }
     } else {
-      console.log("Reuniao saved to database:", reuniaoData?.id);
+      console.log("Skipping local save as skipLocalSave=true");
     }
 
     return new Response(
@@ -213,7 +221,7 @@ serve(async (req) => {
         eventId: eventData.id,
         htmlLink: eventData.htmlLink,
         meetLink,
-        reuniaoId: reuniaoData?.id,
+        reuniaoId,
         message: "Evento criado com sucesso!" 
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
