@@ -176,13 +176,8 @@ export function GoogleCalendarConfig({ defaultOpen = false }: GoogleCalendarConf
 
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
       
-      // Open in new window
-      window.open(authUrl, "_blank", "width=600,height=700");
-      
-      toast({
-        title: "Autenticação iniciada",
-        description: "Complete a autenticação na janela do Google que foi aberta."
-      });
+      // Redirect in same window (avoids popup blockers and Google's security restrictions)
+      window.location.href = authUrl;
     } catch (error) {
       console.error("Error initiating OAuth:", error);
       toast({
@@ -190,7 +185,6 @@ export function GoogleCalendarConfig({ defaultOpen = false }: GoogleCalendarConf
         description: "Não foi possível iniciar a autenticação",
         variant: "destructive"
       });
-    } finally {
       setConnecting(false);
     }
   };
