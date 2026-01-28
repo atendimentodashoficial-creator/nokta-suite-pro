@@ -23,32 +23,82 @@ serve(async (req) => {
       );
     }
 
-    // Create a Supabase client with the user's token
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { 
-        global: { 
-          headers: { Authorization: authHeader } 
-        } 
-      }
-    );
-
-    // Get user from the token
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    console.log("User ID:", user?.id);
-    console.log("Auth Error:", authError?.message);
-    
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Usuário não autenticado", details: authError?.message }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
+    // Parse request body first to check if it's an admin action
     const requestBody = await req.json();
     const { action, ad_account_id, campaign_id, adset_id, date_start, date_end, account_type, userId: requestUserId } = requestBody;
     console.log("Action:", action, "Ad Account ID:", ad_account_id, "Campaign ID:", campaign_id, "Adset ID:", adset_id, "Date range:", date_start, "-", date_end, "Account Type:", account_type);
+
+    // Use service role client for admin operations
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    let user: { id: string } | null = null;
+    let isAdminRequest = false;
+
+    // Check if this is an admin token (base64 encoded, not a JWT)
+    const token = authHeader.replace("Bearer ", "");
+    const isJwtFormat = token.split(".").length === 3;
+
+    if (!isJwtFormat && action === "get_account_balance" && requestUserId) {
+      // This is an admin request with a custom token
+      // Validate admin token format (base64 encoded adminId:timestamp)
+      try {
+        const decoded = atob(token);
+        const [adminId, timestamp] = decoded.split(":");
+        
+        if (adminId && timestamp) {
+          // Verify admin exists in admin_users table
+          const { data: adminUser, error: adminError } = await adminClient
+            .from("admin_users")
+            .select("id")
+            .eq("id", adminId)
+            .maybeSingle();
+
+          if (adminUser && !adminError) {
+            console.log("Admin authenticated:", adminId);
+            isAdminRequest = true;
+            // For admin requests, we'll use the requestUserId as the target user
+            user = { id: requestUserId };
+          }
+        }
+      } catch (e) {
+        console.log("Failed to decode admin token:", e);
+      }
+    }
+
+    // If not an admin request, try regular JWT authentication
+    if (!isAdminRequest) {
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { 
+          global: { 
+            headers: { Authorization: authHeader } 
+          } 
+        }
+      );
+
+      const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser();
+      console.log("User ID:", authUser?.id);
+      console.log("Auth Error:", authError?.message);
+      
+      if (authError || !authUser) {
+        return new Response(
+          JSON.stringify({ error: "Usuário não autenticado", details: authError?.message }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      user = authUser;
+    }
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: "Usuário não autenticado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Função para buscar cotação do dólar usando múltiplas APIs como fallback
     const fetchUSDToBRL = async (): Promise<number> => {
@@ -119,11 +169,7 @@ serve(async (req) => {
       return 5.37;
     };
 
-    // Use service role client to query database
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // adminClient já foi criado no início da função
 
     // Buscar token do Facebook do usuário
     const { data: fbConfig, error: configError } = await adminClient
