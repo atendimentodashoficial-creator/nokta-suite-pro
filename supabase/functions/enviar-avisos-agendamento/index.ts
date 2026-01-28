@@ -16,6 +16,7 @@ interface AvisoAgendamento {
   intervalo_min: number;
   intervalo_max: number;
   last_check_at: string | null;
+  procedimento_id: string | null;
 }
 
 interface WhatsAppConfig {
@@ -532,6 +533,7 @@ Deno.serve(async (req) => {
           user_id,
           origem_agendamento,
           origem_instancia_nome,
+          procedimento_id,
           leads!inner(id, nome, telefone, origem, instancia_nome),
           procedimentos(nome),
           profissionais(nome)
@@ -552,7 +554,7 @@ Deno.serve(async (req) => {
       // Build pending list for this aviso
       const pendingAvisos: PendingAviso[] = [];
       
-      // Get all agendamentos that match dias_antes
+      // Get all agendamentos that match dias_antes and optionally procedimento_id
       const matchingAgendamentos = (agendamentos as any[]).filter(ag => {
         const dataAgendamento = new Date(ag.data_agendamento);
         const dataAgendamentoSP = new Date(dataAgendamento.getTime());
@@ -562,7 +564,16 @@ Deno.serve(async (req) => {
         hojeDateSP.setHours(0, 0, 0, 0);
 
         const diffDays = Math.round((dataAgendamentoSP.getTime() - hojeDateSP.getTime()) / (1000 * 60 * 60 * 24));
-        return diffDays === aviso.dias_antes;
+        
+        // Check if dias_antes matches
+        if (diffDays !== aviso.dias_antes) return false;
+        
+        // If aviso has a specific procedimento_id, filter by it
+        if (aviso.procedimento_id && ag.procedimento_id !== aviso.procedimento_id) {
+          return false;
+        }
+        
+        return true;
       });
 
       if (matchingAgendamentos.length === 0) {

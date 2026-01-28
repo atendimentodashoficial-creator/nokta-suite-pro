@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Calendar, Clock, Save, Loader2, User, MessageSquare, Plus, Trash2, Edit, X, Check, CheckCircle2, Send, AlertCircle, TrendingUp, MessageCircle } from "lucide-react";
+import { Bell, Calendar, Clock, Save, Loader2, User, MessageSquare, Plus, Trash2, Edit, X, Check, CheckCircle2, Send, AlertCircle, TrendingUp, MessageCircle, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { formatInTimeZone } from "date-fns-tz";
 import { differenceInCalendarDays } from "date-fns";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
@@ -65,6 +66,7 @@ interface AvisoAgendamento {
   ativo: boolean;
   intervalo_min: number;
   intervalo_max: number;
+  procedimento_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -102,8 +104,10 @@ export function AvisosTab() {
   const [formIntervaloMax, setFormIntervaloMax] = useState(33);
   const [formIntervaloUnit, setFormIntervaloUnit] = useState<"seconds" | "minutes">("seconds");
   const [formAtivo, setFormAtivo] = useState(true);
+  const [formProcedimentoId, setFormProcedimentoId] = useState<string | null>(null);
 
   const { data: agendamentos } = useAgendamentos();
+  const { data: procedimentos } = useProcedimentos();
 
   // Próximos agendamentos (próximos 7 dias, status agendado ou confirmado)
   const proximosAgendamentos = useMemo(() => {
@@ -234,6 +238,7 @@ export function AvisosTab() {
     setFormIntervaloMax(33);
     setFormIntervaloUnit("seconds");
     setFormAtivo(true);
+    setFormProcedimentoId(null);
     setEditingAviso(null);
   };
 
@@ -261,6 +266,7 @@ export function AvisosTab() {
       setFormIntervaloUnit("seconds");
     }
     setFormAtivo(aviso.ativo);
+    setFormProcedimentoId(aviso.procedimento_id || null);
     setIsDialogOpen(true);
   };
 
@@ -320,6 +326,7 @@ export function AvisosTab() {
             intervalo_max: intervaloMaxSec,
             ativo: formAtivo,
             next_check_at: nextCheckAt,
+            procedimento_id: formProcedimentoId,
           })
           .eq('id', editingAviso.id);
 
@@ -339,6 +346,7 @@ export function AvisosTab() {
             intervalo_max: intervaloMaxSec,
             ativo: formAtivo,
             next_check_at: nextCheckAt,
+            procedimento_id: formProcedimentoId,
           });
 
         if (error) throw error;
@@ -513,6 +521,12 @@ export function AvisosTab() {
                         <Clock className="h-3 w-3" />
                         Envio às {aviso.horario_envio.substring(0, 5)} • Intervalo: {aviso.intervalo_min}-{aviso.intervalo_max}s
                       </span>
+                      {aviso.procedimento_id && (
+                        <span className="flex items-center gap-1 mt-0.5">
+                          <FileText className="h-3 w-3" />
+                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Procedimento específico"}
+                        </span>
+                      )}
                     </CardDescription>
                   </div>
                   <Switch
@@ -891,6 +905,29 @@ export function AvisosTab() {
                 onChange={(e) => setFormNome(e.target.value)}
                 placeholder="Ex: Lembrete 1 dia antes"
               />
+            </div>
+
+            {/* Procedimento específico */}
+            <div className="space-y-2">
+              <Label>Procedimento (opcional)</Label>
+              <Select 
+                value={formProcedimentoId || "all"} 
+                onValueChange={(v) => setFormProcedimentoId(v === "all" ? null : v)}
+              >
+                <SelectTrigger className="bg-background">
+                  <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Todos os procedimentos" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="all">Todos os procedimentos</SelectItem>
+                  {procedimentos?.filter(p => p.ativo).map(proc => (
+                    <SelectItem key={proc.id} value={proc.id}>{proc.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Deixe em "Todos" para enviar para qualquer procedimento, ou escolha um específico
+              </p>
             </div>
 
             {/* Período e horário */}
