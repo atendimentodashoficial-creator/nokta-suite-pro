@@ -237,11 +237,14 @@ async function processAviso(
   const cleanPhone = aviso.telefone.replace(/\D/g, "");
   const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
 
-  // Prepare message with variables
-  const dataFormatada = new Date(aviso.dataAgendamento).toLocaleDateString("pt-BR");
+  // Prepare message with variables (use São Paulo timezone to match user expectations)
+  const dataFormatada = new Date(aviso.dataAgendamento).toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+  });
   const horarioFormatado = new Date(aviso.dataAgendamento).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
   });
 
   const mensagem = aviso.mensagemTemplate
