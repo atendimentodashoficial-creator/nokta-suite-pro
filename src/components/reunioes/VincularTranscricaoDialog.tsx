@@ -71,7 +71,7 @@ export function VincularTranscricaoDialog({
     mutationFn: async (reuniaoFireflies: ReuniaoFireflies) => {
       // Copiar a transcrição e resumo da reunião do Fireflies para a reunião agendada
       const { error } = await supabase
-        .from("reunioes")
+        .from("reunioes" as any)
         .update({
           fireflies_id: reuniaoFireflies.fireflies_id,
           transcricao: reuniaoFireflies.transcricao,
@@ -90,7 +90,8 @@ export function VincularTranscricaoDialog({
       toast.success("Transcrição vinculada com sucesso!");
       onOpenChange(false);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Erro ao vincular:", error);
       toast.error("Erro ao vincular transcrição");
     },
   });
