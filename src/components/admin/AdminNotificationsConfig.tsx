@@ -38,6 +38,7 @@ interface NotificationConfig {
 
 interface AdminNotificationsConfigProps {
   users: User[];
+  isActive?: boolean; // Se a aba está ativa/visível
 }
 
 interface BalanceInfo {
@@ -46,21 +47,21 @@ interface BalanceInfo {
   error?: string;
 }
 
-export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProps) {
+export function AdminNotificationsConfig({ users, isActive = true }: AdminNotificationsConfigProps) {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [configs, setConfigs] = useState<Record<string, NotificationConfig>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [initialLoading, setInitialLoading] = useState(true);
   const [balances, setBalances] = useState<Record<string, BalanceInfo>>({});
+  const [hasLoadedBalances, setHasLoadedBalances] = useState(false);
 
-  // Carregar todas as configs e saldos ao montar o componente
+  // Carregar configs ao montar o componente (sem saldos)
   useEffect(() => {
     const loadAllConfigs = async () => {
       setInitialLoading(true);
       for (const user of users) {
         await loadConfig(user.id);
-        fetchUserBalance(user.id);
       }
       setInitialLoading(false);
     };
@@ -68,6 +69,14 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
       loadAllConfigs();
     }
   }, [users]);
+
+  // Carregar saldos apenas quando a aba estiver ativa (e apenas uma vez)
+  useEffect(() => {
+    if (isActive && !hasLoadedBalances && users.length > 0) {
+      setHasLoadedBalances(true);
+      users.forEach(user => fetchUserBalance(user.id));
+    }
+  }, [isActive, hasLoadedBalances, users]);
 
   const fetchUserBalance = async (userId: string) => {
     setBalances(prev => ({
