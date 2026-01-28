@@ -739,21 +739,52 @@ Deno.serve(async (req) => {
       console.log('[Admin Instance] Webhook received for admin notification instance:', adminNotificationInstanceId);
 
       if (!isFromMe && messageText) {
+        // Deduplicate admin instance webhook events too (provider retries can cause duplicates)
+        const messageTimestamp = normalizedPayload.message!.messageTimestamp;
+        const messageHash = `${messageText?.substring(0, 50) || 'empty'}`;
+        const last8Incoming = getLast8Digits(phone);
+
+        let isDuplicateAdmin = false;
+        if (last8Incoming && messageTimestamp) {
+          const { error: dedupError } = await supabase
+            .from('webhook_message_dedup')
+            .insert({
+              // Use effectiveUserId when available; fallback placeholder is already handled earlier
+              user_id: effectiveUserId,
+              // Store the admin instance id as instancia_id so duplicates are scoped correctly
+              instancia_id: adminNotificationInstanceId,
+              phone_last8: last8Incoming,
+              message_timestamp: messageTimestamp,
+              message_hash: messageHash,
+            });
+
+          if (dedupError) {
+            if (dedupError.code === '23505') {
+              console.log('[Admin Instance] Duplicate webhook event detected; skipping keyword handler');
+              isDuplicateAdmin = true;
+            } else {
+              console.error('[Admin Instance] Error inserting dedup record:', dedupError);
+            }
+          }
+        }
+
         console.log('[Admin Instance] Checking keyword triggers via admin-keyword-handler...');
-        fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            admin_instancia_id: adminNotificationInstanceId,
-            phone: normalizedIncoming,
-            message_text: messageText,
-          }),
-        }).catch((err) => {
-          console.error('[Admin Instance] Error calling keyword handler:', err?.message || err);
-        });
+        if (!isDuplicateAdmin) {
+          fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              admin_instancia_id: adminNotificationInstanceId,
+              phone: normalizedIncoming,
+              message_text: messageText,
+            }),
+          }).catch((err) => {
+            console.error('[Admin Instance] Error calling keyword handler:', err?.message || err);
+          });
+        }
       }
 
       return new Response(
