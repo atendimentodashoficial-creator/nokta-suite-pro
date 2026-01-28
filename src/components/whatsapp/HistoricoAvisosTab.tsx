@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { History, Search, CheckCircle2, XCircle, Calendar, Clock, User, MessageSquare, RefreshCw, Loader2, Trash2, MessageCircle, CheckSquare, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ interface AvisoEnviadoLog {
 
 export function HistoricoAvisosTab() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [logs, setLogs] = useState<AvisoEnviadoLog[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -130,6 +132,8 @@ export function HistoricoAvisosTab() {
   };
 
   const loadLogs = async () => {
+    if (!user) return;
+    
     setIsLoading(true);
     try {
       const daysAgo = parseInt(dateFilter);
@@ -138,6 +142,7 @@ export function HistoricoAvisosTab() {
       let query = supabase
         .from('avisos_enviados_log')
         .select('*, leads:cliente_id(origem)')
+        .eq('user_id', user.id)
         .gte('enviado_em', startDate.toISOString())
         .order('enviado_em', { ascending: false })
         .limit(500);
@@ -165,9 +170,10 @@ export function HistoricoAvisosTab() {
   };
 
   useEffect(() => {
-    loadLogs();
-  }, [statusFilter, dateFilter]);
-
+    if (user) {
+      loadLogs();
+    }
+  }, [user, statusFilter, dateFilter]);
   // Filter logs by search term
   const filteredLogs = logs.filter(log => {
     if (!searchTerm) return true;
