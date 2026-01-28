@@ -20,6 +20,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -54,7 +61,7 @@ const reagendamentoSchema = z.object({
     required_error: "Data é obrigatória",
   }),
   hora: z.string().min(1, "Selecione um horário"),
-  profissional_id: z.string().min(1, "Selecione um profissional e horário"),
+  profissional_id: z.string().min(1, "Selecione um profissional"),
 });
 
 type ReagendamentoFormData = z.infer<typeof reagendamentoSchema>;
@@ -79,79 +86,6 @@ const gerarHorariosIntervalo = (
   }
 
   return horarios;
-};
-
-const calcularProximaDataDisponivel = (
-  profissionalId: string,
-  dataInicial: Date,
-  escalas: any[] | undefined,
-  ausencias: any[] | undefined,
-  agendamentos: any[] | undefined,
-  reunioes: any[] | undefined,
-  tempoAtendimento: number = 60
-): Date | null => {
-  if (!escalas) return null;
-  
-  const escalasProfissional = escalas.filter(e => e.profissional_id === profissionalId && e.ativo);
-  if (escalasProfissional.length === 0) return null;
-  
-  const ausenciasProfissional = ausencias?.filter(a => a.profissional_id === profissionalId) || [];
-  const agendamentosProfissional = agendamentos?.filter(
-    a => a.profissional_id === profissionalId && a.status !== "cancelado"
-  ) || [];
-  const reunioesProfissional = reunioes?.filter(
-    r => r.profissional_id === profissionalId && r.status !== "cancelada"
-  ) || [];
-  
-  for (let i = 1; i <= 60; i++) {
-    const dataTest = new Date(dataInicial);
-    dataTest.setDate(dataTest.getDate() + i);
-    const diaSemana = dataTest.getDay();
-    const dataStr = format(dataTest, 'yyyy-MM-dd');
-    
-    const temEscala = escalasProfissional.some(e => e.dia_semana === diaSemana);
-    if (!temEscala) continue;
-    
-    const estaAusente = ausenciasProfissional.some(aus => {
-      return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
-    });
-    if (estaAusente) continue;
-    
-    const horariosDay: string[] = [];
-    escalasProfissional.forEach(escala => {
-      if (escala.dia_semana === diaSemana) {
-        const horariosIntervalo = gerarHorariosIntervalo(
-          escala.hora_inicio,
-          escala.hora_fim,
-          tempoAtendimento
-        );
-        horariosDay.push(...horariosIntervalo);
-      }
-    });
-    
-    const horariosOcupadosAg = agendamentosProfissional
-      .filter(ag => {
-        const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
-        return agData === dataStr;
-      })
-      .map(ag => formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm'));
-    
-    const horariosOcupadosReu = reunioesProfissional
-      .filter(r => {
-        const rData = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
-        return rData === dataStr;
-      })
-      .map(r => formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm'));
-    
-    const horariosOcupados = [...horariosOcupadosAg, ...horariosOcupadosReu];
-    const horariosLivres = [...new Set(horariosDay)].filter(h => !horariosOcupados.includes(h));
-    
-    if (horariosLivres.length > 0) {
-      return dataTest;
-    }
-  }
-  
-  return null;
 };
 
 export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: ReagendarReuniaoDialogProps) {
@@ -196,83 +130,66 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
   const dataWatch = form.watch("data_reuniao");
   const profissionalWatch = form.watch("profissional_id");
 
-  // Tempo de atendimento padrão para reuniões (ou duração da reunião)
-  const tempoAtendimento = reuniao?.duracao_minutos || 60;
+  // Duração padrão para reuniões (30 min de intervalo)
+  const intervaloMinutos = 30;
 
-  // Calcular profissionais disponíveis com seus horários
-  const profissionaisDisponiveis = useMemo(() => {
-    if (!dataWatch) return [];
+  // Calcular horários disponíveis para o profissional selecionado
+  const horariosDisponiveis = useMemo(() => {
+    if (!dataWatch || !profissionalWatch) return [];
     
     const diaSemana = dataWatch.getDay();
     const dataStr = format(dataWatch, 'yyyy-MM-dd');
     
-    return profissionais?.filter(p => p.ativo).map(prof => {
-      const escalasProfissional = escalas?.filter(
-        e => e.profissional_id === prof.id && e.dia_semana === diaSemana && e.ativo
-      ) || [];
-      
-      const ausenciasProfissional = ausencias?.filter(a => a.profissional_id === prof.id) || [];
-      const estaAusente = ausenciasProfissional.some(aus => {
-        return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
-      });
-      
-      const todosHorarios: string[] = [];
-      if (!estaAusente && escalasProfissional.length > 0) {
-        escalasProfissional.forEach(escala => {
-          const horariosIntervalo = gerarHorariosIntervalo(
-            escala.hora_inicio,
-            escala.hora_fim,
-            30 // Intervalo de 30 min para reuniões
-          );
-          todosHorarios.push(...horariosIntervalo);
-        });
-      }
-      
-      // Horários ocupados por agendamentos
-      const horariosOcupadosAg = todosAgendamentos
-        ?.filter(ag => {
-          if (ag.profissional_id !== prof.id) return false;
-          if (ag.status === "cancelado") return false;
-          const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
-          return agData === dataStr;
-        })
-        .map(ag => formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm')) || [];
-      
-      // Horários ocupados por reuniões (excluindo a própria reunião)
-      const horariosOcupadosReu = todasReunioes
-        ?.filter(r => {
-          if (r.profissional_id !== prof.id) return false;
-          if (reuniao && r.id === reuniao.id) return false;
-          const rData = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
-          return rData === dataStr;
-        })
-        .map(r => formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm')) || [];
-      
-      const horariosOcupados = [...horariosOcupadosAg, ...horariosOcupadosReu];
-      const horariosLivres = [...new Set(todosHorarios)]
-        .filter(h => !horariosOcupados.includes(h))
-        .sort();
-      
-      let proximaData: Date | null = null;
-      if (horariosLivres.length === 0) {
-        proximaData = calcularProximaDataDisponivel(
-          prof.id,
-          dataWatch,
-          escalas,
-          ausencias,
-          todosAgendamentos,
-          todasReunioes,
-          tempoAtendimento
-        );
-      }
-      
-      return {
-        profissional: prof,
-        horarios: horariosLivres,
-        proximaDataDisponivel: proximaData,
-      };
-    }) || [];
-  }, [dataWatch, profissionais, escalas, ausencias, todosAgendamentos, todasReunioes, tempoAtendimento, reuniao]);
+    // Verificar escalas do profissional
+    const escalasProfissional = escalas?.filter(
+      e => e.profissional_id === profissionalWatch && e.dia_semana === diaSemana && e.ativo
+    ) || [];
+    
+    // Verificar ausências
+    const ausenciasProfissional = ausencias?.filter(a => a.profissional_id === profissionalWatch) || [];
+    const estaAusente = ausenciasProfissional.some(aus => {
+      return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
+    });
+    
+    if (estaAusente || escalasProfissional.length === 0) return [];
+    
+    // Gerar todos os horários possíveis
+    const todosHorarios: string[] = [];
+    escalasProfissional.forEach(escala => {
+      const horariosIntervalo = gerarHorariosIntervalo(
+        escala.hora_inicio,
+        escala.hora_fim,
+        intervaloMinutos
+      );
+      todosHorarios.push(...horariosIntervalo);
+    });
+    
+    // Horários ocupados por agendamentos
+    const horariosOcupadosAg = todosAgendamentos
+      ?.filter(ag => {
+        if (ag.profissional_id !== profissionalWatch) return false;
+        if (ag.status === "cancelado") return false;
+        const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
+        return agData === dataStr;
+      })
+      .map(ag => formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+    
+    // Horários ocupados por reuniões (excluindo a própria reunião)
+    const horariosOcupadosReu = todasReunioes
+      ?.filter(r => {
+        if (r.profissional_id !== profissionalWatch) return false;
+        if (reuniao && r.id === reuniao.id) return false;
+        const rData = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
+        return rData === dataStr;
+      })
+      .map(r => formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+    
+    const horariosOcupados = [...horariosOcupadosAg, ...horariosOcupadosReu];
+    
+    return [...new Set(todosHorarios)]
+      .filter(h => !horariosOcupados.includes(h))
+      .sort();
+  }, [dataWatch, profissionalWatch, escalas, ausencias, todosAgendamentos, todasReunioes, reuniao]);
 
   const reagendarMutation = useMutation({
     mutationFn: async (data: ReagendamentoFormData) => {
@@ -326,26 +243,42 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Reagendar Reunião</DialogTitle>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">
-              Reunião: <span className="font-medium text-foreground">{reuniao.titulo}</span>
-            </p>
-            {reuniao.profissional_id && profissionais && (
-              <p className="text-sm text-muted-foreground">
-                Profissional atual: <span className="font-medium text-foreground">
-                  {profissionais.find(p => p.id === reuniao.profissional_id)?.nome || "—"}
-                </span>
-                <span className="text-xs ml-2 text-primary">(você pode trocar abaixo)</span>
-              </p>
-            )}
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Reunião: <span className="font-medium text-foreground">{reuniao.titulo}</span>
+          </p>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="profissional_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Profissional</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o profissional" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {profissionais?.filter(p => p.ativo).map((prof) => (
+                        <SelectItem key={prof.id} value={prof.id}>
+                          {prof.nome}
+                          {prof.especialidade && ` (${prof.especialidade})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="data_reuniao"
@@ -386,96 +319,46 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
               )}
             />
 
-            {/* Mostrar profissionais disponíveis com horários */}
-            {dataWatch && (
+            {/* Mostrar horários disponíveis */}
+            {dataWatch && profissionalWatch && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <FormLabel>Selecione Profissional e Horário</FormLabel>
-                  {profissionalWatch && form.watch("hora") && (
+                  <FormLabel>Horário</FormLabel>
+                  {form.watch("hora") && (
                     <span className="text-xs text-primary font-medium">
-                      ✓ {profissionais?.find(p => p.id === profissionalWatch)?.nome} às {form.watch("hora")}
+                      ✓ {form.watch("hora")} selecionado
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground -mt-1">
-                  Clique em um horário para selecionar o profissional e horário desejado
-                </p>
                 
-                {profissionaisDisponiveis.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Carregando disponibilidade...
-                  </p>
-                ) : profissionaisDisponiveis.every(p => p.horarios.length === 0) ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhum profissional disponível nesta data
+                {horariosDisponiveis.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg bg-muted/20">
+                    Sem disponibilidade nesta data para este profissional
                   </p>
                 ) : (
-                  <div className="space-y-3 max-h-[300px] overflow-y-auto border rounded-lg p-3 bg-muted/20">
-                    {profissionaisDisponiveis.map(({ profissional, horarios, proximaDataDisponivel }) => (
-                      <div key={profissional.id} className="space-y-2">
-                        <div className="font-medium text-sm flex items-center gap-2">
-                          {profissional.nome}
-                          {profissional.especialidade && (
-                            <span className="text-xs text-muted-foreground">
-                              ({profissional.especialidade})
-                            </span>
-                          )}
-                        </div>
-                        
-                        {horarios.length === 0 ? (
-                          <p className="text-xs text-muted-foreground pl-4">
-                            Sem disponibilidade neste dia
-                            {proximaDataDisponivel && (
-                              <span className="text-primary">
-                                {" "}(Próxima data disponível: {format(proximaDataDisponivel, "dd/MM/yyyy")})
-                              </span>
-                            )}
-                          </p>
-                        ) : (
-                          <div className="flex flex-wrap gap-2 pl-4">
-                            {horarios.map((horario) => {
-                              const isSelected = 
-                                profissionalWatch === profissional.id && 
-                                form.watch("hora") === horario;
-                              
-                              return (
-                                <Button
-                                  key={horario}
-                                  type="button"
-                                  size="sm"
-                                  variant={isSelected ? "default" : "outline"}
-                                  className="h-8 px-3"
-                                  onClick={() => {
-                                    form.setValue("profissional_id", profissional.id);
-                                    form.setValue("hora", horario);
-                                  }}
-                                >
-                                  {horario}
-                                </Button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                  <div className="flex flex-wrap gap-2 border rounded-lg p-3 bg-muted/20 max-h-[200px] overflow-y-auto">
+                    {horariosDisponiveis.map((horario) => {
+                      const isSelected = form.watch("hora") === horario;
+                      
+                      return (
+                        <Button
+                          key={horario}
+                          type="button"
+                          size="sm"
+                          variant={isSelected ? "default" : "outline"}
+                          className="h-8 px-3"
+                          onClick={() => form.setValue("hora", horario)}
+                        >
+                          {horario}
+                        </Button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Campos ocultos */}
-            <FormField
-              control={form.control}
-              name="profissional_id"
-              render={({ field }) => (
-                <FormItem className="hidden">
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            
+            {/* Campo oculto para hora */}
             <FormField
               control={form.control}
               name="hora"
