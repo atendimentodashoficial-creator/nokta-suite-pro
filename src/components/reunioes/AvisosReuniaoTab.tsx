@@ -52,9 +52,8 @@ export function AvisosReuniaoTab() {
   const [formIntervaloMax, setFormIntervaloMax] = useState(33);
   const [formIntervaloUnit, setFormIntervaloUnit] = useState<"seconds" | "minutes">("seconds");
   const [formAtivo, setFormAtivo] = useState(true);
-  const [formEnvioImediato, setFormEnvioImediato] = useState(false);
   const [formProcedimentoId, setFormProcedimentoId] = useState<string | null>(null);
-  const [formTipoGatilho, setFormTipoGatilho] = useState<"dias_antes" | "reagendamento">("dias_antes");
+  const [formTipoGatilho, setFormTipoGatilho] = useState<"dias_antes" | "imediato" | "reagendamento">("dias_antes");
 
   const { data: procedimentos } = useProcedimentos();
 
@@ -93,7 +92,6 @@ export function AvisosReuniaoTab() {
     setFormIntervaloMax(33);
     setFormIntervaloUnit("seconds");
     setFormAtivo(true);
-    setFormEnvioImediato(false);
     setFormProcedimentoId(null);
     setFormTipoGatilho("dias_antes");
     setEditingAviso(null);
@@ -108,7 +106,7 @@ export function AvisosReuniaoTab() {
   // Open dialog for new immediate aviso
   const handleNewAvisoImediato = () => {
     resetForm();
-    setFormEnvioImediato(true);
+    setFormTipoGatilho("imediato");
     setFormNome("Confirmação de Reunião");
     setFormMensagem(
       "Olá {nome}! 👋\n\nSua reunião foi agendada com sucesso! ✅\n\n📅 Data: {data}\n⏰ Horário: {horario}\n📹 Link da call: {link_call}\n\nAté lá! 🙂"
@@ -123,7 +121,6 @@ export function AvisosReuniaoTab() {
     setFormMensagem(aviso.mensagem);
     setFormDiasAntes(aviso.dias_antes);
     setFormHorarioEnvio(aviso.horario_envio.substring(0, 5));
-    setFormEnvioImediato(aviso.envio_imediato);
     if (aviso.intervalo_min >= 60 && aviso.intervalo_min % 60 === 0) {
       setFormIntervaloMin(aviso.intervalo_min / 60);
       setFormIntervaloMax(aviso.intervalo_max / 60);
@@ -135,7 +132,12 @@ export function AvisosReuniaoTab() {
     }
     setFormAtivo(aviso.ativo);
     setFormProcedimentoId(aviso.procedimento_id || null);
-    setFormTipoGatilho((aviso.tipo_gatilho as "dias_antes" | "reagendamento") || "dias_antes");
+    // Map envio_imediato to tipo_gatilho for backwards compatibility
+    if (aviso.envio_imediato) {
+      setFormTipoGatilho("imediato");
+    } else {
+      setFormTipoGatilho((aviso.tipo_gatilho as "dias_antes" | "imediato" | "reagendamento") || "dias_antes");
+    }
     setIsDialogOpen(true);
   };
 
@@ -160,7 +162,7 @@ export function AvisosReuniaoTab() {
 
       const calculateNextCheckAt = (horarioEnvio: string, isActive: boolean): string | null => {
         // Immediate or rescheduling notifications don't need scheduled checks
-        if (!isActive || formEnvioImediato || formTipoGatilho === 'reagendamento') return null;
+        if (!isActive || formTipoGatilho === 'imediato' || formTipoGatilho === 'reagendamento') return null;
         
         const now = new Date();
         const utc = now.getTime() + now.getTimezoneOffset() * 60000;
@@ -179,6 +181,8 @@ export function AvisosReuniaoTab() {
       };
 
       const nextCheckAt = calculateNextCheckAt(formHorarioEnvio, formAtivo);
+      const isImediato = formTipoGatilho === 'imediato';
+      const tipoGatilhoToSave = isImediato ? 'dias_antes' : formTipoGatilho;
 
       if (editingAviso) {
         const { error } = await supabase
@@ -191,10 +195,10 @@ export function AvisosReuniaoTab() {
             intervalo_min: intervaloMinSec,
             intervalo_max: intervaloMaxSec,
             ativo: formAtivo,
-            envio_imediato: formEnvioImediato,
+            envio_imediato: isImediato,
             next_check_at: nextCheckAt,
             procedimento_id: formProcedimentoId,
-            tipo_gatilho: formTipoGatilho,
+            tipo_gatilho: tipoGatilhoToSave,
           })
           .eq('id', editingAviso.id);
 
@@ -212,10 +216,10 @@ export function AvisosReuniaoTab() {
             intervalo_min: intervaloMinSec,
             intervalo_max: intervaloMaxSec,
             ativo: formAtivo,
-            envio_imediato: formEnvioImediato,
+            envio_imediato: isImediato,
             next_check_at: nextCheckAt,
             procedimento_id: formProcedimentoId,
-            tipo_gatilho: formTipoGatilho,
+            tipo_gatilho: tipoGatilhoToSave,
           });
 
         if (error) throw error;
@@ -580,12 +584,14 @@ export function AvisosReuniaoTab() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingAviso ? 'Editar Aviso' : formEnvioImediato ? 'Novo Aviso Imediato' : 'Novo Lembrete'}
+              {editingAviso ? 'Editar Aviso' : formTipoGatilho === 'imediato' ? 'Novo Aviso Imediato' : 'Novo Lembrete'}
             </DialogTitle>
             <DialogDescription>
-              {formEnvioImediato 
+              {formTipoGatilho === 'imediato' 
                 ? 'Este aviso será enviado automaticamente assim que uma reunião for agendada.'
-                : 'Configure um lembrete para ser enviado antes da reunião.'}
+                : formTipoGatilho === 'reagendamento'
+                  ? 'Este aviso será enviado automaticamente quando uma reunião for reagendada.'
+                  : 'Configure um lembrete para ser enviado antes da reunião.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -624,61 +630,48 @@ export function AvisosReuniaoTab() {
               </p>
             </div>
 
-            {/* Tipo de envio */}
-            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-medium">Envio Imediato</Label>
-                <p className="text-xs text-muted-foreground">
-                  Envia assim que a reunião é agendada
-                </p>
-              </div>
-              <Switch
-                checked={formEnvioImediato}
-                onCheckedChange={(checked) => {
-                  setFormEnvioImediato(checked);
-                  if (checked) {
-                    setFormTipoGatilho("dias_antes"); // Reset to default when immediate
-                  }
-                }}
-              />
-            </div>
-
-            {/* Tipo de gatilho (se não for imediato) */}
-            {!formEnvioImediato && (
-              <div className="space-y-2">
-                <Label>Tipo de gatilho</Label>
-                <Select
-                  value={formTipoGatilho}
-                  onValueChange={(v) => setFormTipoGatilho(v as "dias_antes" | "reagendamento")}
-                >
-                  <SelectTrigger className="bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border shadow-lg z-50">
-                    <SelectItem value="dias_antes">
-                      <span className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        Dias antes da reunião
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="reagendamento">
-                      <span className="flex items-center gap-2">
-                        <RefreshCw className="h-4 w-4" />
-                        Ao reagendar reunião
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {formTipoGatilho === 'reagendamento' 
+            {/* Tipo de gatilho */}
+            <div className="space-y-2">
+              <Label>Tipo de gatilho</Label>
+              <Select
+                value={formTipoGatilho}
+                onValueChange={(v) => setFormTipoGatilho(v as "dias_antes" | "imediato" | "reagendamento")}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="imediato">
+                    <span className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-yellow-500" />
+                      Envio imediato (ao agendar)
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="dias_antes">
+                    <span className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Dias antes da reunião
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="reagendamento">
+                    <span className="flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4 text-blue-500" />
+                      Ao reagendar reunião
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formTipoGatilho === 'imediato' 
+                  ? 'Envia automaticamente assim que a reunião é agendada'
+                  : formTipoGatilho === 'reagendamento' 
                     ? 'Envia automaticamente quando a reunião é reagendada'
                     : 'Envia X dias antes da reunião no horário especificado'}
-                </p>
-              </div>
-            )}
+              </p>
+            </div>
 
-            {/* Configurações de agendamento (se não for imediato e for tipo dias_antes) */}
-            {!formEnvioImediato && formTipoGatilho === 'dias_antes' && (
+            {/* Configurações de agendamento (somente para tipo dias_antes) */}
+            {formTipoGatilho === 'dias_antes' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
