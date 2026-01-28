@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar, Phone, Users } from "lucide-react";
+import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar, Phone, Users, Zap } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -31,6 +31,9 @@ interface NotificationConfig {
   campaign_reports_enabled: boolean;
   campaign_report_message: string;
   campaign_report_period: string;
+  keyword_enabled: boolean;
+  keyword_balance: string;
+  keyword_report: string;
 }
 
 interface AdminNotificationsConfigProps {
@@ -100,6 +103,9 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
 
 🔹*Alcance:* _{alcance}_`,
           campaign_report_period: "7",
+          keyword_enabled: false,
+          keyword_balance: "saldo",
+          keyword_report: "relatorio",
         },
       }));
     } catch (error) {
@@ -147,6 +153,9 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
             campaignReportsEnabled: config.campaign_reports_enabled,
             campaignReportMessage: config.campaign_report_message,
             campaignReportPeriod: config.campaign_report_period,
+            keywordEnabled: config.keyword_enabled,
+            keywordBalance: config.keyword_balance,
+            keywordReport: config.keyword_report,
           },
         headers: { Authorization: `Bearer ${adminToken}` },
       });
@@ -428,6 +437,64 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                               <p className="text-xs text-muted-foreground font-medium mt-2">Variáveis de Disparo:</p>
                               <p className="text-xs text-muted-foreground">
                                 {"{nome_campanha}"}, {"{enviados}"}, {"{falhas}"}, {"{status}"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Gatilhos por Palavra-Chave */}
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
+                        <div className="flex items-center gap-3">
+                          <Zap className="h-5 w-5 text-purple-500" />
+                          <div>
+                            <Label className="font-medium">Gatilhos por Palavra-Chave</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Responder automaticamente quando enviarem palavras específicas
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={config.keyword_enabled}
+                          onCheckedChange={(checked) =>
+                            updateConfig(user.id, "keyword_enabled", checked)
+                          }
+                        />
+                      </div>
+
+                      {config.keyword_enabled && (
+                        <div className="space-y-4 pl-4 border-l-2 border-purple-500/30">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`keyword-balance-${user.id}`}>
+                                Palavra para Saldo
+                              </Label>
+                              <Input
+                                id={`keyword-balance-${user.id}`}
+                                value={config.keyword_balance || ""}
+                                onChange={(e) =>
+                                  updateConfig(user.id, "keyword_balance", e.target.value.toLowerCase())
+                                }
+                                placeholder="Ex: saldo"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Ao enviar essa palavra, retorna o saldo atual
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`keyword-report-${user.id}`}>
+                                Palavra para Relatório
+                              </Label>
+                              <Input
+                                id={`keyword-report-${user.id}`}
+                                value={config.keyword_report || ""}
+                                onChange={(e) =>
+                                  updateConfig(user.id, "keyword_report", e.target.value.toLowerCase())
+                                }
+                                placeholder="Ex: relatorio"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Ao enviar essa palavra, retorna o relatório de campanhas
                               </p>
                             </div>
                           </div>
