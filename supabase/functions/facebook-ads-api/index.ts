@@ -44,16 +44,26 @@ serve(async (req) => {
     if (!isJwtFormat && action === "get_account_balance" && requestUserId) {
       // This is an admin request with a custom token
       // Token format from check-admin-status: btoa(`admin:${adminUser.id}:${Date.now()}`)
+      // Legacy format (before fix): btoa(`${adminUser.id}:${Date.now()}`)
       try {
         const decoded = atob(token);
         console.log("[ADMIN AUTH] Decoded token:", decoded);
         const parts = decoded.split(":");
         
-        // Format: admin:uuid:timestamp
+        let adminId: string | null = null;
+        
+        // Format: admin:uuid:timestamp (new format - 3+ parts starting with "admin")
         if (parts.length >= 3 && parts[0] === "admin") {
-          const adminId = parts[1];
-          console.log("[ADMIN AUTH] Extracted admin ID:", adminId);
-          
+          adminId = parts[1];
+          console.log("[ADMIN AUTH] New format - Extracted admin ID:", adminId);
+        }
+        // Legacy format: uuid:timestamp (2 parts, first is UUID)
+        else if (parts.length >= 2 && parts[0].includes("-") && parts[0].length === 36) {
+          adminId = parts[0];
+          console.log("[ADMIN AUTH] Legacy format - Extracted admin ID:", adminId);
+        }
+        
+        if (adminId) {
           // Verify admin exists in admin_users table
           const { data: adminUser, error: adminError } = await adminClient
             .from("admin_users")
@@ -70,7 +80,7 @@ serve(async (req) => {
             console.log("[ADMIN AUTH] Admin not found or error:", adminError?.message);
           }
         } else {
-          console.log("[ADMIN AUTH] Invalid token format, parts:", parts.length);
+          console.log("[ADMIN AUTH] Could not extract admin ID from token");
         }
       } catch (e) {
         console.log("[ADMIN AUTH] Failed to decode admin token:", e);
