@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -44,6 +44,7 @@ import { useTiposAgendamento } from "@/hooks/useTiposAgendamento";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatInTimeZone } from "date-fns-tz";
+import { buildCandidateStartTimes, rangesOverlap, timeToMinutes, type MinuteRange, type TimeRange } from "@/utils/timeSlots";
 
 // Calcular próxima data disponível para um profissional
 const calcularProximaDataDisponivel = (
@@ -172,6 +173,22 @@ export function ReagendarDialog({
   const { data: ausencias } = useAusencias();
   const { tiposAtivos } = useTiposAgendamento();
 
+  // Buscar reuniões para verificar horários ocupados (conflito cruzado)
+  const { data: reunioes } = useQuery({
+    queryKey: ["reunioes-disponibilidade"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reunioes")
+        .select("id, data_reuniao, duracao_minutos, profissional_id, status")
+        .not("profissional_id", "is", null)
+        .neq("status", "cancelado");
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open,
+  });
+
   const form = useForm<ReagendamentoFormData>({
     resolver: zodResolver(reagendamentoSchema),
     defaultValues: {
@@ -228,50 +245,70 @@ export function ReagendarDialog({
         return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
       });
       
-      const todosHorarios: string[] = [];
-      if (!estaAusente && escalasProfissional.length > 0) {
-        escalasProfissional.forEach(escala => {
-          const horariosIntervalo = gerarHorariosIntervalo(
-            escala.hora_inicio,
-            escala.hora_fim,
-            intervaloEfetivo
-          );
-          todosHorarios.push(...horariosIntervalo);
-        });
+      if (estaAusente || escalasProfissional.length === 0) {
+        return {
+          profissional: prof,
+          horarios: [],
+          proximaDataDisponivel: calcularProximaDataDisponivel(
+            prof.id,
+            dataWatch,
+            escalas,
+            ausencias,
+            todosAgendamentos,
+            tempoAtendimento
+          ),
+        };
       }
-      
-      // Remover horários já ocupados por AGENDAMENTOS (considerando duração)
-      const horariosOcupados: string[] = [];
+
+      const windows: TimeRange[] = escalasProfissional.map((e) => ({
+        start: e.hora_inicio,
+        end: e.hora_fim,
+      }));
+
+      // Candidatos respeitam fim da escala e duração do NOVO procedimento
+      const candidatos = buildCandidateStartTimes(windows, intervaloEfetivo, tempoAtendimento);
+
+      const busy: MinuteRange[] = [];
+
+      // Agendamentos existentes
       todosAgendamentos
-        ?.filter(ag => {
+        ?.filter((ag) => {
           if (ag.profissional_id !== prof.id) return false;
           if (ag.status === "cancelado") return false;
-          if (agendamento && ag.id === agendamento.id) return false; // Excluir o próprio agendamento
-          const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
+          if (agendamento && ag.id === agendamento.id) return false;
+          const agData = formatInTimeZone(ag.data_agendamento as any, "America/Sao_Paulo", "yyyy-MM-dd");
           return agData === dataStr;
         })
-        .forEach(ag => {
-          const horaInicio = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm');
-          // Obter duração do procedimento do agendamento
-          const procDuracao = procedimentos?.find(p => p.id === ag.procedimento_id)?.tempo_atendimento_minutos 
-            || procedimentos?.find(p => p.id === ag.procedimento_id)?.duracao_minutos 
-            || 60;
-          
-          // Gerar todos os slots que este agendamento ocupa
-          const [h, m] = horaInicio.split(':').map(Number);
-          let minutoAtual = h * 60 + m;
-          const minutoFim = minutoAtual + procDuracao;
-          
-          while (minutoAtual < minutoFim) {
-            const hora = Math.floor(minutoAtual / 60);
-            const min = minutoAtual % 60;
-            horariosOcupados.push(`${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
-            minutoAtual += intervaloEfetivo;
-          }
+        .forEach((ag) => {
+          const startStr = formatInTimeZone(ag.data_agendamento as any, "America/Sao_Paulo", "HH:mm");
+          const startMin = timeToMinutes(startStr);
+          const dur =
+            procedimentos?.find((p) => p.id === ag.procedimento_id)?.tempo_atendimento_minutos ||
+            procedimentos?.find((p) => p.id === ag.procedimento_id)?.duracao_minutos ||
+            60;
+          busy.push({ startMin, endMin: startMin + dur });
         });
-      
-      const horariosLivres = [...new Set(todosHorarios)]
-        .filter(h => !horariosOcupados.includes(h))
+
+      // Reuniões existentes
+      reunioes
+        ?.filter((r) => {
+          if (r.profissional_id !== prof.id) return false;
+          const rData = formatInTimeZone(r.data_reuniao as any, "America/Sao_Paulo", "yyyy-MM-dd");
+          return rData === dataStr;
+        })
+        .forEach((r) => {
+          const startStr = formatInTimeZone(r.data_reuniao as any, "America/Sao_Paulo", "HH:mm");
+          const startMin = timeToMinutes(startStr);
+          const dur = r.duracao_minutos || 30;
+          busy.push({ startMin, endMin: startMin + dur });
+        });
+
+      const horariosLivres = candidatos
+        .filter((hhmm) => {
+          const startMin = timeToMinutes(hhmm);
+          const candidateRange: MinuteRange = { startMin, endMin: startMin + tempoAtendimento };
+          return !busy.some((b) => rangesOverlap(candidateRange, b));
+        })
         .sort();
       
       let proximaData: Date | null = null;
@@ -292,7 +329,7 @@ export function ReagendarDialog({
         proximaDataDisponivel: proximaData,
       };
     }) || [];
-  }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, intervaloEfetivo, tempoAtendimento, agendamento]);
+  }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, reunioes, intervaloEfetivo, tempoAtendimento, agendamento]);
 
   const onSubmit = async (data: ReagendamentoFormData) => {
     if (!agendamento) return;
