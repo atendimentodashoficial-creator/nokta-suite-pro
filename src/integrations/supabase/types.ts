@@ -16,31 +16,37 @@ export type Database = {
     Tables: {
       admin_client_notifications: {
         Row: {
+          campaign_report_message: string | null
           campaign_reports_enabled: boolean | null
           created_at: string | null
           id: string
           instancia_id: string | null
           low_balance_enabled: boolean | null
+          low_balance_message: string | null
           low_balance_threshold: number | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          campaign_report_message?: string | null
           campaign_reports_enabled?: boolean | null
           created_at?: string | null
           id?: string
           instancia_id?: string | null
           low_balance_enabled?: boolean | null
+          low_balance_message?: string | null
           low_balance_threshold?: number | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          campaign_report_message?: string | null
           campaign_reports_enabled?: boolean | null
           created_at?: string | null
           id?: string
           instancia_id?: string | null
           low_balance_enabled?: boolean | null
+          low_balance_message?: string | null
           low_balance_threshold?: number | null
           updated_at?: string | null
           user_id?: string
