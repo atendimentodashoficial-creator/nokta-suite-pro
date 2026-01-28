@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 interface AdminInstance {
   id: string;
@@ -673,112 +673,148 @@ export function AdminInstanceManager() {
       <Dialog open={qrDialogOpen} onOpenChange={handleCloseQrDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Conectar WhatsApp</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {connectionMode === 'qrcode' ? (
+                <QrCode className="h-5 w-5" />
+              ) : (
+                <Hash className="h-5 w-5" />
+              )}
+              Conectar WhatsApp
+            </DialogTitle>
             <DialogDescription>
-              Conecte a instância "{selectedInstanceForQr?.nome}"
+              {selectedInstanceForQr?.nome}
             </DialogDescription>
           </DialogHeader>
           
-          <Tabs value={connectionMode} onValueChange={(v) => setConnectionMode(v as 'qrcode' | 'paircode')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="qrcode" className="flex items-center gap-2">
-                <QrCode className="h-4 w-4" />
-                QR Code
-              </TabsTrigger>
-              <TabsTrigger value="paircode" className="flex items-center gap-2">
-                <Hash className="h-4 w-4" />
-                Código Manual
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="qrcode" className="mt-4">
-              <div className="flex items-center justify-center py-4">
+          {/* Connection Mode Tabs - same as Disparos */}
+          <div className="flex gap-2 border-b pb-2">
+            <Button
+              variant={connectionMode === 'qrcode' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => {
+                setConnectionMode('qrcode');
+                setPairingCode(null);
+                if (selectedInstanceForQr && !qrCode) {
+                  handleGetQrCode(selectedInstanceForQr);
+                }
+              }}
+            >
+              <QrCode className="h-4 w-4 mr-2" />
+              QR Code
+            </Button>
+            <Button
+              variant={connectionMode === 'paircode' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => {
+                setConnectionMode('paircode');
+                setQrCode(null);
+              }}
+            >
+              <Hash className="h-4 w-4 mr-2" />
+              Código Manual
+            </Button>
+          </div>
+          
+          <div className="flex flex-col items-center gap-4 py-4">
+            {connectionMode === 'qrcode' ? (
+              // QR Code Mode
+              <>
                 {qrLoading ? (
-                  <div className="flex flex-col items-center gap-2">
+                  <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-lg">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Gerando QR Code...</p>
                   </div>
                 ) : qrCode ? (
-                  <div className="p-4 bg-white rounded-lg">
-                    <img 
-                      src={qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`} 
-                      alt="QR Code"
-                      className="w-64 h-64"
-                    />
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">Erro ao carregar QR Code</p>
-                )}
-              </div>
-              <p className="text-xs text-center text-muted-foreground">
-                Escaneie o QR Code com o WhatsApp para conectar
-              </p>
-            </TabsContent>
-            
-            <TabsContent value="paircode" className="mt-4 space-y-4">
-              {!pairingCode ? (
-                <>
-                  <div className="space-y-2">
-                    <Label>Número do WhatsApp</Label>
-                    <Input
-                      placeholder="5511999999999"
-                      value={pairingPhoneNumber}
-                      onChange={(e) => setPairingPhoneNumber(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Digite o número completo com DDD (sem espaços ou caracteres especiais)
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={handleGetPairingCode} 
-                    disabled={qrLoading}
-                    className="w-full"
-                  >
-                    {qrLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Gerando código...
-                      </>
-                    ) : (
-                      "Gerar Código de Pareamento"
+                  <>
+                    <div className="p-4 bg-white rounded-lg shadow-sm">
+                      <img 
+                        src={qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`} 
+                        alt="QR Code"
+                        className="w-56 h-56"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Smartphone className="h-4 w-4" />
+                      <span>Escaneie com seu WhatsApp</span>
+                    </div>
+                    {pollingIntervalRef.current && (
+                      <div className="flex items-center gap-2 text-xs text-green-600">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Aguardando conexão...
+                      </div>
                     )}
-                  </Button>
-                </>
-              ) : (
-                <div className="text-center space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Digite este código no seu WhatsApp:
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-3xl font-mono font-bold tracking-widest">
-                      {pairingCode}
-                    </span>
-                    <Button variant="ghost" size="icon" onClick={copyPairingCode}>
-                      <Copy className="h-4 w-4" />
+                    <Button variant="outline" size="sm" onClick={() => handleGetQrCode(selectedInstanceForQr!)}>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Atualizar QR Code
+                    </Button>
+                  </>
+                ) : (
+                  <div className="text-center space-y-4">
+                    <p className="text-muted-foreground">QR Code não disponível</p>
+                    <Button onClick={() => handleGetQrCode(selectedInstanceForQr!)}>
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Gerar QR Code
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    No WhatsApp: Configurações → Dispositivos Conectados → Conectar um dispositivo → Conectar com número de telefone
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseQrDialog}>
-              Fechar
-            </Button>
-            {connectionMode === 'qrcode' && (
-              <Button 
-                onClick={() => selectedInstanceForQr && handleGetQrCode(selectedInstanceForQr)}
-                disabled={qrLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${qrLoading ? "animate-spin" : ""}`} />
-                Atualizar QR Code
-              </Button>
+                )}
+              </>
+            ) : (
+              // Pairing Code Mode
+              <>
+                {!pairingCode ? (
+                  <div className="w-full space-y-4">
+                    <div className="space-y-2">
+                      <Label>Número do WhatsApp</Label>
+                      <Input
+                        placeholder="5511999999999"
+                        value={pairingPhoneNumber}
+                        onChange={(e) => setPairingPhoneNumber(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Digite o número completo com DDD (sem espaços ou caracteres especiais)
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={handleGetPairingCode} 
+                      disabled={qrLoading}
+                      className="w-full"
+                    >
+                      {qrLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Gerando código...
+                        </>
+                      ) : (
+                        "Gerar Código de Pareamento"
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Digite este código no seu WhatsApp:
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-3xl font-mono font-bold tracking-widest">
+                        {pairingCode}
+                      </span>
+                      <Button variant="ghost" size="icon" onClick={copyPairingCode}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      No WhatsApp: Configurações → Dispositivos Conectados → Conectar um dispositivo → Conectar com número de telefone
+                    </p>
+                    {pollingIntervalRef.current && (
+                      <div className="flex items-center justify-center gap-2 text-xs text-green-600">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Aguardando conexão...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </Card>
