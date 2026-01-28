@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, History } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Phone, User, Link2, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { TemplateCamposDialog } from "@/components/reunioes/TemplateCamposDialog";
@@ -168,90 +168,116 @@ export default function Reunioes() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <Card key={i}>
-                  <CardHeader>
-                    <Skeleton className="h-5 w-3/4" />
+                  <CardContent className="p-5 space-y-4">
+                    <Skeleton className="h-5 w-1/3" />
+                    <Skeleton className="h-6 w-3/4" />
                     <Skeleton className="h-4 w-1/2" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-10 w-full" />
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : reunioes && reunioes.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {reunioes.map((reuniao) => (
-                <Card 
-                  key={reuniao.id} 
-                  className="flex flex-col shadow-card hover:shadow-elegant transition-all duration-300 animate-fade-in bg-gradient-card"
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-primary shrink-0">
-                          <Video className="h-5 w-5 text-primary-foreground" />
-                        </div>
-                        <CardTitle className="text-base font-semibold line-clamp-2">
-                          {reuniao.titulo}
-                        </CardTitle>
-                      </div>
-                      {getStatusBadge(reuniao.status)}
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2 ml-13">
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {format(new Date(reuniao.data_reuniao), "dd MMM yyyy", { locale: ptBR })}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5" />
-                        {formatDuration(reuniao.duracao_minutos)}
+            <div className="space-y-6">
+              {/* Agrupar por data */}
+              {Object.entries(
+                reunioes.reduce((acc, reuniao) => {
+                  const dateKey = format(new Date(reuniao.data_reuniao), "yyyy-MM-dd");
+                  if (!acc[dateKey]) acc[dateKey] = [];
+                  acc[dateKey].push(reuniao);
+                  return acc;
+                }, {} as Record<string, Reuniao[]>)
+              ).map(([dateKey, reunioesDodia]) => (
+                <div key={dateKey} className="space-y-4">
+                  {/* Header da data */}
+                  <div className="bg-secondary text-secondary-foreground rounded-xl p-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-5 h-5" />
+                      <span className="font-semibold">
+                        {format(parseISO(dateKey), "dd/MM/yyyy")}
                       </span>
                     </div>
-                  </CardHeader>
-                  
-                  <CardContent className="flex-1 space-y-3 pt-0">
-                    {reuniao.participantes && reuniao.participantes.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {reuniao.participantes.slice(0, 3).map((p, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs font-medium">
-                            {p}
-                          </Badge>
-                        ))}
-                        {reuniao.participantes.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{reuniao.participantes.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                    
-                    {reuniao.resumo_ia ? (
-                      <p className="text-sm text-muted-foreground line-clamp-3">
-                        {reuniao.resumo_ia}
-                      </p>
-                    ) : reuniao.transcricao ? (
-                      <p className="text-sm text-muted-foreground line-clamp-3 italic">
-                        Transcrição disponível - resumo pendente
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">
-                        Aguardando transcrição...
-                      </p>
-                    )}
-                  </CardContent>
-
-                  <div className="p-6 pt-0 mt-auto">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
-                      onClick={() => setSelectedReuniao(reuniao)}
-                    >
-                      <FileText className="w-4 h-4" />
-                      Ver Detalhes
-                    </Button>
+                    <span className="text-sm opacity-80 capitalize">
+                      {format(parseISO(dateKey), "EEEE", { locale: ptBR })}
+                    </span>
                   </div>
-                </Card>
+
+                  {/* Cards do dia */}
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {reunioesDodia.map((reuniao) => (
+                      <Card 
+                        key={reuniao.id} 
+                        className="shadow-card hover:shadow-elegant transition-all duration-300 animate-fade-in"
+                      >
+                        <CardContent className="p-5 space-y-4">
+                          {/* Horário e Status */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Clock className="w-4 h-4" />
+                              <span className="font-medium text-foreground">
+                                {format(new Date(reuniao.data_reuniao), "HH:mm")}
+                              </span>
+                              {reuniao.duracao_minutos && (
+                                <span className="text-xs">
+                                  ({formatDuration(reuniao.duracao_minutos)})
+                                </span>
+                              )}
+                            </div>
+                            {getStatusBadge(reuniao.status)}
+                          </div>
+
+                          {/* Título */}
+                          <h3 className="font-semibold text-lg line-clamp-2">
+                            {reuniao.titulo}
+                          </h3>
+
+                          {/* Participantes */}
+                          {reuniao.participantes && reuniao.participantes.length > 0 && (
+                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                              <Users className="w-4 h-4 mt-0.5 shrink-0" />
+                              <span className="line-clamp-1">
+                                {reuniao.participantes.join(", ")}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Link da call */}
+                          {reuniao.meet_link && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Link2 className="w-4 h-4 shrink-0" />
+                              <a 
+                                href={reuniao.meet_link} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline truncate"
+                              >
+                                Acessar reunião
+                              </a>
+                            </div>
+                          )}
+
+                          {/* Resumo */}
+                          {reuniao.resumo_ia && (
+                            <p className="text-sm text-muted-foreground line-clamp-2 italic border-l-2 border-primary/30 pl-3">
+                              {reuniao.resumo_ia}
+                            </p>
+                          )}
+
+                          {/* Botão Ver Detalhes */}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full gap-2 mt-2"
+                            onClick={() => setSelectedReuniao(reuniao)}
+                          >
+                            <FileText className="w-4 h-4" />
+                            Ver Detalhes
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
