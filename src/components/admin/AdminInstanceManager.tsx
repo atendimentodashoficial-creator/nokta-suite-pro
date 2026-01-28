@@ -537,25 +537,8 @@ export function AdminInstanceManager() {
                 </div>
               </div>
 
-               <div className="flex justify-end gap-2 pt-2">
-                 <Button variant="outline" onClick={() => setAddDialogOpen(false)} disabled={adding}>
-                   Cancelar
-                 </Button>
-                 <Button
-                   variant="outline"
-                   onClick={() => handleAddInstance({ openConnect: false })}
-                   disabled={adding}
-                 >
-                   {adding ? (
-                     <>
-                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                       Adicionando...
-                     </>
-                   ) : (
-                     "Somente adicionar"
-                   )}
-                 </Button>
-                 <Button onClick={() => handleAddInstance({ openConnect: true })} disabled={adding}>
+               <div className="flex flex-col gap-2 pt-4">
+                 <Button onClick={() => handleAddInstance({ openConnect: true })} disabled={adding} className="w-full">
                    {adding ? (
                      <>
                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -568,6 +551,28 @@ export function AdminInstanceManager() {
                      </>
                    )}
                  </Button>
+                 <div className="flex gap-2">
+                   <Button 
+                     variant="outline" 
+                     onClick={() => setAddDialogOpen(false)} 
+                     disabled={adding}
+                     className="flex-1"
+                   >
+                     Cancelar
+                   </Button>
+                   <Button
+                     variant="outline"
+                     onClick={() => handleAddInstance({ openConnect: false })}
+                     disabled={adding}
+                     className="flex-1"
+                   >
+                     {adding ? (
+                       <Loader2 className="h-4 w-4 animate-spin" />
+                     ) : (
+                       "Somente adicionar"
+                     )}
+                   </Button>
+                 </div>
                </div>
             </DialogContent>
           </Dialog>
