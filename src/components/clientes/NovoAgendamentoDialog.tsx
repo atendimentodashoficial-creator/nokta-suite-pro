@@ -822,6 +822,9 @@ export function NovoAgendamentoDialog({
                 participanteTelefone: telefoneNormalizado, // Para envio de aviso imediato
                 procedimentoNome: procedimentoSelecionado?.nome,
                 skipLocalSave: criarNaAgendaApp, // Se também vai criar na agenda do app, não salva na reunioes pelo edge function
+                // Passar instância do chat para manter consistência de número
+                instanciaId: origemInstanciaId || null,
+                instanciaNome: origemInstanciaNome || null,
               },
             });
             
