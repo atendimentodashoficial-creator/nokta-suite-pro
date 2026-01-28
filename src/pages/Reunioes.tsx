@@ -17,7 +17,6 @@ import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDial
 import { AvisosReuniaoTab } from "@/components/reunioes/AvisosReuniaoTab";
 import { VincularTranscricaoDialog } from "@/components/reunioes/VincularTranscricaoDialog";
 import { ReagendarReuniaoDialog } from "@/components/reunioes/ReagendarReuniaoDialog";
-import { EditarProfissionalDialog } from "@/components/reunioes/EditarProfissionalDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,7 +58,6 @@ export default function Reunioes() {
   const [reuniaoParaDesmarcar, setReuniaoParaDesmarcar] = useState<Reuniao | null>(null);
   const [reuniaoParaReagendar, setReuniaoParaReagendar] = useState<Reuniao | null>(null);
   const [reuniaoParaExcluir, setReuniaoParaExcluir] = useState<Reuniao | null>(null);
-  const [reuniaoParaEditarProfissional, setReuniaoParaEditarProfissional] = useState<Reuniao | null>(null);
 
   const { data: reunioes, isLoading, refetch } = useQuery({
     queryKey: ["reunioes", user?.id],
@@ -336,17 +334,15 @@ export default function Reunioes() {
                             {reuniao.titulo.replace(/^Reunião com\s+[^-–]+\s*[-–]\s*/i, "").trim() || reuniao.titulo}
                           </h3>
 
-                          {/* Profissional (clicável para editar) */}
-                          <button
-                            onClick={() => setReuniaoParaEditarProfissional(reuniao)}
-                            className="flex items-start gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors text-left w-full group"
-                            title="Clique para editar o profissional"
-                          >
-                            <User className="w-4 h-4 mt-0.5 shrink-0" />
-                            <span className="line-clamp-1 group-hover:underline">
-                              {reuniao.profissionais?.nome || "Definir profissional"}
-                            </span>
-                          </button>
+                          {/* Profissional */}
+                          {reuniao.profissionais?.nome && (
+                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                              <User className="w-4 h-4 mt-0.5 shrink-0" />
+                              <span className="line-clamp-1">
+                                {reuniao.profissionais.nome}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Participantes (Cliente) */}
                           {reuniao.participantes && reuniao.participantes.length > 0 && (
@@ -546,13 +542,6 @@ export default function Reunioes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Dialog de editar profissional */}
-      <EditarProfissionalDialog
-        reuniao={reuniaoParaEditarProfissional}
-        open={!!reuniaoParaEditarProfissional}
-        onOpenChange={(open) => !open && setReuniaoParaEditarProfissional(null)}
-      />
     </div>
   );
 }
