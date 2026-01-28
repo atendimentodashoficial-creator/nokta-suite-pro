@@ -84,7 +84,7 @@ const calcularProximaDataDisponivel = (
         const horariosIntervalo = gerarHorariosIntervalo(
           escala.hora_inicio,
           escala.hora_fim,
-          tempoAtendimento
+          30 // Intervalo fixo de 30 minutos
         );
         horariosDay.push(...horariosIntervalo);
       }
@@ -229,7 +229,7 @@ export function ReagendarDialog({
           const horariosIntervalo = gerarHorariosIntervalo(
             escala.hora_inicio,
             escala.hora_fim,
-            tempoAtendimento
+            30 // Intervalo fixo de 30 minutos
           );
           todosHorarios.push(...horariosIntervalo);
         });
