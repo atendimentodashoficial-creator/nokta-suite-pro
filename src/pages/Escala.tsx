@@ -407,21 +407,30 @@ export default function Escala() {
     );
   };
 
+  const [copiandoEscala, setCopiandoEscala] = useState(false);
+
   const handleCopiarParaDias = async () => {
-    if (!diaOrigem || diasDestinoSelecionados.length === 0) return;
+    if (!diaOrigem || diasDestinoSelecionados.length === 0 || copiandoEscala) return;
+    
+    setCopiandoEscala(true);
     
     try {
+      // Processa cada dia de destino sequencialmente para evitar duplicatas
       for (const diaDestino of diasDestinoSelecionados) {
-        // Remove horários existentes do dia destino
+        // Remove horários existentes do dia destino primeiro
         const horariosExistentes = todasEscalas?.filter(
           e => e.profissional_id === diaOrigem.profissionalId && e.dia_semana === diaDestino
         ) || [];
         
+        // Deleta todos os horários existentes de forma sequencial
         for (const horario of horariosExistentes) {
           await deleteEscala.mutateAsync(horario.id);
         }
         
-        // Copia os horários do dia origem para o dia destino
+        // Aguarda um pouco para garantir que as deleções foram processadas
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Copia os horários do dia origem para o dia destino de forma sequencial
         for (const horario of diaOrigem.horarios) {
           await createEscala.mutateAsync({
             profissional_id: diaOrigem.profissionalId,
@@ -446,6 +455,8 @@ export default function Escala() {
         description: "Não foi possível copiar a escala",
         variant: "destructive"
       });
+    } finally {
+      setCopiandoEscala(false);
     }
   };
   // Função para carregar horários de escala do profissional para as datas selecionadas
@@ -1209,9 +1220,9 @@ export default function Escala() {
             <Button 
               onClick={handleCopiarParaDias} 
               className="w-full"
-              disabled={diasDestinoSelecionados.length === 0}
+              disabled={diasDestinoSelecionados.length === 0 || copiandoEscala}
             >
-              Copiar para {diasDestinoSelecionados.length} dia(s)
+              {copiandoEscala ? "Copiando..." : `Copiar para ${diasDestinoSelecionados.length} dia(s)`}
             </Button>
           </div>
         </DialogContent>
