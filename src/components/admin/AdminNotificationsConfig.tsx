@@ -140,6 +140,7 @@ Período: {data_inicio} a {data_fim}
         keywordReport: config.keyword_report,
         keywordBalanceMessage: config.keyword_balance_message,
         keywordReportMessage: config.keyword_report_message,
+        keywordReportPeriod: config.keyword_report_period,
         keywordCooldownHours: config.keyword_cooldown_hours,
       },
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -774,6 +775,35 @@ Período: {data_inicio} a {data_fim}
                             </p>
                           </div>
 
+                          {/* Período do Relatório (Gatilho) */}
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                              <Calendar className="h-3 w-3" />
+                              Período do Relatório (Gatilho)
+                            </Label>
+                            <Select
+                              value={config.keyword_report_period || "7"}
+                              onValueChange={(value) =>
+                                updateConfig(user.id, "keyword_report_period", value)
+                              }
+                            >
+                              <SelectTrigger className="w-48">
+                                <SelectValue placeholder="Selecione o período" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">Hoje</SelectItem>
+                                <SelectItem value="7">Últimos 7 dias</SelectItem>
+                                <SelectItem value="14">Últimos 14 dias</SelectItem>
+                                <SelectItem value="30">Últimos 30 dias</SelectItem>
+                                <SelectItem value="60">Últimos 60 dias</SelectItem>
+                                <SelectItem value="90">Últimos 90 dias</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Período das métricas quando a palavra-chave for ativada
+                            </p>
+                          </div>
+
                           {/* Mensagem personalizada para Relatório */}
                           <div className="space-y-2">
                             <Label htmlFor={`keyword-report-msg-${user.id}`} className="flex items-center gap-2">
@@ -790,7 +820,7 @@ Período: {data_inicio} a {data_fim}
                               placeholder="📊 *Relatório de Campanhas*..."
                             />
                             <p className="text-xs text-muted-foreground">
-                              Variáveis: {"{data_inicio}"}, {"{data_fim}"}, {"{gasto}"}, {"{conversas}"}, {"{custo_conversa}"}, {"{cliques}"}, {"{impressoes}"}, {"{alcance}"}
+                              Variáveis: {"{periodo_dias}"}, {"{data_inicio}"}, {"{data_fim}"}, {"{gasto}"}, {"{conversas}"}, {"{custo_conversa}"}, {"{cliques}"}, {"{impressoes}"}, {"{alcance}"}
                             </p>
                           </div>
                         </div>
