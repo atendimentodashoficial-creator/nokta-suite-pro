@@ -193,26 +193,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check cooldown
-    const lastSentField = matchedKeyword === 'balance' 
-      ? 'keyword_last_balance_sent_at' 
-      : 'keyword_last_report_sent_at';
-    const lastSentAt = notifConfig[lastSentField];
-
-    if (isCooldownActive(lastSentAt, cooldownHours)) {
-      const hoursRemaining = Math.ceil((cooldownHours * 60 * 60 * 1000 - (Date.now() - new Date(lastSentAt).getTime())) / (60 * 60 * 1000));
-      console.log(`[admin-keyword-handler] Cooldown active for ${matchedKeyword}, ${hoursRemaining}h remaining`);
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          matched: true, 
-          keyword: matchedKeyword,
-          skipped: true,
-          reason: `Cooldown active (${hoursRemaining}h remaining)` 
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // No cooldown for keyword triggers - always respond when triggered
 
     // Get the destination phone number
     let destinationPhone = phone;
@@ -525,17 +506,7 @@ Período: {data_inicio} a {data_fim}
       );
     }
 
-    // Update last sent timestamp
-    const updateField = matchedKeyword === 'balance' 
-      ? { keyword_last_balance_sent_at: new Date().toISOString() }
-      : { keyword_last_report_sent_at: new Date().toISOString() };
-
-    await supabase
-      .from('admin_client_notifications')
-      .update(updateField)
-      .eq('user_id', resolvedUserId);
-
-    console.log(`[admin-keyword-handler] Response sent successfully! Updated ${Object.keys(updateField)[0]}`);
+    console.log(`[admin-keyword-handler] Response sent successfully!`);
 
     return new Response(
       JSON.stringify({ 
