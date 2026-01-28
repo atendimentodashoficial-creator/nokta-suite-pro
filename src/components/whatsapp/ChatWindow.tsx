@@ -1439,7 +1439,15 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       const last8Digits = getLast8Digits(all);
       
       // Buscar nome do cliente existente se houver
-      let nomeParaUsar = chat.contact_name;
+      // Função para verificar se uma string parece ser um número de telefone
+      const pareceNumeroTelefone = (str: string) => {
+        const apenasDigitos = str.replace(/\D/g, "");
+        // Se tem mais de 8 dígitos e o texto limpo é só números, é telefone
+        return apenasDigitos.length >= 8 && /^[\d\s\-\+\(\)]+$/.test(str);
+      };
+      
+      // Se o contact_name parece ser um número de telefone, usar string vazia
+      let nomeParaUsar = pareceNumeroTelefone(chat.contact_name) ? "" : chat.contact_name;
       
       if (last8Digits && last8Digits.length >= 8) {
         try {
@@ -1456,7 +1464,7 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
               getLast8Digits(cliente.telefone) === last8Digits
             );
 
-            if (clienteExistente) {
+            if (clienteExistente && !pareceNumeroTelefone(clienteExistente.nome)) {
               nomeParaUsar = clienteExistente.nome;
             }
           }
