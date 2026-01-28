@@ -15,13 +15,15 @@ import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDial
 
 interface Reuniao {
   id: string;
-  fireflies_id: string;
+  fireflies_id: string | null;
+  google_event_id: string | null;
   titulo: string;
   data_reuniao: string;
   duracao_minutos: number | null;
   participantes: string[] | null;
   transcricao: string | null;
   resumo_ia: string | null;
+  meet_link: string | null;
   status: string;
   created_at: string;
 }

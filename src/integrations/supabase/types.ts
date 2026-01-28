@@ -3650,8 +3650,10 @@ export type Database = {
           created_at: string
           data_reuniao: string
           duracao_minutos: number | null
-          fireflies_id: string
+          fireflies_id: string | null
+          google_event_id: string | null
           id: string
+          meet_link: string | null
           participantes: string[] | null
           resumo_ia: string | null
           status: string
@@ -3664,8 +3666,10 @@ export type Database = {
           created_at?: string
           data_reuniao: string
           duracao_minutos?: number | null
-          fireflies_id: string
+          fireflies_id?: string | null
+          google_event_id?: string | null
           id?: string
+          meet_link?: string | null
           participantes?: string[] | null
           resumo_ia?: string | null
           status?: string
@@ -3678,8 +3682,10 @@ export type Database = {
           created_at?: string
           data_reuniao?: string
           duracao_minutos?: number | null
-          fireflies_id?: string
+          fireflies_id?: string | null
+          google_event_id?: string | null
           id?: string
+          meet_link?: string | null
           participantes?: string[] | null
           resumo_ia?: string | null
           status?: string
