@@ -122,21 +122,35 @@ export default function Reunioes() {
 
   const desmarcarMutation = useMutation({
     mutationFn: async (reuniaoId: string) => {
-      const { error } = await supabase
-        .from("reunioes" as any)
-        .update({ status: "cancelado" })
-        .eq("id", reuniaoId);
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data, error } = await supabase.functions.invoke("google-calendar-cancel-event", {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+        body: { reuniaoId },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["reunioes"] });
-      toast.success("Reunião desmarcada com sucesso!");
+      if (data?.warning) {
+        toast.warning(data.warning);
+      } else {
+        toast.success("Reunião desmarcada com sucesso!");
+      }
       setReuniaoParaDesmarcar(null);
     },
     onError: (error) => {
       console.error("Erro ao desmarcar:", error);
-      toast.error("Erro ao desmarcar reunião");
+      toast.error(error instanceof Error ? error.message : "Erro ao desmarcar reunião");
     },
   });
 
