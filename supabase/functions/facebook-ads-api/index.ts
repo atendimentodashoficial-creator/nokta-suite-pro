@@ -43,12 +43,17 @@ serve(async (req) => {
 
     if (!isJwtFormat && action === "get_account_balance" && requestUserId) {
       // This is an admin request with a custom token
-      // Validate admin token format (base64 encoded adminId:timestamp)
+      // Token format from check-admin-status: btoa(`admin:${adminUser.id}:${Date.now()}`)
       try {
         const decoded = atob(token);
-        const [adminId, timestamp] = decoded.split(":");
+        console.log("[ADMIN AUTH] Decoded token:", decoded);
+        const parts = decoded.split(":");
         
-        if (adminId && timestamp) {
+        // Format: admin:uuid:timestamp
+        if (parts.length >= 3 && parts[0] === "admin") {
+          const adminId = parts[1];
+          console.log("[ADMIN AUTH] Extracted admin ID:", adminId);
+          
           // Verify admin exists in admin_users table
           const { data: adminUser, error: adminError } = await adminClient
             .from("admin_users")
@@ -57,14 +62,18 @@ serve(async (req) => {
             .maybeSingle();
 
           if (adminUser && !adminError) {
-            console.log("Admin authenticated:", adminId);
+            console.log("[ADMIN AUTH] Admin authenticated:", adminId);
             isAdminRequest = true;
             // For admin requests, we'll use the requestUserId as the target user
             user = { id: requestUserId };
+          } else {
+            console.log("[ADMIN AUTH] Admin not found or error:", adminError?.message);
           }
+        } else {
+          console.log("[ADMIN AUTH] Invalid token format, parts:", parts.length);
         }
       } catch (e) {
-        console.log("Failed to decode admin token:", e);
+        console.log("[ADMIN AUTH] Failed to decode admin token:", e);
       }
     }
 
