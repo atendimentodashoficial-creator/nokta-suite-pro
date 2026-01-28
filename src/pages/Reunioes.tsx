@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock, Trash2 } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock, Trash2, MessageCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -357,7 +357,7 @@ export default function Reunioes() {
                           )}
 
 
-                          {/* Botões de ação */}
+                          {/* Botões de ação - Ver Detalhes e Vincular */}
                           <div className="flex flex-wrap gap-2 mt-2">
                             <Button 
                               variant="outline" 
@@ -368,7 +368,6 @@ export default function Reunioes() {
                               <FileText className="w-4 h-4" />
                               Ver Detalhes
                             </Button>
-                            {/* Botão de vincular transcrição */}
                             <Button
                               variant="outline"
                               size="sm"
@@ -384,26 +383,42 @@ export default function Reunioes() {
                             </Button>
                           </div>
                           
-                          {/* Botões de reagendar/desmarcar - só para reuniões não canceladas */}
+                          {/* Grid de Ícones - Reagendar, WhatsApp, Desmarcar */}
                           {reuniao.status !== "cancelado" && (
-                            <div className="flex gap-2 mt-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 gap-2"
-                                onClick={() => setReuniaoParaReagendar(reuniao)}
+                            <div className="grid grid-cols-3 gap-2 pt-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="w-full aspect-square p-0 flex items-center justify-center" 
+                                onClick={() => setReuniaoParaReagendar(reuniao)} 
+                                title="Reagendar"
                               >
-                                <CalendarClock className="w-4 h-4" />
-                                Reagendar
+                                <RefreshCw className="h-4 w-4" />
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 gap-2 text-destructive hover:text-destructive"
-                                onClick={() => setReuniaoParaDesmarcar(reuniao)}
+                              {reuniao.cliente_telefone ? (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full aspect-square p-0 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50" 
+                                  onClick={() => {
+                                    const phone = reuniao.cliente_telefone?.replace(/\D/g, "") || "";
+                                    window.open(`/disparos?telefone=${phone}`, "_blank");
+                                  }} 
+                                  title="WhatsApp"
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <div className="w-full" />
+                              )}
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="w-full aspect-square p-0 flex items-center justify-center text-destructive hover:text-destructive hover:bg-destructive/10" 
+                                onClick={() => setReuniaoParaDesmarcar(reuniao)} 
+                                title="Desmarcar"
                               >
-                                <XCircle className="w-4 h-4" />
-                                Desmarcar
+                                <XCircle className="h-4 w-4" />
                               </Button>
                             </div>
                           )}
