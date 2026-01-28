@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar, Phone, Users, Zap } from "lucide-react";
+import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar, Phone, Users, Zap, DollarSign, RefreshCw } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -40,19 +40,27 @@ interface AdminNotificationsConfigProps {
   users: User[];
 }
 
+interface BalanceInfo {
+  balance: number | null;
+  loading: boolean;
+  error?: string;
+}
+
 export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProps) {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [configs, setConfigs] = useState<Record<string, NotificationConfig>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [initialLoading, setInitialLoading] = useState(true);
+  const [balances, setBalances] = useState<Record<string, BalanceInfo>>({});
 
-  // Carregar todas as configs ao montar o componente
+  // Carregar todas as configs e saldos ao montar o componente
   useEffect(() => {
     const loadAllConfigs = async () => {
       setInitialLoading(true);
       for (const user of users) {
         await loadConfig(user.id);
+        fetchUserBalance(user.id);
       }
       setInitialLoading(false);
     };
@@ -60,6 +68,42 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
       loadAllConfigs();
     }
   }, [users]);
+
+  const fetchUserBalance = async (userId: string) => {
+    setBalances(prev => ({
+      ...prev,
+      [userId]: { balance: null, loading: true }
+    }));
+
+    try {
+      const adminToken = localStorage.getItem("admin_token");
+      
+      // Fetch the user's Meta Ads account balance
+      const { data, error } = await supabase.functions.invoke("facebook-ads-api", {
+        body: { 
+          action: "get_account_balance",
+          userId: userId
+        },
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+
+      if (error) throw error;
+
+      setBalances(prev => ({
+        ...prev,
+        [userId]: { 
+          balance: data?.balance ?? null, 
+          loading: false 
+        }
+      }));
+    } catch (error) {
+      console.error("Erro ao buscar saldo:", error);
+      setBalances(prev => ({
+        ...prev,
+        [userId]: { balance: null, loading: false, error: "Erro ao buscar" }
+      }));
+    }
+  };
 
   const loadConfig = async (userId: string) => {
     if (configs[userId]) return; // Já carregado
@@ -191,6 +235,7 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
           const config = configs[user.id];
           const isLoading = loading[user.id];
           const isSaving = saving[user.id];
+          const balanceInfo = balances[user.id];
 
           return (
             <Collapsible key={user.id} open={isExpanded} onOpenChange={() => handleToggleUser(user.id)}>
@@ -233,7 +278,38 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      {/* Saldo Atual */}
+                      <div className="flex items-center gap-1.5">
+                        <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                        {balanceInfo?.loading ? (
+                          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                        ) : balanceInfo?.balance !== null && balanceInfo?.balance !== undefined ? (
+                          <span className={`text-xs font-medium ${
+                            config && balanceInfo.balance < config.low_balance_threshold
+                              ? "text-red-500"
+                              : "text-green-600"
+                          }`}>
+                            R$ {balanceInfo.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">--</span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fetchUserBalance(user.id);
+                          }}
+                          disabled={balanceInfo?.loading}
+                        >
+                          <RefreshCw className={`h-3 w-3 ${balanceInfo?.loading ? "animate-spin" : ""}`} />
+                        </Button>
+                      </div>
+
+                      {/* Status Badge */}
                       {config && (
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           config.low_balance_enabled || config.campaign_reports_enabled 

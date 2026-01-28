@@ -1258,6 +1258,137 @@ serve(async (req) => {
       );
     }
 
+    // Nova action para admin buscar saldo de um usuário específico
+    if (action === "get_account_balance") {
+      const { userId } = await req.json().catch(() => ({}));
+      const targetUserId = userId || user.id;
+
+      console.log("[BALANCE] Getting balance for user:", targetUserId);
+
+      // Buscar a conta de anúncios ativa do usuário alvo
+      const { data: adAccount, error: adAccountError } = await adminClient
+        .from("facebook_ad_accounts")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .eq("status", "connected")
+        .order("last_sync_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (adAccountError) {
+        console.error("[BALANCE] Error fetching ad account:", adAccountError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao buscar conta de anúncios", balance: null }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!adAccount) {
+        console.log("[BALANCE] No ad account found for user:", targetUserId);
+        return new Response(
+          JSON.stringify({ error: "Conta de anúncios não configurada", balance: null }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Buscar token do Facebook do usuário alvo
+      const { data: targetFbConfig, error: targetConfigError } = await adminClient
+        .from("facebook_config")
+        .select("access_token")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+
+      if (targetConfigError || !targetFbConfig?.access_token) {
+        console.log("[BALANCE] No FB token for user:", targetUserId);
+        return new Response(
+          JSON.stringify({ error: "Token do Facebook não configurado", balance: null }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const targetAccessToken = targetFbConfig.access_token;
+      const normalizedAccountId = adAccount.ad_account_id;
+
+      try {
+        // Buscar dados da conta do Facebook
+        const fbUrl = `https://graph.facebook.com/v22.0/${normalizedAccountId}?fields=name,balance,spend_cap,is_prepay_account,currency,amount_spent&access_token=${targetAccessToken}`;
+        const fbResponse = await fetch(fbUrl);
+        const fbData = await fbResponse.json();
+
+        if (fbData.error) {
+          console.error("[BALANCE] Facebook API Error:", fbData.error);
+          return new Response(
+            JSON.stringify({ error: fbData.error.message, balance: null }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Calcular saldo baseado no tipo da conta
+        const isPrepaid = adAccount.account_type === "prepaid" || fbData.is_prepay_account;
+        const balanceCents = fbData.balance ? parseInt(String(fbData.balance)) : 0;
+        const spendCapCents = fbData.spend_cap ? parseInt(String(fbData.spend_cap)) : 0;
+        const amountSpentCents = fbData.amount_spent ? parseInt(String(fbData.amount_spent)) : 0;
+
+        let rawBalance = balanceCents / 100;
+        let spendCap = spendCapCents / 100;
+        let amountSpent = amountSpentCents / 100;
+
+        let displayBalance: number;
+        if (isPrepaid) {
+          if (spendCap > 0) {
+            displayBalance = spendCap - amountSpent;
+          } else {
+            displayBalance = rawBalance;
+          }
+        } else {
+          // Pós-pago: usar manual_funds_balance se disponível
+          if (adAccount.manual_funds_balance && adAccount.manual_funds_balance > 0) {
+            displayBalance = adAccount.manual_funds_balance - rawBalance;
+          } else {
+            displayBalance = -rawBalance; // Valor devido
+          }
+        }
+
+        // Converter se a conta é USD
+        if (adAccount.currency_type === "USD") {
+          // Buscar cotação
+          let exchangeRate = 5.37; // fallback
+          try {
+            const erResponse = await fetch("https://open.er-api.com/v6/latest/USD");
+            if (erResponse.ok) {
+              const erData = await erResponse.json();
+              if (erData?.rates?.BRL) {
+                exchangeRate = parseFloat(erData.rates.BRL);
+              }
+            }
+          } catch (e) {
+            console.error("[BALANCE] Exchange rate fetch failed, using fallback");
+          }
+          
+          const spreadMultiplier = 1 + ((adAccount.currency_spread || 0) / 100);
+          displayBalance = displayBalance * exchangeRate * spreadMultiplier;
+        }
+
+        console.log("[BALANCE] Final balance for user", targetUserId, ":", displayBalance);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            balance: displayBalance,
+            account_name: fbData.name,
+            is_prepaid: isPrepaid
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (fetchError) {
+        console.error("[BALANCE] Fetch error:", fetchError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao buscar dados", balance: null }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: "Ação não reconhecida" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
