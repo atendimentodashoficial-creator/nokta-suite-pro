@@ -64,18 +64,19 @@ export function AdminInstanceManager() {
   
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addMode, setAddMode] = useState<'qrcode' | 'manual'>('qrcode');
   const [newInstanceName, setNewInstanceName] = useState("");
   const [newInstanceUrl, setNewInstanceUrl] = useState("");
   const [newInstanceApiKey, setNewInstanceApiKey] = useState("");
   const [adding, setAdding] = useState(false);
   
-  // QR Code dialog
+  // QR Code dialog (for connecting existing instances)
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [selectedInstanceForQr, setSelectedInstanceForQr] = useState<AdminInstance | null>(null);
   
-  // Pairing Code state
+  // Pairing Code state (for manual connection mode in QR dialog)
   const [connectionMode, setConnectionMode] = useState<'qrcode' | 'paircode'>('qrcode');
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [pairingPhoneNumber, setPairingPhoneNumber] = useState("");
@@ -157,21 +158,32 @@ export function AdminInstanceManager() {
     }
   };
 
-  const handleAddInstance = async (options?: { openConnect?: boolean }) => {
-    const openConnect = options?.openConnect ?? true;
-    if (!newInstanceName.trim() || !newInstanceUrl.trim() || !newInstanceApiKey.trim()) {
-      toast.error("Preencha todos os campos");
+  const handleAddInstance = async () => {
+    // Validação depende do modo
+    if (!newInstanceName.trim()) {
+      toast.error("Preencha o nome da instância");
       return;
+    }
+    
+    if (addMode === 'manual') {
+      if (!newInstanceUrl.trim() || !newInstanceApiKey.trim()) {
+        toast.error("Preencha URL Base e API Key");
+        return;
+      }
     }
 
     setAdding(true);
     try {
+      // Para modo QR Code, usamos placeholders que serão configurados depois
+      const baseUrl = addMode === 'manual' ? newInstanceUrl.trim().replace(/\/+$/, "") : "";
+      const apiKey = addMode === 'manual' ? newInstanceApiKey.trim() : "";
+      
       const { data, error } = await supabase
         .from("admin_notification_instances")
         .insert({
           nome: newInstanceName.trim(),
-          base_url: newInstanceUrl.trim().replace(/\/+$/, ""),
-          api_key: newInstanceApiKey.trim(),
+          base_url: baseUrl,
+          api_key: apiKey,
           is_active: true,
         })
         .select()
@@ -186,31 +198,24 @@ export function AdminInstanceManager() {
       setAddDialogOpen(false);
       toast.success("Instância adicionada com sucesso!");
 
-      if (!openConnect) {
-        // Apenas adiciona a instância, sem iniciar fluxo de conexão
-        return;
-      }
-      
-      // Check if already connected before showing QR
-      const adminToken = localStorage.getItem("admin_token");
-      const statusResponse = await supabase.functions.invoke("uazapi-check-status", {
-        body: { 
-          base_url: data.base_url,
-          api_key: data.api_key
-        },
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
+      // Se modo manual, verificar se já está conectado e abrir QR se necessário
+      if (addMode === 'manual' && baseUrl && apiKey) {
+        const adminToken = localStorage.getItem("admin_token");
+        const statusResponse = await supabase.functions.invoke("uazapi-check-status", {
+          body: { base_url: baseUrl, api_key: apiKey },
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
 
-      if (statusResponse.data?.status === "connected" || statusResponse.data?.success) {
-        toast.success("WhatsApp já está conectado!");
-        setConnectionStatus(prev => ({
-          ...prev,
-          [data.id]: { connected: true, loading: false }
-        }));
-      } else {
-        // Not connected - show QR code dialog
-        // Pequeno delay para evitar conflito de focus/overlay entre dialogs
-        setTimeout(() => handleGetQrCode(data), 50);
+        if (statusResponse.data?.status === "connected" || statusResponse.data?.success) {
+          toast.success("WhatsApp já está conectado!");
+          setConnectionStatus(prev => ({
+            ...prev,
+            [data.id]: { connected: true, loading: false }
+          }));
+        } else {
+          // Not connected - show QR code dialog
+          setTimeout(() => handleGetQrCode(data), 50);
+        }
       }
     } catch (error) {
       console.error("Erro ao adicionar instância:", error);
@@ -493,87 +498,84 @@ export function AdminInstanceManager() {
                 Adicionar Instância
               </Button>
             </DialogTrigger>
-             <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Adicionar Instância WhatsApp</DialogTitle>
+                <DialogTitle>Nova Instância</DialogTitle>
                 <DialogDescription>
-                  Configure uma nova instância UAZapi para envio de avisos
+                  Escolha como deseja adicionar sua instância
                 </DialogDescription>
               </DialogHeader>
               
-               <div className="space-y-4 pt-4">
-                 <div>
-                   <Label>Nome da Instância</Label>
+              {/* Mode Toggle - igual às outras abas */}
+              <div className="flex gap-2 justify-center">
+                <Button
+                  variant={addMode === 'qrcode' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAddMode('qrcode')}
+                  className="flex-1"
+                >
+                  <QrCode className="h-4 w-4 mr-2" />
+                  QR Code
+                </Button>
+                <Button
+                  variant={addMode === 'manual' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAddMode('manual')}
+                  className="flex-1"
+                >
+                  <Hash className="h-4 w-4 mr-2" />
+                  Manual
+                </Button>
+              </div>
+              
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label>Nome da instância</Label>
                   <Input
-                    id="instance-name"
-                    placeholder="Ex: Instância Principal"
+                    placeholder="Ex: WhatsApp Principal"
                     value={newInstanceName}
                     onChange={(e) => setNewInstanceName(e.target.value)}
-                     className="mt-1"
+                    className="mt-1"
                   />
                 </div>
                 
-                 <div>
-                   <Label>URL Base</Label>
-                  <Input
-                    id="instance-url"
-                    placeholder="Ex: https://api.uazapi.com"
-                    value={newInstanceUrl}
-                    onChange={(e) => setNewInstanceUrl(e.target.value)}
-                     className="mt-1"
-                  />
-                </div>
-                
-                 <div>
-                   <Label>API Key / Token</Label>
-                  <Input
-                    id="instance-key"
-                    type="password"
-                    placeholder="Cole a API Key da instância"
-                    value={newInstanceApiKey}
-                    onChange={(e) => setNewInstanceApiKey(e.target.value)}
-                     className="mt-1"
-                  />
-                </div>
+                {addMode === 'manual' && (
+                  <>
+                    <div>
+                      <Label>URL Base</Label>
+                      <Input
+                        placeholder="https://sua-instancia.uazapi.com"
+                        value={newInstanceUrl}
+                        onChange={(e) => setNewInstanceUrl(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Token da Instância</Label>
+                      <Input
+                        type="password"
+                        placeholder="Token de autenticação"
+                        value={newInstanceApiKey}
+                        onChange={(e) => setNewInstanceApiKey(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
-               <div className="flex flex-col gap-2 pt-4">
-                 <Button onClick={() => handleAddInstance({ openConnect: true })} disabled={adding} className="w-full">
-                   {adding ? (
-                     <>
-                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                       Adicionando...
-                     </>
-                   ) : (
-                     <>
-                       <QrCode className="h-4 w-4 mr-2" />
-                       Adicionar e gerar QR Code
-                     </>
-                   )}
-                 </Button>
-                 <div className="flex gap-2">
-                   <Button 
-                     variant="outline" 
-                     onClick={() => setAddDialogOpen(false)} 
-                     disabled={adding}
-                     className="flex-1"
-                   >
-                     Cancelar
-                   </Button>
-                   <Button
-                     variant="outline"
-                     onClick={() => handleAddInstance({ openConnect: false })}
-                     disabled={adding}
-                     className="flex-1"
-                   >
-                     {adding ? (
-                       <Loader2 className="h-4 w-4 animate-spin" />
-                     ) : (
-                       "Somente adicionar"
-                     )}
-                   </Button>
-                 </div>
-               </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setAddDialogOpen(false)} disabled={adding}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleAddInstance} disabled={adding}>
+                  {adding ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Criar e Conectar"
+                  )}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
