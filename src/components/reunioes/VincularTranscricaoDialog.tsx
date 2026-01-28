@@ -45,7 +45,7 @@ export function VincularTranscricaoDialog({
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
 
-  // Buscar reuniões do Fireflies que têm transcrição
+  // Buscar reuniões do Fireflies que têm transcrição (sem google_event_id = apenas Fireflies)
   const { data: reunioesFireflies, isLoading } = useQuery({
     queryKey: ["reunioes-fireflies", user?.id, search],
     queryFn: async () => {
@@ -54,6 +54,7 @@ export function VincularTranscricaoDialog({
         .select("id, fireflies_id, titulo, data_reuniao, duracao_minutos, transcricao, resumo_ia")
         .not("fireflies_id", "is", null)
         .not("transcricao", "is", null)
+        .is("google_event_id", null) // Apenas reuniões só do Fireflies
         .order("data_reuniao", { ascending: false });
 
       if (search.trim()) {
