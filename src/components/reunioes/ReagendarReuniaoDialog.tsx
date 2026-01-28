@@ -132,8 +132,11 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
   const dataWatch = form.watch("data_reuniao");
   const profissionalWatch = form.watch("profissional_id");
 
+  // Duração da reunião (padrão 30 min se não definida)
+  const duracaoReuniao = reuniao?.duracao_minutos || 30;
+  
   // Intervalo efetivo para geração de horários
-  const intervaloMinutos = mostrarHorarios15min ? 15 : 30;
+  const intervaloMinutos = mostrarHorarios15min ? 15 : duracaoReuniao;
 
   // Calcular horários disponíveis para o profissional selecionado
   const horariosDisponiveis = useMemo(() => {
