@@ -170,20 +170,13 @@ export function ReuniaoDetalhesDialog({ reuniao, open, onOpenChange }: ReuniaoDe
                   </div>
                 ))}
               </div>
-            ) : reuniao.resumo_ia ? (
-              <div>
-                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Resumo
-                </h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {reuniao.resumo_ia}
-                </p>
-              </div>
             ) : reuniao.transcricao && hasTemplateFields ? (
               <div className="text-center py-6 space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Esta reunião tem transcrição mas ainda não foi resumida.
+                  {reuniao.resumo_ia 
+                    ? "Esta reunião tem um resumo básico. Clique para gerar um resumo detalhado com os campos do template."
+                    : "Esta reunião tem transcrição mas ainda não foi resumida."
+                  }
                 </p>
                 <Button
                   onClick={() => processMutation.mutate()}
@@ -197,6 +190,16 @@ export function ReuniaoDetalhesDialog({ reuniao, open, onOpenChange }: ReuniaoDe
                   )}
                   Gerar Resumo com IA
                 </Button>
+              </div>
+            ) : reuniao.resumo_ia ? (
+              <div>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Resumo
+                </h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {reuniao.resumo_ia}
+                </p>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground italic text-center py-4">
