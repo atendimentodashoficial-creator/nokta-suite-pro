@@ -326,22 +326,20 @@ export default function Reunioes() {
                               <FileText className="w-4 h-4" />
                               Ver Detalhes
                             </Button>
-                            {/* Botão de vincular transcrição - só mostra se não tem transcrição ainda */}
-                            {!reuniao.transcricao && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-2"
-                                onClick={() => {
-                                  setReuniaoParaVincular(reuniao);
-                                  setVincularDialogOpen(true);
-                                }}
-                                title="Vincular transcrição do Fireflies"
-                              >
-                                <FileText className="w-4 h-4" />
-                                Vincular
-                              </Button>
-                            )}
+                            {/* Botão de vincular transcrição */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => {
+                                setReuniaoParaVincular(reuniao);
+                                setVincularDialogOpen(true);
+                              }}
+                              title={reuniao.transcricao ? "Vincular outra transcrição do Fireflies" : "Vincular transcrição do Fireflies"}
+                            >
+                              <FileText className="w-4 h-4" />
+                              {reuniao.transcricao ? "Vincular outra" : "Vincular"}
+                            </Button>
                           </div>
                           
                           {/* Botões de reagendar/desmarcar - só para reuniões não canceladas */}
