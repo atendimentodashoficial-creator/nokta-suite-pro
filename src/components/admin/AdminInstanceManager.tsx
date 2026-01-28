@@ -159,24 +159,21 @@ export function AdminInstanceManager() {
   };
 
   const handleAddInstance = async () => {
-    // Validação depende do modo
+    // Validação - sempre precisa de nome, URL e API Key para Admin
     if (!newInstanceName.trim()) {
       toast.error("Preencha o nome da instância");
       return;
     }
     
-    if (addMode === 'manual') {
-      if (!newInstanceUrl.trim() || !newInstanceApiKey.trim()) {
-        toast.error("Preencha URL Base e API Key");
-        return;
-      }
+    if (!newInstanceUrl.trim() || !newInstanceApiKey.trim()) {
+      toast.error("Preencha URL Base e API Key");
+      return;
     }
 
     setAdding(true);
     try {
-      // Para modo QR Code, usamos placeholders que serão configurados depois
-      const baseUrl = addMode === 'manual' ? newInstanceUrl.trim().replace(/\/+$/, "") : "";
-      const apiKey = addMode === 'manual' ? newInstanceApiKey.trim() : "";
+      const baseUrl = newInstanceUrl.trim().replace(/\/+$/, "");
+      const apiKey = newInstanceApiKey.trim();
       
       const { data, error } = await supabase
         .from("admin_notification_instances")
@@ -198,22 +195,22 @@ export function AdminInstanceManager() {
       setAddDialogOpen(false);
       toast.success("Instância adicionada com sucesso!");
 
-      // Se modo manual, verificar se já está conectado e abrir QR se necessário
-      if (addMode === 'manual' && baseUrl && apiKey) {
-        const adminToken = localStorage.getItem("admin_token");
-        const statusResponse = await supabase.functions.invoke("uazapi-check-status", {
-          body: { base_url: baseUrl, api_key: apiKey },
-          headers: { Authorization: `Bearer ${adminToken}` }
-        });
+      // Verificar se já está conectado
+      const adminToken = localStorage.getItem("admin_token");
+      const statusResponse = await supabase.functions.invoke("uazapi-check-status", {
+        body: { base_url: baseUrl, api_key: apiKey },
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
 
-        if (statusResponse.data?.status === "connected" || statusResponse.data?.success) {
-          toast.success("WhatsApp já está conectado!");
-          setConnectionStatus(prev => ({
-            ...prev,
-            [data.id]: { connected: true, loading: false }
-          }));
-        } else {
-          // Not connected - show QR code dialog
+      if (statusResponse.data?.status === "connected" || statusResponse.data?.success) {
+        toast.success("WhatsApp já está conectado!");
+        setConnectionStatus(prev => ({
+          ...prev,
+          [data.id]: { connected: true, loading: false }
+        }));
+      } else {
+        // Not connected - show QR code dialog automatically if QR mode selected
+        if (addMode === 'qrcode') {
           setTimeout(() => handleGetQrCode(data), 50);
         }
       }
@@ -518,7 +515,7 @@ export function AdminInstanceManager() {
                 </DialogDescription>
               </DialogHeader>
               
-              {/* Mode Toggle - igual às outras abas */}
+              {/* Mode Toggle - QR Code abre dialog automaticamente após salvar */}
               <div className="flex gap-2 justify-center">
                 <Button
                   variant={addMode === 'qrcode' ? 'default' : 'outline'}
@@ -551,29 +548,25 @@ export function AdminInstanceManager() {
                   />
                 </div>
                 
-                {addMode === 'manual' && (
-                  <>
-                    <div>
-                      <Label>URL Base</Label>
-                      <Input
-                        placeholder="https://sua-instancia.uazapi.com"
-                        value={newInstanceUrl}
-                        onChange={(e) => setNewInstanceUrl(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label>Token da Instância</Label>
-                      <Input
-                        type="password"
-                        placeholder="Token de autenticação"
-                        value={newInstanceApiKey}
-                        onChange={(e) => setNewInstanceApiKey(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                  </>
-                )}
+                <div>
+                  <Label>URL Base</Label>
+                  <Input
+                    placeholder="https://sua-instancia.uazapi.com"
+                    value={newInstanceUrl}
+                    onChange={(e) => setNewInstanceUrl(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Token da Instância</Label>
+                  <Input
+                    type="password"
+                    placeholder="Token de autenticação"
+                    value={newInstanceApiKey}
+                    onChange={(e) => setNewInstanceApiKey(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -583,6 +576,11 @@ export function AdminInstanceManager() {
                 <Button onClick={handleAddInstance} disabled={adding}>
                   {adding ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : addMode === 'qrcode' ? (
+                    <>
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Criar e Gerar QR Code
+                    </>
                   ) : (
                     "Criar e Conectar"
                   )}
