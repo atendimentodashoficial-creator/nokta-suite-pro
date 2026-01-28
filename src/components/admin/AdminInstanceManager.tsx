@@ -259,46 +259,18 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
 
   const handleDeleteInstance = async (instanceId: string) => {
     try {
-      console.log("Iniciando exclusão da instância:", instanceId);
-      
-      // Primeiro, buscar quantas referências existem
-      const { data: refs, error: refError } = await supabase
-        .from("admin_client_notifications")
-        .select("id")
-        .eq("admin_instancia_id", instanceId);
-      
-      console.log("Referências encontradas:", refs?.length || 0, refError);
-      
-      // Limpar TODAS as referências em admin_client_notifications
-      if (refs && refs.length > 0) {
-        const { error: updateError, count } = await supabase
-          .from("admin_client_notifications")
-          .update({ admin_instancia_id: null })
-          .eq("admin_instancia_id", instanceId)
-          .select();
+      const adminToken = localStorage.getItem("admin_token");
 
-        console.log("Resultado da limpeza de referências:", { updateError, count });
-        
-        if (updateError) {
-          console.error("Erro ao limpar referências:", updateError);
-          toast.error("Erro ao desvincular clientes da instância");
-          return;
-        }
-      }
+      const { data, error } = await supabase.functions.invoke("admin-manage-users", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: {
+          action: "delete_notification_instance",
+          instanceId,
+        },
+      });
 
-      // Pequeno delay para garantir que a atualização foi propagada
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Agora excluir a instância
-      const { error } = await supabase
-        .from("admin_notification_instances")
-        .delete()
-        .eq("id", instanceId);
-
-      if (error) {
-        console.error("Erro ao excluir instância:", error);
-        throw error;
-      }
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Não foi possível remover a instância");
 
       setInstances(prev => prev.filter(i => i.id !== instanceId));
       toast.success("Instância removida com sucesso!");

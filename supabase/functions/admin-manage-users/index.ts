@@ -25,7 +25,30 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json();
-    const { action, userId, email, password, fullName, expiryDate, displayOrder, redirectTo, permissions, destinationType, destinationValue, lowBalanceEnabled, lowBalanceThreshold, lowBalanceMessage, campaignReportsEnabled, campaignReportMessage, campaignReportPeriod, keywordEnabled, keywordBalance, keywordReport, adminInstanciaId } = body;
+    const {
+      action,
+      userId,
+      email,
+      password,
+      fullName,
+      expiryDate,
+      displayOrder,
+      redirectTo,
+      permissions,
+      destinationType,
+      destinationValue,
+      lowBalanceEnabled,
+      lowBalanceThreshold,
+      lowBalanceMessage,
+      campaignReportsEnabled,
+      campaignReportMessage,
+      campaignReportPeriod,
+      keywordEnabled,
+      keywordBalance,
+      keywordReport,
+      adminInstanciaId,
+      instanceId,
+    } = body;
 
     switch (action) {
       case 'create': {
@@ -253,6 +276,44 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true, configs }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'delete_notification_instance': {
+        if (!instanceId) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'instanceId é obrigatório' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // 1) Desvincular qualquer cliente que esteja usando essa instância
+        const { data: unlinked, error: unlinkError } = await supabase
+          .from('admin_client_notifications')
+          .update({
+            admin_instancia_id: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('admin_instancia_id', instanceId)
+          .select('id');
+
+        if (unlinkError) throw unlinkError;
+
+        // 2) Excluir a instância
+        const { error: deleteError } = await supabase
+          .from('admin_notification_instances')
+          .delete()
+          .eq('id', instanceId);
+
+        if (deleteError) throw deleteError;
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Instância removida',
+            unlinkedCount: unlinked?.length || 0,
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
