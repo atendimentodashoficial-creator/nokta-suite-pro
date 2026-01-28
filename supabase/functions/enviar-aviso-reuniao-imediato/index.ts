@@ -102,30 +102,24 @@ async function checkInstanceConnected(baseUrl: string, apiKey: string): Promise<
   };
 }
 
-// Format date for message (only day/month)
+// Format date for message (only day/month) - using native timezone support
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
-  const saoPauloOffset = -3 * 60 * 60 * 1000;
-  const saoPauloDate = new Date(utc + saoPauloOffset);
-  
-  const day = saoPauloDate.getDate().toString().padStart(2, "0");
-  const month = (saoPauloDate.getMonth() + 1).toString().padStart(2, "0");
-  
-  return `${day}/${month}`;
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
 }
 
-// Format time for message
+// Format time for message - using native timezone support
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr);
-  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
-  const saoPauloOffset = -3 * 60 * 60 * 1000;
-  const saoPauloDate = new Date(utc + saoPauloOffset);
-  
-  const hours = saoPauloDate.getHours().toString().padStart(2, "0");
-  const minutes = saoPauloDate.getMinutes().toString().padStart(2, "0");
-  
-  return `${hours}:${minutes}`;
+  return date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
 }
 
 // Process spintax in message
