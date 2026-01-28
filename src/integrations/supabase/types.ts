@@ -33,9 +33,13 @@ export type Database = {
           keyword_report: string | null
           keyword_report_message: string | null
           keyword_report_period: string | null
+          low_balance_cooldown_hours: number | null
           low_balance_enabled: boolean | null
+          low_balance_last_sent_at: string | null
           low_balance_message: string | null
           low_balance_threshold: number | null
+          report_day_of_week: number | null
+          report_time: string | null
           updated_at: string | null
           user_id: string
         }
@@ -57,9 +61,13 @@ export type Database = {
           keyword_report?: string | null
           keyword_report_message?: string | null
           keyword_report_period?: string | null
+          low_balance_cooldown_hours?: number | null
           low_balance_enabled?: boolean | null
+          low_balance_last_sent_at?: string | null
           low_balance_message?: string | null
           low_balance_threshold?: number | null
+          report_day_of_week?: number | null
+          report_time?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -81,9 +89,13 @@ export type Database = {
           keyword_report?: string | null
           keyword_report_message?: string | null
           keyword_report_period?: string | null
+          low_balance_cooldown_hours?: number | null
           low_balance_enabled?: boolean | null
+          low_balance_last_sent_at?: string | null
           low_balance_message?: string | null
           low_balance_threshold?: number | null
+          report_day_of_week?: number | null
+          report_time?: string | null
           updated_at?: string | null
           user_id?: string
         }

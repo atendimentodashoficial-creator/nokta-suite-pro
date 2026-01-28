@@ -35,9 +35,12 @@ interface NotificationConfig {
   low_balance_enabled: boolean;
   low_balance_threshold: number;
   low_balance_message: string;
+  low_balance_cooldown_hours: number;
   campaign_reports_enabled: boolean;
   campaign_report_message: string;
   campaign_report_period: string;
+  report_day_of_week: number;
+  report_time: string;
   keyword_enabled: boolean;
   keyword_balance: string;
   keyword_report: string;
@@ -82,6 +85,7 @@ export function AdminNotificationsConfig({ users, isActive = true, instancesRefr
     low_balance_threshold: 100,
     low_balance_message:
       "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
+    low_balance_cooldown_hours: 24,
     campaign_reports_enabled: false,
     campaign_report_message: `📊 Resultado dos últimos {periodo_dias} dias de anúncios no Meta Ads:
 
@@ -101,6 +105,8 @@ export function AdminNotificationsConfig({ users, isActive = true, instancesRefr
 
 🔹*Alcance:* _{alcance}_`,
     campaign_report_period: "7",
+    report_day_of_week: 1,
+    report_time: "09:00",
     keyword_enabled: false,
     keyword_balance: "saldo",
     keyword_report: "relatorio",
@@ -132,9 +138,12 @@ Período: {data_inicio} a {data_fim}
         lowBalanceEnabled: config.low_balance_enabled,
         lowBalanceThreshold: config.low_balance_threshold,
         lowBalanceMessage: config.low_balance_message,
+        lowBalanceCooldownHours: config.low_balance_cooldown_hours,
         campaignReportsEnabled: config.campaign_reports_enabled,
         campaignReportMessage: config.campaign_report_message,
         campaignReportPeriod: config.campaign_report_period,
+        reportDayOfWeek: config.report_day_of_week,
+        reportTime: config.report_time,
         keywordEnabled: config.keyword_enabled,
         keywordBalance: config.keyword_balance,
         keywordReport: config.keyword_report,
@@ -567,20 +576,38 @@ Período: {data_inicio} a {data_fim}
 
                       {config.low_balance_enabled && (
                         <div className="space-y-4 pl-4">
-                          <div className="space-y-2">
-                            <Label htmlFor={`threshold-${user.id}`}>Limite de Saldo (R$)</Label>
-                            <Input
-                              id={`threshold-${user.id}`}
-                              type="number"
-                              value={config.low_balance_threshold}
-                              onChange={(e) =>
-                                updateConfig(user.id, "low_balance_threshold", parseFloat(e.target.value) || 0)
-                              }
-                              className="w-32"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Aviso será enviado quando o saldo ficar abaixo deste valor
-                            </p>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`threshold-${user.id}`}>Limite de Saldo (R$)</Label>
+                              <Input
+                                id={`threshold-${user.id}`}
+                                type="number"
+                                value={config.low_balance_threshold}
+                                onChange={(e) =>
+                                  updateConfig(user.id, "low_balance_threshold", parseFloat(e.target.value) || 0)
+                                }
+                                className="w-full"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Aviso será enviado quando o saldo ficar abaixo deste valor
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`low-balance-cooldown-${user.id}`}>Intervalo entre Avisos (horas)</Label>
+                              <Input
+                                id={`low-balance-cooldown-${user.id}`}
+                                type="number"
+                                min="1"
+                                value={config.low_balance_cooldown_hours ?? 24}
+                                onChange={(e) =>
+                                  updateConfig(user.id, "low_balance_cooldown_hours", parseInt(e.target.value) || 24)
+                                }
+                                className="w-full"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Evita enviar avisos repetidos em pouco tempo
+                              </p>
+                            </div>
                           </div>
                           
                           <div className="space-y-2">
@@ -625,34 +652,71 @@ Período: {data_inicio} a {data_fim}
 
                       {config.campaign_reports_enabled && (
                         <div className="space-y-4 pl-4">
-                          {/* Período do Relatório */}
-                          <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
-                              <Calendar className="h-3 w-3" />
-                              Período do Relatório
-                            </Label>
-                            <Select
-                              value={config.campaign_report_period || "7"}
-                              onValueChange={(value) =>
-                                updateConfig(user.id, "campaign_report_period", value)
-                              }
-                            >
-                              <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Selecione o período" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="1">Hoje</SelectItem>
-                                <SelectItem value="7">Últimos 7 dias</SelectItem>
-                                <SelectItem value="14">Últimos 14 dias</SelectItem>
-                                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                                <SelectItem value="60">Últimos 60 dias</SelectItem>
-                                <SelectItem value="90">Últimos 90 dias</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <p className="text-xs text-muted-foreground">
-                              Período das métricas do Meta Ads no relatório
-                            </p>
+                          {/* Agendamento do Relatório */}
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label className="flex items-center gap-2">
+                                <Calendar className="h-3 w-3" />
+                                Dia da Semana
+                              </Label>
+                              <Select
+                                value={String(config.report_day_of_week ?? 1)}
+                                onValueChange={(value) =>
+                                  updateConfig(user.id, "report_day_of_week", parseInt(value))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o dia" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">Domingo</SelectItem>
+                                  <SelectItem value="1">Segunda-feira</SelectItem>
+                                  <SelectItem value="2">Terça-feira</SelectItem>
+                                  <SelectItem value="3">Quarta-feira</SelectItem>
+                                  <SelectItem value="4">Quinta-feira</SelectItem>
+                                  <SelectItem value="5">Sexta-feira</SelectItem>
+                                  <SelectItem value="6">Sábado</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`report-time-${user.id}`}>Horário de Envio</Label>
+                              <Input
+                                id={`report-time-${user.id}`}
+                                type="time"
+                                value={config.report_time || "09:00"}
+                                onChange={(e) =>
+                                  updateConfig(user.id, "report_time", e.target.value)
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="flex items-center gap-2">
+                                Período dos Dados
+                              </Label>
+                              <Select
+                                value={config.campaign_report_period || "7"}
+                                onValueChange={(value) =>
+                                  updateConfig(user.id, "campaign_report_period", value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Período" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">Hoje</SelectItem>
+                                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                                  <SelectItem value="14">Últimos 14 dias</SelectItem>
+                                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                                  <SelectItem value="60">Últimos 60 dias</SelectItem>
+                                  <SelectItem value="90">Últimos 90 dias</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
+                          <p className="text-xs text-muted-foreground">
+                            O relatório será enviado automaticamente no dia e horário selecionados
+                          </p>
 
                           {/* Mensagem do Relatório */}
                           <div className="space-y-2">
