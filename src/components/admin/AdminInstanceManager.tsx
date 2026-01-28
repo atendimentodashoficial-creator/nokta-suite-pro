@@ -480,10 +480,26 @@ export function AdminInstanceManager() {
 
   const handleCloseQrDialog = () => {
     setQrDialogOpen(false);
+    setSelectedInstanceForQr(null);
+    setQrCode(null);
+    setPairingCode(null);
+    setPairingPhoneNumber("");
+    setConnectionMode('qrcode');
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
+  };
+
+  const handleQrDialogOpenChange = (open: boolean) => {
+    // IMPORTANT: Radix/shadcn calls onOpenChange for both open/close transitions.
+    // We must respect the "open" boolean; otherwise the dialog can close immediately
+    // when we try to open it programmatically.
+    if (!open) {
+      handleCloseQrDialog();
+      return;
+    }
+    setQrDialogOpen(true);
   };
 
   return (
@@ -714,7 +730,7 @@ export function AdminInstanceManager() {
       </CardContent>
       
       {/* QR Code / Pairing Code Dialog */}
-      <Dialog open={qrDialogOpen} onOpenChange={handleCloseQrDialog}>
+      <Dialog open={qrDialogOpen} onOpenChange={handleQrDialogOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
