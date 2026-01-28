@@ -363,60 +363,75 @@ export function AvisosReuniaoTab() {
       {/* Avisos Imediatos */}
       {avisosImediatos.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-medium flex items-center gap-2">
-            <Zap className="h-4 w-4 text-yellow-500" />
-            Avisos Imediatos (ao agendar)
-          </h3>
+          {/* Header da seção - mesmo estilo das reuniões */}
+          <div className="bg-secondary text-secondary-foreground rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-yellow-500" />
+              <span className="font-semibold">Avisos Imediatos</span>
+            </div>
+            <span className="text-sm opacity-80">Enviados ao agendar a reunião</span>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {avisosImediatos.map((aviso) => (
-              <Card key={aviso.id} className="relative">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        {aviso.nome}
-                        <Badge className="bg-yellow-500/20 text-yellow-700 text-xs">
-                          Imediato
-                        </Badge>
-                      </CardTitle>
+              <Card key={aviso.id} className="shadow-card hover:shadow-elegant transition-all duration-300">
+                <CardContent className="p-4 flex flex-col">
+                  <div className="space-y-3 flex-1">
+                    {/* Header: Nome e Switch */}
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg text-foreground">{aviso.nome}</h3>
+                      <Switch
+                        checked={aviso.ativo}
+                        onCheckedChange={() => handleToggleAtivo(aviso)}
+                      />
                     </div>
-                    <Switch
-                      checked={aviso.ativo}
-                      onCheckedChange={() => handleToggleAtivo(aviso)}
-                    />
+
+                    {/* Procedimento se especificado */}
+                    {aviso.procedimento_id && (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate">
+                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Preview da mensagem */}
+                    <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+                      {aviso.mensagem}
+                    </p>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
-                    {aviso.mensagem}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleEditAviso(aviso)}
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Editar
-                    </Button>
-                    {deleteConfirmId === aviso.id ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(aviso.id)}
-                      >
-                        Confirmar
-                      </Button>
-                    ) : (
+
+                  {/* Ações */}
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setDeleteConfirmId(aviso.id)}
+                        className="flex-1"
+                        onClick={() => handleEditAviso(aviso)}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Edit className="h-3 w-3 mr-1" />
+                        Editar
                       </Button>
-                    )}
+                      {deleteConfirmId === aviso.id ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(aviso.id)}
+                        >
+                          Confirmar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirmId(aviso.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -428,66 +443,75 @@ export function AvisosReuniaoTab() {
       {/* Avisos de Reagendamento */}
       {avisosReagendamento.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-medium flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 text-blue-500" />
-            Avisos de Reagendamento
-          </h3>
+          {/* Header da seção - mesmo estilo das reuniões */}
+          <div className="bg-secondary text-secondary-foreground rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5 text-blue-500" />
+              <span className="font-semibold">Avisos de Reagendamento</span>
+            </div>
+            <span className="text-sm opacity-80">Enviados quando a reunião é reagendada</span>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {avisosReagendamento.map((aviso) => (
-              <Card key={aviso.id} className="relative">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        {aviso.nome}
-                        <Badge className="bg-blue-500/20 text-blue-700 text-xs">
-                          Reagendamento
-                        </Badge>
-                      </CardTitle>
-                      {aviso.procedimento_id && (
-                        <CardDescription className="flex items-center gap-1 mt-1 text-xs">
-                          <FileText className="h-3 w-3" />
-                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
-                        </CardDescription>
-                      )}
+              <Card key={aviso.id} className="shadow-card hover:shadow-elegant transition-all duration-300">
+                <CardContent className="p-4 flex flex-col">
+                  <div className="space-y-3 flex-1">
+                    {/* Header: Nome e Switch */}
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg text-foreground">{aviso.nome}</h3>
+                      <Switch
+                        checked={aviso.ativo}
+                        onCheckedChange={() => handleToggleAtivo(aviso)}
+                      />
                     </div>
-                    <Switch
-                      checked={aviso.ativo}
-                      onCheckedChange={() => handleToggleAtivo(aviso)}
-                    />
+
+                    {/* Procedimento se especificado */}
+                    {aviso.procedimento_id && (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate">
+                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Preview da mensagem */}
+                    <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+                      {aviso.mensagem}
+                    </p>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
-                    {aviso.mensagem}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleEditAviso(aviso)}
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Editar
-                    </Button>
-                    {deleteConfirmId === aviso.id ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(aviso.id)}
-                      >
-                        Confirmar
-                      </Button>
-                    ) : (
+
+                  {/* Ações */}
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setDeleteConfirmId(aviso.id)}
+                        className="flex-1"
+                        onClick={() => handleEditAviso(aviso)}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Edit className="h-3 w-3 mr-1" />
+                        Editar
                       </Button>
-                    )}
+                      {deleteConfirmId === aviso.id ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(aviso.id)}
+                        >
+                          Confirmar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirmId(aviso.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -498,10 +522,15 @@ export function AvisosReuniaoTab() {
 
       {/* Avisos Agendados */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium flex items-center gap-2">
-          <Clock className="h-4 w-4" />
-          Lembretes Agendados
-        </h3>
+        {/* Header da seção - mesmo estilo das reuniões */}
+        <div className="bg-secondary text-secondary-foreground rounded-xl p-4">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            <span className="font-semibold">Lembretes Agendados</span>
+          </div>
+          <span className="text-sm opacity-80">Enviados X dias antes da reunião</span>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {avisosAgendados.length === 0 ? (
             <Card className="md:col-span-2 lg:col-span-3">
@@ -516,61 +545,75 @@ export function AvisosReuniaoTab() {
             </Card>
           ) : (
             avisosAgendados.map((aviso) => (
-              <Card key={aviso.id} className="relative">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-base">{aviso.nome}</CardTitle>
-                      <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
-                        <Badge variant="outline" className="text-xs">
-                          {formatPeriodo(aviso.dias_antes)}
-                        </Badge>
-                        <span className="text-xs">às {aviso.horario_envio.substring(0, 5)}</span>
-                        {aviso.procedimento_id && (
-                          <span className="flex items-center gap-1 text-xs">
-                            <FileText className="h-3 w-3" />
-                            {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
-                          </span>
-                        )}
-                      </CardDescription>
+              <Card key={aviso.id} className="shadow-card hover:shadow-elegant transition-all duration-300">
+                <CardContent className="p-4 flex flex-col">
+                  <div className="space-y-3 flex-1">
+                    {/* Header: Nome e Switch */}
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg text-foreground">{aviso.nome}</h3>
+                      <Switch
+                        checked={aviso.ativo}
+                        onCheckedChange={() => handleToggleAtivo(aviso)}
+                      />
                     </div>
-                    <Switch
-                      checked={aviso.ativo}
-                      onCheckedChange={() => handleToggleAtivo(aviso)}
-                    />
+
+                    {/* Timing info */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-xs">
+                        {formatPeriodo(aviso.dias_antes)}
+                      </Badge>
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>às {aviso.horario_envio.substring(0, 5)}</span>
+                      </div>
+                    </div>
+
+                    {/* Procedimento se especificado */}
+                    {aviso.procedimento_id && (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate">
+                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Preview da mensagem */}
+                    <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+                      {aviso.mensagem}
+                    </p>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
-                    {aviso.mensagem}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleEditAviso(aviso)}
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Editar
-                    </Button>
-                    {deleteConfirmId === aviso.id ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(aviso.id)}
-                      >
-                        Confirmar
-                      </Button>
-                    ) : (
+
+                  {/* Ações */}
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setDeleteConfirmId(aviso.id)}
+                        className="flex-1"
+                        onClick={() => handleEditAviso(aviso)}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Edit className="h-3 w-3 mr-1" />
+                        Editar
                       </Button>
-                    )}
+                      {deleteConfirmId === aviso.id ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(aviso.id)}
+                        >
+                          Confirmar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirmId(aviso.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
