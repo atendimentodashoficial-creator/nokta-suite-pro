@@ -271,8 +271,8 @@ export function NovoAgendamentoDialog({
   const [clienteSuggestions, setClienteSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [countryCode, setCountryCode] = useState("55");
-  // "none" = não criar reunião, "google" = só Google, "app" = só app, "both" = ambos
-  const [tipoCalendario, setTipoCalendario] = useState<"none" | "google" | "app" | "both">("none");
+  // "google" = só Google, "app" = só app, "both" = ambos
+  const [tipoCalendario, setTipoCalendario] = useState<"google" | "app" | "both">("app");
   
   // Track if name was manually edited by user - prevents auto-fill from overwriting
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
@@ -873,7 +873,7 @@ export function NovoAgendamentoDialog({
       queryClient.invalidateQueries({ queryKey: ["reunioes"] });
       onOpenChange(false);
       form.reset();
-      setTipoCalendario("none");
+      setTipoCalendario("app");
     } catch (error) {
       console.error("Erro ao criar agendamento:", error);
       toast.error("Erro ao criar agendamento");
@@ -1188,17 +1188,9 @@ export function NovoAgendamentoDialog({
                 
                 <RadioGroup
                   value={tipoCalendario}
-                  onValueChange={(value) => setTipoCalendario(value as "none" | "google" | "app" | "both")}
+                  onValueChange={(value) => setTipoCalendario(value as "google" | "app" | "both")}
                   className="space-y-2"
                 >
-                  <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
-                    <RadioGroupItem value="none" id="calendar-none" />
-                    <Label htmlFor="calendar-none" className="flex-1 cursor-pointer">
-                      <span className="font-medium">Não criar reunião</span>
-                      <p className="text-sm text-muted-foreground">Apenas criar o agendamento</p>
-                    </Label>
-                  </div>
-                  
                   {googleCalendarConnected && (
                     <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
                       <RadioGroupItem value="google" id="calendar-google" />
