@@ -811,12 +811,20 @@ export function NovoAgendamentoDialog({
       // Get procedimento name for Google Meet description
       const procedimentoSelecionado = procedimentos?.find(p => p.id === data.procedimento_id);
       
-      const criarNoGoogleCalendar = (tipoCalendario === "google" || tipoCalendario === "both") && showGoogleMeetOption;
-      const criarNaAgendaApp = tipoCalendario === "app" || tipoCalendario === "both";
-      
-      // Criar agendamento na tabela agendamentos APENAS se opção "app" ou "both"
-      // Quando é "google" (apenas reunião), não cria na agenda tradicional
-      if (criarNaAgendaApp || !showGoogleMeetOption) {
+      // Quando a feature de reuniões está habilitada:
+      // - "app"  => cria SOMENTE na aba Reuniões (tabela reunioes)
+      // - "google" => cria no Google Calendar + salva na aba Reuniões (via backend)
+      // - "both" => cria no Calendário (agendamentos) + Google Calendar + aba Reuniões
+      // Quando a feature NÃO está habilitada, mantém comportamento padrão (Calendário / agendamentos).
+      const meetingsEnabled = reunioesEnabled;
+      const criarNoGoogleCalendar = meetingsEnabled && (tipoCalendario === "google" || tipoCalendario === "both") && showGoogleMeetOption;
+      const criarReuniaoInterna = meetingsEnabled && tipoCalendario === "app";
+      const criarNoCalendarioApp = !meetingsEnabled || tipoCalendario === "both";
+
+      // Criar item no Calendário (tabela agendamentos) SOMENTE quando:
+      // - feature reuniões desabilitada (fluxo antigo)
+      // - OU usuário escolheu "both"
+      if (criarNoCalendarioApp) {
         await createAgendamento.mutateAsync({
           cliente_id: finalClienteId,
           tipo: data.tipo as any,
@@ -835,7 +843,7 @@ export function NovoAgendamentoDialog({
         });
       }
 
-      // Se opção de Google Calendar está ativa, criar evento no Google Calendar
+      // Se opção de Google Calendar está ativa, criar evento no Google Calendar (e salvar na aba Reuniões via backend)
       if (criarNoGoogleCalendar) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -855,12 +863,25 @@ export function NovoAgendamentoDialog({
                 participanteTelefone: telefoneNormalizado, // Para envio de aviso imediato
                 procedimentoNome: procedimentoSelecionado?.nome,
                 profissionalId: data.profissional_id || null,
-                skipLocalSave: criarNaAgendaApp, // Se também vai criar na agenda do app, não salva na reunioes pelo edge function
+                // Sempre salvar a reunião na aba Reuniões quando criar no Google Calendar.
+                // (O "both" controla apenas se cria também no Calendário / agendamentos.)
+                skipLocalSave: false,
                 // Passar instância do chat para manter consistência de número
                 instanciaId: origemInstanciaId || null,
                 instanciaNome: origemInstanciaNome || null,
               },
             });
+
+            // Garantia extra: se por algum motivo o backend não salvou o profissional_id,
+            // corrigimos aqui para o nome aparecer no card.
+            const reuniaoId = (gcalRes.data as any)?.reuniaoId as string | undefined;
+            if (!gcalRes.error && reuniaoId && data.profissional_id) {
+              await supabase
+                .from("reunioes")
+                .update({ profissional_id: data.profissional_id })
+                .eq("id", reuniaoId)
+                .is("profissional_id", null);
+            }
             
             if (gcalRes.error) {
               console.error("Erro ao criar evento Google Calendar:", gcalRes.error);
@@ -877,8 +898,8 @@ export function NovoAgendamentoDialog({
         }
       }
 
-      // Se opção de agenda do app está ativa, criar na tabela reunioes (sem Google)
-      if (criarNaAgendaApp) {
+      // Se opção "apenas reunião" está ativa, criar SOMENTE na tabela reunioes (sem Google e sem Calendário)
+      if (criarReuniaoInterna) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
@@ -904,9 +925,7 @@ export function NovoAgendamentoDialog({
               console.error("Erro ao criar reunião na agenda do app:", reuniaoError);
               toast.warning("Erro ao criar reunião na agenda do app");
             } else {
-              if (!criarNoGoogleCalendar) {
-                toast.success("Reunião criada na agenda do app!");
-              }
+              toast.success("Reunião criada!");
               
               // Disparar aviso imediato se houver telefone
               if (telefoneNormalizado && reuniaoData?.id) {
@@ -949,7 +968,8 @@ export function NovoAgendamentoDialog({
         }
       }
 
-      if (!criarNoGoogleCalendar && !criarNaAgendaApp) {
+      // Mensagem padrão quando foi um agendamento normal (Calendário) sem Google
+      if (!criarNoGoogleCalendar && criarNoCalendarioApp) {
         toast.success("Agendamento criado com sucesso!");
       }
 
