@@ -7,8 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar } from "lucide-react";
+import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar, Phone, Users } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface User {
@@ -21,23 +22,15 @@ interface User {
 
 interface NotificationConfig {
   user_id: string;
-  instancia_id: string | null;
+  admin_instancia_id: string | null;
+  destination_type: string;
+  destination_value: string | null;
   low_balance_enabled: boolean;
   low_balance_threshold: number;
   low_balance_message: string;
   campaign_reports_enabled: boolean;
   campaign_report_message: string;
   campaign_report_period: string;
-  disparos_instancias?: {
-    id: string;
-    nome: string;
-  } | null;
-}
-
-interface Instancia {
-  id: string;
-  nome: string;
-  is_active: boolean;
 }
 
 interface AdminNotificationsConfigProps {
@@ -47,7 +40,6 @@ interface AdminNotificationsConfigProps {
 export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProps) {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [configs, setConfigs] = useState<Record<string, NotificationConfig>>({});
-  const [instancias, setInstancias] = useState<Record<string, Instancia[]>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [initialLoading, setInitialLoading] = useState(true);
@@ -83,7 +75,9 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
         ...prev,
         [userId]: data.config || {
           user_id: userId,
-          instancia_id: null,
+          admin_instancia_id: null,
+          destination_type: "number",
+          destination_value: null,
           low_balance_enabled: true,
           low_balance_threshold: 100,
           low_balance_message: "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
@@ -107,11 +101,6 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
 🔹*Alcance:* _{alcance}_`,
           campaign_report_period: "7",
         },
-      }));
-
-      setInstancias((prev) => ({
-        ...prev,
-        [userId]: data.instancias || [],
       }));
     } catch (error) {
       console.error("Erro ao carregar configuração:", error);
@@ -150,7 +139,8 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
           body: {
             action: "update_notification_config",
             userId,
-            instanciaId: config.instancia_id,
+            destinationType: config.destination_type,
+            destinationValue: config.destination_value,
             lowBalanceEnabled: config.low_balance_enabled,
             lowBalanceThreshold: config.low_balance_threshold,
             lowBalanceMessage: config.low_balance_message,
@@ -190,7 +180,6 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
           const displayName = user.user_metadata?.full_name || user.email;
           const isExpanded = expandedUser === user.id;
           const config = configs[user.id];
-          const userInstancias = instancias[user.id] || [];
           const isLoading = loading[user.id];
           const isSaving = saving[user.id];
 
@@ -226,12 +215,12 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                       <MessageSquare className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="font-medium text-sm">{displayName}</p>
-                        {config?.disparos_instancias ? (
+                        {config?.destination_value ? (
                           <p className="text-xs text-muted-foreground">
-                            Instância: {config.disparos_instancias.nome}
+                            {config.destination_type === "group" ? "Grupo" : "Número"}: {config.destination_value}
                           </p>
                         ) : (
-                          <p className="text-xs text-muted-foreground">Nenhuma instância configurada</p>
+                          <p className="text-xs text-muted-foreground">Destino não configurado</p>
                         )}
                       </div>
                     </div>
@@ -264,32 +253,43 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                   ) : config ? (
                     <>
 
-                      {/* Seletor de Instância */}
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2">
+                      {/* Destino dos Avisos */}
+                      <div className="space-y-3 p-3 rounded-lg border bg-background">
+                        <Label className="flex items-center gap-2 font-medium">
                           <MessageSquare className="h-4 w-4" />
-                          Instância WhatsApp para Avisos
+                          Destino dos Avisos
                         </Label>
-                        <Select
-                          value={config.instancia_id || "none"}
-                          onValueChange={(value) =>
-                            updateConfig(user.id, "instancia_id", value === "none" ? null : value)
-                          }
+                        
+                        <RadioGroup
+                          value={config.destination_type || "number"}
+                          onValueChange={(value) => updateConfig(user.id, "destination_type", value)}
+                          className="flex gap-4"
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione uma instância" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Nenhuma instância</SelectItem>
-                            {userInstancias.map((inst) => (
-                              <SelectItem key={inst.id} value={inst.id}>
-                                {inst.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="number" id={`number-${user.id}`} />
+                            <Label htmlFor={`number-${user.id}`} className="flex items-center gap-1 cursor-pointer">
+                              <Phone className="h-3 w-3" />
+                              Número
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="group" id={`group-${user.id}`} />
+                            <Label htmlFor={`group-${user.id}`} className="flex items-center gap-1 cursor-pointer">
+                              <Users className="h-3 w-3" />
+                              Grupo
+                            </Label>
+                          </div>
+                        </RadioGroup>
+
+                        <Input
+                          placeholder={config.destination_type === "group" ? "ID do grupo (ex: 5511999999999-1234567890@g.us)" : "Número com DDD (ex: 5511999999999)"}
+                          value={config.destination_value || ""}
+                          onChange={(e) => updateConfig(user.id, "destination_value", e.target.value)}
+                        />
                         <p className="text-xs text-muted-foreground">
-                          Esta instância será usada para enviar avisos automáticos ao cliente
+                          {config.destination_type === "group" 
+                            ? "Cole o ID do grupo WhatsApp onde os avisos serão enviados"
+                            : "Informe o número de telefone com código do país (55) e DDD"}
                         </p>
                       </div>
 
