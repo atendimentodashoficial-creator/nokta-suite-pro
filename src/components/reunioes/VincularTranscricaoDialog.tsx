@@ -18,11 +18,18 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+interface TranscricaoAtual {
+  fireflies_id?: string | null;
+  transcricao?: string | null;
+  resumo_ia?: string | null;
+}
+
 interface VincularTranscricaoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reuniaoId: string;
   reuniaoTitulo: string;
+  transcricaoAtual?: TranscricaoAtual | null;
 }
 
 interface ReuniaoFireflies {
@@ -40,6 +47,7 @@ export function VincularTranscricaoDialog({
   onOpenChange,
   reuniaoId,
   reuniaoTitulo,
+  transcricaoAtual,
 }: VincularTranscricaoDialogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -131,6 +139,25 @@ export function VincularTranscricaoDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Transcrição atualmente vinculada */}
+          {transcricaoAtual?.transcricao && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm text-primary">Transcrição atualmente vinculada</span>
+              </div>
+              {transcricaoAtual.resumo_ia ? (
+                <p className="text-sm text-muted-foreground line-clamp-3 italic border-l-2 border-primary/30 pl-2">
+                  {transcricaoAtual.resumo_ia}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground line-clamp-3">
+                  {transcricaoAtual.transcricao.substring(0, 200)}...
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
