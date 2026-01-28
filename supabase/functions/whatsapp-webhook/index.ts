@@ -740,12 +740,20 @@ Deno.serve(async (req) => {
 
       if (!isFromMe && messageText) {
         // Deduplicate admin instance webhook events too (provider retries can cause duplicates)
-        const messageTimestamp = normalizedPayload.message!.messageTimestamp;
-        const messageHash = `${messageText?.substring(0, 50) || 'empty'}`;
-        const last8Incoming = getLast8Digits(phone);
+        const msgAny = normalizedPayload.message as any;
+        const messageId = String(msgAny?.messageid || msgAny?.id || '').trim();
+
+        // IMPORTANT: the provider may resend the same message with slightly different timestamps.
+        // Our DB unique index includes message_timestamp, so when we have a stable messageId we
+        // force message_timestamp=0 and put the unique identifier into message_hash.
+        const messageTimestampRaw = Number(msgAny?.messageTimestamp);
+        const messageTimestamp = messageId ? 0 : (Number.isFinite(messageTimestampRaw) ? Math.trunc(messageTimestampRaw) : 0);
+
+        const messageHash = messageId || `text:${messageText?.substring(0, 80) || 'empty'}`;
+        const last8Incoming = getLast8Digits(normalizedIncoming);
 
         let isDuplicateAdmin = false;
-        if (last8Incoming && messageTimestamp) {
+        if (last8Incoming) {
           const { error: dedupError } = await supabase
             .from('webhook_message_dedup')
             .insert({
@@ -764,6 +772,9 @@ Deno.serve(async (req) => {
               isDuplicateAdmin = true;
             } else {
               console.error('[Admin Instance] Error inserting dedup record:', dedupError);
+              // Fail-closed for keyword triggers: if we can't guarantee idempotency,
+              // we prefer to skip rather than send duplicates.
+              isDuplicateAdmin = true;
             }
           }
         }
