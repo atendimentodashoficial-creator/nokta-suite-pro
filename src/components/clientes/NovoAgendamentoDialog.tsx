@@ -811,25 +811,29 @@ export function NovoAgendamentoDialog({
       // Get procedimento name for Google Meet description
       const procedimentoSelecionado = procedimentos?.find(p => p.id === data.procedimento_id);
       
-      await createAgendamento.mutateAsync({
-        cliente_id: finalClienteId,
-        tipo: data.tipo as any,
-        status: "agendado",
-        data_agendamento: dataHora.toISOString(),
-        procedimento_id: data.procedimento_id || null,
-        profissional_id: data.profissional_id || null,
-        observacoes: data.observacoes || null,
-        data_follow_up: null,
-        numero_reagendamentos: 0,
-        aviso_dia_anterior: false,
-        aviso_dia: false,
-        aviso_3dias: false,
-        origem_agendamento: origemAgendamento,
-        origem_instancia_nome: origemInstanciaNome || null,
-      });
-
       const criarNoGoogleCalendar = (tipoCalendario === "google" || tipoCalendario === "both") && showGoogleMeetOption;
       const criarNaAgendaApp = tipoCalendario === "app" || tipoCalendario === "both";
+      
+      // Criar agendamento na tabela agendamentos APENAS se opção "app" ou "both"
+      // Quando é "google" (apenas reunião), não cria na agenda tradicional
+      if (criarNaAgendaApp || !showGoogleMeetOption) {
+        await createAgendamento.mutateAsync({
+          cliente_id: finalClienteId,
+          tipo: data.tipo as any,
+          status: "agendado",
+          data_agendamento: dataHora.toISOString(),
+          procedimento_id: data.procedimento_id || null,
+          profissional_id: data.profissional_id || null,
+          observacoes: data.observacoes || null,
+          data_follow_up: null,
+          numero_reagendamentos: 0,
+          aviso_dia_anterior: false,
+          aviso_dia: false,
+          aviso_3dias: false,
+          origem_agendamento: origemAgendamento,
+          origem_instancia_nome: origemInstanciaNome || null,
+        });
+      }
 
       // Se opção de Google Calendar está ativa, criar evento no Google Calendar
       if (criarNoGoogleCalendar) {
