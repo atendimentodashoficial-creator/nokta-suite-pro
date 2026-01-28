@@ -125,10 +125,10 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
           admin_instancia_id: null,
           destination_type: "number",
           destination_value: null,
-          low_balance_enabled: true,
+          low_balance_enabled: false,
           low_balance_threshold: 100,
           low_balance_message: "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
-          campaign_reports_enabled: true,
+          campaign_reports_enabled: false,
           campaign_report_message: `📊 Resultado dos últimos {periodo_dias} dias de anúncios no Meta Ads:
 
 {data_inicio} - {data_fim}
