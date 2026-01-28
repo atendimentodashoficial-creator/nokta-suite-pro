@@ -414,6 +414,8 @@ Deno.serve(async (req) => {
     let instanciaId: string | null = null;
     let instanciaNomeFromDb: string | null = null;
     let effectiveUserId: string | null = null;
+    let adminNotificationInstanceId: string | null = null;
+    let isAdminNotificationInstance = false;
     let effectiveUazapiConfig: { whatsapp_instancia_id: string | null } | null = null;
     let isMainWhatsAppInstance = false;
     let resolvedFromToken = false;
@@ -482,6 +484,26 @@ Deno.serve(async (req) => {
             instanciaNome: instanciaNomeFromDb,
             isMainWhatsAppInstance,
           });
+        } else {
+          // PRIORITY 1C: Check if token matches admin_notification_instances (admin WhatsApp for system notifications)
+          const { data: adminNotifInstance } = await supabase
+            .from('admin_notification_instances')
+            .select('id, nome, is_active')
+            .eq('api_key', payloadToken)
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle();
+
+          if (adminNotifInstance?.id) {
+            adminNotificationInstanceId = adminNotifInstance.id;
+            isAdminNotificationInstance = true;
+            resolvedFromToken = true;
+            instanciaNomeFromDb = adminNotifInstance.nome || payloadInstanceName;
+            console.log('SUCCESS: Resolved admin notification instance from token:', {
+              adminNotificationInstanceId,
+              instanciaNome: instanciaNomeFromDb,
+            });
+          }
         }
       }
     }
@@ -520,14 +542,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If still no user, reject
+    // If still no user, reject (unless this is the admin notification instance webhook)
     if (!effectiveUserId) {
-      console.error('Could not resolve user from token or URL');
-      await logEvent('00000000-0000-0000-0000-000000000000', 'error', 'Could not resolve user from token or URL');
-      return new Response(
-        JSON.stringify({ error: 'Could not identify instance. Ensure the instance is registered.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (isAdminNotificationInstance && adminNotificationInstanceId) {
+        console.log('No effectiveUserId, but admin notification instance was resolved; continuing with admin-only flow');
+        // Use a placeholder user id for non-critical logs only.
+        effectiveUserId = '00000000-0000-0000-0000-000000000000';
+      } else {
+        console.error('Could not resolve user from token or URL');
+        await logEvent('00000000-0000-0000-0000-000000000000', 'error', 'Could not resolve user from token or URL');
+        return new Response(
+          JSON.stringify({ error: 'Could not identify instance. Ensure the instance is registered.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log('Instance resolution complete:', {
@@ -705,6 +733,34 @@ Deno.serve(async (req) => {
     console.log('Contact info - Phone:', phone, 'Name:', name);
     console.log('Normalized incoming phone:', normalizedIncoming, '(from chatId:', chatIdNumber, ')');
     await logEvent(effectiveUserId, 'info', `Contato identificado - Telefone: ${phone} (normalizado: ${normalizedIncoming}), Nome: ${name}`);
+
+    // === Admin notification instance webhook: only run keyword handler and exit ===
+    if (isAdminNotificationInstance && adminNotificationInstanceId) {
+      console.log('[Admin Instance] Webhook received for admin notification instance:', adminNotificationInstanceId);
+
+      if (!isFromMe && messageText) {
+        console.log('[Admin Instance] Checking keyword triggers via admin-keyword-handler...');
+        fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            admin_instancia_id: adminNotificationInstanceId,
+            phone: normalizedIncoming,
+            message_text: messageText,
+          }),
+        }).catch((err) => {
+          console.error('[Admin Instance] Error calling keyword handler:', err?.message || err);
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, message: 'Admin instance processed' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // === Deduplicate webhook events to prevent double-counting unread messages ===
     const messageTimestamp = normalizedPayload.message!.messageTimestamp;

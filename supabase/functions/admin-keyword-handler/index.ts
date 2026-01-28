@@ -28,9 +28,14 @@ function matchesWholeWord(text: string, keyword: string): boolean {
 }
 
 interface KeywordHandlerPayload {
-  user_id: string;
+  user_id?: string;
+  admin_instancia_id?: string;
   phone: string;
   message_text: string;
+}
+
+function getLast8Digits(phone: string): string {
+  return String(phone || '').replace(/\D/g, '').slice(-8);
 }
 
 Deno.serve(async (req) => {
@@ -46,31 +51,78 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: KeywordHandlerPayload = await req.json();
-    const { user_id, phone, message_text } = body;
+    const { user_id, admin_instancia_id, phone, message_text } = body;
 
-    if (!user_id || !phone || !message_text) {
+    if (!phone || !message_text || (!user_id && !admin_instancia_id)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[admin-keyword-handler] Processing for user ${user_id}, phone: ${phone}, text: "${message_text.substring(0, 50)}..."`);
+    let resolvedUserId = user_id || null;
+    let notifConfig: any = null;
+    let configError: any = null;
 
-    // Get the notification config for this user
-    const { data: notifConfig, error: configError } = await supabase
-      .from('admin_client_notifications')
-      .select(`
-        *,
-        admin_notification_instances:admin_instancia_id (
-          id,
-          base_url,
-          api_key,
-          is_active
-        )
-      `)
-      .eq('user_id', user_id)
-      .maybeSingle();
+    if (user_id) {
+      console.log(`[admin-keyword-handler] Processing (user mode) for user ${user_id}, phone: ${phone}, text: "${message_text.substring(0, 50)}..."`);
+
+      const res = await supabase
+        .from('admin_client_notifications')
+        .select(`
+          *,
+          admin_notification_instances:admin_instancia_id (
+            id,
+            base_url,
+            api_key,
+            is_active
+          )
+        `)
+        .eq('user_id', user_id)
+        .maybeSingle();
+
+      notifConfig = res.data;
+      configError = res.error;
+    } else {
+      console.log(`[admin-keyword-handler] Processing (admin instance mode) for admin_instancia_id ${admin_instancia_id}, phone: ${phone}, text: "${message_text.substring(0, 50)}..."`);
+
+      const res = await supabase
+        .from('admin_client_notifications')
+        .select(`
+          *,
+          admin_notification_instances:admin_instancia_id (
+            id,
+            base_url,
+            api_key,
+            is_active
+          )
+        `)
+        .eq('admin_instancia_id', admin_instancia_id)
+        .eq('keyword_enabled', true)
+        .limit(250);
+
+      if (res.error) {
+        configError = res.error;
+      } else {
+        const incomingLast8 = getLast8Digits(phone);
+        const matched = (res.data || []).find((c: any) =>
+          c?.destination_type === 'number' &&
+          c?.destination_value &&
+          getLast8Digits(c.destination_value) === incomingLast8
+        );
+
+        if (!matched) {
+          console.log('[admin-keyword-handler] No notification config matched for incoming phone');
+          return new Response(
+            JSON.stringify({ success: false, matched: false, reason: 'No config matched for phone' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        notifConfig = matched;
+        resolvedUserId = matched.user_id;
+      }
+    }
 
     if (configError) {
       console.error('[admin-keyword-handler] Error fetching config:', configError);
@@ -145,10 +197,10 @@ Deno.serve(async (req) => {
       
       try {
         // Get user's Facebook Ad Accounts
-        const { data: adAccounts } = await supabase
+          const { data: adAccounts } = await supabase
           .from('facebook_ad_accounts')
           .select('ad_account_id, account_name, account_type')
-          .eq('user_id', user_id)
+            .eq('user_id', resolvedUserId)
           .limit(5);
 
         if (!adAccounts || adAccounts.length === 0) {
@@ -161,7 +213,7 @@ Deno.serve(async (req) => {
             const { data: tokenData } = await supabase
               .from('facebook_tokens')
               .select('access_token')
-              .eq('user_id', user_id)
+              .eq('user_id', resolvedUserId)
               .maybeSingle();
 
             if (tokenData?.access_token) {
