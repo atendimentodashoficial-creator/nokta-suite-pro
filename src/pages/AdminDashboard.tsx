@@ -318,6 +318,12 @@ export default function AdminDashboard() {
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<{ id: string; name: string } | null>(null);
 
+  // Trigger para recarregar instâncias no AdminNotificationsConfig quando uma nova for criada
+  const [instancesRefreshTrigger, setInstancesRefreshTrigger] = useState(0);
+  const handleInstancesChange = () => {
+    setInstancesRefreshTrigger(prev => prev + 1);
+  };
+
   // Sensores para drag and drop
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1149,8 +1155,12 @@ export default function AdminDashboard() {
 
           {/* Aba Configurações */}
           <TabsContent value="settings" className="space-y-6">
-            <AdminInstanceManager />
-            <AdminNotificationsConfig users={users} isActive={activeAdminTab === "settings"} />
+            <AdminInstanceManager onInstancesChange={handleInstancesChange} />
+            <AdminNotificationsConfig 
+              users={users} 
+              isActive={activeAdminTab === "settings"} 
+              instancesRefreshTrigger={instancesRefreshTrigger}
+            />
           </TabsContent>
     </Tabs>
   </main>
