@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw, Save, Eye, ChevronDown } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw, Save, Eye, ChevronDown, TrendingUp, Video, User, Phone } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -14,6 +14,56 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
+import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { formatPhoneDisplay } from "@/utils/phoneFormat";
+import { startOfDayBrasilia, toZonedBrasilia } from "@/utils/timezone";
+import { differenceInCalendarDays } from "date-fns";
+
+interface Reuniao {
+  id: string;
+  titulo: string;
+  data_reuniao: string;
+  participantes: string[] | null;
+  cliente_telefone: string | null;
+  status: string;
+}
+
+// Helper para calcular dias restantes
+const getDaysRemainingBadge = (dataReuniao: string) => {
+  const hoje = startOfDayBrasilia();
+  const dataReu = startOfDayBrasilia(toZonedBrasilia(dataReuniao));
+  const diasRestantes = differenceInCalendarDays(dataReu, hoje);
+  
+  let bgColor = "";
+  let textColor = "";
+  let label = "";
+  
+  if (diasRestantes === 0) {
+    bgColor = "bg-red-100 dark:bg-red-900/30";
+    textColor = "text-red-700 dark:text-red-400";
+    label = "Hoje";
+  } else if (diasRestantes === 1) {
+    bgColor = "bg-orange-100 dark:bg-orange-900/30";
+    textColor = "text-orange-700 dark:text-orange-400";
+    label = "Amanhã";
+  } else if (diasRestantes === 2) {
+    bgColor = "bg-yellow-100 dark:bg-yellow-900/30";
+    textColor = "text-yellow-700 dark:text-yellow-400";
+    label = "2 dias";
+  } else if (diasRestantes === 3) {
+    bgColor = "bg-blue-100 dark:bg-blue-900/30";
+    textColor = "text-blue-700 dark:text-blue-400";
+    label = "3 dias";
+  } else {
+    bgColor = "bg-muted";
+    textColor = "text-muted-foreground";
+    label = `${diasRestantes} dias`;
+  }
+  
+  return { bgColor, textColor, label, diasRestantes };
+};
 
 interface AvisoReuniao {
   id: string;
@@ -33,9 +83,11 @@ interface AvisoReuniao {
 }
 
 export function AvisosReuniaoTab() {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [avisos, setAvisos] = useState<AvisoReuniao[]>([]);
+  const [reunioes, setReunioes] = useState<Reuniao[]>([]);
   
   // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -58,6 +110,39 @@ export function AvisosReuniaoTab() {
 
   const { data: procedimentos } = useProcedimentos();
 
+  // Próximas reuniões (próximos 7 dias)
+  const proximasReunioes = useMemo(() => {
+    const hoje = startOfDayBrasilia();
+    const em7Dias = new Date(hoje);
+    em7Dias.setDate(em7Dias.getDate() + 7);
+    em7Dias.setHours(23, 59, 59, 999);
+    
+    return reunioes
+      .filter(r => {
+        if (r.status === 'cancelado') return false;
+        const dataReuniao = startOfDayBrasilia(toZonedBrasilia(r.data_reuniao));
+        return dataReuniao >= hoje && dataReuniao <= em7Dias;
+      })
+      .sort((a, b) => new Date(a.data_reuniao).getTime() - new Date(b.data_reuniao).getTime())
+      .slice(0, 10);
+  }, [reunioes]);
+
+  // Load reuniões
+  const loadReunioes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('reunioes')
+        .select('id, titulo, data_reuniao, participantes, cliente_telefone, status')
+        .or('google_event_id.not.is.null,status.eq.agendado')
+        .order('data_reuniao', { ascending: true });
+      
+      if (error) throw error;
+      setReunioes((data || []) as Reuniao[]);
+    } catch (error) {
+      console.error('Error loading reunioes:', error);
+    }
+  };
+
   // Load avisos
   const loadAvisos = async () => {
     try {
@@ -79,6 +164,7 @@ export function AvisosReuniaoTab() {
 
   useEffect(() => {
     loadAvisos();
+    loadReunioes();
   }, []);
 
   // Reset form
@@ -603,6 +689,103 @@ export function AvisosReuniaoTab() {
           )}
         </div>
       </div>
+
+      {/* Resumo de Avisos Hoje */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Resumo de Avisos Hoje
+          </CardTitle>
+          <CardDescription>
+            Status dos envios programados para hoje
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {avisos.filter(a => a.ativo).length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhum aviso ativo configurado
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              {avisos.filter(a => a.ativo).length} aviso(s) ativo(s) configurado(s)
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Próximas Reuniões */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Video className="h-5 w-5" />
+            Próximas Reuniões
+          </CardTitle>
+          <CardDescription>
+            Reuniões dos próximos 7 dias que receberão lembretes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {proximasReunioes.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Nenhuma reunião nos próximos 7 dias
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {proximasReunioes.map((reuniao) => {
+                const daysBadge = getDaysRemainingBadge(reuniao.data_reuniao);
+                
+                return (
+                  <div 
+                    key={reuniao.id} 
+                    className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      {/* Left side: Avatar + Name/Phone */}
+                      <div className="flex items-start sm:items-center gap-3 flex-1">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex-shrink-0 flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium truncate">
+                              {reuniao.participantes && reuniao.participantes.length > 0
+                                ? reuniao.participantes.join(", ")
+                                : "Cliente não informado"}
+                            </p>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${daysBadge.bgColor} ${daysBadge.textColor}`}>
+                              {daysBadge.label}
+                            </span>
+                          </div>
+                          {reuniao.cliente_telefone && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                              <Phone className="h-3 w-3" />
+                              <span>{formatPhoneDisplay(reuniao.cliente_telefone)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Right side: Date/Time */}
+                      <div className="flex flex-col sm:items-end gap-1.5 pl-13 sm:pl-0">
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5" />
+                          {format(new Date(reuniao.data_reuniao), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                        </div>
+                        {reuniao.titulo && (
+                          <Badge variant="secondary" className="text-xs">
+                            {reuniao.titulo.replace(/^Reunião com\s+[^-–]+\s*[-–]\s*/i, "").trim().substring(0, 30) || reuniao.titulo.substring(0, 30)}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Dialog para criar/editar aviso */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
