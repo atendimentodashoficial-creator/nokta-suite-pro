@@ -1743,6 +1743,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
             email: clienteData.email,
           }}
           origem="Disparos"
+          origemInstanciaId={chat.instancia_id || undefined}
           origemInstanciaNome={chat.instancia_nome || undefined}
         />
       )}

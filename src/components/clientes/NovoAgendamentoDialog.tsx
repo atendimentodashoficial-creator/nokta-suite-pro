@@ -256,6 +256,7 @@ interface NovoAgendamentoDialogProps {
     email?: string;
   };
   origem?: "WhatsApp" | "Disparos"; // Origem para segregação de leads
+  origemInstanciaId?: string; // ID da instância de Disparos (para roteamento de avisos)
   origemInstanciaNome?: string; // Nome da instância de Disparos (para roteamento de avisos)
 }
 
@@ -265,6 +266,7 @@ export function NovoAgendamentoDialog({
   clienteId,
   initialData,
   origem,
+  origemInstanciaId,
   origemInstanciaNome,
 }: NovoAgendamentoDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -871,16 +873,34 @@ export function NovoAgendamentoDialog({
               // Disparar aviso imediato se houver telefone
               if (telefoneNormalizado && reuniaoData?.id) {
                 try {
-                  await supabase.functions.invoke("enviar-aviso-reuniao-imediato", {
+                  const res = await supabase.functions.invoke("enviar-aviso-reuniao-imediato", {
                     body: {
                       reuniaoId: reuniaoData.id,
+                      // Mantido por compatibilidade com chamadas internas; o backend vai validar/ignorar quando for chamada do app.
                       userId: session.user.id,
                       clienteTelefone: telefoneNormalizado,
                       clienteNome: data.nome,
+                      origem: origem || null,
+                      instanciaId: origemInstanciaId || null,
+                      instanciaNome: origemInstanciaNome || null,
                     },
                   });
+
+                  if (res.error) {
+                    throw res.error;
+                  }
+
+                  // Se não enviou nada, avisar (ex.: instância desconectada)
+                  if (res.data && typeof res.data === 'object' && 'sent' in res.data) {
+                    const sent = Number((res.data as any).sent ?? 0);
+                    if (sent <= 0) {
+                      const errMsg = String((res.data as any).error || (res.data as any).message || 'Aviso imediato não enviado');
+                      toast.warning(errMsg);
+                    }
+                  }
                 } catch (avisoError) {
                   console.error("Erro ao enviar aviso imediato:", avisoError);
+                  toast.warning("Não foi possível enviar o aviso imediato (verifique a conexão da instância em Conexões → Disparos).");
                   // Não falha a operação principal
                 }
               }
