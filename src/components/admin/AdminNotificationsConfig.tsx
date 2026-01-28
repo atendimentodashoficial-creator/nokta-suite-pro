@@ -212,6 +212,26 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                     </div>
                   ) : config ? (
                     <>
+                      {/* Toggle Geral de Avisos */}
+                      <div className="flex items-center justify-between p-3 rounded-lg border-2 border-primary/30 bg-primary/5">
+                        <div className="flex items-center gap-3">
+                          <Bell className="h-5 w-5 text-primary" />
+                          <div>
+                            <Label className="font-medium">Ativar Todos os Avisos</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Liga ou desliga todos os avisos de uma vez
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={config.low_balance_enabled && config.campaign_reports_enabled}
+                          onCheckedChange={(checked) => {
+                            updateConfig(user.id, "low_balance_enabled", checked);
+                            updateConfig(user.id, "campaign_reports_enabled", checked);
+                          }}
+                        />
+                      </div>
+
                       {/* Seletor de Instância */}
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2">
