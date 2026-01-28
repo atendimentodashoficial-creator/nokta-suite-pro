@@ -264,12 +264,6 @@ export default function Reunioes() {
                             </div>
                           )}
 
-                          {/* Resumo */}
-                          {reuniao.resumo_ia && (
-                            <p className="text-sm text-muted-foreground line-clamp-2 italic border-l-2 border-primary/30 pl-3">
-                              {reuniao.resumo_ia}
-                            </p>
-                          )}
 
                           {/* Botões de ação */}
                           <div className="flex gap-2 mt-2">
