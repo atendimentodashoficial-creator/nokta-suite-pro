@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { useEscalas, useAusencias } from "@/hooks/useEscalas";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { formatInTimeZone } from "date-fns-tz";
 
 interface Reuniao {
@@ -92,6 +93,7 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
   const queryClient = useQueryClient();
   const { data: profissionais } = useProfissionais();
   const { data: todosAgendamentos } = useAgendamentos();
+  const { data: procedimentos } = useProcedimentos();
   const { data: escalas } = useEscalas();
   const { data: ausencias } = useAusencias();
   const [todasReunioes, setTodasReunioes] = useState<any[]>([]);
@@ -169,32 +171,67 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
       todosHorarios.push(...horariosIntervalo);
     });
     
-    // Horários ocupados por agendamentos
-    const horariosOcupadosAg = todosAgendamentos
+    // Horários ocupados por agendamentos (considerando duração)
+    const horariosOcupadosAg: string[] = [];
+    todosAgendamentos
       ?.filter(ag => {
         if (ag.profissional_id !== profissionalWatch) return false;
         if (ag.status === "cancelado") return false;
         const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
         return agData === dataStr;
       })
-      .map(ag => formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+      .forEach(ag => {
+        const horaInicio = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm');
+        // Obter duração do procedimento do agendamento
+        const procDuracao = procedimentos?.find(p => p.id === ag.procedimento_id)?.tempo_atendimento_minutos 
+          || procedimentos?.find(p => p.id === ag.procedimento_id)?.duracao_minutos 
+          || 60;
+        
+        // Gerar todos os slots que este agendamento ocupa
+        const [h, m] = horaInicio.split(':').map(Number);
+        let minutoAtual = h * 60 + m;
+        const minutoFim = minutoAtual + procDuracao;
+        
+        while (minutoAtual < minutoFim) {
+          const hora = Math.floor(minutoAtual / 60);
+          const min = minutoAtual % 60;
+          horariosOcupadosAg.push(`${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+          minutoAtual += intervaloMinutos;
+        }
+      });
     
-    // Horários ocupados por reuniões (excluindo a própria reunião)
-    const horariosOcupadosReu = todasReunioes
+    // Horários ocupados por reuniões (considerando duração, excluindo a própria reunião)
+    const horariosOcupadosReu: string[] = [];
+    todasReunioes
       ?.filter(r => {
         if (r.profissional_id !== profissionalWatch) return false;
         if (reuniao && r.id === reuniao.id) return false;
         const rData = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
         return rData === dataStr;
       })
-      .map(r => formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm')) || [];
+      .forEach(r => {
+        const horaInicio = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm');
+        const reuniaoDuracao = r.duracao_minutos || 30;
+        
+        // Gerar todos os slots que esta reunião ocupa
+        const [h, m] = horaInicio.split(':').map(Number);
+        let minutoAtual = h * 60 + m;
+        const minutoFim = minutoAtual + reuniaoDuracao;
+        
+        while (minutoAtual < minutoFim) {
+          const hora = Math.floor(minutoAtual / 60);
+          const min = minutoAtual % 60;
+          horariosOcupadosReu.push(`${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+          minutoAtual += intervaloMinutos;
+        }
+      });
     
     const horariosOcupados = [...horariosOcupadosAg, ...horariosOcupadosReu];
     
     return [...new Set(todosHorarios)]
       .filter(h => !horariosOcupados.includes(h))
       .sort();
-  }, [dataWatch, profissionalWatch, escalas, ausencias, todosAgendamentos, todasReunioes, reuniao, intervaloMinutos]);
+  }, [dataWatch, profissionalWatch, escalas, ausencias, todosAgendamentos, procedimentos, todasReunioes, reuniao, intervaloMinutos]);
 
   const reagendarMutation = useMutation({
     mutationFn: async (data: ReagendamentoFormData) => {
