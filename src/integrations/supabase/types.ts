@@ -2427,6 +2427,39 @@ export type Database = {
         }
         Relationships: []
       }
+      google_calendar_config: {
+        Row: {
+          access_token: string
+          calendar_id: string | null
+          created_at: string
+          id: string
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       historico_leads: {
         Row: {
           data_alteracao: string | null
@@ -3650,6 +3683,108 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      reunioes_agendadas: {
+        Row: {
+          agendamento_id: string | null
+          compareceu: boolean | null
+          created_at: string
+          data_reuniao: string
+          descricao: string | null
+          duracao_minutos: number | null
+          google_event_id: string | null
+          google_meet_link: string | null
+          id: string
+          lead_id: string | null
+          origem: string | null
+          participante_email: string | null
+          participante_nome: string | null
+          participante_telefone: string | null
+          reuniao_fireflies_id: string | null
+          status: string
+          titulo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agendamento_id?: string | null
+          compareceu?: boolean | null
+          created_at?: string
+          data_reuniao: string
+          descricao?: string | null
+          duracao_minutos?: number | null
+          google_event_id?: string | null
+          google_meet_link?: string | null
+          id?: string
+          lead_id?: string | null
+          origem?: string | null
+          participante_email?: string | null
+          participante_nome?: string | null
+          participante_telefone?: string | null
+          reuniao_fireflies_id?: string | null
+          status?: string
+          titulo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agendamento_id?: string | null
+          compareceu?: boolean | null
+          created_at?: string
+          data_reuniao?: string
+          descricao?: string | null
+          duracao_minutos?: number | null
+          google_event_id?: string | null
+          google_meet_link?: string | null
+          id?: string
+          lead_id?: string | null
+          origem?: string | null
+          participante_email?: string | null
+          participante_nome?: string | null
+          participante_telefone?: string | null
+          reuniao_fireflies_id?: string | null
+          status?: string
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reunioes_agendadas_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_agendadas_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos_completos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_agendadas_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_horarios"
+            referencedColumns: ["agendamento_id"]
+          },
+          {
+            foreignKeyName: "reunioes_agendadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_agendadas_reuniao_fireflies_id_fkey"
+            columns: ["reuniao_fireflies_id"]
+            isOneToOne: false
+            referencedRelation: "reunioes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stripe_config: {
         Row: {
