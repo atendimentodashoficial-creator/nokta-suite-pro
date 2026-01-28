@@ -24,7 +24,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, userId, email, password, fullName, expiryDate, displayOrder, redirectTo, permissions } = await req.json();
+    const body = await req.json();
+    const { action, userId, email, password, fullName, expiryDate, displayOrder, redirectTo, permissions, destinationType, destinationValue, lowBalanceEnabled, lowBalanceThreshold, lowBalanceMessage, campaignReportsEnabled, campaignReportMessage, campaignReportPeriod, keywordEnabled, keywordBalance, keywordReport, adminInstanciaId } = body;
 
     switch (action) {
       case 'create': {
@@ -212,9 +213,7 @@ serve(async (req) => {
       }
 
       case 'update_notification_config': {
-        const { destinationType, destinationValue, lowBalanceEnabled, lowBalanceThreshold, lowBalanceMessage, campaignReportsEnabled, campaignReportMessage, campaignReportPeriod, keywordEnabled, keywordBalance, keywordReport } = await req.json();
-
-        // Upsert configuração
+        // Upsert configuração - dados já extraídos do body acima
         const { error: upsertError } = await supabase
           .from('admin_client_notifications')
           .upsert({
@@ -230,6 +229,7 @@ serve(async (req) => {
             keyword_enabled: keywordEnabled ?? false,
             keyword_balance: keywordBalance || 'saldo',
             keyword_report: keywordReport || 'relatorio',
+            admin_instancia_id: adminInstanciaId || null,
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id'
