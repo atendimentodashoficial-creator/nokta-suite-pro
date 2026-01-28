@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import {
   Dialog,
@@ -21,13 +20,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -36,10 +28,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { useEscalas, useAusencias } from "@/hooks/useEscalas";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
@@ -49,9 +39,8 @@ interface Reuniao {
   id: string;
   titulo: string;
   data_reuniao: string;
-  procedimento_id?: string | null;
   profissional_id?: string | null;
-  observacoes?: string | null;
+  duracao_minutos?: number | null;
 }
 
 interface ReagendarReuniaoDialogProps {
@@ -65,9 +54,7 @@ const reagendamentoSchema = z.object({
     required_error: "Data é obrigatória",
   }),
   hora: z.string().min(1, "Selecione um horário"),
-  procedimento_id: z.string().min(1, "Selecione um procedimento"),
   profissional_id: z.string().min(1, "Selecione um profissional e horário"),
-  observacoes: z.string().max(500).optional(),
 });
 
 type ReagendamentoFormData = z.infer<typeof reagendamentoSchema>;
@@ -75,7 +62,7 @@ type ReagendamentoFormData = z.infer<typeof reagendamentoSchema>;
 const gerarHorariosIntervalo = (
   horaInicio: string,
   horaFim: string,
-  intervaloMinutos: number = 15
+  intervaloMinutos: number = 30
 ) => {
   const horarios: string[] = [];
   const [hInicio, mInicio] = horaInicio.split(':').map(Number);
@@ -169,7 +156,6 @@ const calcularProximaDataDisponivel = (
 
 export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: ReagendarReuniaoDialogProps) {
   const queryClient = useQueryClient();
-  const { data: procedimentos } = useProcedimentos();
   const { data: profissionais } = useProfissionais();
   const { data: todosAgendamentos } = useAgendamentos();
   const { data: escalas } = useEscalas();
@@ -181,7 +167,7 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
     const fetchReunioes = async () => {
       const { data } = await supabase
         .from('reunioes')
-        .select('id, data_reuniao, profissional_id, status')
+        .select('id, data_reuniao, profissional_id, status, duracao_minutos')
         .neq('status', 'cancelada');
       setTodasReunioes(data || []);
     };
@@ -192,39 +178,30 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
     resolver: zodResolver(reagendamentoSchema),
     defaultValues: {
       hora: "",
-      procedimento_id: "",
       profissional_id: "",
-      observacoes: "",
     },
   });
 
-  // Reset form quando reunião mudar
+  // Reset form quando reunião mudar - pré-selecionar o profissional atual
   useEffect(() => {
     if (reuniao && open) {
       form.reset({
         data_reuniao: undefined,
         hora: "",
-        procedimento_id: reuniao.procedimento_id || "",
         profissional_id: reuniao.profissional_id || "",
-        observacoes: reuniao.observacoes || "",
       });
     }
   }, [reuniao, open, form]);
 
   const dataWatch = form.watch("data_reuniao");
   const profissionalWatch = form.watch("profissional_id");
-  const procedimentoWatch = form.watch("procedimento_id");
 
-  // Obter tempo de atendimento do procedimento selecionado
-  const tempoAtendimento = useMemo(() => {
-    if (!procedimentoWatch) return 60;
-    const proc = procedimentos?.find(p => p.id === procedimentoWatch);
-    return proc?.tempo_atendimento_minutos || proc?.duracao_minutos || 60;
-  }, [procedimentoWatch, procedimentos]);
+  // Tempo de atendimento padrão para reuniões (ou duração da reunião)
+  const tempoAtendimento = reuniao?.duracao_minutos || 60;
 
   // Calcular profissionais disponíveis com seus horários
   const profissionaisDisponiveis = useMemo(() => {
-    if (!dataWatch || !procedimentoWatch) return [];
+    if (!dataWatch) return [];
     
     const diaSemana = dataWatch.getDay();
     const dataStr = format(dataWatch, 'yyyy-MM-dd');
@@ -245,7 +222,7 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
           const horariosIntervalo = gerarHorariosIntervalo(
             escala.hora_inicio,
             escala.hora_fim,
-            tempoAtendimento
+            30 // Intervalo de 30 min para reuniões
           );
           todosHorarios.push(...horariosIntervalo);
         });
@@ -265,7 +242,7 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
       const horariosOcupadosReu = todasReunioes
         ?.filter(r => {
           if (r.profissional_id !== prof.id) return false;
-          if (reuniao && r.id === reuniao.id) return false; // Excluir a própria reunião
+          if (reuniao && r.id === reuniao.id) return false;
           const rData = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
           return rData === dataStr;
         })
@@ -295,7 +272,7 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
         proximaDataDisponivel: proximaData,
       };
     }) || [];
-  }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, todasReunioes, tempoAtendimento, reuniao]);
+  }, [dataWatch, profissionais, escalas, ausencias, todosAgendamentos, todasReunioes, tempoAtendimento, reuniao]);
 
   const reagendarMutation = useMutation({
     mutationFn: async (data: ReagendamentoFormData) => {
@@ -317,9 +294,7 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
         body: { 
           reuniaoId: reuniao.id,
           novaDataHora: newDate.toISOString(),
-          procedimentoId: data.procedimento_id || null,
           profissionalId: data.profissional_id || null,
-          observacoes: data.observacoes || null,
         },
       });
 
@@ -373,31 +348,6 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="procedimento_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Procedimento</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o procedimento" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {procedimentos?.filter(p => p.ativo).map((proc) => (
-                        <SelectItem key={proc.id} value={proc.id}>
-                          {proc.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="data_reuniao"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
@@ -437,7 +387,7 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
             />
 
             {/* Mostrar profissionais disponíveis com horários */}
-            {dataWatch && procedimentoWatch && (
+            {dataWatch && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <FormLabel>Selecione Profissional e Horário</FormLabel>
@@ -534,25 +484,6 @@ export function ReagendarReuniaoDialog({ reuniao, open, onOpenChange }: Reagenda
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="observacoes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      placeholder="Observações sobre a reunião..."
-                      className="resize-none"
-                      rows={3}
-                    />
-                  </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
