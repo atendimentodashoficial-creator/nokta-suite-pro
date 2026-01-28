@@ -50,6 +50,21 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
   const [instancias, setInstancias] = useState<Record<string, Instancia[]>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Carregar todas as configs ao montar o componente
+  useEffect(() => {
+    const loadAllConfigs = async () => {
+      setInitialLoading(true);
+      for (const user of users) {
+        await loadConfig(user.id);
+      }
+      setInitialLoading(false);
+    };
+    if (users.length > 0) {
+      loadAllConfigs();
+    }
+  }, [users]);
 
   const loadConfig = async (userId: string) => {
     if (configs[userId]) return; // Já carregado
@@ -181,56 +196,73 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
 
           return (
             <Collapsible key={user.id} open={isExpanded} onOpenChange={() => handleToggleUser(user.id)}>
-              <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors">
-                  <div className="flex items-center gap-3">
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-sm">{displayName}</p>
-                      {config?.disparos_instancias ? (
-                        <p className="text-xs text-muted-foreground">
-                          Instância: {config.disparos_instancias.nome}
-                        </p>
+              <div className="flex items-center gap-2">
+                {/* Switch fora do card - carrega config ao montar se necessário */}
+                <div 
+                  className="flex-shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Carregar config se ainda não foi carregada
+                    if (!config) {
+                      loadConfig(user.id);
+                    }
+                  }}
+                >
+                  <Switch
+                    checked={config ? (config.low_balance_enabled || config.campaign_reports_enabled) : false}
+                    onCheckedChange={(checked) => {
+                      if (config) {
+                        updateConfig(user.id, "low_balance_enabled", checked);
+                        updateConfig(user.id, "campaign_reports_enabled", checked);
+                      }
+                    }}
+                    disabled={!config}
+                  />
+                </div>
+
+                <CollapsibleTrigger asChild className="flex-1">
+                  <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium text-sm">{displayName}</p>
+                        {config?.disparos_instancias ? (
+                          <p className="text-xs text-muted-foreground">
+                            Instância: {config.disparos_instancias.nome}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Nenhuma instância configurada</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {config && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          config.low_balance_enabled || config.campaign_reports_enabled 
+                            ? "bg-green-500/20 text-green-600" 
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                          {config.low_balance_enabled || config.campaign_reports_enabled ? "Ativo" : "Inativo"}
+                        </span>
+                      )}
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <p className="text-xs text-muted-foreground">Nenhuma instância configurada</p>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
                   </div>
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-              </CollapsibleTrigger>
+                </CollapsibleTrigger>
+              </div>
 
               <CollapsibleContent>
-                <div className="mt-2 p-4 border rounded-lg bg-muted/30 space-y-4">
+                <div className="mt-2 p-4 border rounded-lg bg-muted/30 space-y-4 ml-10">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                   ) : config ? (
                     <>
-                      {/* Toggle Geral de Avisos */}
-                      <div className="flex items-center justify-between p-3 rounded-lg border-2 border-primary/30 bg-primary/5">
-                        <div className="flex items-center gap-3">
-                          <Bell className="h-5 w-5 text-primary" />
-                          <div>
-                            <Label className="font-medium">Ativar Todos os Avisos</Label>
-                            <p className="text-xs text-muted-foreground">
-                              Liga ou desliga todos os avisos de uma vez
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={config.low_balance_enabled && config.campaign_reports_enabled}
-                          onCheckedChange={(checked) => {
-                            updateConfig(user.id, "low_balance_enabled", checked);
-                            updateConfig(user.id, "campaign_reports_enabled", checked);
-                          }}
-                        />
-                      </div>
 
                       {/* Seletor de Instância */}
                       <div className="space-y-2">
