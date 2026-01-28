@@ -46,6 +46,7 @@ interface NotificationConfig {
 interface AdminNotificationsConfigProps {
   users: User[];
   isActive?: boolean; // Se a aba está ativa/visível
+  instancesRefreshTrigger?: number; // Increment to trigger instances reload
 }
 
 interface BalanceInfo {
@@ -54,7 +55,7 @@ interface BalanceInfo {
   error?: string;
 }
 
-export function AdminNotificationsConfig({ users, isActive = true }: AdminNotificationsConfigProps) {
+export function AdminNotificationsConfig({ users, isActive = true, instancesRefreshTrigger = 0 }: AdminNotificationsConfigProps) {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [configs, setConfigs] = useState<Record<string, NotificationConfig>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
@@ -169,6 +170,22 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
       loadInitialData();
     }
   }, [users]);
+
+  // Recarregar instâncias admin quando o trigger mudar (nova instância criada)
+  useEffect(() => {
+    if (instancesRefreshTrigger > 0) {
+      const reloadInstances = async () => {
+        const { data: instances } = await supabase
+          .from("admin_notification_instances")
+          .select("id, nome, base_url, is_active")
+          .eq("is_active", true)
+          .order("nome");
+        
+        setAdminInstances(instances || []);
+      };
+      reloadInstances();
+    }
+  }, [instancesRefreshTrigger]);
 
   // Carregar saldos apenas quando a aba estiver ativa (e apenas uma vez)
   useEffect(() => {

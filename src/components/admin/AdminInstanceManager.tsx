@@ -57,7 +57,11 @@ interface ConnectionStatus {
   loading: boolean;
 }
 
-export function AdminInstanceManager() {
+interface AdminInstanceManagerProps {
+  onInstancesChange?: () => void;
+}
+
+export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManagerProps = {}) {
   const [instances, setInstances] = useState<AdminInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatus>>({});
@@ -193,6 +197,7 @@ export function AdminInstanceManager() {
         setNewInstanceApiKey("");
         setAddDialogOpen(false);
         toast.success("Instância criada! Agora conecte o WhatsApp.");
+        onInstancesChange?.();
 
         // Se o backend já retornou um QR, mostramos direto; senão buscamos.
         setSelectedInstanceForQr(created);
@@ -240,6 +245,7 @@ export function AdminInstanceManager() {
       setNewInstanceApiKey("");
       setAddDialogOpen(false);
       toast.success("Instância adicionada com sucesso!");
+      onInstancesChange?.();
 
       // Abrir conexão
       setTimeout(() => handleGetQrCode(data), 50);
