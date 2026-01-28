@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.enviar-aviso-reuniao-imediato]
 verify_jwt = false
+
+[functions.admin-keyword-handler]
+verify_jwt = false
