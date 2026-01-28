@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw } from "lucide-react";
+import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw, Save } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -624,17 +624,13 @@ export function AvisosReuniaoTab() {
 
       {/* Dialog para criar/editar aviso */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); resetForm(); } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingAviso ? 'Editar Aviso' : formTipoGatilho === 'imediato' ? 'Novo Aviso Imediato' : 'Novo Lembrete'}
+              {editingAviso ? 'Editar Aviso' : 'Novo Aviso'}
             </DialogTitle>
             <DialogDescription>
-              {formTipoGatilho === 'imediato' 
-                ? 'Este aviso será enviado automaticamente assim que uma reunião for agendada.'
-                : formTipoGatilho === 'reagendamento'
-                  ? 'Este aviso será enviado automaticamente quando uma reunião for reagendada.'
-                  : 'Configure um lembrete para ser enviado antes da reunião.'}
+              Configure quando e qual mensagem será enviada para os pacientes
             </DialogDescription>
           </DialogHeader>
 
@@ -644,10 +640,50 @@ export function AvisosReuniaoTab() {
               <Label htmlFor="nome">Nome do aviso</Label>
               <Input
                 id="nome"
-                placeholder="Ex: Lembrete 1 dia antes"
                 value={formNome}
                 onChange={(e) => setFormNome(e.target.value)}
+                placeholder="Ex: Lembrete 1 dia antes"
               />
+            </div>
+
+            {/* Tipo de gatilho */}
+            <div className="space-y-2">
+              <Label>Tipo de gatilho</Label>
+              <Select
+                value={formTipoGatilho}
+                onValueChange={(v) => setFormTipoGatilho(v as "dias_antes" | "imediato" | "reagendamento")}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="imediato">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-yellow-500" />
+                      <span>Envio imediato (ao agendar)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="dias_antes">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>Dias antes da reunião</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="reagendamento">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4 text-blue-500" />
+                      <span>Ao reagendar reunião</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formTipoGatilho === 'imediato' 
+                  ? 'Aviso será enviado automaticamente assim que a reunião for agendada'
+                  : formTipoGatilho === 'reagendamento'
+                    ? 'Aviso será enviado automaticamente quando uma reunião for reagendada'
+                    : 'Aviso será enviado X dias antes da reunião'}
+              </p>
             </div>
 
             {/* Procedimento específico */}
@@ -669,137 +705,127 @@ export function AvisosReuniaoTab() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Deixe em "Todos" para enviar para qualquer reunião, ou escolha um procedimento específico
+                Deixe em "Todos" para enviar para qualquer reunião, ou escolha um específico
               </p>
             </div>
 
-            {/* Tipo de gatilho */}
-            <div className="space-y-2">
-              <Label>Tipo de gatilho</Label>
-              <Select
-                value={formTipoGatilho}
-                onValueChange={(v) => setFormTipoGatilho(v as "dias_antes" | "imediato" | "reagendamento")}
-              >
-                <SelectTrigger className="bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
-                  <SelectItem value="imediato">
-                    <span className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-yellow-500" />
-                      Envio imediato (ao agendar)
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="dias_antes">
-                    <span className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Dias antes da reunião
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="reagendamento">
-                    <span className="flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4 text-blue-500" />
-                      Ao reagendar reunião
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {formTipoGatilho === 'imediato' 
-                  ? 'Envia automaticamente assim que a reunião é agendada'
-                  : formTipoGatilho === 'reagendamento' 
-                    ? 'Envia automaticamente quando a reunião é reagendada'
-                    : 'Envia X dias antes da reunião no horário especificado'}
-              </p>
-            </div>
-
-            {/* Configurações de agendamento (somente para tipo dias_antes) */}
-            {formTipoGatilho === 'dias_antes' && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Dias antes</Label>
-                    <Select
-                      value={formDiasAntes.toString()}
-                      onValueChange={(v) => setFormDiasAntes(Number(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">No dia</SelectItem>
-                        <SelectItem value="1">1 dia antes</SelectItem>
-                        <SelectItem value="2">2 dias antes</SelectItem>
-                        <SelectItem value="3">3 dias antes</SelectItem>
-                        <SelectItem value="7">7 dias antes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Horário de envio</Label>
-                    <Input
-                      type="time"
-                      value={formHorarioEnvio}
-                      onChange={(e) => setFormHorarioEnvio(e.target.value)}
-                    />
-                  </div>
+            {/* Período e horário - only show for dias_antes type */}
+            <div className="grid grid-cols-2 gap-4">
+              {formTipoGatilho === 'dias_antes' && (
+                <div className="space-y-2">
+                  <Label htmlFor="diasAntes">Dias antes da reunião</Label>
+                  <Input
+                    id="diasAntes"
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={formDiasAntes}
+                    onChange={(e) => setFormDiasAntes(parseInt(e.target.value) || 0)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    0 = no dia da reunião
+                  </p>
                 </div>
+              )}
+              {formTipoGatilho === 'dias_antes' && (
+                <div className="space-y-2">
+                  <Label htmlFor="horarioEnvio">Horário de envio</Label>
+                  <Input
+                    id="horarioEnvio"
+                    type="time"
+                    value={formHorarioEnvio}
+                    onChange={(e) => setFormHorarioEnvio(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
 
-                {/* Intervalo entre mensagens */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Intervalo entre mensagens</Label>
-                    <Select
-                      value={formIntervaloUnit}
-                      onValueChange={(v) => setFormIntervaloUnit(v as "seconds" | "minutes")}
-                    >
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="seconds">Segundos</SelectItem>
-                        <SelectItem value="minutes">Minutos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Mín: {formIntervaloMin}{formIntervaloUnit === "seconds" ? "s" : "min"}</span>
-                      <span>Máx: {formIntervaloMax}{formIntervaloUnit === "seconds" ? "s" : "min"}</span>
+            {/* Intervalo entre mensagens */}
+            {formTipoGatilho === 'dias_antes' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Intervalo entre mensagens</Label>
+                  <Select value={formIntervaloUnit} onValueChange={(v) => {
+                    setFormIntervaloUnit(v as "seconds" | "minutes");
+                    // Reset to reasonable defaults when switching
+                    if (v === "minutes") {
+                      setFormIntervaloMin(1);
+                      setFormIntervaloMax(5);
+                    } else {
+                      setFormIntervaloMin(15);
+                      setFormIntervaloMax(33);
+                    }
+                  }}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="seconds">Segundos</SelectItem>
+                      <SelectItem value="minutes">Minutos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Mínimo: {formIntervaloMin}{formIntervaloUnit === "minutes" ? "min" : "s"}</span>
+                      <span>Máximo: {formIntervaloMax}{formIntervaloUnit === "minutes" ? "min" : "s"}</span>
                     </div>
                     <Slider
                       value={[formIntervaloMin, formIntervaloMax]}
+                      min={formIntervaloUnit === "minutes" ? 1 : 3}
+                      max={formIntervaloUnit === "minutes" ? 60 : 120}
+                      step={1}
                       onValueChange={([min, max]) => {
                         setFormIntervaloMin(min);
                         setFormIntervaloMax(max);
                       }}
-                      min={formIntervaloUnit === "seconds" ? 5 : 1}
-                      max={formIntervaloUnit === "seconds" ? 120 : 10}
-                      step={formIntervaloUnit === "seconds" ? 5 : 1}
                     />
                   </div>
                 </div>
-              </>
+                <p className="text-xs text-muted-foreground">
+                  O intervalo entre cada mensagem será aleatório entre {formIntervaloMin} e {formIntervaloMax} {formIntervaloUnit === "minutes" ? "minutos" : "segundos"}
+                </p>
+              </div>
             )}
 
             {/* Mensagem */}
             <div className="space-y-2">
-              <Label>Mensagem</Label>
+              <Label htmlFor="mensagem">Mensagem</Label>
               <Textarea
-                placeholder="Digite sua mensagem..."
+                id="mensagem"
                 value={formMensagem}
                 onChange={(e) => setFormMensagem(e.target.value)}
-                rows={6}
+                rows={8}
+                placeholder="Digite a mensagem..."
+                className="resize-none"
               />
               <p className="text-xs text-muted-foreground">
-                Use as variáveis: {"{nome}"}, {"{data}"}, {"{horario}"}, {"{link_call}"}, {"{titulo}"}
+                Variáveis: {'{nome}'}, {'{data}'}, {'{horario}'}, {'{link_call}'}, {'{titulo}'}
               </p>
             </div>
 
+            {/* Preview */}
+            <div className="space-y-2">
+              <Label>Preview da mensagem</Label>
+              <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap">
+                {formMensagem
+                  .replace('{nome}', 'Maria Silva')
+                  .replace('{data}', '15/01/2026')
+                  .replace('{horario}', '14:30')
+                  .replace('{link_call}', 'https://meet.google.com/abc-xyz')
+                  .replace('{titulo}', 'Reunião de Consultoria')}
+              </div>
+            </div>
+
             {/* Ativo */}
-            <div className="flex items-center justify-between">
-              <Label>Ativo</Label>
+            <div className="flex items-center justify-between pt-2">
+              <div className="space-y-0.5">
+                <Label>Aviso ativo</Label>
+                <p className="text-xs text-muted-foreground">
+                  Desative para pausar temporariamente este aviso
+                </p>
+              </div>
               <Switch
                 checked={formAtivo}
                 onCheckedChange={setFormAtivo}
@@ -812,8 +838,12 @@ export function AvisosReuniaoTab() {
               Cancelar
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Salvar
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              {editingAviso ? 'Salvar alterações' : 'Criar aviso'}
             </Button>
           </DialogFooter>
         </DialogContent>
