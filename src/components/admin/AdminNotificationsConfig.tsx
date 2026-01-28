@@ -769,26 +769,6 @@ Período: {data_inicio} a {data_fim}
 
                       {config.keyword_enabled && (
                         <div className="space-y-4 pl-4">
-                          {/* Cooldown */}
-                          <div className="space-y-2">
-                            <Label htmlFor={`keyword-cooldown-${user.id}`}>
-                              Intervalo entre respostas (horas)
-                            </Label>
-                            <Input
-                              id={`keyword-cooldown-${user.id}`}
-                              type="number"
-                              min="0"
-                              value={config.keyword_cooldown_hours ?? 1}
-                              onChange={(e) =>
-                                updateConfig(user.id, "keyword_cooldown_hours", parseInt(e.target.value) || 0)
-                              }
-                              className="w-32"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Evita enviar a mesma resposta repetidamente. 0 = sem limite.
-                            </p>
-                          </div>
-
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`keyword-balance-${user.id}`}>
