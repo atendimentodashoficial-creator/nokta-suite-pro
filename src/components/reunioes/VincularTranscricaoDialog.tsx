@@ -70,8 +70,19 @@ export function VincularTranscricaoDialog({
 
   const vincularMutation = useMutation({
     mutationFn: async (reuniaoFireflies: ReuniaoFireflies) => {
-      // Copiar a transcrição e resumo da reunião do Fireflies para a reunião agendada
-      const { error } = await supabase
+      // 1. Primeiro, deletar o registro Fireflies-only para evitar conflito de unique constraint
+      const { error: deleteError } = await supabase
+        .from("reunioes" as any)
+        .delete()
+        .eq("id", reuniaoFireflies.id);
+
+      if (deleteError) {
+        console.error("Erro ao deletar registro Fireflies:", deleteError);
+        throw deleteError;
+      }
+
+      // 2. Agora podemos atualizar a reunião agendada com os dados da transcrição
+      const { error: updateError } = await supabase
         .from("reunioes" as any)
         .update({
           fireflies_id: reuniaoFireflies.fireflies_id,
@@ -81,10 +92,7 @@ export function VincularTranscricaoDialog({
         })
         .eq("id", reuniaoId);
 
-      if (error) throw error;
-
-      // Opcionalmente, remover a reunião duplicada do Fireflies
-      // Não vamos deletar para preservar histórico
+      if (updateError) throw updateError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reunioes"] });
