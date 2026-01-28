@@ -42,6 +42,7 @@ serve(async (req) => {
       duracaoMinutos = 60,
       participanteEmail,
       participanteNome,
+      participanteTelefone, // Phone number for immediate notifications
       procedimentoNome,
       skipLocalSave = false, // Se true, não salva na tabela reunioes (usado quando ambos calendários são criados)
     } = body;
@@ -200,6 +201,7 @@ serve(async (req) => {
           participantes: participantes,
           meet_link: meetLink,
           status: "agendado",
+          cliente_telefone: participanteTelefone || null,
         })
         .select()
         .single();
@@ -210,6 +212,34 @@ serve(async (req) => {
       } else {
         console.log("Reuniao saved to database:", reuniaoData?.id);
         reuniaoId = reuniaoData?.id;
+
+        // Trigger immediate notification if phone number is provided
+        if (participanteTelefone && reuniaoId) {
+          try {
+            console.log("Triggering immediate notification for reuniao:", reuniaoId);
+            const notifyResponse = await fetch(
+              `${supabaseUrl}/functions/v1/enviar-aviso-reuniao-imediato`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${supabaseKey}`,
+                },
+                body: JSON.stringify({
+                  reuniaoId: reuniaoId,
+                  userId: user.id,
+                  clienteTelefone: participanteTelefone,
+                  clienteNome: participanteNome,
+                }),
+              }
+            );
+            const notifyResult = await notifyResponse.json();
+            console.log("Immediate notification result:", notifyResult);
+          } catch (notifyError) {
+            console.error("Error triggering immediate notification:", notifyError);
+            // Don't fail the main request
+          }
+        }
       }
     } else {
       console.log("Skipping local save as skipLocalSave=true");

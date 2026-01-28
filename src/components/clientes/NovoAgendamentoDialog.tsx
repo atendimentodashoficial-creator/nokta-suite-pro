@@ -805,6 +805,9 @@ export function NovoAgendamentoDialog({
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
+            // Normalizar telefone para envio de notificação imediata
+            const telefoneNormalizado = data.telefone ? `${countryCode}${data.telefone.replace(/\D/g, '')}` : undefined;
+            
             const gcalRes = await supabase.functions.invoke("google-calendar-create-event", {
               headers: { Authorization: `Bearer ${session.access_token}` },
               body: {
@@ -814,6 +817,7 @@ export function NovoAgendamentoDialog({
                 duracaoMinutos: tempoAtendimento,
                 participanteEmail: data.email || undefined,
                 participanteNome: data.nome,
+                participanteTelefone: telefoneNormalizado, // Para envio de aviso imediato
                 procedimentoNome: procedimentoSelecionado?.nome,
                 skipLocalSave: criarNaAgendaApp, // Se também vai criar na agenda do app, não salva na reunioes pelo edge function
               },
@@ -840,8 +844,9 @@ export function NovoAgendamentoDialog({
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
             const participantes = data.email ? [data.nome, data.email] : [data.nome];
+            const telefoneNormalizado = data.telefone ? `${countryCode}${data.telefone.replace(/\D/g, '')}` : null;
             
-            const { error: reuniaoError } = await supabase
+            const { data: reuniaoData, error: reuniaoError } = await supabase
               .from("reunioes")
               .insert({
                 user_id: session.user.id,
@@ -850,13 +855,35 @@ export function NovoAgendamentoDialog({
                 duracao_minutos: tempoAtendimento,
                 participantes: participantes,
                 status: "agendado",
-              });
+                cliente_telefone: telefoneNormalizado,
+              })
+              .select()
+              .single();
 
             if (reuniaoError) {
               console.error("Erro ao criar reunião na agenda do app:", reuniaoError);
               toast.warning("Erro ao criar reunião na agenda do app");
-            } else if (!criarNoGoogleCalendar) {
-              toast.success("Reunião criada na agenda do app!");
+            } else {
+              if (!criarNoGoogleCalendar) {
+                toast.success("Reunião criada na agenda do app!");
+              }
+              
+              // Disparar aviso imediato se houver telefone
+              if (telefoneNormalizado && reuniaoData?.id) {
+                try {
+                  await supabase.functions.invoke("enviar-aviso-reuniao-imediato", {
+                    body: {
+                      reuniaoId: reuniaoData.id,
+                      userId: session.user.id,
+                      clienteTelefone: telefoneNormalizado,
+                      clienteNome: data.nome,
+                    },
+                  });
+                } catch (avisoError) {
+                  console.error("Erro ao enviar aviso imediato:", avisoError);
+                  // Não falha a operação principal
+                }
+              }
             }
           }
         } catch (appError) {
