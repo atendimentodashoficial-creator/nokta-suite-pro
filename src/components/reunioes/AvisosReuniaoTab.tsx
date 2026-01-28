@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap } from "lucide-react";
+import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
 
 interface AvisoReuniao {
   id: string;
@@ -24,6 +25,7 @@ interface AvisoReuniao {
   envio_imediato: boolean;
   intervalo_min: number;
   intervalo_max: number;
+  procedimento_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +52,9 @@ export function AvisosReuniaoTab() {
   const [formIntervaloUnit, setFormIntervaloUnit] = useState<"seconds" | "minutes">("seconds");
   const [formAtivo, setFormAtivo] = useState(true);
   const [formEnvioImediato, setFormEnvioImediato] = useState(false);
+  const [formProcedimentoId, setFormProcedimentoId] = useState<string | null>(null);
+
+  const { data: procedimentos } = useProcedimentos();
 
   // Load avisos
   const loadAvisos = async () => {
@@ -87,6 +92,7 @@ export function AvisosReuniaoTab() {
     setFormIntervaloUnit("seconds");
     setFormAtivo(true);
     setFormEnvioImediato(false);
+    setFormProcedimentoId(null);
     setEditingAviso(null);
   };
 
@@ -125,6 +131,7 @@ export function AvisosReuniaoTab() {
       setFormIntervaloUnit("seconds");
     }
     setFormAtivo(aviso.ativo);
+    setFormProcedimentoId(aviso.procedimento_id || null);
     setIsDialogOpen(true);
   };
 
@@ -181,6 +188,7 @@ export function AvisosReuniaoTab() {
             ativo: formAtivo,
             envio_imediato: formEnvioImediato,
             next_check_at: nextCheckAt,
+            procedimento_id: formProcedimentoId,
           })
           .eq('id', editingAviso.id);
 
@@ -200,6 +208,7 @@ export function AvisosReuniaoTab() {
             ativo: formAtivo,
             envio_imediato: formEnvioImediato,
             next_check_at: nextCheckAt,
+            procedimento_id: formProcedimentoId,
           });
 
         if (error) throw error;
@@ -428,11 +437,17 @@ export function AvisosReuniaoTab() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="text-base">{aviso.nome}</CardTitle>
-                      <CardDescription className="flex items-center gap-2 mt-1">
+                      <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
                         <Badge variant="outline" className="text-xs">
                           {formatPeriodo(aviso.dias_antes)}
                         </Badge>
                         <span className="text-xs">às {aviso.horario_envio.substring(0, 5)}</span>
+                        {aviso.procedimento_id && (
+                          <span className="flex items-center gap-1 text-xs">
+                            <FileText className="h-3 w-3" />
+                            {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
+                          </span>
+                        )}
                       </CardDescription>
                     </div>
                     <Switch
@@ -504,6 +519,29 @@ export function AvisosReuniaoTab() {
                 value={formNome}
                 onChange={(e) => setFormNome(e.target.value)}
               />
+            </div>
+
+            {/* Procedimento específico */}
+            <div className="space-y-2">
+              <Label>Procedimento (opcional)</Label>
+              <Select 
+                value={formProcedimentoId || "all"} 
+                onValueChange={(v) => setFormProcedimentoId(v === "all" ? null : v)}
+              >
+                <SelectTrigger className="bg-background">
+                  <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Todos os procedimentos" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="all">Todos os procedimentos</SelectItem>
+                  {procedimentos?.filter(p => p.ativo).map(proc => (
+                    <SelectItem key={proc.id} value={proc.id}>{proc.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Deixe em "Todos" para enviar para qualquer reunião, ou escolha um procedimento específico
+              </p>
             </div>
 
             {/* Tipo de envio */}

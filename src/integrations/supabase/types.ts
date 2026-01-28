@@ -575,6 +575,7 @@ export type Database = {
           mensagem: string
           next_check_at: string | null
           nome: string
+          procedimento_id: string | null
           updated_at: string
           user_id: string
         }
@@ -591,6 +592,7 @@ export type Database = {
           mensagem: string
           next_check_at?: string | null
           nome: string
+          procedimento_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -607,10 +609,19 @@ export type Database = {
           mensagem?: string
           next_check_at?: string | null
           nome?: string
+          procedimento_id?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "avisos_reuniao_procedimento_id_fkey"
+            columns: ["procedimento_id"]
+            isOneToOne: false
+            referencedRelation: "procedimentos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       avisos_reuniao_log: {
         Row: {
