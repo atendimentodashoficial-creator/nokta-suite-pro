@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { formatInTimeZone } from "date-fns-tz";
 import { CountryCodeSelect, countries } from "@/components/whatsapp/CountryCodeSelect";
+import { buildCandidateStartTimes, rangesOverlap, timeToMinutes, type MinuteRange, type TimeRange } from "@/utils/timeSlots";
 // Calcular próxima data disponível para um profissional
 const calcularProximaDataDisponivel = (
   profissionalId: string,
@@ -532,98 +533,63 @@ export function NovoAgendamentoDialog({
         return dataStr >= aus.data_inicio && dataStr <= aus.data_fim;
       });
       
-      // Gerar todos os horários (das substituições ou da escala)
-      const todosHorarios: string[] = [];
-      
+      // Janelas de atendimento (substituição ou escala)
+      let windows: TimeRange[] = [];
+
       if (substituicoes.length > 0) {
-        // Verificar se alguma substituição não tem horários (dia indisponível)
-        const diaInteiro = substituicoes.some(s => !s.hora_inicio || !s.hora_fim);
-        
+        const diaInteiro = substituicoes.some((s) => !s.hora_inicio || !s.hora_fim);
         if (!diaInteiro) {
-          // Gerar horários para cada faixa de substituição
-          substituicoes.forEach(sub => {
-            if (sub.hora_inicio && sub.hora_fim) {
-              const horariosIntervalo = gerarHorariosIntervalo(
-                sub.hora_inicio,
-                sub.hora_fim,
-                intervaloEfetivo
-              );
-              todosHorarios.push(...horariosIntervalo);
-            }
-          });
+          windows = substituicoes
+            .filter((s) => s.hora_inicio && s.hora_fim)
+            .map((s) => ({ start: s.hora_inicio, end: s.hora_fim }));
         }
-        // Se diaInteiro = true, todosHorarios fica vazio (profissional indisponível)
       } else if (escalasProfissional.length > 0) {
-        // Sem substituição - usar escala normal
-        escalasProfissional.forEach(escala => {
-          const horariosIntervalo = gerarHorariosIntervalo(
-            escala.hora_inicio,
-            escala.hora_fim,
-            intervaloEfetivo
-          );
-          todosHorarios.push(...horariosIntervalo);
-        });
+        windows = escalasProfissional.map((e) => ({ start: e.hora_inicio, end: e.hora_fim }));
       }
-      
-      // Remover horários já ocupados por AGENDAMENTOS (considerando duração)
-      const horariosOcupadosAgendamentos: string[] = [];
+
+      // Candidatos respeitam fim da janela e a duração do NOVO procedimento
+      const candidatos = buildCandidateStartTimes(windows, intervaloEfetivo, tempoAtendimento);
+
+      const busy: MinuteRange[] = [];
+
+      // Agendamentos existentes (intervalos reais)
       todosAgendamentos
-        ?.filter(ag => {
+        ?.filter((ag) => {
           if (ag.profissional_id !== prof.id) return false;
           if (ag.status === "cancelado") return false;
-          const agData = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
+          const agData = formatInTimeZone(ag.data_agendamento as any, "America/Sao_Paulo", "yyyy-MM-dd");
           return agData === dataStr;
         })
-        .forEach(ag => {
-          const horaInicio = formatInTimeZone(ag.data_agendamento as any, 'America/Sao_Paulo', 'HH:mm');
-          // Obter duração do procedimento do agendamento
-          const procDuracao = procedimentos?.find(p => p.id === ag.procedimento_id)?.tempo_atendimento_minutos 
-            || procedimentos?.find(p => p.id === ag.procedimento_id)?.duracao_minutos 
-            || 60;
-          
-          // Gerar todos os slots que este agendamento ocupa
-          const [h, m] = horaInicio.split(':').map(Number);
-          let minutoAtual = h * 60 + m;
-          const minutoFim = minutoAtual + procDuracao;
-          
-          while (minutoAtual < minutoFim) {
-            const hora = Math.floor(minutoAtual / 60);
-            const min = minutoAtual % 60;
-            horariosOcupadosAgendamentos.push(`${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
-            minutoAtual += intervaloEfetivo;
-          }
+        .forEach((ag) => {
+          const startStr = formatInTimeZone(ag.data_agendamento as any, "America/Sao_Paulo", "HH:mm");
+          const startMin = timeToMinutes(startStr);
+          const dur =
+            procedimentos?.find((p) => p.id === ag.procedimento_id)?.tempo_atendimento_minutos ||
+            procedimentos?.find((p) => p.id === ag.procedimento_id)?.duracao_minutos ||
+            60;
+          busy.push({ startMin, endMin: startMin + dur });
         });
-      
-      // Remover horários já ocupados por REUNIÕES (considerando duração)
-      const horariosOcupadosReunioes: string[] = [];
+
+      // Reuniões existentes (intervalos reais)
       reunioes
-        ?.filter(r => {
+        ?.filter((r) => {
           if (r.profissional_id !== prof.id) return false;
-          const rData = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'yyyy-MM-dd');
+          const rData = formatInTimeZone(r.data_reuniao as any, "America/Sao_Paulo", "yyyy-MM-dd");
           return rData === dataStr;
         })
-        .forEach(r => {
-          const horaInicio = formatInTimeZone(r.data_reuniao as any, 'America/Sao_Paulo', 'HH:mm');
-          const reuniaoDuracao = r.duracao_minutos || 30;
-          
-          // Gerar todos os slots que esta reunião ocupa
-          const [h, m] = horaInicio.split(':').map(Number);
-          let minutoAtual = h * 60 + m;
-          const minutoFim = minutoAtual + reuniaoDuracao;
-          
-          while (minutoAtual < minutoFim) {
-            const hora = Math.floor(minutoAtual / 60);
-            const min = minutoAtual % 60;
-            horariosOcupadosReunioes.push(`${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
-            minutoAtual += intervaloEfetivo;
-          }
+        .forEach((r) => {
+          const startStr = formatInTimeZone(r.data_reuniao as any, "America/Sao_Paulo", "HH:mm");
+          const startMin = timeToMinutes(startStr);
+          const dur = r.duracao_minutos || 30;
+          busy.push({ startMin, endMin: startMin + dur });
         });
-      
-      // Combinar horários ocupados
-      const horariosOcupados = [...horariosOcupadosAgendamentos, ...horariosOcupadosReunioes];
-      
-      const horariosLivres = [...new Set(todosHorarios)]
-        .filter(h => !horariosOcupados.includes(h))
+
+      const horariosLivres = candidatos
+        .filter((hhmm) => {
+          const startMin = timeToMinutes(hhmm);
+          const candidateRange: MinuteRange = { startMin, endMin: startMin + tempoAtendimento };
+          return !busy.some((b) => rangesOverlap(candidateRange, b));
+        })
         .sort();
       
       // Calcular próxima data disponível se não houver horários
