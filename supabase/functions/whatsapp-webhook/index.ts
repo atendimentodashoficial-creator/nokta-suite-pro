@@ -762,8 +762,11 @@ Deno.serve(async (req) => {
           const { error: dedupError } = await supabase
             .from('webhook_message_dedup')
             .insert({
-              // Use effectiveUserId when available; fallback placeholder is already handled earlier
-              user_id: effectiveUserId,
+              // IMPORTANT: for admin-instance keyword triggers we must NOT use effectiveUserId here.
+              // The webhook can run with different "effectiveUserId" values depending on routing/auth,
+              // which would bypass the unique index and cause duplicate replies.
+              // We use a constant placeholder user_id so dedup is stable across retries.
+              user_id: '00000000-0000-0000-0000-000000000000',
               // Store the admin instance id as instancia_id so duplicates are scoped correctly
               instancia_id: adminNotificationInstanceId,
               phone_last8: last8Incoming,
