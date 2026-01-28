@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, Users, XCircle, CalendarClock } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,17 @@ import { TemplateCamposDialog } from "@/components/reunioes/TemplateCamposDialog
 import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDialog";
 import { AvisosReuniaoTab } from "@/components/reunioes/AvisosReuniaoTab";
 import { VincularTranscricaoDialog } from "@/components/reunioes/VincularTranscricaoDialog";
+import { ReagendarReuniaoDialog } from "@/components/reunioes/ReagendarReuniaoDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Reuniao {
   id: string;
@@ -35,11 +46,14 @@ interface Reuniao {
 
 export default function Reunioes() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [selectedReuniao, setSelectedReuniao] = useState<Reuniao | null>(null);
   const [activeTab, setActiveTab] = useState("reunioes");
   const [vincularDialogOpen, setVincularDialogOpen] = useState(false);
   const [reuniaoParaVincular, setReuniaoParaVincular] = useState<Reuniao | null>(null);
+  const [reuniaoParaDesmarcar, setReuniaoParaDesmarcar] = useState<Reuniao | null>(null);
+  const [reuniaoParaReagendar, setReuniaoParaReagendar] = useState<Reuniao | null>(null);
 
   const { data: reunioes, isLoading, refetch } = useQuery({
     queryKey: ["reunioes", user?.id],
@@ -106,6 +120,26 @@ export default function Reunioes() {
     return `${mins}min`;
   };
 
+  const desmarcarMutation = useMutation({
+    mutationFn: async (reuniaoId: string) => {
+      const { error } = await supabase
+        .from("reunioes" as any)
+        .update({ status: "cancelado" })
+        .eq("id", reuniaoId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
+      toast.success("Reunião desmarcada com sucesso!");
+      setReuniaoParaDesmarcar(null);
+    },
+    onError: (error) => {
+      console.error("Erro ao desmarcar:", error);
+      toast.error("Erro ao desmarcar reunião");
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "transcrito":
@@ -114,6 +148,8 @@ export default function Reunioes() {
         return <Badge className="bg-green-500/20 text-green-700">Resumido</Badge>;
       case "pendente":
         return <Badge variant="outline">Pendente</Badge>;
+      case "cancelado":
+        return <Badge variant="destructive">Cancelado</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -266,7 +302,7 @@ export default function Reunioes() {
 
 
                           {/* Botões de ação */}
-                          <div className="flex gap-2 mt-2">
+                          <div className="flex flex-wrap gap-2 mt-2">
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -293,6 +329,30 @@ export default function Reunioes() {
                               </Button>
                             )}
                           </div>
+                          
+                          {/* Botões de reagendar/desmarcar - só para reuniões não canceladas */}
+                          {reuniao.status !== "cancelado" && (
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 gap-2"
+                                onClick={() => setReuniaoParaReagendar(reuniao)}
+                              >
+                                <CalendarClock className="w-4 h-4" />
+                                Reagendar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 gap-2 text-destructive hover:text-destructive"
+                                onClick={() => setReuniaoParaDesmarcar(reuniao)}
+                              >
+                                <XCircle className="w-4 h-4" />
+                                Desmarcar
+                              </Button>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}
@@ -336,6 +396,35 @@ export default function Reunioes() {
           reuniaoTitulo={reuniaoParaVincular.titulo}
         />
       )}
+
+      {/* Dialog de reagendar */}
+      <ReagendarReuniaoDialog
+        reuniao={reuniaoParaReagendar}
+        open={!!reuniaoParaReagendar}
+        onOpenChange={(open) => !open && setReuniaoParaReagendar(null)}
+      />
+
+      {/* Dialog de confirmação para desmarcar */}
+      <AlertDialog open={!!reuniaoParaDesmarcar} onOpenChange={(open) => !open && setReuniaoParaDesmarcar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desmarcar Reunião</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja desmarcar a reunião "{reuniaoParaDesmarcar?.titulo}"?
+              Esta ação marcará a reunião como cancelada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => reuniaoParaDesmarcar && desmarcarMutation.mutate(reuniaoParaDesmarcar.id)}
+            >
+              Desmarcar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
