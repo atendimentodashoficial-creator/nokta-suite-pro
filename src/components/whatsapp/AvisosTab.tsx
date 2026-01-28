@@ -188,6 +188,17 @@ export function AvisosTab() {
     };
   }, [agendamentos, avisos, avisosLogs]);
 
+  // Separar avisos por tipo
+  const avisosReagendamento = avisos.filter(a => a.tipo_gatilho === 'reagendamento');
+  const avisosAgendados = avisos.filter(a => a.tipo_gatilho !== 'reagendamento');
+
+  // Format period text
+  const formatPeriodo = (dias: number) => {
+    if (dias === 0) return 'No dia';
+    if (dias === 1) return '1 dia antes';
+    return `${dias} dias antes`;
+  };
+
   // Load avisos
   const loadAvisos = async () => {
     try {
@@ -432,13 +443,6 @@ export function AvisosTab() {
     }
   };
 
-  // Format period text
-  const formatPeriodo = (dias: number, tipoGatilho?: string) => {
-    if (tipoGatilho === 'reagendamento') return 'Ao reagendar';
-    if (dias === 0) return 'No dia';
-    if (dias === 1) return '1 dia antes';
-    return `${dias} dias antes`;
-  };
 
   // Test sending avisos manually
   // Test sending a specific aviso
@@ -495,116 +499,216 @@ export function AvisosTab() {
         </Button>
       </div>
 
-      {/* Lista de Avisos */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {avisos.length === 0 ? (
-          <Card className="md:col-span-2 lg:col-span-3">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Bell className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground text-center">
-                Nenhum aviso configurado ainda.
-                <br />
-                Clique em "Novo Aviso" para criar seu primeiro lembrete.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          avisos.map((aviso) => (
-            <Card key={aviso.id} className={!aviso.ativo ? 'opacity-60' : ''}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      {aviso.nome}
-                      {!aviso.ativo && (
-                        <Badge variant="secondary" className="text-xs">Inativo</Badge>
-                      )}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      <span className="flex items-center gap-1">
-                        {aviso.tipo_gatilho === 'reagendamento' ? (
-                          <RefreshCw className="h-3 w-3" />
-                        ) : (
-                          <Calendar className="h-3 w-3" />
-                        )}
-                        {formatPeriodo(aviso.dias_antes, aviso.tipo_gatilho)}
-                      </span>
-                      <span className="flex items-center gap-1 mt-0.5">
-                        <Clock className="h-3 w-3" />
-                        Envio às {aviso.horario_envio.substring(0, 5)} • Intervalo: {aviso.intervalo_min}-{aviso.intervalo_max}s
-                      </span>
-                      {aviso.procedimento_id && (
-                        <span className="flex items-center gap-1 mt-0.5">
-                          <FileText className="h-3 w-3" />
-                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Procedimento específico"}
+      {/* Variáveis disponíveis */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Variáveis Disponíveis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">{"{nome}"}</Badge>
+            <Badge variant="secondary">{"{data}"}</Badge>
+            <Badge variant="secondary">{"{horario}"}</Badge>
+            <Badge variant="secondary">{"{procedimento}"}</Badge>
+            <Badge variant="secondary">{"{profissional}"}</Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Use as variáveis para personalizar a mensagem com os dados do agendamento.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Avisos de Reagendamento */}
+      {avisosReagendamento.length > 0 && (
+        <div className="space-y-4">
+          <div className="bg-secondary text-secondary-foreground rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5 text-blue-500" />
+              <span className="font-semibold">Avisos de Reagendamento</span>
+            </div>
+            <span className="text-sm opacity-80">Enviados quando o agendamento é reagendado</span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {avisosReagendamento.map((aviso) => (
+              <Card key={aviso.id} className="shadow-card hover:shadow-elegant transition-all duration-300">
+                <CardContent className="p-4 flex flex-col">
+                  <div className="space-y-3 flex-1">
+                    {/* Header: Nome e Switch */}
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg text-foreground">{aviso.nome}</h3>
+                      <Switch
+                        checked={aviso.ativo}
+                        onCheckedChange={() => handleToggleAtivo(aviso)}
+                      />
+                    </div>
+
+                    {/* Procedimento se especificado */}
+                    {aviso.procedimento_id && (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate">
+                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
                         </span>
-                      )}
-                    </CardDescription>
-                  </div>
-                  <Switch
-                    checked={aviso.ativo}
-                    onCheckedChange={() => handleToggleAtivo(aviso)}
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="bg-muted/50 rounded-lg p-3 text-xs whitespace-pre-wrap line-clamp-4 mb-3">
-                  {aviso.mensagem}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTestEnvioAviso(aviso)}
-                    disabled={testingAvisoId === aviso.id || !aviso.ativo}
-                    title="Testar envio deste aviso"
-                  >
-                    {testingAvisoId === aviso.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Send className="h-3.5 w-3.5" />
+                      </div>
                     )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleEditAviso(aviso)}
-                  >
-                    <Edit className="h-3.5 w-3.5 mr-1" />
-                    Editar
-                  </Button>
-                  {deleteConfirmId === aviso.id ? (
-                    <>
+
+                    {/* Preview da mensagem */}
+                    <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+                      {aviso.mensagem}
+                    </p>
+                  </div>
+
+                  {/* Ações */}
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <div className="flex gap-2">
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(aviso.id)}
+                        className="flex-1"
+                        onClick={() => handleEditAviso(aviso)}
                       >
-                        <Check className="h-3.5 w-3.5" />
+                        <Edit className="h-3 w-3 mr-1" />
+                        Editar
+                      </Button>
+                      {deleteConfirmId === aviso.id ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(aviso.id)}
+                        >
+                          Confirmar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirmId(aviso.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lembretes Agendados */}
+      <div className="space-y-4">
+        <div className="bg-secondary text-secondary-foreground rounded-xl p-4">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            <span className="font-semibold">Lembretes Agendados</span>
+          </div>
+          <span className="text-sm opacity-80">Enviados X dias antes do agendamento</span>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {avisosAgendados.length === 0 ? (
+            <Card className="md:col-span-2 lg:col-span-3">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Bell className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground text-center">
+                  Nenhum lembrete configurado ainda.
+                  <br />
+                  Clique em "Novo Aviso" para criar seu primeiro lembrete.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            avisosAgendados.map((aviso) => (
+              <Card key={aviso.id} className="shadow-card hover:shadow-elegant transition-all duration-300">
+                <CardContent className="p-4 flex flex-col">
+                  <div className="space-y-3 flex-1">
+                    {/* Header: Nome e Switch */}
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg text-foreground">{aviso.nome}</h3>
+                      <Switch
+                        checked={aviso.ativo}
+                        onCheckedChange={() => handleToggleAtivo(aviso)}
+                      />
+                    </div>
+
+                    {/* Timing info */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-xs">
+                        {formatPeriodo(aviso.dias_antes)}
+                      </Badge>
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>às {aviso.horario_envio.substring(0, 5)}</span>
+                      </div>
+                    </div>
+
+                    {/* Procedimento se especificado */}
+                    {aviso.procedimento_id && (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate">
+                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Preview da mensagem */}
+                    <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+                      {aviso.mensagem}
+                    </p>
+                  </div>
+
+                  {/* Ações */}
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTestEnvioAviso(aviso)}
+                        disabled={testingAvisoId === aviso.id || !aviso.ativo}
+                        title="Testar envio deste aviso"
+                      >
+                        {testingAvisoId === aviso.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Send className="h-3 w-3" />
+                        )}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setDeleteConfirmId(null)}
+                        className="flex-1"
+                        onClick={() => handleEditAviso(aviso)}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <Edit className="h-3 w-3 mr-1" />
+                        Editar
                       </Button>
-                    </>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeleteConfirmId(aviso.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+                      {deleteConfirmId === aviso.id ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(aviso.id)}
+                        >
+                          Confirmar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirmId(aviso.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Dashboard de Resumo do Dia - ACIMA dos próximos agendamentos */}
