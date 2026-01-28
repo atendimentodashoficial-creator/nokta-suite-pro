@@ -178,7 +178,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { reuniaoId, userId: userIdFromBody, clienteTelefone, clienteNome, instanciaId, instanciaNome } = body;
+    const { reuniaoId, userId: userIdFromBody, clienteTelefone, clienteNome, instanciaId, instanciaNome, tipo = "imediato" } = body;
 
     // Auth: allow either a real user JWT (from the app) OR an internal call using the service role key.
     const authHeader = req.headers.get("Authorization") || "";
@@ -206,7 +206,8 @@ serve(async (req) => {
       resolvedUserId = user.id;
     }
 
-    console.log(`Starting immediate notification for reuniao ${reuniaoId}, user ${resolvedUserId}`);
+    const isReagendamento = tipo === "reagendamento";
+    console.log(`Starting ${isReagendamento ? 'rescheduling' : 'immediate'} notification for reuniao ${reuniaoId}, user ${resolvedUserId}`);
 
     if (!reuniaoId || !resolvedUserId) {
       return new Response(
@@ -241,13 +242,22 @@ serve(async (req) => {
       );
     }
 
-    // Get active immediate notifications for this user
-    const { data: avisosImediatos, error: avisosError } = await supabase
+    // Get active notifications for this user based on type
+    let avisosQuery = supabase
       .from("avisos_reuniao")
       .select("*")
       .eq("user_id", resolvedUserId)
-      .eq("ativo", true)
-      .eq("envio_imediato", true);
+      .eq("ativo", true);
+
+    if (isReagendamento) {
+      // For rescheduling, get avisos with tipo_gatilho = 'reagendamento'
+      avisosQuery = avisosQuery.eq("tipo_gatilho", "reagendamento");
+    } else {
+      // For immediate, get avisos with envio_imediato = true
+      avisosQuery = avisosQuery.eq("envio_imediato", true);
+    }
+
+    const { data: avisos, error: avisosError } = await avisosQuery;
 
     if (avisosError) {
       console.error("Error fetching avisos:", avisosError);
@@ -257,10 +267,10 @@ serve(async (req) => {
       );
     }
 
-    if (!avisosImediatos || avisosImediatos.length === 0) {
-      console.log("No immediate notifications configured");
+    if (!avisos || avisos.length === 0) {
+      console.log(`No ${isReagendamento ? 'rescheduling' : 'immediate'} notifications configured`);
       return new Response(
-        JSON.stringify({ success: true, message: "Nenhum aviso imediato configurado", sent: 0 }),
+        JSON.stringify({ success: true, message: `Nenhum aviso ${isReagendamento ? 'de reagendamento' : 'imediato'} configurado`, sent: 0 }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -348,7 +358,7 @@ serve(async (req) => {
           success: false,
           error: "Instância WhatsApp desconectada. Reconecte em Conexões → Disparos (QR Code).",
           sent: 0,
-          total: avisosImediatos.length,
+          total: avisos.length,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -357,7 +367,7 @@ serve(async (req) => {
     const phoneCandidates = buildPhoneCandidates(telefone);
     let sentCount = 0;
 
-    for (const aviso of avisosImediatos) {
+    for (const aviso of avisos) {
       try {
         // Calculate random delay within interval
         const delayMs = Math.floor(
@@ -432,7 +442,7 @@ serve(async (req) => {
           continue;
         }
 
-        console.log(`Successfully sent immediate notification "${aviso.nome}" to ${deliveredTo}`);
+        console.log(`Successfully sent ${isReagendamento ? 'rescheduling' : 'immediate'} notification "${aviso.nome}" to ${deliveredTo}`);
         sentCount++;
 
         // Log the success
@@ -447,6 +457,15 @@ serve(async (req) => {
           mensagem_enviada: mensagem,
           status: "enviado",
         });
+
+        // For rescheduling type, update ultimo_reagendamento_avisado after sending
+        if (isReagendamento && reuniao.numero_reagendamentos !== undefined) {
+          await supabase
+            .from("reunioes")
+            .update({ ultimo_reagendamento_avisado: reuniao.numero_reagendamentos })
+            .eq("id", reuniaoId);
+          console.log(`Updated ultimo_reagendamento_avisado to ${reuniao.numero_reagendamentos} for reuniao ${reuniaoId}`);
+        }
 
       } catch (err) {
         console.error(`Error processing aviso "${aviso.nome}":`, err);
@@ -467,12 +486,13 @@ serve(async (req) => {
       }
     }
 
+    const tipoMsg = isReagendamento ? 'de reagendamento' : 'imediato(s)';
     return new Response(
       JSON.stringify({ 
         success: sentCount > 0, 
-        message: `${sentCount} aviso(s) imediato(s) enviado(s)`,
+        message: `${sentCount} aviso(s) ${tipoMsg} enviado(s)`,
         sent: sentCount,
-        total: avisosImediatos.length
+        total: avisos.length
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText } from "lucide-react";
+import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -26,6 +26,7 @@ interface AvisoReuniao {
   intervalo_min: number;
   intervalo_max: number;
   procedimento_id: string | null;
+  tipo_gatilho: string;
   created_at: string;
   updated_at: string;
 }
@@ -53,6 +54,7 @@ export function AvisosReuniaoTab() {
   const [formAtivo, setFormAtivo] = useState(true);
   const [formEnvioImediato, setFormEnvioImediato] = useState(false);
   const [formProcedimentoId, setFormProcedimentoId] = useState<string | null>(null);
+  const [formTipoGatilho, setFormTipoGatilho] = useState<"dias_antes" | "reagendamento">("dias_antes");
 
   const { data: procedimentos } = useProcedimentos();
 
@@ -93,6 +95,7 @@ export function AvisosReuniaoTab() {
     setFormAtivo(true);
     setFormEnvioImediato(false);
     setFormProcedimentoId(null);
+    setFormTipoGatilho("dias_antes");
     setEditingAviso(null);
   };
 
@@ -132,6 +135,7 @@ export function AvisosReuniaoTab() {
     }
     setFormAtivo(aviso.ativo);
     setFormProcedimentoId(aviso.procedimento_id || null);
+    setFormTipoGatilho((aviso.tipo_gatilho as "dias_antes" | "reagendamento") || "dias_antes");
     setIsDialogOpen(true);
   };
 
@@ -155,7 +159,8 @@ export function AvisosReuniaoTab() {
       const intervaloMaxSec = formIntervaloUnit === "minutes" ? formIntervaloMax * 60 : formIntervaloMax;
 
       const calculateNextCheckAt = (horarioEnvio: string, isActive: boolean): string | null => {
-        if (!isActive || formEnvioImediato) return null;
+        // Immediate or rescheduling notifications don't need scheduled checks
+        if (!isActive || formEnvioImediato || formTipoGatilho === 'reagendamento') return null;
         
         const now = new Date();
         const utc = now.getTime() + now.getTimezoneOffset() * 60000;
@@ -189,6 +194,7 @@ export function AvisosReuniaoTab() {
             envio_imediato: formEnvioImediato,
             next_check_at: nextCheckAt,
             procedimento_id: formProcedimentoId,
+            tipo_gatilho: formTipoGatilho,
           })
           .eq('id', editingAviso.id);
 
@@ -209,6 +215,7 @@ export function AvisosReuniaoTab() {
             envio_imediato: formEnvioImediato,
             next_check_at: nextCheckAt,
             procedimento_id: formProcedimentoId,
+            tipo_gatilho: formTipoGatilho,
           });
 
         if (error) throw error;
@@ -232,7 +239,8 @@ export function AvisosReuniaoTab() {
       const newAtivo = !aviso.ativo;
       
       let nextCheckAt: string | null = null;
-      if (newAtivo && !aviso.envio_imediato && aviso.horario_envio) {
+      // Only dias_antes type needs scheduled checks, not imediato or reagendamento
+      if (newAtivo && !aviso.envio_imediato && aviso.tipo_gatilho !== 'reagendamento' && aviso.horario_envio) {
         const now = new Date();
         const utc = now.getTime() + now.getTimezoneOffset() * 60000;
         const saoPauloOffset = -3 * 60 * 60 * 1000;
@@ -301,7 +309,8 @@ export function AvisosReuniaoTab() {
   }
 
   const avisosImediatos = avisos.filter(a => a.envio_imediato);
-  const avisosAgendados = avisos.filter(a => !a.envio_imediato);
+  const avisosReagendamento = avisos.filter(a => !a.envio_imediato && a.tipo_gatilho === 'reagendamento');
+  const avisosAgendados = avisos.filter(a => !a.envio_imediato && a.tipo_gatilho !== 'reagendamento');
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -366,6 +375,77 @@ export function AvisosReuniaoTab() {
                           Imediato
                         </Badge>
                       </CardTitle>
+                    </div>
+                    <Switch
+                      checked={aviso.ativo}
+                      onCheckedChange={() => handleToggleAtivo(aviso)}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+                    {aviso.mensagem}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleEditAviso(aviso)}
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Editar
+                    </Button>
+                    {deleteConfirmId === aviso.id ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(aviso.id)}
+                      >
+                        Confirmar
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteConfirmId(aviso.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Avisos de Reagendamento */}
+      {avisosReagendamento.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-blue-500" />
+            Avisos de Reagendamento
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {avisosReagendamento.map((aviso) => (
+              <Card key={aviso.id} className="relative">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {aviso.nome}
+                        <Badge className="bg-blue-500/20 text-blue-700 text-xs">
+                          Reagendamento
+                        </Badge>
+                      </CardTitle>
+                      {aviso.procedimento_id && (
+                        <CardDescription className="flex items-center gap-1 mt-1 text-xs">
+                          <FileText className="h-3 w-3" />
+                          {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
+                        </CardDescription>
+                      )}
                     </div>
                     <Switch
                       checked={aviso.ativo}
@@ -554,12 +634,51 @@ export function AvisosReuniaoTab() {
               </div>
               <Switch
                 checked={formEnvioImediato}
-                onCheckedChange={setFormEnvioImediato}
+                onCheckedChange={(checked) => {
+                  setFormEnvioImediato(checked);
+                  if (checked) {
+                    setFormTipoGatilho("dias_antes"); // Reset to default when immediate
+                  }
+                }}
               />
             </div>
 
-            {/* Configurações de agendamento (se não for imediato) */}
+            {/* Tipo de gatilho (se não for imediato) */}
             {!formEnvioImediato && (
+              <div className="space-y-2">
+                <Label>Tipo de gatilho</Label>
+                <Select
+                  value={formTipoGatilho}
+                  onValueChange={(v) => setFormTipoGatilho(v as "dias_antes" | "reagendamento")}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border shadow-lg z-50">
+                    <SelectItem value="dias_antes">
+                      <span className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Dias antes da reunião
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="reagendamento">
+                      <span className="flex items-center gap-2">
+                        <RefreshCw className="h-4 w-4" />
+                        Ao reagendar reunião
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {formTipoGatilho === 'reagendamento' 
+                    ? 'Envia automaticamente quando a reunião é reagendada'
+                    : 'Envia X dias antes da reunião no horário especificado'}
+                </p>
+              </div>
+            )}
+
+            {/* Configurações de agendamento (se não for imediato e for tipo dias_antes) */}
+            {!formEnvioImediato && formTipoGatilho === 'dias_antes' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
