@@ -89,6 +89,26 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
 
       if (error) throw error;
 
+      // Check if there's an error message in the response (e.g., no account configured)
+      if (data?.error) {
+        let errorMessage = "Sem conta";
+        if (data.error.includes("não configurado") || data.error.includes("não configurada")) {
+          errorMessage = "Sem config";
+        } else if (data.error.includes("permission") || data.error.includes("OAuthException")) {
+          errorMessage = "Sem permissão";
+        }
+        
+        setBalances(prev => ({
+          ...prev,
+          [userId]: { 
+            balance: null, 
+            loading: false,
+            error: errorMessage
+          }
+        }));
+        return;
+      }
+
       setBalances(prev => ({
         ...prev,
         [userId]: { 
@@ -100,7 +120,7 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
       console.error("Erro ao buscar saldo:", error);
       setBalances(prev => ({
         ...prev,
-        [userId]: { balance: null, loading: false, error: "Erro ao buscar" }
+        [userId]: { balance: null, loading: false, error: "Erro" }
       }));
     }
   };
@@ -284,6 +304,10 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                         <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
                         {balanceInfo?.loading ? (
                           <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                        ) : balanceInfo?.error ? (
+                          <span className="text-xs text-muted-foreground" title={balanceInfo.error}>
+                            {balanceInfo.error}
+                          </span>
                         ) : balanceInfo?.balance !== null && balanceInfo?.balance !== undefined ? (
                           <span className={`text-xs font-medium ${
                             config && balanceInfo.balance < config.low_balance_threshold

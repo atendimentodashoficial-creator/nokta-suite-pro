@@ -46,7 +46,8 @@ serve(async (req) => {
       );
     }
 
-    const { action, ad_account_id, campaign_id, adset_id, date_start, date_end, account_type } = await req.json();
+    const requestBody = await req.json();
+    const { action, ad_account_id, campaign_id, adset_id, date_start, date_end, account_type, userId: requestUserId } = requestBody;
     console.log("Action:", action, "Ad Account ID:", ad_account_id, "Campaign ID:", campaign_id, "Adset ID:", adset_id, "Date range:", date_start, "-", date_end, "Account Type:", account_type);
 
     // Função para buscar cotação do dólar usando múltiplas APIs como fallback
@@ -1260,8 +1261,8 @@ serve(async (req) => {
 
     // Nova action para admin buscar saldo de um usuário específico
     if (action === "get_account_balance") {
-      const { userId } = await req.json().catch(() => ({}));
-      const targetUserId = userId || user.id;
+      // userId já foi extraído do body no início da função
+      const targetUserId = requestUserId || user.id;
 
       console.log("[BALANCE] Getting balance for user:", targetUserId);
 
