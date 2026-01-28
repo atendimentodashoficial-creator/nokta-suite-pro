@@ -195,6 +195,70 @@ serve(async (req) => {
         );
       }
 
+      case 'get_notification_config': {
+        // Obter configuração de notificações do cliente
+        const { data: config, error: getError } = await supabase
+          .from('admin_client_notifications')
+          .select('*, disparos_instancias(id, nome)')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (getError) throw getError;
+
+        // Também obter lista de instâncias do cliente para seleção
+        const { data: instancias, error: instError } = await supabase
+          .from('disparos_instancias')
+          .select('id, nome, is_active')
+          .eq('user_id', userId)
+          .eq('is_active', true);
+
+        if (instError) throw instError;
+
+        return new Response(
+          JSON.stringify({ success: true, config, instancias }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'update_notification_config': {
+        const { instanciaId, lowBalanceEnabled, lowBalanceThreshold, campaignReportsEnabled } = await req.json();
+
+        // Upsert configuração
+        const { error: upsertError } = await supabase
+          .from('admin_client_notifications')
+          .upsert({
+            user_id: userId,
+            instancia_id: instanciaId || null,
+            low_balance_enabled: lowBalanceEnabled ?? true,
+            low_balance_threshold: lowBalanceThreshold ?? 100,
+            campaign_reports_enabled: campaignReportsEnabled ?? true,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          });
+
+        if (upsertError) throw upsertError;
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Configuração atualizada' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'get_all_notification_configs': {
+        // Obter todas configurações de notificações (para listar no admin)
+        const { data: configs, error: getError } = await supabase
+          .from('admin_client_notifications')
+          .select('*, disparos_instancias(id, nome)');
+
+        if (getError) throw getError;
+
+        return new Response(
+          JSON.stringify({ success: true, configs }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: 'Ação inválida' }),

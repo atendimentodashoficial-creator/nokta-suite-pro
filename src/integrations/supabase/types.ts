@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_client_notifications: {
+        Row: {
+          campaign_reports_enabled: boolean | null
+          created_at: string | null
+          id: string
+          instancia_id: string | null
+          low_balance_enabled: boolean | null
+          low_balance_threshold: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          campaign_reports_enabled?: boolean | null
+          created_at?: string | null
+          id?: string
+          instancia_id?: string | null
+          low_balance_enabled?: boolean | null
+          low_balance_threshold?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          campaign_reports_enabled?: boolean | null
+          created_at?: string | null
+          id?: string
+          instancia_id?: string | null
+          low_balance_enabled?: boolean | null
+          low_balance_threshold?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_client_notifications_instancia_id_fkey"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "disparos_instancias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_users: {
         Row: {
           created_at: string | null
