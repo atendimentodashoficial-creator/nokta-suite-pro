@@ -181,31 +181,39 @@ export default function Reunioes() {
           ) : reunioes && reunioes.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {reunioes.map((reuniao) => (
-                <Card key={reuniao.id} className="flex flex-col">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-lg line-clamp-2">
-                        {reuniao.titulo}
-                      </CardTitle>
+                <Card 
+                  key={reuniao.id} 
+                  className="flex flex-col shadow-card hover:shadow-elegant transition-all duration-300 animate-fade-in bg-gradient-card"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-primary shrink-0">
+                          <Video className="h-5 w-5 text-primary-foreground" />
+                        </div>
+                        <CardTitle className="text-base font-semibold line-clamp-2">
+                          {reuniao.titulo}
+                        </CardTitle>
+                      </div>
                       {getStatusBadge(reuniao.status)}
                     </div>
-                    <CardDescription className="flex items-center gap-4 text-xs">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2 ml-13">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
                         {format(new Date(reuniao.data_reuniao), "dd MMM yyyy", { locale: ptBR })}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" />
                         {formatDuration(reuniao.duracao_minutos)}
                       </span>
-                    </CardDescription>
+                    </div>
                   </CardHeader>
                   
-                  <CardContent className="flex-1 space-y-3">
+                  <CardContent className="flex-1 space-y-3 pt-0">
                     {reuniao.participantes && reuniao.participantes.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1.5">
                         {reuniao.participantes.slice(0, 3).map((p, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">
+                          <Badge key={i} variant="secondary" className="text-xs font-medium">
                             {p}
                           </Badge>
                         ))}
@@ -218,11 +226,11 @@ export default function Reunioes() {
                     )}
                     
                     {reuniao.resumo_ia ? (
-                      <p className="text-sm text-muted-foreground line-clamp-4">
+                      <p className="text-sm text-muted-foreground line-clamp-3">
                         {reuniao.resumo_ia}
                       </p>
                     ) : reuniao.transcricao ? (
-                      <p className="text-sm text-muted-foreground line-clamp-4 italic">
+                      <p className="text-sm text-muted-foreground line-clamp-3 italic">
                         Transcrição disponível - resumo pendente
                       </p>
                     ) : (
@@ -232,11 +240,11 @@ export default function Reunioes() {
                     )}
                   </CardContent>
 
-                  <div className="p-4 pt-0 mt-auto">
+                  <div className="p-6 pt-0 mt-auto">
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full gap-2"
+                      className="w-full gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
                       onClick={() => setSelectedReuniao(reuniao)}
                     >
                       <FileText className="w-4 h-4" />
