@@ -72,7 +72,7 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
           low_balance_threshold: 100,
           low_balance_message: "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
           campaign_reports_enabled: true,
-          campaign_report_message: "Relatório de Campanha\n\nCampanha: {nome_campanha}\nEnviados: {enviados}\nFalhas: {falhas}\nStatus: {status}",
+          campaign_report_message: "📊 *Relatório de Campanha*\n\n*Disparo:* {nome_campanha}\nEnviados: {enviados}\nFalhas: {falhas}\nStatus: {status}\n\n*Meta Ads:*\nConversas: {conversas}\nGasto: R$ {gasto}\nCPC: R$ {cpc}\nCPM: R$ {cpm}\nCTR: {ctr}%\nCusto/Conversa: R$ {custo_conversa}",
         },
       }));
 
@@ -311,12 +311,19 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                             onChange={(e) =>
                               updateConfig(user.id, "campaign_report_message", e.target.value)
                             }
-                            rows={5}
+                            rows={8}
                             placeholder="Mensagem do relatório de campanha..."
                           />
-                          <p className="text-xs text-muted-foreground">
-                            Variáveis: {"{nome_campanha}"}, {"{enviados}"}, {"{falhas}"}, {"{status}"}
-                          </p>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground font-medium">Variáveis de Disparo:</p>
+                            <p className="text-xs text-muted-foreground">
+                              {"{nome_campanha}"}, {"{enviados}"}, {"{falhas}"}, {"{status}"}
+                            </p>
+                            <p className="text-xs text-muted-foreground font-medium mt-2">Variáveis Meta Ads:</p>
+                            <p className="text-xs text-muted-foreground">
+                              {"{conversas}"}, {"{gasto}"}, {"{impressoes}"}, {"{cliques}"}, {"{alcance}"}, {"{cpc}"}, {"{cpm}"}, {"{ctr}"}, {"{custo_conversa}"}
+                            </p>
+                          </div>
                         </div>
                       )}
 
