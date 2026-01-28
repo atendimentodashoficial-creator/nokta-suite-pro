@@ -157,7 +157,8 @@ export function AdminInstanceManager() {
     }
   };
 
-  const handleAddInstance = async () => {
+  const handleAddInstance = async (options?: { openConnect?: boolean }) => {
+    const openConnect = options?.openConnect ?? true;
     if (!newInstanceName.trim() || !newInstanceUrl.trim() || !newInstanceApiKey.trim()) {
       toast.error("Preencha todos os campos");
       return;
@@ -184,6 +185,11 @@ export function AdminInstanceManager() {
       setNewInstanceApiKey("");
       setAddDialogOpen(false);
       toast.success("Instância adicionada com sucesso!");
+
+      if (!openConnect) {
+        // Apenas adiciona a instância, sem iniciar fluxo de conexão
+        return;
+      }
       
       // Check if already connected before showing QR
       const adminToken = localStorage.getItem("admin_token");
@@ -203,7 +209,8 @@ export function AdminInstanceManager() {
         }));
       } else {
         // Not connected - show QR code dialog
-        handleGetQrCode(data);
+        // Pequeno delay para evitar conflito de focus/overlay entre dialogs
+        setTimeout(() => handleGetQrCode(data), 50);
       }
     } catch (error) {
       console.error("Erro ao adicionar instância:", error);
@@ -486,7 +493,7 @@ export function AdminInstanceManager() {
                 Adicionar Instância
               </Button>
             </DialogTrigger>
-            <DialogContent>
+             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Adicionar Instância WhatsApp</DialogTitle>
                 <DialogDescription>
@@ -494,54 +501,74 @@ export function AdminInstanceManager() {
                 </DialogDescription>
               </DialogHeader>
               
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="instance-name">Nome da Instância</Label>
+               <div className="space-y-4 pt-4">
+                 <div>
+                   <Label>Nome da Instância</Label>
                   <Input
                     id="instance-name"
                     placeholder="Ex: Instância Principal"
                     value={newInstanceName}
                     onChange={(e) => setNewInstanceName(e.target.value)}
+                     className="mt-1"
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="instance-url">URL Base</Label>
+                 <div>
+                   <Label>URL Base</Label>
                   <Input
                     id="instance-url"
                     placeholder="Ex: https://api.uazapi.com"
                     value={newInstanceUrl}
                     onChange={(e) => setNewInstanceUrl(e.target.value)}
+                     className="mt-1"
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="instance-key">API Key / Token</Label>
+                 <div>
+                   <Label>API Key / Token</Label>
                   <Input
                     id="instance-key"
                     type="password"
                     placeholder="Cole a API Key da instância"
                     value={newInstanceApiKey}
                     onChange={(e) => setNewInstanceApiKey(e.target.value)}
+                     className="mt-1"
                   />
                 </div>
               </div>
-              
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleAddInstance} disabled={adding}>
-                  {adding ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Adicionando...
-                    </>
-                  ) : (
-                    "Adicionar"
-                  )}
-                </Button>
-              </DialogFooter>
+
+               <div className="flex justify-end gap-2 pt-2">
+                 <Button variant="outline" onClick={() => setAddDialogOpen(false)} disabled={adding}>
+                   Cancelar
+                 </Button>
+                 <Button
+                   variant="outline"
+                   onClick={() => handleAddInstance({ openConnect: false })}
+                   disabled={adding}
+                 >
+                   {adding ? (
+                     <>
+                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                       Adicionando...
+                     </>
+                   ) : (
+                     "Somente adicionar"
+                   )}
+                 </Button>
+                 <Button onClick={() => handleAddInstance({ openConnect: true })} disabled={adding}>
+                   {adding ? (
+                     <>
+                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                       Adicionando...
+                     </>
+                   ) : (
+                     <>
+                       <QrCode className="h-4 w-4 mr-2" />
+                       Adicionar e gerar QR Code
+                     </>
+                   )}
+                 </Button>
+               </div>
             </DialogContent>
           </Dialog>
         </div>
