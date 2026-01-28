@@ -727,19 +727,6 @@ export function AvisosTab() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleTestEnvioAviso(aviso)}
-                        disabled={testingAvisoId === aviso.id || !aviso.ativo}
-                        title="Testar envio deste aviso"
-                      >
-                        {testingAvisoId === aviso.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Send className="h-3 w-3" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
                         className="flex-1"
                         onClick={() => handleEditAviso(aviso)}
                       >
