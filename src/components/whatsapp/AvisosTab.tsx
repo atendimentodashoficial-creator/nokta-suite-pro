@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Calendar, Clock, Save, Loader2, User, MessageSquare, Plus, Trash2, Edit, X, Check, CheckCircle2, Send, AlertCircle, TrendingUp, MessageCircle, FileText, RefreshCw } from "lucide-react";
+import { Bell, Calendar, Clock, Save, Loader2, User, MessageSquare, Plus, Trash2, Edit, X, Check, CheckCircle2, Send, AlertCircle, TrendingUp, MessageCircle, FileText, RefreshCw, Eye, ChevronDown, Zap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
@@ -931,13 +932,13 @@ export function AvisosTab() {
                 <SelectContent className="bg-background border shadow-lg z-50">
                   <SelectItem value="dias_antes">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
+                      <Clock className="h-4 w-4" />
                       <span>Dias antes do agendamento</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="reagendamento">
                     <div className="flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className="h-4 w-4 text-blue-500" />
                       <span>Ao reagendar</span>
                     </div>
                   </SelectItem>
@@ -992,21 +993,22 @@ export function AvisosTab() {
                   </p>
                 </div>
               )}
-              <div className={`space-y-2 ${formTipoGatilho === 'reagendamento' ? 'col-span-2' : ''}`}>
-                <Label htmlFor="horarioEnvio">Horário de envio</Label>
-                <Input
-                  id="horarioEnvio"
-                  type="time"
-                  value={formHorarioEnvio}
-                  onChange={(e) => setFormHorarioEnvio(e.target.value)}
-                />
-                {formTipoGatilho === 'reagendamento' && (
-                  <p className="text-xs text-muted-foreground">
-                    O aviso será enviado neste horário após o reagendamento
-                  </p>
-                )}
-              </div>
-              <div className="space-y-4 md:col-span-2">
+              {formTipoGatilho === 'dias_antes' && (
+                <div className="space-y-2">
+                  <Label htmlFor="horarioEnvio">Horário de envio</Label>
+                  <Input
+                    id="horarioEnvio"
+                    type="time"
+                    value={formHorarioEnvio}
+                    onChange={(e) => setFormHorarioEnvio(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Intervalo entre mensagens */}
+            {formTipoGatilho === 'dias_antes' && (
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label>Intervalo entre mensagens</Label>
                   <Select value={formIntervaloUnit} onValueChange={(v) => {
@@ -1051,7 +1053,7 @@ export function AvisosTab() {
                   O intervalo entre cada mensagem será aleatório entre {formIntervaloMin} e {formIntervaloMax} {formIntervaloUnit === "minutes" ? "minutos" : "segundos"}
                 </p>
               </div>
-            </div>
+            )}
 
             {/* Mensagem */}
             <div className="space-y-2">
@@ -1069,18 +1071,28 @@ export function AvisosTab() {
               </p>
             </div>
 
-            {/* Preview */}
-            <div className="space-y-2">
-              <Label>Preview da mensagem</Label>
-              <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap">
-                {formMensagem
-                  .replace('{nome}', 'Maria Silva')
-                  .replace('{data}', '15/01/2026')
-                  .replace('{horario}', '14:30')
-                  .replace('{procedimento}', 'Avaliação')
-                  .replace('{profissional}', 'Dr. João')}
-              </div>
-            </div>
+            {/* Preview colapsável */}
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-between p-2 h-auto">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Eye className="h-4 w-4" />
+                    <span>Preview da mensagem</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap">
+                  {formMensagem
+                    .replace('{nome}', 'Maria Silva')
+                    .replace('{data}', '15/01/2026')
+                    .replace('{horario}', '14:30')
+                    .replace('{procedimento}', 'Avaliação')
+                    .replace('{profissional}', 'Dr. João')}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Ativo */}
             <div className="flex items-center justify-between pt-2">
