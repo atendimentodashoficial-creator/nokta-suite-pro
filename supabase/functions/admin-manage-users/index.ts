@@ -46,6 +46,9 @@ serve(async (req) => {
       keywordEnabled,
       keywordBalance,
       keywordReport,
+      keywordBalanceMessage,
+      keywordReportMessage,
+      keywordCooldownHours,
       adminInstanciaId,
       instanceId,
     } = body;
@@ -252,6 +255,9 @@ serve(async (req) => {
             keyword_enabled: keywordEnabled ?? false,
             keyword_balance: keywordBalance || 'saldo',
             keyword_report: keywordReport || 'relatorio',
+            keyword_balance_message: keywordBalanceMessage || null,
+            keyword_report_message: keywordReportMessage || null,
+            keyword_cooldown_hours: keywordCooldownHours ?? 1,
             admin_instancia_id: adminInstanciaId || null,
             updated_at: new Date().toISOString()
           }, {

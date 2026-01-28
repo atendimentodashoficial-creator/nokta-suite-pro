@@ -10,6 +10,7 @@ const corsHeaders = {
  * 
  * Processes incoming WhatsApp messages and checks if they match admin-configured keywords.
  * When a keyword is detected, it responds with the configured information (balance or report).
+ * Includes cooldown to prevent repeated sends.
  */
 
 // Normalize accents for keyword matching
@@ -36,6 +37,15 @@ interface KeywordHandlerPayload {
 
 function getLast8Digits(phone: string): string {
   return String(phone || '').replace(/\D/g, '').slice(-8);
+}
+
+// Check if cooldown period has passed
+function isCooldownActive(lastSentAt: string | null, cooldownHours: number): boolean {
+  if (!lastSentAt || cooldownHours <= 0) return false;
+  const lastSent = new Date(lastSentAt).getTime();
+  const now = Date.now();
+  const cooldownMs = cooldownHours * 60 * 60 * 1000;
+  return (now - lastSent) < cooldownMs;
 }
 
 Deno.serve(async (req) => {
@@ -160,6 +170,7 @@ Deno.serve(async (req) => {
 
     const keywordBalance = notifConfig.keyword_balance || 'saldo';
     const keywordReport = notifConfig.keyword_report || 'relatorio';
+    const cooldownHours = notifConfig.keyword_cooldown_hours ?? 1;
 
     let matchedKeyword: 'balance' | 'report' | null = null;
 
@@ -182,6 +193,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check cooldown
+    const lastSentField = matchedKeyword === 'balance' 
+      ? 'keyword_last_balance_sent_at' 
+      : 'keyword_last_report_sent_at';
+    const lastSentAt = notifConfig[lastSentField];
+
+    if (isCooldownActive(lastSentAt, cooldownHours)) {
+      const hoursRemaining = Math.ceil((cooldownHours * 60 * 60 * 1000 - (Date.now() - new Date(lastSentAt).getTime())) / (60 * 60 * 1000));
+      console.log(`[admin-keyword-handler] Cooldown active for ${matchedKeyword}, ${hoursRemaining}h remaining`);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          matched: true, 
+          keyword: matchedKeyword,
+          skipped: true,
+          reason: `Cooldown active (${hoursRemaining}h remaining)` 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get the destination phone number
     let destinationPhone = phone;
     if (notifConfig.destination_type === 'number' && notifConfig.destination_value) {
@@ -197,14 +229,16 @@ Deno.serve(async (req) => {
       
       try {
         // Get user's Facebook Ad Accounts
-          const { data: adAccounts } = await supabase
+        const { data: adAccounts } = await supabase
           .from('facebook_ad_accounts')
           .select('ad_account_id, account_name, account_type')
-            .eq('user_id', resolvedUserId)
+          .eq('user_id', resolvedUserId)
           .limit(5);
 
+        let saldoDetalhado = '';
+
         if (!adAccounts || adAccounts.length === 0) {
-          responseMessage = '❌ Nenhuma conta de anúncios configurada para este cliente.';
+          saldoDetalhado = '❌ Nenhuma conta de anúncios configurada.';
         } else {
           // Get balance for each account
           const balances: string[] = [];
@@ -240,18 +274,114 @@ Deno.serve(async (req) => {
           }
 
           if (balances.length > 0) {
-            responseMessage = `💰 *Saldo Meta Ads*\n\n${balances.join('\n')}`;
+            saldoDetalhado = balances.join('\n');
           } else {
-            responseMessage = '⚠️ Não foi possível obter o saldo. Verifique a conexão com o Meta Ads.';
+            saldoDetalhado = '⚠️ Não foi possível obter o saldo. Verifique a conexão com o Meta Ads.';
           }
         }
+
+        // Use custom message template or default
+        const messageTemplate = notifConfig.keyword_balance_message || '💰 *Saldo Meta Ads*\n\n{saldo_detalhado}';
+        responseMessage = messageTemplate.replace('{saldo_detalhado}', saldoDetalhado);
+
       } catch (err) {
         console.error('[admin-keyword-handler] Error fetching balance:', err);
         responseMessage = '❌ Erro ao consultar o saldo. Tente novamente mais tarde.';
       }
     } else if (matchedKeyword === 'report') {
-      // Generate a simple report (could be expanded later)
-      responseMessage = '📊 *Relatório de Campanhas*\n\nPara um relatório detalhado, acesse o painel do CRM.';
+      // Generate report with Meta Ads data
+      console.log('[admin-keyword-handler] Generating report...');
+
+      try {
+        const reportPeriod = parseInt(notifConfig.campaign_report_period || '7');
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - reportPeriod);
+
+        const formatDate = (d: Date) => d.toLocaleDateString('pt-BR');
+
+        // Get user's Facebook config and accounts
+        const { data: fbConfig } = await supabase
+          .from('facebook_config')
+          .select('access_token')
+          .eq('user_id', resolvedUserId)
+          .maybeSingle();
+
+        const { data: adAccounts } = await supabase
+          .from('facebook_ad_accounts')
+          .select('ad_account_id')
+          .eq('user_id', resolvedUserId)
+          .limit(5);
+
+        let gasto = 0;
+        let conversas = 0;
+        let cliques = 0;
+        let impressoes = 0;
+        let alcance = 0;
+
+        if (fbConfig?.access_token && adAccounts?.length) {
+          const dateRange = `time_range={'since':'${startDate.toISOString().split('T')[0]}','until':'${endDate.toISOString().split('T')[0]}'}`;
+          
+          for (const account of adAccounts) {
+            try {
+              const insightsUrl = `https://graph.facebook.com/v22.0/act_${account.ad_account_id}/insights?fields=spend,actions,clicks,impressions,reach&${dateRange}&access_token=${fbConfig.access_token}`;
+              const response = await fetch(insightsUrl);
+              
+              if (response.ok) {
+                const data = await response.json();
+                const insights = data.data?.[0];
+                if (insights) {
+                  gasto += parseFloat(insights.spend || '0');
+                  cliques += parseInt(insights.clicks || '0');
+                  impressoes += parseInt(insights.impressions || '0');
+                  alcance += parseInt(insights.reach || '0');
+                  
+                  // Count messaging_conversation_started actions
+                  const actions = insights.actions || [];
+                  const convAction = actions.find((a: any) => 
+                    a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+                    a.action_type === 'messaging_conversation_started_7d'
+                  );
+                  if (convAction) {
+                    conversas += parseInt(convAction.value || '0');
+                  }
+                }
+              }
+            } catch (err) {
+              console.error(`[admin-keyword-handler] Error fetching insights for ${account.ad_account_id}:`, err);
+            }
+          }
+        }
+
+        const custoConversa = conversas > 0 ? (gasto / conversas).toFixed(2) : '0.00';
+        const cpc = cliques > 0 ? (gasto / cliques).toFixed(2) : '0.00';
+
+        // Use custom message template or default
+        const messageTemplate = notifConfig.keyword_report_message || `📊 *Relatório de Campanhas*
+
+Período: {data_inicio} a {data_fim}
+
+🔹 *Gasto:* R$ {gasto}
+🔹 *Leads:* {conversas}
+🔹 *Custo por Lead:* R$ {custo_conversa}
+🔹 *Cliques:* {cliques}
+🔹 *Impressões:* {impressoes}`;
+
+        responseMessage = messageTemplate
+          .replace('{data_inicio}', formatDate(startDate))
+          .replace('{data_fim}', formatDate(endDate))
+          .replace('{gasto}', gasto.toFixed(2))
+          .replace('{conversas}', String(conversas))
+          .replace('{custo_conversa}', custoConversa)
+          .replace('{cliques}', String(cliques))
+          .replace('{impressoes}', impressoes.toLocaleString('pt-BR'))
+          .replace('{alcance}', alcance.toLocaleString('pt-BR'))
+          .replace('{cpc}', cpc);
+
+      } catch (err) {
+        console.error('[admin-keyword-handler] Error generating report:', err);
+        responseMessage = '❌ Erro ao gerar relatório. Tente novamente mais tarde.';
+      }
     }
 
     // Send the response message via the admin's WhatsApp instance
@@ -281,7 +411,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[admin-keyword-handler] Response sent successfully!`);
+    // Update last sent timestamp
+    const updateField = matchedKeyword === 'balance' 
+      ? { keyword_last_balance_sent_at: new Date().toISOString() }
+      : { keyword_last_report_sent_at: new Date().toISOString() };
+
+    await supabase
+      .from('admin_client_notifications')
+      .update(updateField)
+      .eq('user_id', resolvedUserId);
+
+    console.log(`[admin-keyword-handler] Response sent successfully! Updated ${Object.keys(updateField)[0]}`);
 
     return new Response(
       JSON.stringify({ 

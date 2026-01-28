@@ -41,6 +41,9 @@ interface NotificationConfig {
   keyword_enabled: boolean;
   keyword_balance: string;
   keyword_report: string;
+  keyword_balance_message: string;
+  keyword_report_message: string;
+  keyword_cooldown_hours: number;
 }
 
 interface AdminNotificationsConfigProps {
@@ -100,6 +103,19 @@ export function AdminNotificationsConfig({ users, isActive = true, instancesRefr
     keyword_enabled: false,
     keyword_balance: "saldo",
     keyword_report: "relatorio",
+    keyword_balance_message: `💰 *Saldo Meta Ads*
+
+{saldo_detalhado}`,
+    keyword_report_message: `📊 *Relatório de Campanhas*
+
+Período: {data_inicio} a {data_fim}
+
+🔹 *Gasto:* R$ {gasto}
+🔹 *Leads:* {conversas}
+🔹 *Custo por Lead:* R$ {custo_conversa}
+🔹 *Cliques:* {cliques}
+🔹 *Impressões:* {impressoes}`,
+    keyword_cooldown_hours: 1,
   });
 
   const upsertNotificationConfig = async (userId: string, config: NotificationConfig) => {
@@ -120,6 +136,9 @@ export function AdminNotificationsConfig({ users, isActive = true, instancesRefr
         keywordEnabled: config.keyword_enabled,
         keywordBalance: config.keyword_balance,
         keywordReport: config.keyword_report,
+        keywordBalanceMessage: config.keyword_balance_message,
+        keywordReportMessage: config.keyword_report_message,
+        keywordCooldownHours: config.keyword_cooldown_hours,
       },
       headers: { Authorization: `Bearer ${adminToken}` },
     });
@@ -684,6 +703,26 @@ export function AdminNotificationsConfig({ users, isActive = true, instancesRefr
 
                       {config.keyword_enabled && (
                         <div className="space-y-4 pl-4">
+                          {/* Cooldown */}
+                          <div className="space-y-2">
+                            <Label htmlFor={`keyword-cooldown-${user.id}`}>
+                              Intervalo entre respostas (horas)
+                            </Label>
+                            <Input
+                              id={`keyword-cooldown-${user.id}`}
+                              type="number"
+                              min="0"
+                              value={config.keyword_cooldown_hours ?? 1}
+                              onChange={(e) =>
+                                updateConfig(user.id, "keyword_cooldown_hours", parseInt(e.target.value) || 0)
+                              }
+                              className="w-32"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Evita enviar a mesma resposta repetidamente. 0 = sem limite.
+                            </p>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`keyword-balance-${user.id}`}>
@@ -697,9 +736,6 @@ export function AdminNotificationsConfig({ users, isActive = true, instancesRefr
                                 }
                                 placeholder="Ex: saldo"
                               />
-                              <p className="text-xs text-muted-foreground">
-                                Ao enviar essa palavra, retorna o saldo atual
-                              </p>
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor={`keyword-report-${user.id}`}>
@@ -713,10 +749,47 @@ export function AdminNotificationsConfig({ users, isActive = true, instancesRefr
                                 }
                                 placeholder="Ex: relatorio"
                               />
-                              <p className="text-xs text-muted-foreground">
-                                Ao enviar essa palavra, retorna o relatório de campanhas
-                              </p>
                             </div>
+                          </div>
+
+                          {/* Mensagem personalizada para Saldo */}
+                          <div className="space-y-2">
+                            <Label htmlFor={`keyword-balance-msg-${user.id}`} className="flex items-center gap-2">
+                              <Edit3 className="h-3 w-3" />
+                              Mensagem de Resposta (Saldo)
+                            </Label>
+                            <Textarea
+                              id={`keyword-balance-msg-${user.id}`}
+                              value={config.keyword_balance_message || ""}
+                              onChange={(e) =>
+                                updateConfig(user.id, "keyword_balance_message", e.target.value)
+                              }
+                              rows={4}
+                              placeholder="💰 *Saldo Meta Ads*..."
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Variáveis: {"{saldo_detalhado}"} (lista de contas com saldo)
+                            </p>
+                          </div>
+
+                          {/* Mensagem personalizada para Relatório */}
+                          <div className="space-y-2">
+                            <Label htmlFor={`keyword-report-msg-${user.id}`} className="flex items-center gap-2">
+                              <Edit3 className="h-3 w-3" />
+                              Mensagem de Resposta (Relatório)
+                            </Label>
+                            <Textarea
+                              id={`keyword-report-msg-${user.id}`}
+                              value={config.keyword_report_message || ""}
+                              onChange={(e) =>
+                                updateConfig(user.id, "keyword_report_message", e.target.value)
+                              }
+                              rows={6}
+                              placeholder="📊 *Relatório de Campanhas*..."
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Variáveis: {"{data_inicio}"}, {"{data_fim}"}, {"{gasto}"}, {"{conversas}"}, {"{custo_conversa}"}, {"{cliques}"}, {"{impressoes}"}, {"{alcance}"}
+                            </p>
                           </div>
                         </div>
                       )}
