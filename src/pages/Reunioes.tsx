@@ -44,9 +44,12 @@ export default function Reunioes() {
   const { data: reunioes, isLoading, refetch } = useQuery({
     queryKey: ["reunioes", user?.id],
     queryFn: async () => {
+      // Buscar apenas reuniões agendadas (com google_event_id)
+      // Reuniões só do Fireflies (sem google_event_id) ficam ocultas para vinculação manual
       const { data, error } = await supabase
         .from("reunioes" as any)
         .select("*")
+        .not("google_event_id", "is", null)
         .order("data_reuniao", { ascending: false });
       
       if (error) throw error;
