@@ -45,6 +45,8 @@ serve(async (req) => {
       participanteTelefone, // Phone number for immediate notifications
       procedimentoNome,
       skipLocalSave = false, // Se true, não salva na tabela reunioes (usado quando ambos calendários são criados)
+      instanciaId, // ID da instância WhatsApp do chat (para manter consistência de número)
+      instanciaNome, // Nome da instância WhatsApp do chat
     } = body;
 
     if (!titulo || !dataHora) {
@@ -230,6 +232,8 @@ serve(async (req) => {
                   userId: user.id,
                   clienteTelefone: participanteTelefone,
                   clienteNome: participanteNome,
+                  instanciaId: instanciaId || null,
+                  instanciaNome: instanciaNome || null,
                 }),
               }
             );
