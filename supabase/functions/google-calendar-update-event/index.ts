@@ -44,10 +44,10 @@ serve(async (req) => {
       );
     }
 
-    // Get the reuniao to get google_event_id and duration
+    // Get the reuniao to get google_event_id, duration, and tracking info
     const { data: reuniao, error: reuniaoError } = await supabase
       .from("reunioes")
-      .select("google_event_id, duracao_minutos, titulo")
+      .select("google_event_id, duracao_minutos, titulo, numero_reagendamentos, cliente_telefone, participantes")
       .eq("id", reuniaoId)
       .eq("user_id", user.id)
       .single();
@@ -63,6 +63,33 @@ serve(async (req) => {
     const finalDuracao = duracaoMinutos || reuniao.duracao_minutos || 60;
     const startDate = new Date(novaDataHora);
     const endDate = new Date(startDate.getTime() + finalDuracao * 60 * 1000);
+    
+    // Increment numero_reagendamentos
+    const newNumeroReagendamentos = (reuniao.numero_reagendamentos || 0) + 1;
+
+    // Helper function to trigger rescheduling notifications
+    const triggerReschedulingNotifications = async () => {
+      try {
+        console.log("Triggering rescheduling notifications...");
+        const { data, error } = await supabase.functions.invoke("enviar-aviso-reuniao-imediato", {
+          body: {
+            reuniaoId,
+            userId: user.id,
+            clienteTelefone: reuniao.cliente_telefone,
+            clienteNome: reuniao.participantes?.[0] || "Cliente",
+            tipo: "reagendamento"
+          }
+        });
+        
+        if (error) {
+          console.error("Error triggering rescheduling notifications:", error);
+        } else {
+          console.log("Rescheduling notifications triggered:", data);
+        }
+      } catch (err) {
+        console.error("Error invoking rescheduling notifications:", err);
+      }
+    };
 
     if (!reuniao.google_event_id) {
       // No Google event, just update local
@@ -70,11 +97,15 @@ serve(async (req) => {
         .from("reunioes")
         .update({ 
           data_reuniao: startDate.toISOString(),
-          status: "agendado"
+          status: "agendado",
+          numero_reagendamentos: newNumeroReagendamentos
         })
         .eq("id", reuniaoId);
 
       if (updateError) throw updateError;
+
+      // Trigger rescheduling notifications
+      await triggerReschedulingNotifications();
 
       return new Response(
         JSON.stringify({ success: true, message: "Reunião reagendada localmente" }),
@@ -91,11 +122,16 @@ serve(async (req) => {
 
     if (configError || !config || !config.access_token) {
       console.error("Config error:", configError);
-      // Still update local
+      // Still update local with numero_reagendamentos
       await supabase.from("reunioes").update({ 
         data_reuniao: startDate.toISOString(),
-        status: "agendado"
+        status: "agendado",
+        numero_reagendamentos: newNumeroReagendamentos
       }).eq("id", reuniaoId);
+      
+      // Trigger rescheduling notifications
+      await triggerReschedulingNotifications();
+      
       return new Response(
         JSON.stringify({ success: true, message: "Reunião reagendada localmente (Google Calendar não conectado)" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -123,11 +159,16 @@ serve(async (req) => {
 
       if (!refreshResponse.ok) {
         console.error("Token refresh error:", refreshData);
-        // Still update local
+        // Still update local with numero_reagendamentos
         await supabase.from("reunioes").update({ 
           data_reuniao: startDate.toISOString(),
-          status: "agendado"
+          status: "agendado",
+          numero_reagendamentos: newNumeroReagendamentos
         }).eq("id", reuniaoId);
+        
+        // Trigger rescheduling notifications
+        await triggerReschedulingNotifications();
+        
         return new Response(
           JSON.stringify({ success: true, warning: "Reunião reagendada localmente. Erro ao renovar token do Google." }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -177,11 +218,16 @@ serve(async (req) => {
     if (!updateResponse.ok) {
       const errorData = await updateResponse.json().catch(() => ({}));
       console.error("Google Calendar update error:", errorData);
-      // Still update local
+      // Still update local with numero_reagendamentos
       await supabase.from("reunioes").update({ 
         data_reuniao: startDate.toISOString(),
-        status: "agendado"
+        status: "agendado",
+        numero_reagendamentos: newNumeroReagendamentos
       }).eq("id", reuniaoId);
+      
+      // Trigger rescheduling notifications
+      await triggerReschedulingNotifications();
+      
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -194,18 +240,22 @@ serve(async (req) => {
     const eventData = await updateResponse.json();
     console.log("Google Calendar event updated successfully");
 
-    // Update local record
+    // Update local record with numero_reagendamentos
     const { error: updateError } = await supabase
       .from("reunioes")
       .update({ 
         data_reuniao: startDate.toISOString(),
-        status: "agendado"
+        status: "agendado",
+        numero_reagendamentos: newNumeroReagendamentos
       })
       .eq("id", reuniaoId);
 
     if (updateError) {
       console.error("Error updating local record:", updateError);
     }
+
+    // Trigger rescheduling notifications
+    await triggerReschedulingNotifications();
 
     return new Response(
       JSON.stringify({ 

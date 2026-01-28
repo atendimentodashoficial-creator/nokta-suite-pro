@@ -3804,6 +3804,7 @@ export type Database = {
           google_event_id: string | null
           id: string
           meet_link: string | null
+          numero_reagendamentos: number | null
           participantes: string[] | null
           profissional_id: string | null
           resumo_ia: string | null
@@ -3827,6 +3828,7 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           meet_link?: string | null
+          numero_reagendamentos?: number | null
           participantes?: string[] | null
           profissional_id?: string | null
           resumo_ia?: string | null
@@ -3850,6 +3852,7 @@ export type Database = {
           google_event_id?: string | null
           id?: string
           meet_link?: string | null
+          numero_reagendamentos?: number | null
           participantes?: string[] | null
           profissional_id?: string | null
           resumo_ia?: string | null
