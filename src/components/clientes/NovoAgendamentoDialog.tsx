@@ -93,13 +93,13 @@ const calcularProximaDataDisponivel = (
       
       if (diaInteiro) continue; // Dia indisponível
       
-      // Gerar horários para cada faixa de substituição
+      // Gerar horários para cada faixa de substituição (intervalo de 30 min)
       substituicoes.forEach(sub => {
         if (sub.hora_inicio && sub.hora_fim) {
           const horariosIntervalo = gerarHorariosIntervalo(
             sub.hora_inicio,
             sub.hora_fim,
-            tempoAtendimento
+            30 // Intervalo fixo de 30 minutos
           );
           horariosDay.push(...horariosIntervalo);
         }
@@ -109,13 +109,13 @@ const calcularProximaDataDisponivel = (
       const temEscala = escalasProfissional.some(e => e.dia_semana === diaSemana);
       if (!temEscala) continue;
       
-      // Usar escala normal
+      // Usar escala normal (intervalo de 30 min)
       escalasProfissional.forEach(escala => {
         if (escala.dia_semana === diaSemana) {
           const horariosIntervalo = gerarHorariosIntervalo(
             escala.hora_inicio,
             escala.hora_fim,
-            tempoAtendimento
+            30 // Intervalo fixo de 30 minutos
           );
           horariosDay.push(...horariosIntervalo);
         }
@@ -141,12 +141,13 @@ const calcularProximaDataDisponivel = (
 };
 
 // Gerar horários baseado na escala do profissional ou substituição
+// Intervalo fixo de 30 min para permitir agendamentos a cada 30 min
 const gerarHorariosDisponiveis = (
   diaSemana: number,
   escalas: any[] | undefined,
   ausencias: any[] | undefined,
   dataSelecionada: Date,
-  tempoAtendimento: number = 60
+  _tempoAtendimento: number = 60 // mantido para compatibilidade, mas não usado para intervalo
 ) => {
   const dataStr = format(dataSelecionada, 'yyyy-MM-dd');
   
@@ -166,14 +167,14 @@ const gerarHorariosDisponiveis = (
       return []; // Profissional indisponível o dia todo
     }
     
-    // Gerar horários para cada faixa de substituição
+    // Gerar horários para cada faixa de substituição (intervalo de 30 min)
     const horarios: string[] = [];
     substituicoes.forEach(sub => {
       if (sub.hora_inicio && sub.hora_fim) {
         const horariosIntervalo = gerarHorariosIntervalo(
           sub.hora_inicio,
           sub.hora_fim,
-          tempoAtendimento
+          30 // Intervalo fixo de 30 minutos
         );
         horarios.push(...horariosIntervalo);
       }
@@ -184,8 +185,8 @@ const gerarHorariosDisponiveis = (
 
   // Sem substituição - usar escala normal
   if (!escalas || escalas.length === 0) {
-    // Se não houver escala, retornar horário comercial padrão
-    return gerarHorariosIntervalo("08:00", "18:00", tempoAtendimento);
+    // Se não houver escala, retornar horário comercial padrão (intervalo de 30 min)
+    return gerarHorariosIntervalo("08:00", "18:00", 30);
   }
 
   // Buscar escalas para o dia da semana
@@ -195,13 +196,13 @@ const gerarHorariosDisponiveis = (
     return []; // Profissional não trabalha neste dia
   }
 
-  // Gerar horários para cada intervalo de escala
+  // Gerar horários para cada intervalo de escala (intervalo fixo de 30 min)
   const horarios: string[] = [];
   escalasDay.forEach(escala => {
     const horariosIntervalo = gerarHorariosIntervalo(
       escala.hora_inicio,
       escala.hora_fim,
-      tempoAtendimento
+      30 // Intervalo fixo de 30 minutos
     );
     horarios.push(...horariosIntervalo);
   });
