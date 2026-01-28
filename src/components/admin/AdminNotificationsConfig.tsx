@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3 } from "lucide-react";
+import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -27,6 +27,7 @@ interface NotificationConfig {
   low_balance_message: string;
   campaign_reports_enabled: boolean;
   campaign_report_message: string;
+  campaign_report_period: string;
   disparos_instancias?: {
     id: string;
     nome: string;
@@ -73,6 +74,7 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
           low_balance_message: "Atenção! O saldo da sua conta de anúncios está baixo (R$ {saldo}). Recomendamos adicionar mais créditos para manter suas campanhas ativas.",
           campaign_reports_enabled: true,
           campaign_report_message: "📊 *Relatório de Campanha*\n\n*Disparo:* {nome_campanha}\nEnviados: {enviados}\nFalhas: {falhas}\nStatus: {status}\n\n*Meta Ads:*\nConversas: {conversas}\nGasto: R$ {gasto}\nCPC: R$ {cpc}\nCPM: R$ {cpm}\nCTR: {ctr}%\nCusto/Conversa: R$ {custo_conversa}",
+          campaign_report_period: "7",
         },
       }));
 
@@ -123,6 +125,7 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
             lowBalanceMessage: config.low_balance_message,
             campaignReportsEnabled: config.campaign_reports_enabled,
             campaignReportMessage: config.campaign_report_message,
+            campaignReportPeriod: config.campaign_report_period,
           },
         headers: { Authorization: `Bearer ${adminToken}` },
       });
@@ -300,29 +303,61 @@ export function AdminNotificationsConfig({ users }: AdminNotificationsConfigProp
                       </div>
 
                       {config.campaign_reports_enabled && (
-                        <div className="space-y-2 pl-4 border-l-2 border-blue-500/30">
-                          <Label htmlFor={`campaign-report-msg-${user.id}`} className="flex items-center gap-2">
-                            <Edit3 className="h-3 w-3" />
-                            Mensagem do Relatório
-                          </Label>
-                          <Textarea
-                            id={`campaign-report-msg-${user.id}`}
-                            value={config.campaign_report_message || ""}
-                            onChange={(e) =>
-                              updateConfig(user.id, "campaign_report_message", e.target.value)
-                            }
-                            rows={8}
-                            placeholder="Mensagem do relatório de campanha..."
-                          />
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground font-medium">Variáveis de Disparo:</p>
+                        <div className="space-y-4 pl-4 border-l-2 border-blue-500/30">
+                          {/* Período do Relatório */}
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                              <Calendar className="h-3 w-3" />
+                              Período do Relatório
+                            </Label>
+                            <Select
+                              value={config.campaign_report_period || "7"}
+                              onValueChange={(value) =>
+                                updateConfig(user.id, "campaign_report_period", value)
+                              }
+                            >
+                              <SelectTrigger className="w-48">
+                                <SelectValue placeholder="Selecione o período" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">Hoje</SelectItem>
+                                <SelectItem value="7">Últimos 7 dias</SelectItem>
+                                <SelectItem value="14">Últimos 14 dias</SelectItem>
+                                <SelectItem value="30">Últimos 30 dias</SelectItem>
+                                <SelectItem value="60">Últimos 60 dias</SelectItem>
+                                <SelectItem value="90">Últimos 90 dias</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <p className="text-xs text-muted-foreground">
-                              {"{nome_campanha}"}, {"{enviados}"}, {"{falhas}"}, {"{status}"}
+                              Período das métricas do Meta Ads no relatório
                             </p>
-                            <p className="text-xs text-muted-foreground font-medium mt-2">Variáveis Meta Ads:</p>
-                            <p className="text-xs text-muted-foreground">
-                              {"{conversas}"}, {"{gasto}"}, {"{impressoes}"}, {"{cliques}"}, {"{alcance}"}, {"{cpc}"}, {"{cpm}"}, {"{ctr}"}, {"{custo_conversa}"}
-                            </p>
+                          </div>
+
+                          {/* Mensagem do Relatório */}
+                          <div className="space-y-2">
+                            <Label htmlFor={`campaign-report-msg-${user.id}`} className="flex items-center gap-2">
+                              <Edit3 className="h-3 w-3" />
+                              Mensagem do Relatório
+                            </Label>
+                            <Textarea
+                              id={`campaign-report-msg-${user.id}`}
+                              value={config.campaign_report_message || ""}
+                              onChange={(e) =>
+                                updateConfig(user.id, "campaign_report_message", e.target.value)
+                              }
+                              rows={8}
+                              placeholder="Mensagem do relatório de campanha..."
+                            />
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground font-medium">Variáveis de Disparo:</p>
+                              <p className="text-xs text-muted-foreground">
+                                {"{nome_campanha}"}, {"{enviados}"}, {"{falhas}"}, {"{status}"}
+                              </p>
+                              <p className="text-xs text-muted-foreground font-medium mt-2">Variáveis Meta Ads:</p>
+                              <p className="text-xs text-muted-foreground">
+                                {"{conversas}"}, {"{gasto}"}, {"{impressoes}"}, {"{cliques}"}, {"{alcance}"}, {"{cpc}"}, {"{cpm}"}, {"{ctr}"}, {"{custo_conversa}"}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       )}
