@@ -14,6 +14,7 @@ import GoogleAdsIcon from "@/components/icons/GoogleAdsIcon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MetaPixelConfig } from "@/components/configuracoes/MetaPixelConfig";
+import { GoogleCalendarConfig } from "@/components/configuracoes/GoogleCalendarConfig";
 import { InstagramConfigTab } from "@/components/instagram/InstagramConfigTab";
 interface LinkedAdAccount {
   id: string;
@@ -142,6 +143,7 @@ export default function Conexoes() {
   const [firefliesOpen, setFirefliesOpen] = useState(false);
   const [metaPixelOpen, setMetaPixelOpen] = useState(false);
   const [instagramOpen, setInstagramOpen] = useState(false);
+  const [googleCalendarOpen, setGoogleCalendarOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -1720,6 +1722,9 @@ export default function Conexoes() {
         </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* Google Calendar Card */}
+      <GoogleCalendarConfig defaultOpen={googleCalendarOpen} />
 
       {/* Meta Pixel Card */}
       <Collapsible open={metaPixelOpen} onOpenChange={setMetaPixelOpen}>

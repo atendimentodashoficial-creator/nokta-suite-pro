@@ -2429,8 +2429,10 @@ export type Database = {
       }
       google_calendar_config: {
         Row: {
-          access_token: string
+          access_token: string | null
           calendar_id: string | null
+          client_id: string | null
+          client_secret: string | null
           created_at: string
           id: string
           refresh_token: string | null
@@ -2439,8 +2441,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          access_token: string
+          access_token?: string | null
           calendar_id?: string | null
+          client_id?: string | null
+          client_secret?: string | null
           created_at?: string
           id?: string
           refresh_token?: string | null
@@ -2449,8 +2453,10 @@ export type Database = {
           user_id: string
         }
         Update: {
-          access_token?: string
+          access_token?: string | null
           calendar_id?: string | null
+          client_id?: string | null
+          client_secret?: string | null
           created_at?: string
           id?: string
           refresh_token?: string | null

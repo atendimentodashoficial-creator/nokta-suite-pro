@@ -53,6 +53,7 @@ export function GoogleCalendarConfig({ defaultOpen = false }: GoogleCalendarConf
 
   const loadConfig = async () => {
     try {
+      // Use raw query to get all columns including the newly added ones
       const { data, error } = await supabase
         .from("google_calendar_config")
         .select("*")
@@ -60,11 +61,17 @@ export function GoogleCalendarConfig({ defaultOpen = false }: GoogleCalendarConf
         .maybeSingle();
 
       if (!error && data) {
+        const configData = data as unknown as {
+          client_id?: string;
+          client_secret?: string;
+          calendar_id?: string;
+          access_token?: string;
+        };
         setHasConfig(true);
-        setClientId(data.client_id || "");
-        setClientSecret(data.client_secret || "");
-        setCalendarId(data.calendar_id || "primary");
-        setIsConnected(!!data.access_token);
+        setClientId(configData.client_id || "");
+        setClientSecret(configData.client_secret || "");
+        setCalendarId(configData.calendar_id || "primary");
+        setIsConnected(!!configData.access_token);
       }
     } catch (error) {
       console.error("Error loading Google Calendar config:", error);
@@ -85,19 +92,42 @@ export function GoogleCalendarConfig({ defaultOpen = false }: GoogleCalendarConf
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("google_calendar_config")
-        .upsert({
-          user_id: user?.id,
-          client_id: clientId.trim(),
-          client_secret: clientSecret.trim(),
-          calendar_id: calendarId.trim() || "primary",
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: "user_id"
-        });
+      // Use type assertion to handle new columns not yet in generated types
+      const configData = {
+        user_id: user?.id,
+        client_id: clientId.trim(),
+        client_secret: clientSecret.trim(),
+        calendar_id: calendarId.trim() || "primary",
+        updated_at: new Date().toISOString()
+      };
 
-      if (error) throw error;
+      // First check if record exists
+      const { data: existing } = await supabase
+        .from("google_calendar_config")
+        .select("id")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+
+      let saveError: Error | null = null;
+
+      if (existing) {
+        // Update existing record - cast to any to bypass type checking for new columns
+        const { error } = await supabase
+          .from("google_calendar_config")
+          .update(configData as Record<string, unknown> as never)
+          .eq("user_id", user?.id);
+        
+        if (error) saveError = error;
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from("google_calendar_config")
+          .insert(configData as Record<string, unknown> as never);
+
+        if (error) saveError = error;
+      }
+
+      if (saveError) throw saveError;
 
       setHasConfig(true);
       toast({
