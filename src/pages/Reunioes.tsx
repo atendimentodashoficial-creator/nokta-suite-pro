@@ -343,13 +343,20 @@ export default function Reunioes() {
                             </div>
                           )}
 
-                          {/* Participantes (Cliente) */}
+                          {/* Participantes (Cliente) e Telefone */}
                           {reuniao.participantes && reuniao.participantes.length > 0 && (
                             <div className="flex items-start gap-2 text-sm text-muted-foreground">
                               <Users className="w-4 h-4 mt-0.5 shrink-0" />
-                              <span className="line-clamp-1">
-                                {reuniao.participantes.join(", ")}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="line-clamp-1">
+                                  {reuniao.participantes.join(", ")}
+                                </span>
+                                {reuniao.cliente_telefone && (
+                                  <span className="text-xs opacity-75">
+                                    {reuniao.cliente_telefone}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           )}
 
