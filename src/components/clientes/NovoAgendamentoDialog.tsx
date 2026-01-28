@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, Check, Video, Calendar as CalendarIconSolid } from "lucide-react";
+import { CalendarIcon, Check, Video, Calendar as CalendarIconSolid, ChevronDown } from "lucide-react";
 import { formatPhone, normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, extractCountryCode, stripCountryCode } from "@/utils/phoneFormat";
 import {
   Dialog,
@@ -276,7 +276,9 @@ export function NovoAgendamentoDialog({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [countryCode, setCountryCode] = useState("55");
   // "google" = só Google, "app" = só app, "both" = ambos
-  const [tipoCalendario, setTipoCalendario] = useState<"google" | "app" | "both">("app");
+  // Padrão é "both" quando reuniões está habilitada
+  const [tipoCalendario, setTipoCalendario] = useState<"google" | "app" | "both">("both");
+  const [calendarioExpanded, setCalendarioExpanded] = useState(false);
   // Opção para mostrar horários de 15 em 15 min
   const [mostrarHorarios15min, setMostrarHorarios15min] = useState(false);
   
@@ -1295,62 +1297,78 @@ export function NovoAgendamentoDialog({
 
             {/* Opção de Calendário - só aparece se feature reuniões habilitada */}
             {reunioesEnabled && (
-              <div className="rounded-lg border p-4 bg-muted/30 space-y-4">
-                <div className="flex items-center gap-3">
-                  <Video className="h-5 w-5 text-primary" />
-                  <div className="space-y-0.5">
-                    <Label className="font-medium">
-                      Agendar Reunião
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Escolha onde criar a reunião
-                    </p>
-                  </div>
-                </div>
-                
-                <RadioGroup
-                  value={tipoCalendario}
-                  onValueChange={(value) => setTipoCalendario(value as "google" | "app" | "both")}
-                  className="space-y-2"
+              <div className="rounded-lg border bg-muted/30 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setCalendarioExpanded(!calendarioExpanded)}
+                  className="w-full p-4 flex items-center justify-between hover:bg-accent/30 transition-colors"
                 >
-                  {googleCalendarConnected && (
-                    <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
-                      <RadioGroupItem value="google" id="calendar-google" />
-                      <Label htmlFor="calendar-google" className="flex-1 cursor-pointer">
-                        <span className="font-medium flex items-center gap-2">
-                          <Video className="h-4 w-4" />
-                          Apenas Google Calendar
-                        </span>
-                        <p className="text-sm text-muted-foreground">Criar evento com link do Google Meet</p>
+                  <div className="flex items-center gap-3">
+                    <Video className="h-5 w-5 text-primary" />
+                    <div className="text-left space-y-0.5">
+                      <Label className="font-medium cursor-pointer">
+                        Agendar Reunião
                       </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {tipoCalendario === "both" && "Ambos os calendários"}
+                        {tipoCalendario === "app" && "Apenas agenda do App"}
+                        {tipoCalendario === "google" && "Apenas Google Calendar"}
+                      </p>
                     </div>
-                  )}
-                  
-                  <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
-                    <RadioGroupItem value="app" id="calendar-app" />
-                    <Label htmlFor="calendar-app" className="flex-1 cursor-pointer">
-                      <span className="font-medium flex items-center gap-2">
-                        <CalendarIconSolid className="h-4 w-4" />
-                        Apenas agenda do App
-                      </span>
-                      <p className="text-sm text-muted-foreground">Criar reunião apenas na agenda interna</p>
-                    </Label>
                   </div>
-                  
-                  {googleCalendarConnected && (
-                    <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
-                      <RadioGroupItem value="both" id="calendar-both" />
-                      <Label htmlFor="calendar-both" className="flex-1 cursor-pointer">
-                        <span className="font-medium flex items-center gap-2">
-                          <Video className="h-4 w-4" />
-                          <CalendarIconSolid className="h-4 w-4" />
-                          Ambos os calendários
-                        </span>
-                        <p className="text-sm text-muted-foreground">Criar no Google Calendar e na agenda do App</p>
-                      </Label>
-                    </div>
-                  )}
-                </RadioGroup>
+                  <ChevronDown className={cn(
+                    "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                    calendarioExpanded && "rotate-180"
+                  )} />
+                </button>
+                
+                {calendarioExpanded && (
+                  <div className="px-4 pb-4">
+                    <RadioGroup
+                      value={tipoCalendario}
+                      onValueChange={(value) => setTipoCalendario(value as "google" | "app" | "both")}
+                      className="space-y-2"
+                    >
+                      {googleCalendarConnected && (
+                        <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
+                          <RadioGroupItem value="both" id="calendar-both" />
+                          <Label htmlFor="calendar-both" className="flex-1 cursor-pointer">
+                            <span className="font-medium flex items-center gap-2">
+                              <Video className="h-4 w-4" />
+                              <CalendarIconSolid className="h-4 w-4" />
+                              Ambos os calendários
+                            </span>
+                            <p className="text-sm text-muted-foreground">Criar no Google Calendar e na agenda do App</p>
+                          </Label>
+                        </div>
+                      )}
+                      
+                      {googleCalendarConnected && (
+                        <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
+                          <RadioGroupItem value="google" id="calendar-google" />
+                          <Label htmlFor="calendar-google" className="flex-1 cursor-pointer">
+                            <span className="font-medium flex items-center gap-2">
+                              <Video className="h-4 w-4" />
+                              Apenas Google Calendar
+                            </span>
+                            <p className="text-sm text-muted-foreground">Criar evento com link do Google Meet</p>
+                          </Label>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors">
+                        <RadioGroupItem value="app" id="calendar-app" />
+                        <Label htmlFor="calendar-app" className="flex-1 cursor-pointer">
+                          <span className="font-medium flex items-center gap-2">
+                            <CalendarIconSolid className="h-4 w-4" />
+                            Apenas agenda do App
+                          </span>
+                          <p className="text-sm text-muted-foreground">Criar reunião apenas na agenda interna</p>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
               </div>
             )}
 
