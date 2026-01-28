@@ -44,6 +44,7 @@ serve(async (req) => {
       participanteNome,
       participanteTelefone, // Phone number for immediate notifications
       procedimentoNome,
+      profissionalId, // ID do profissional responsável
       skipLocalSave = false, // Se true, não salva na tabela reunioes (usado quando ambos calendários são criados)
       instanciaId, // ID da instância WhatsApp do chat (para manter consistência de número)
       instanciaNome, // Nome da instância WhatsApp do chat
@@ -204,6 +205,7 @@ serve(async (req) => {
           meet_link: meetLink,
           status: "agendado",
           cliente_telefone: participanteTelefone || null,
+          profissional_id: profissionalId || null,
         })
         .select()
         .single();

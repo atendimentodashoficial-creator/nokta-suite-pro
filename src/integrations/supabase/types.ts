@@ -3774,6 +3774,7 @@ export type Database = {
           id: string
           meet_link: string | null
           participantes: string[] | null
+          profissional_id: string | null
           resumo_ia: string | null
           status: string
           titulo: string
@@ -3795,6 +3796,7 @@ export type Database = {
           id?: string
           meet_link?: string | null
           participantes?: string[] | null
+          profissional_id?: string | null
           resumo_ia?: string | null
           status?: string
           titulo: string
@@ -3816,6 +3818,7 @@ export type Database = {
           id?: string
           meet_link?: string | null
           participantes?: string[] | null
+          profissional_id?: string | null
           resumo_ia?: string | null
           status?: string
           titulo?: string
@@ -3829,6 +3832,20 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_horarios"
+            referencedColumns: ["profissional_id"]
+          },
+          {
+            foreignKeyName: "reunioes_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "profissionais"
             referencedColumns: ["id"]
           },
         ]
