@@ -179,12 +179,41 @@ serve(async (req) => {
       (ep: { entryPointType: string }) => ep.entryPointType === "video"
     )?.uri || null;
 
+    // Save meeting to reunioes table
+    const participantes = participanteEmail ? [participanteEmail] : [];
+    if (participanteNome && !participantes.includes(participanteNome)) {
+      participantes.unshift(participanteNome);
+    }
+
+    const { data: reuniaoData, error: reuniaoError } = await supabase
+      .from("reunioes")
+      .insert({
+        user_id: user.id,
+        google_event_id: eventData.id,
+        titulo: titulo,
+        data_reuniao: startDate.toISOString(),
+        duracao_minutos: duracaoMinutos,
+        participantes: participantes,
+        meet_link: meetLink,
+        status: "agendado",
+      })
+      .select()
+      .single();
+
+    if (reuniaoError) {
+      console.error("Error saving reuniao to database:", reuniaoError);
+      // Don't fail the request, the calendar event was created successfully
+    } else {
+      console.log("Reuniao saved to database:", reuniaoData?.id);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         eventId: eventData.id,
         htmlLink: eventData.htmlLink,
         meetLink,
+        reuniaoId: reuniaoData?.id,
         message: "Evento criado com sucesso!" 
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
