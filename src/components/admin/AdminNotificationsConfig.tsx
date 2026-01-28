@@ -7,10 +7,17 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar, Phone, Users, Zap, DollarSign, RefreshCw } from "lucide-react";
+import { Bell, MessageSquare, Wallet, FileBarChart, Loader2, Save, ChevronDown, ChevronUp, Edit3, Calendar, Phone, Users, Zap, DollarSign, RefreshCw, Smartphone } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+interface AdminInstance {
+  id: string;
+  nome: string;
+  base_url: string;
+  is_active: boolean;
+}
 
 interface User {
   id: string;
@@ -56,17 +63,29 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
   const [balances, setBalances] = useState<Record<string, BalanceInfo>>({});
   const [hasLoadedBalances, setHasLoadedBalances] = useState(false);
 
-  // Carregar configs ao montar o componente (sem saldos)
+  const [adminInstances, setAdminInstances] = useState<AdminInstance[]>([]);
+
+  // Carregar instâncias admin e configs ao montar
   useEffect(() => {
-    const loadAllConfigs = async () => {
+    const loadInitialData = async () => {
       setInitialLoading(true);
+      // Carregar instâncias admin
+      const { data: instances } = await supabase
+        .from("admin_notification_instances")
+        .select("id, nome, base_url, is_active")
+        .eq("is_active", true)
+        .order("nome");
+      
+      setAdminInstances(instances || []);
+      
+      // Carregar configs de usuários
       for (const user of users) {
         await loadConfig(user.id);
       }
       setInitialLoading(false);
     };
     if (users.length > 0) {
-      loadAllConfigs();
+      loadInitialData();
     }
   }, [users]);
 
@@ -218,6 +237,7 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
           body: {
             action: "update_notification_config",
             userId,
+            adminInstanciaId: config.admin_instancia_id,
             destinationType: config.destination_type,
             destinationValue: config.destination_value,
             lowBalanceEnabled: config.low_balance_enabled,
@@ -370,8 +390,41 @@ export function AdminNotificationsConfig({ users, isActive = true }: AdminNotifi
                     </div>
                   ) : config ? (
                     <>
+                      {/* Instância WhatsApp Admin para envio */}
+                      <div className="space-y-3 p-3 rounded-lg border bg-background">
+                        <Label className="flex items-center gap-2 font-medium">
+                          <Smartphone className="h-4 w-4" />
+                          Instância WhatsApp para Envio
+                        </Label>
+                        
+                        {adminInstances.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhuma instância admin configurada. Configure uma instância na seção "Instância WhatsApp do Admin".
+                          </p>
+                        ) : (
+                          <>
+                            <Select
+                              value={config.admin_instancia_id || ""}
+                              onValueChange={(value) => updateConfig(user.id, "admin_instancia_id", value || null)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma instância" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {adminInstances.map((inst) => (
+                                  <SelectItem key={inst.id} value={inst.id}>
+                                    {inst.nome}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Os avisos e respostas de palavra-chave serão enviados por esta instância
+                            </p>
+                          </>
+                        )}
+                      </div>
 
-                      {/* Destino dos Avisos */}
                       <div className="space-y-3 p-3 rounded-lg border bg-background">
                         <Label className="flex items-center gap-2 font-medium">
                           <MessageSquare className="h-4 w-4" />
