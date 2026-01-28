@@ -2,12 +2,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const decodeAdminToken = (token: string): string | null => {
+  try {
+    const decoded = atob(token);
+    const [adminId] = decoded.split(":");
+    if (adminId && adminId.length === 36 && adminId.includes("-")) return adminId;
+    return null;
+  } catch {
+    return null;
+  }
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -22,16 +34,35 @@ Deno.serve(async (req) => {
       });
     }
 
-    const jwt = rawAuth.replace("Bearer ", "");
+    const jwtOrAdminToken = rawAuth.replace("Bearer ", "");
 
-    // Initialize Supabase client to verify user
+    // Initialize Supabase client to verify user/admin
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify JWT
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(jwt);
-    if (authError || !user) {
+    // Verify JWT (cliente) OR admin_token (painel admin)
+    let authorized = false;
+    try {
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(jwtOrAdminToken);
+      if (!authError && user) authorized = true;
+    } catch {
+      // ignore
+    }
+
+    if (!authorized) {
+      const adminId = decodeAdminToken(jwtOrAdminToken);
+      if (adminId) {
+        const { data: adminUser, error: adminErr } = await supabaseClient
+          .from("admin_users")
+          .select("id")
+          .eq("id", adminId)
+          .maybeSingle();
+        if (!adminErr && adminUser) authorized = true;
+      }
+    }
+
+    if (!authorized) {
       return new Response(JSON.stringify({ success: false, error: "Token inválido." }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

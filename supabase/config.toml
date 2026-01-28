@@ -26,3 +26,24 @@ verify_jwt = false
 
 [functions.admin-keyword-handler]
 verify_jwt = false
+
+[functions.uazapi-admin-get-qrcode]
+verify_jwt = false
+
+[functions.uazapi-admin-create-instance]
+verify_jwt = false
+
+[functions.uazapi-test-connection]
+verify_jwt = false
+
+[functions.uazapi-check-status]
+verify_jwt = false
+
+[functions.uazapi-get-pairing-code]
+verify_jwt = false
+
+[functions.uazapi-set-webhook]
+verify_jwt = false
+
+[functions.admin-notification-create-instance]
+verify_jwt = false
