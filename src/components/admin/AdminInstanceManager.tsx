@@ -259,16 +259,35 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
 
   const handleDeleteInstance = async (instanceId: string) => {
     try {
-      // Primeiro, limpar referências em admin_client_notifications
-      const { error: updateError } = await supabase
+      console.log("Iniciando exclusão da instância:", instanceId);
+      
+      // Primeiro, buscar quantas referências existem
+      const { data: refs, error: refError } = await supabase
         .from("admin_client_notifications")
-        .update({ admin_instancia_id: null })
+        .select("id")
         .eq("admin_instancia_id", instanceId);
+      
+      console.log("Referências encontradas:", refs?.length || 0, refError);
+      
+      // Limpar TODAS as referências em admin_client_notifications
+      if (refs && refs.length > 0) {
+        const { error: updateError, count } = await supabase
+          .from("admin_client_notifications")
+          .update({ admin_instancia_id: null })
+          .eq("admin_instancia_id", instanceId)
+          .select();
 
-      if (updateError) {
-        console.error("Erro ao limpar referências:", updateError);
-        // Continue mesmo com erro - pode não haver referências
+        console.log("Resultado da limpeza de referências:", { updateError, count });
+        
+        if (updateError) {
+          console.error("Erro ao limpar referências:", updateError);
+          toast.error("Erro ao desvincular clientes da instância");
+          return;
+        }
       }
+
+      // Pequeno delay para garantir que a atualização foi propagada
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Agora excluir a instância
       const { error } = await supabase
@@ -276,13 +295,17 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
         .delete()
         .eq("id", instanceId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao excluir instância:", error);
+        throw error;
+      }
 
       setInstances(prev => prev.filter(i => i.id !== instanceId));
       toast.success("Instância removida com sucesso!");
-    } catch (error) {
+      onInstancesChange?.();
+    } catch (error: any) {
       console.error("Erro ao remover instância:", error);
-      toast.error("Erro ao remover instância");
+      toast.error(error?.message || "Erro ao remover instância");
     }
   };
 
