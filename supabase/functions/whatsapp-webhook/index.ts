@@ -32,6 +32,63 @@ function extractStableMessageId(message: any): string {
   return '';
 }
 
+// Global idempotency gate for keyword triggers.
+// The same inbound WhatsApp message can arrive multiple times via different webhook tokens/instances.
+// We must ensure the keyword handler runs only once per inbound message.
+const KEYWORD_DEDUP_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+function normalizeKeywordText(input: string): string {
+  return String(input || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function toMsTimestamp(ts: number): number {
+  // Some providers send seconds, others send ms.
+  return ts > 9999999999 ? ts : ts * 1000;
+}
+
+async function canRunKeywordTrigger(params: {
+  supabase: any;
+  phoneLast8: string;
+  stableMessageId: string;
+  messageText: string;
+  messageTimestamp: number;
+}): Promise<boolean> {
+  const { supabase, phoneLast8, stableMessageId, messageText, messageTimestamp } = params;
+
+  if (!phoneLast8) return false;
+
+  // Prefer stable message id; otherwise fall back to a short time bucket + normalized text.
+  const ms = toMsTimestamp(Number(messageTimestamp) || 0);
+  const bucketMs = ms ? Math.floor(ms / 15000) * 15000 : 0; // 15s bucket
+  const normalizedText = normalizeKeywordText(messageText).slice(0, 120);
+
+  const hash = stableMessageId
+    ? `kwid:${stableMessageId}`
+    : `kw:${bucketMs}:${normalizedText || 'empty'}`;
+
+  const ts = stableMessageId ? 0 : bucketMs;
+
+  const { error } = await supabase
+    .from('webhook_message_dedup')
+    .insert({
+      user_id: KEYWORD_DEDUP_USER_ID,
+      instancia_id: null,
+      phone_last8: phoneLast8,
+      message_timestamp: ts,
+      message_hash: hash,
+    });
+
+  if (!error) return true;
+  if ((error as any).code === '23505') return false;
+  // Fail-closed: if we can't guarantee idempotency, do not run.
+  console.error('[Keyword Dedup] Unexpected error inserting keyword dedup record:', error);
+  return false;
+}
+
 interface WhatsAppWebhookPayload {
   EventType: string;
   type?: string;
@@ -825,6 +882,19 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Global keyword dedup (prevents double triggers across different tokens/instances)
+        const canRun = await canRunKeywordTrigger({
+          supabase,
+          phoneLast8: last8Incoming,
+          stableMessageId: messageId,
+          messageText,
+          messageTimestamp: messageTimestampRaw,
+        });
+        if (!canRun) {
+          console.log('[Admin Instance] Global keyword dedup blocked; skipping keyword handler');
+          isDuplicateAdmin = true;
+        }
+
         console.log('[Admin Instance] Checking keyword triggers via admin-keyword-handler...');
         if (!isDuplicateAdmin) {
           fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
@@ -905,6 +975,18 @@ Deno.serve(async (req) => {
     if (!isFromMe && !wasSentByApi && !isOutboundBySender && messageText && !isDuplicate) {
       console.log('[Keyword Check] Checking for admin keyword triggers...');
       try {
+        const canRun = await canRunKeywordTrigger({
+          supabase,
+          phoneLast8: last8Incoming,
+          stableMessageId,
+          messageText,
+          messageTimestamp,
+        });
+
+        if (!canRun) {
+          console.log('[Keyword Check] Global keyword dedup blocked; skipping keyword handler');
+          // Continue processing chat/unread logic normally, but do not trigger response.
+        } else {
         // Call the admin keyword handler asynchronously (fire and forget)
         // This prevents blocking the webhook response
         fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
@@ -932,6 +1014,7 @@ Deno.serve(async (req) => {
         }).catch((err) => {
           console.error('[Keyword Check] Error calling handler:', err.message);
         });
+        }
       } catch (keywordError: any) {
         console.error('[Keyword Check] Error:', keywordError.message);
       }
