@@ -67,7 +67,6 @@ export interface FormularioTemplate {
   pagina_obrigado_imagem_subtitulo: string | null;
   pagina_obrigado_imagens: unknown;
   pagina_obrigado_videos: unknown;
-  section_order: string[] | null;
   created_at: string;
   updated_at: string;
   etapas?: FormularioEtapa[];

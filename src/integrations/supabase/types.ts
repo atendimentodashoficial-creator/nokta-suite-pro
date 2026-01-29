@@ -2454,7 +2454,6 @@ export type Database = {
           pagina_obrigado_video_url: string | null
           pagina_obrigado_videos: Json | null
           progress_background_color: string | null
-          section_order: Json | null
           slug: string | null
           status: string
           subtitulo: string | null
@@ -2524,7 +2523,6 @@ export type Database = {
           pagina_obrigado_video_url?: string | null
           pagina_obrigado_videos?: Json | null
           progress_background_color?: string | null
-          section_order?: Json | null
           slug?: string | null
           status?: string
           subtitulo?: string | null
@@ -2594,7 +2592,6 @@ export type Database = {
           pagina_obrigado_video_url?: string | null
           pagina_obrigado_videos?: Json | null
           progress_background_color?: string | null
-          section_order?: Json | null
           slug?: string | null
           status?: string
           subtitulo?: string | null
