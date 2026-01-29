@@ -331,12 +331,32 @@ Deno.serve(async (req) => {
 
       try {
         const reportPeriod = parseInt(notifConfig.keyword_report_period || notifConfig.campaign_report_period || '7');
-        const endDate = new Date();
-        const startDate = new Date();
+        
+        // Use Brasília timezone (UTC-3) for date calculations
+        const BRASILIA_OFFSET = -3 * 60; // -3 hours in minutes
+        const nowUtc = new Date();
+        const nowBrasilia = new Date(nowUtc.getTime() + (BRASILIA_OFFSET + nowUtc.getTimezoneOffset()) * 60 * 1000);
+        
+        const endDate = new Date(nowBrasilia);
+        const startDate = new Date(nowBrasilia);
         startDate.setDate(startDate.getDate() - reportPeriod);
 
-        const formatDate = (d: Date) => d.toLocaleDateString('pt-BR');
-        const formatDateISO = (d: Date) => d.toISOString().split('T')[0];
+        // Format dates for display (DD/MM/YYYY) using Brasília date
+        const formatDate = (d: Date) => {
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+        // Format dates for API (YYYY-MM-DD)
+        const formatDateISO = (d: Date) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        
+        console.log(`[admin-keyword-handler] Report dates (Brasília): ${formatDate(startDate)} to ${formatDate(endDate)}`);
 
         // Get user's Facebook config
         const { data: fbConfig } = await supabase
