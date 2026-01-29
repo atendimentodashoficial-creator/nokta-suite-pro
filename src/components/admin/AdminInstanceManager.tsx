@@ -101,16 +101,22 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
   const loadInstances = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("admin_notification_instances")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const adminToken = localStorage.getItem("admin_token");
+      
+      // Use edge function with admin token to fetch instances (works without Supabase Auth)
+      const { data: response, error } = await supabase.functions.invoke("admin-manage-users", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: { action: "list_notification_instances" },
+      });
 
       if (error) throw error;
-      setInstances(data || []);
+      if (!response?.success) throw new Error(response?.error || "Erro ao carregar instâncias");
+      
+      const instancesData = response.instances || [];
+      setInstances(instancesData);
       
       // Check connection status for each instance
-      for (const instance of data || []) {
+      for (const instance of instancesData) {
         checkConnectionStatus(instance);
       }
     } catch (error) {

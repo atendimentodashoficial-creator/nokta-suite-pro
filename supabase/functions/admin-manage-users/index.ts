@@ -332,6 +332,21 @@ serve(async (req) => {
         );
       }
 
+      case 'list_notification_instances': {
+        // Listar todas as instâncias de notificação do admin
+        const { data: instances, error: listError } = await supabase
+          .from('admin_notification_instances')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (listError) throw listError;
+
+        return new Response(
+          JSON.stringify({ success: true, instances }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: 'Ação inválida' }),
