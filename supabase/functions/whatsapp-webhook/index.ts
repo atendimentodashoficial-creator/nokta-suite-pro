@@ -698,6 +698,17 @@ Deno.serve(async (req) => {
     // user sends "saldo" -> we reply with "Saldo Meta Ads" -> webhook receives our reply -> triggers again -> ...
     const wasSentByApi = Boolean((normalizedPayload.message as any)?.wasSentByApi);
 
+    // Extra safety: sometimes the provider misreports `fromMe` / omits `wasSentByApi`.
+    // If the sender is the instance owner number, we treat it as outbound and NEVER run keyword triggers.
+    const msgForDirection = normalizedPayload.message as any;
+    const ownerDigits = String((normalizedPayload as any)?.owner || (normalizedPayload.chat as any)?.owner || '')
+      .replace(/\D/g, '');
+    const senderDigits = (
+      extractNumberFromChatId(String(msgForDirection?.sender_pn || '')) ||
+      String(msgForDirection?.sender || '').replace(/\D/g, '')
+    );
+    const isOutboundBySender = Boolean(ownerDigits && senderDigits && ownerDigits === senderDigits);
+
     // === Extract quoted message info (for reply messages) ===
     const msgForQuote = normalizedPayload.message as any;
     const ctxForQuote = msgForQuote?.content?.contextInfo || msgForQuote?.contextInfo;
@@ -743,7 +754,7 @@ Deno.serve(async (req) => {
     if (isAdminNotificationInstance && adminNotificationInstanceId) {
       console.log('[Admin Instance] Webhook received for admin notification instance:', adminNotificationInstanceId);
 
-      if (!isFromMe && !wasSentByApi && messageText) {
+      if (!isFromMe && !wasSentByApi && !isOutboundBySender && messageText) {
         // Deduplicate admin instance webhook events too (provider retries can cause duplicates)
         const msgAny = normalizedPayload.message as any;
         const messageId = String(msgAny?.messageid || msgAny?.id || '').trim();
@@ -857,7 +868,7 @@ Deno.serve(async (req) => {
     }
 
     // === Check for admin keyword triggers (only for incoming messages) ===
-    if (!isFromMe && !wasSentByApi && messageText && !isDuplicate) {
+    if (!isFromMe && !wasSentByApi && !isOutboundBySender && messageText && !isDuplicate) {
       console.log('[Keyword Check] Checking for admin keyword triggers...');
       try {
         // Call the admin keyword handler asynchronously (fire and forget)
