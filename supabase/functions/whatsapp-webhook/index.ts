@@ -971,54 +971,9 @@ Deno.serve(async (req) => {
       console.log('Early UTM extraction successful:', earlyUtmData, 'FB Campaign:', fbCampaignInfo);
     }
 
-    // === Check for admin keyword triggers (only for incoming messages) ===
-    if (!isFromMe && !wasSentByApi && !isOutboundBySender && messageText && !isDuplicate) {
-      console.log('[Keyword Check] Checking for admin keyword triggers...');
-      try {
-        const canRun = await canRunKeywordTrigger({
-          supabase,
-          phoneLast8: last8Incoming,
-          stableMessageId,
-          messageText,
-          messageTimestamp,
-        });
-
-        if (!canRun) {
-          console.log('[Keyword Check] Global keyword dedup blocked; skipping keyword handler');
-          // Continue processing chat/unread logic normally, but do not trigger response.
-        } else {
-        // Call the admin keyword handler asynchronously (fire and forget)
-        // This prevents blocking the webhook response
-        fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            user_id: effectiveUserId,
-            phone: normalizedIncoming,
-            message_text: messageText,
-          }),
-        }).then(async (response) => {
-          if (response.ok) {
-            const result = await response.json();
-            if (result.matched) {
-              console.log('[Keyword Check] Keyword matched:', result.keyword, '- Response sent to:', result.destination);
-            } else {
-              console.log('[Keyword Check] No keyword matched');
-            }
-          } else {
-            console.error('[Keyword Check] Handler returned error:', response.status);
-          }
-        }).catch((err) => {
-          console.error('[Keyword Check] Error calling handler:', err.message);
-        });
-        }
-      } catch (keywordError: any) {
-        console.error('[Keyword Check] Error:', keywordError.message);
-      }
-    }
+    // NOTE: Keyword triggers are ONLY processed via admin notification instances.
+    // The keyword check block that was here has been removed intentionally.
+    // All keyword trigger logic now runs exclusively in the admin instance flow above (lines ~820-900).
 
     // Increment unread_count for the chat (both WhatsApp and Disparos tables)
     // Only if this is NOT a duplicate event
