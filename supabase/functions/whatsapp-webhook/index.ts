@@ -5,6 +5,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Providers may include message identifiers in different shapes (e.g. `messageid` vs `id`)
+// and sometimes prefix them with the owner number (e.g. `5534...:3EB0...`).
+// This normalizes them to a stable id so we can deduplicate reliably.
+function normalizeProviderMessageId(raw: unknown): string {
+  const s = String(raw ?? '').trim();
+  if (!s) return '';
+  // If the provider prefixes with something like "owner:messageId", keep only the last part.
+  const parts = s.split(':').filter(Boolean);
+  return (parts.length > 1 ? parts[parts.length - 1] : s).trim();
+}
+
+function extractStableMessageId(message: any): string {
+  // Try a few common variants.
+  const candidates = [
+    message?.messageid,
+    message?.messageId,
+    message?.id,
+    message?.messageID,
+  ];
+
+  for (const c of candidates) {
+    const normalized = normalizeProviderMessageId(c);
+    if (normalized) return normalized;
+  }
+  return '';
+}
+
 interface WhatsAppWebhookPayload {
   EventType: string;
   type?: string;
@@ -757,7 +784,7 @@ Deno.serve(async (req) => {
       if (!isFromMe && !wasSentByApi && !isOutboundBySender && messageText) {
         // Deduplicate admin instance webhook events too (provider retries can cause duplicates)
         const msgAny = normalizedPayload.message as any;
-        const messageId = String(msgAny?.messageid || msgAny?.id || '').trim();
+        const messageId = extractStableMessageId(msgAny);
 
         // IMPORTANT: the provider may resend the same message with slightly different timestamps.
         // Our DB unique index includes message_timestamp, so when we have a stable messageId we
@@ -765,7 +792,7 @@ Deno.serve(async (req) => {
         const messageTimestampRaw = Number(msgAny?.messageTimestamp);
         const messageTimestamp = messageId ? 0 : (Number.isFinite(messageTimestampRaw) ? Math.trunc(messageTimestampRaw) : 0);
 
-        const messageHash = messageId || `text:${messageText?.substring(0, 80) || 'empty'}`;
+        const messageHash = messageId ? `id:${messageId}` : `text:${messageText?.substring(0, 80) || 'empty'}`;
         const last8Incoming = getLast8Digits(normalizedIncoming);
 
         let isDuplicateAdmin = false;
@@ -824,20 +851,27 @@ Deno.serve(async (req) => {
     }
 
     // === Deduplicate webhook events to prevent double-counting unread messages ===
+    const msgAny = normalizedPayload.message as any;
+    const stableMessageId = extractStableMessageId(msgAny);
     const messageTimestamp = normalizedPayload.message!.messageTimestamp;
-    const messageHash = `${messageText?.substring(0, 50) || 'empty'}`;
+    // When we have a stable provider message id, we intentionally ignore timestamp drift
+    // (providers can resend the same message with slightly different timestamps).
+    const dedupTimestamp = stableMessageId ? 0 : messageTimestamp;
+    const messageHash = stableMessageId
+      ? `id:${stableMessageId}`
+      : `text:${messageText?.substring(0, 80) || 'empty'}`;
     const last8Incoming = getLast8Digits(phone);
     
     // Try to insert a dedup record - if it already exists, skip incrementing unread
     let isDuplicate = false;
-    if (last8Incoming && messageTimestamp) {
+    if (last8Incoming && (dedupTimestamp || stableMessageId)) {
       const { error: dedupError } = await supabase
         .from('webhook_message_dedup')
         .insert({
           user_id: effectiveUserId,
           instancia_id: instanciaId || null,
           phone_last8: last8Incoming,
-          message_timestamp: messageTimestamp,
+          message_timestamp: dedupTimestamp,
           message_hash: messageHash,
         });
       
