@@ -654,6 +654,14 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       
       setImagensLayout((template as any).imagens_layout || "horizontal");
       
+      // Section order - load from template or use default
+      const loadedSectionOrder = (template as any).section_order;
+      if (Array.isArray(loadedSectionOrder) && loadedSectionOrder.length > 0) {
+        setSectionOrder(loadedSectionOrder as SectionType[]);
+      } else {
+        setSectionOrder(["titulo", "cta", "imagens", "videos"]);
+      }
+      
       // WhatsApp settings
       setWhatsappInstanciaId((template as any).whatsapp_instancia_id || null);
       setWhatsappMensagemSucesso((template as any).whatsapp_mensagem_sucesso || "");
@@ -718,6 +726,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       setImagens([]);
       setVideos([]);
       setImagensLayout("vertical");
+      
+      // Reset section order
+      setSectionOrder(["titulo", "cta", "imagens", "videos"]);
       
       // Reset WhatsApp settings
       setWhatsappInstanciaId(null);
@@ -1054,6 +1065,9 @@ export default function TemplateDialog({ open, onOpenChange, template }: Templat
       obrigado_button_text_color: obrigadoButtonTextColor,
       obrigado_card_border_color: obrigadoCardBorderColor,
       obrigado_border_radius: obrigadoBorderRadius,
+      
+      // Section order for thank you page
+      section_order: sectionOrder,
       
       // WhatsApp notification
       whatsapp_instancia_id: whatsappNotificacaoAtiva ? whatsappInstanciaId : null,
