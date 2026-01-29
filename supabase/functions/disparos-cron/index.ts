@@ -54,6 +54,38 @@ Deno.serve(async (req) => {
       console.error("[CRON] Error calling admin-notifications-cron:", adminErr.message);
     }
 
+    // === Run appointment reminders cron (avisos agendamento) ===
+    try {
+      console.log("[CRON] Triggering enviar-avisos-agendamento...");
+      const avisosAgResponse = await fetch(`${SUPABASE_URL}/functions/v1/enviar-avisos-agendamento`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Cron-Secret": CRON_SECRET,
+        },
+      });
+      const avisosAgResult = await avisosAgResponse.json();
+      console.log("[CRON] Avisos agendamento result:", avisosAgResult);
+    } catch (avisosAgErr: any) {
+      console.error("[CRON] Error calling enviar-avisos-agendamento:", avisosAgErr.message);
+    }
+
+    // === Run meeting reminders cron (avisos reuniao) ===
+    try {
+      console.log("[CRON] Triggering enviar-avisos-reuniao...");
+      const avisosReResponse = await fetch(`${SUPABASE_URL}/functions/v1/enviar-avisos-reuniao`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Cron-Secret": CRON_SECRET,
+        },
+      });
+      const avisosReResult = await avisosReResponse.json();
+      console.log("[CRON] Avisos reuniao result:", avisosReResult);
+    } catch (avisosReErr: any) {
+      console.error("[CRON] Error calling enviar-avisos-reuniao:", avisosReErr.message);
+    }
+
     // Find all running campaigns that are ready to continue
     // Process ALL campaigns regardless of delay - cron is the primary scheduler
     const { data: campanhas, error: campanhasError } = await supabase
