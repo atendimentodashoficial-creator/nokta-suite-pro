@@ -48,95 +48,94 @@ export async function syncContactNameEverywhere(
   console.log("[syncContactName] Iniciando sincronização", { telefone, last8, novoNome: trimmedName });
 
   // 1. Atualizar todos os leads com mesmo telefone
-  const { data: allLeads, error: leadsError } = await supabase
+  // IMPORTANTE: não fazer select em massa (limite padrão 1000). Filtrar direto pelo sufixo.
+  const leadsQuery = supabase
     .from("leads")
     .select("id, telefone")
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .like("telefone", `%${last8}%`);
+
+  const { data: allLeads, error: leadsError } = excludeLeadId
+    ? await leadsQuery.neq("id", excludeLeadId)
+    : await leadsQuery;
 
   if (leadsError) {
     console.error("[syncContactName] Erro ao buscar leads:", leadsError);
   }
 
-  if (allLeads) {
-    const matchingLeads = allLeads.filter((l) => {
-      if (excludeLeadId && l.id === excludeLeadId) return false;
-      return getLast8Digits(l.telefone) === last8;
-    });
+  console.log("[syncContactName] Leads encontrados para atualizar (filtrado por sufixo):", allLeads?.length ?? 0);
 
-    console.log("[syncContactName] Leads encontrados para atualizar:", matchingLeads.length);
+  if ((allLeads?.length ?? 0) > 0) {
+    const leadIds = allLeads!.map((l) => l.id);
+    const { error } = await supabase
+      .from("leads")
+      .update({ nome: trimmedName })
+      .in("id", leadIds);
 
-    for (const lead of matchingLeads) {
-      const { error } = await supabase
-        .from("leads")
-        .update({ nome: trimmedName })
-        .eq("id", lead.id);
-      
-      if (error) {
-        console.error("[syncContactName] Erro ao atualizar lead:", lead.id, error);
-      } else {
-        console.log("[syncContactName] Lead atualizado:", lead.id);
-      }
+    if (error) {
+      console.error("[syncContactName] Erro ao atualizar leads em lote:", error);
+    } else {
+      console.log("[syncContactName] Leads atualizados em lote:", leadIds.length);
     }
   }
 
   // 2. Atualizar todos os whatsapp_chats com mesmo telefone
+  // Filtrar direto no backend para evitar limite e custo.
   const { data: whatsappChats, error: waError } = await supabase
     .from("whatsapp_chats")
-    .select("id, normalized_number");
+    .select("id")
+    .like("normalized_number", `%${last8}%`);
 
   if (waError) {
     console.error("[syncContactName] Erro ao buscar whatsapp_chats:", waError);
   }
 
-  if (whatsappChats) {
-    const matchingWa = whatsappChats.filter(
-      (c) => getLast8Digits(c.normalized_number) === last8
-    );
+  console.log(
+    "[syncContactName] WhatsApp chats encontrados para atualizar (filtrado por sufixo):",
+    whatsappChats?.length ?? 0
+  );
 
-    console.log("[syncContactName] WhatsApp chats encontrados para atualizar:", matchingWa.length);
+  if ((whatsappChats?.length ?? 0) > 0) {
+    const chatIds = whatsappChats!.map((c) => c.id);
+    const { error } = await supabase
+      .from("whatsapp_chats")
+      .update({ contact_name: trimmedName })
+      .in("id", chatIds);
 
-    for (const chat of matchingWa) {
-      const { error } = await supabase
-        .from("whatsapp_chats")
-        .update({ contact_name: trimmedName })
-        .eq("id", chat.id);
-      
-      if (error) {
-        console.error("[syncContactName] Erro ao atualizar whatsapp_chat:", chat.id, error);
-      } else {
-        console.log("[syncContactName] WhatsApp chat atualizado:", chat.id);
-      }
+    if (error) {
+      console.error("[syncContactName] Erro ao atualizar whatsapp_chats em lote:", error);
+    } else {
+      console.log("[syncContactName] WhatsApp chats atualizados em lote:", chatIds.length);
     }
   }
 
   // 3. Atualizar todos os disparos_chats com mesmo telefone
   const { data: disparosChats, error: dispError } = await supabase
     .from("disparos_chats")
-    .select("id, normalized_number");
+    .select("id")
+    .like("normalized_number", `%${last8}%`);
 
   if (dispError) {
     console.error("[syncContactName] Erro ao buscar disparos_chats:", dispError);
   }
 
-  if (disparosChats) {
-    const matchingDisparos = disparosChats.filter(
-      (c) => getLast8Digits(c.normalized_number) === last8
-    );
+  console.log(
+    "[syncContactName] Disparos chats encontrados para atualizar (filtrado por sufixo):",
+    disparosChats?.length ?? 0,
+    (disparosChats ?? []).map((c) => c.id)
+  );
 
-    console.log("[syncContactName] Disparos chats encontrados para atualizar:", matchingDisparos.length, matchingDisparos.map(c => c.id));
+  if ((disparosChats?.length ?? 0) > 0) {
+    const chatIds = disparosChats!.map((c) => c.id);
+    const { error } = await supabase
+      .from("disparos_chats")
+      .update({ contact_name: trimmedName })
+      .in("id", chatIds);
 
-    for (const chat of matchingDisparos) {
-      const { data, error } = await supabase
-        .from("disparos_chats")
-        .update({ contact_name: trimmedName })
-        .eq("id", chat.id)
-        .select();
-      
-      if (error) {
-        console.error("[syncContactName] Erro ao atualizar disparos_chat:", chat.id, error);
-      } else {
-        console.log("[syncContactName] Disparos chat atualizado:", chat.id, "resultado:", data);
-      }
+    if (error) {
+      console.error("[syncContactName] Erro ao atualizar disparos_chats em lote:", error);
+    } else {
+      console.log("[syncContactName] Disparos chats atualizados em lote:", chatIds.length);
     }
   }
 
