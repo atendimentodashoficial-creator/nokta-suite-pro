@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhoneByCountry, getPhonePlaceholder } from "@/utils/phoneFormat";
+import { syncContactNameEverywhere, CONTACT_NAME_QUERY_KEYS } from "@/utils/syncContactName";
 import {
   Dialog,
   DialogContent,
@@ -140,74 +141,14 @@ export function EditarClienteDialog({
 
       if (error) throw error;
 
-      // Atualizar nome em todos os registros relacionados
-      const getLast8Digits = (phone: string) => phone.replace(/\D/g, '').slice(-8);
-      const clienteLast8 = getLast8Digits(cliente.telefone);
-      
-      // 1. Atualizar todos os leads com o mesmo telefone (últimos 8 dígitos)
-      const { data: allLeads } = await supabase
-        .from("leads")
-        .select("id, telefone")
-        .neq("id", cliente.id);
-      
-      if (allLeads) {
-        const matchingLeads = allLeads.filter(
-          lead => getLast8Digits(lead.telefone) === clienteLast8
-        );
-        
-        for (const lead of matchingLeads) {
-          await supabase
-            .from("leads")
-            .update({ nome: data.nome })
-            .eq("id", lead.id);
-        }
-      }
-      
-      // 2. Atualizar WhatsApp chats
-      const { data: whatsappChats } = await supabase
-        .from("whatsapp_chats")
-        .select("id, normalized_number");
-
-      if (whatsappChats) {
-        const matchingWhatsappChats = whatsappChats.filter(
-          chat => getLast8Digits(chat.normalized_number) === clienteLast8
-        );
-
-        for (const chat of matchingWhatsappChats) {
-          await supabase
-            .from("whatsapp_chats")
-            .update({ contact_name: data.nome })
-            .eq("id", chat.id);
-        }
-      }
-      
-      // 3. Atualizar Disparos chats
-      const { data: disparosChats } = await supabase
-        .from("disparos_chats")
-        .select("id, normalized_number");
-
-      if (disparosChats) {
-        const matchingDisparosChats = disparosChats.filter(
-          chat => getLast8Digits(chat.normalized_number) === clienteLast8
-        );
-
-        for (const chat of matchingDisparosChats) {
-          await supabase
-            .from("disparos_chats")
-            .update({ contact_name: data.nome })
-            .eq("id", chat.id);
-        }
-      }
-
-      // 4. Reuniões usam cliente_id com join para leads, então a atualização do lead já propaga automaticamente
+      // Propagar nome para todas as tabelas relacionadas (leads, whatsapp_chats, disparos_chats)
+      await syncContactNameEverywhere(cliente.telefone, data.nome, cliente.id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
-      queryClient.invalidateQueries({ queryKey: ["faturas"] });
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-chats"] });
-      queryClient.invalidateQueries({ queryKey: ["disparos-chats"] });
-      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
+      // Invalidar todas as queries relacionadas a contatos
+      CONTACT_NAME_QUERY_KEYS.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
       toast.success("Cliente atualizado com sucesso!");
       onOpenChange(false);
     },
