@@ -16,6 +16,7 @@ import { CampanhasTab } from "@/components/disparos/CampanhasTab";
 import { TemplatesTab } from "@/components/disparos/TemplatesTab";
 import { ChatAvatar } from "@/components/whatsapp/ChatAvatar";
 import { formatPhoneNumber, formatRelativeTime, truncateText, getInitials, normalizePhoneNumber, getLast8Digits, formatLastMessagePreview } from "@/utils/whatsapp";
+import { CONTACT_NAME_UPDATED_EVENT } from "@/utils/syncContactName";
 import { formatPhoneByCountry, getPhonePlaceholder, stripCountryCode } from "@/utils/phoneFormat";
 import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -646,6 +647,27 @@ export default function Disparos() {
       await loadChats();
     })();
   }, []);
+
+  // Listen for contact name updates from other components (e.g., EditarClienteDialog)
+  useEffect(() => {
+    const handleContactNameUpdated = async () => {
+      // Reload chats to get updated names
+      const updatedChats = await loadChats();
+      
+      // Also update the selected chat if it exists
+      if (selectedChat && updatedChats) {
+        const updatedSelectedChat = updatedChats.find(c => c.id === selectedChat.id);
+        if (updatedSelectedChat) {
+          setSelectedChat(updatedSelectedChat);
+        }
+      }
+    };
+
+    window.addEventListener(CONTACT_NAME_UPDATED_EVENT, handleContactNameUpdated);
+    return () => {
+      window.removeEventListener(CONTACT_NAME_UPDATED_EVENT, handleContactNameUpdated);
+    };
+  }, [selectedChat]);
 
   // Deep-link support: /disparos?chat=PHONE[&instancia_nome=NAME][&prefill=MESSAGE]
   useEffect(() => {
