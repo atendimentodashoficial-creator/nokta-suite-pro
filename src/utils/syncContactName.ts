@@ -45,11 +45,17 @@ export async function syncContactNameEverywhere(
     return;
   }
 
+  console.log("[syncContactName] Iniciando sincronização", { telefone, last8, novoNome: trimmedName });
+
   // 1. Atualizar todos os leads com mesmo telefone
-  const { data: allLeads } = await supabase
+  const { data: allLeads, error: leadsError } = await supabase
     .from("leads")
     .select("id, telefone")
     .is("deleted_at", null);
+
+  if (leadsError) {
+    console.error("[syncContactName] Erro ao buscar leads:", leadsError);
+  }
 
   if (allLeads) {
     const matchingLeads = allLeads.filter((l) => {
@@ -57,52 +63,86 @@ export async function syncContactNameEverywhere(
       return getLast8Digits(l.telefone) === last8;
     });
 
+    console.log("[syncContactName] Leads encontrados para atualizar:", matchingLeads.length);
+
     for (const lead of matchingLeads) {
-      await supabase
+      const { error } = await supabase
         .from("leads")
         .update({ nome: trimmedName })
         .eq("id", lead.id);
+      
+      if (error) {
+        console.error("[syncContactName] Erro ao atualizar lead:", lead.id, error);
+      } else {
+        console.log("[syncContactName] Lead atualizado:", lead.id);
+      }
     }
   }
 
   // 2. Atualizar todos os whatsapp_chats com mesmo telefone
-  const { data: whatsappChats } = await supabase
+  const { data: whatsappChats, error: waError } = await supabase
     .from("whatsapp_chats")
     .select("id, normalized_number");
+
+  if (waError) {
+    console.error("[syncContactName] Erro ao buscar whatsapp_chats:", waError);
+  }
 
   if (whatsappChats) {
     const matchingWa = whatsappChats.filter(
       (c) => getLast8Digits(c.normalized_number) === last8
     );
 
+    console.log("[syncContactName] WhatsApp chats encontrados para atualizar:", matchingWa.length);
+
     for (const chat of matchingWa) {
-      await supabase
+      const { error } = await supabase
         .from("whatsapp_chats")
         .update({ contact_name: trimmedName })
         .eq("id", chat.id);
+      
+      if (error) {
+        console.error("[syncContactName] Erro ao atualizar whatsapp_chat:", chat.id, error);
+      } else {
+        console.log("[syncContactName] WhatsApp chat atualizado:", chat.id);
+      }
     }
   }
 
   // 3. Atualizar todos os disparos_chats com mesmo telefone
-  const { data: disparosChats } = await supabase
+  const { data: disparosChats, error: dispError } = await supabase
     .from("disparos_chats")
     .select("id, normalized_number");
+
+  if (dispError) {
+    console.error("[syncContactName] Erro ao buscar disparos_chats:", dispError);
+  }
 
   if (disparosChats) {
     const matchingDisparos = disparosChats.filter(
       (c) => getLast8Digits(c.normalized_number) === last8
     );
 
+    console.log("[syncContactName] Disparos chats encontrados para atualizar:", matchingDisparos.length, matchingDisparos.map(c => c.id));
+
     for (const chat of matchingDisparos) {
-      await supabase
+      const { data, error } = await supabase
         .from("disparos_chats")
         .update({ contact_name: trimmedName })
-        .eq("id", chat.id);
+        .eq("id", chat.id)
+        .select();
+      
+      if (error) {
+        console.error("[syncContactName] Erro ao atualizar disparos_chat:", chat.id, error);
+      } else {
+        console.log("[syncContactName] Disparos chat atualizado:", chat.id, "resultado:", data);
+      }
     }
   }
 
   // 4. Disparar evento para que componentes com estado local recarreguem
   dispatchContactNameUpdatedEvent(telefone, trimmedName);
+  console.log("[syncContactName] Evento disparado, sincronização concluída");
 }
 
 /**
