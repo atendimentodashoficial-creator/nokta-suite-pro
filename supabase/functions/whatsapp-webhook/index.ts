@@ -1246,7 +1246,8 @@ Deno.serve(async (req) => {
               // Save the first message to whatsapp_messages
               if (chatIdForMessage) {
                 const anyMsg = normalizedPayload.message as any;
-                const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
+                const rawMessageId = anyMsg?.messageid || anyMsg?.id;
+                const messageId = normalizeProviderMessageId(rawMessageId) || `msg_${Date.now()}`;
 
                 const { error: msgInsertError } = await supabase
                   .from('whatsapp_messages')
@@ -1327,7 +1328,8 @@ Deno.serve(async (req) => {
             // Save the first message to whatsapp_messages (even if chat was created by another request)
             if (chatIdForMessage) {
               const anyMsg = normalizedPayload.message as any;
-              const messageId = anyMsg?.messageid || anyMsg?.id || `msg_${Date.now()}`;
+              const rawMessageId = anyMsg?.messageid || anyMsg?.id;
+              const messageId = normalizeProviderMessageId(rawMessageId) || `msg_${Date.now()}`;
 
               const { error: msgInsertError } = await supabase
                 .from('whatsapp_messages')
