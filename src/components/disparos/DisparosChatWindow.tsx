@@ -608,12 +608,22 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     try {
       const last8Digits = getLast8Digits(chat.contact_number);
 
-      // 1) Update disparos_chats
-      if (isUuid(chat.id)) {
-        await supabase
-          .from('disparos_chats')
-          .update({ contact_name: editedName.trim() })
-          .eq('id', chat.id);
+      // 1) Update ALL disparos_chats with matching phone (not just current)
+      const { data: allDisparosChats } = await supabase
+        .from('disparos_chats')
+        .select('id, normalized_number');
+
+      if (allDisparosChats) {
+        const matchingDisparosChats = allDisparosChats.filter(
+          (c: any) => getLast8Digits(c.normalized_number) === last8Digits
+        );
+
+        for (const c of matchingDisparosChats) {
+          await supabase
+            .from('disparos_chats')
+            .update({ contact_name: editedName.trim() })
+            .eq('id', c.id);
+        }
       }
 
       // 2) Update leads table
