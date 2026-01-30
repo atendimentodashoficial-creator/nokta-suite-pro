@@ -132,19 +132,24 @@ serve(async (req) => {
         userApiKeys.set(user.id, api_key);
 
         // Also save to a database table for persistence across function restarts
+        const now = new Date().toISOString();
         const { error: dbError } = await supabase
           .from("openai_config")
           .upsert({
             user_id: user.id,
             api_key: api_key,
-            updated_at: new Date().toISOString(),
+            created_at: now,
+            updated_at: now,
           }, {
             onConflict: "user_id",
+            ignoreDuplicates: false,
           });
 
         if (dbError) {
           console.error("Error saving to database:", dbError);
           // Even if DB save fails, the in-memory key works for this session
+        } else {
+          console.log("API key saved successfully to database for user:", user.id);
         }
 
         return new Response(
