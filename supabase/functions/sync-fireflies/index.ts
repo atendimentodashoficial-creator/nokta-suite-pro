@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
         fireflies_id: transcript.id,
         titulo: transcript.title || "Reunião sem título",
         data_reuniao: new Date(parseInt(transcript.date)).toISOString(),
-        duracao_minutos: Math.round((transcript.duration || 0) / 60),
+        duracao_minutos: Math.round(transcript.duration || 0),
         participantes: transcript.participants || [],
         transcricao: transcricaoCompleta,
         resumo_ia: transcript.summary?.overview || null,
