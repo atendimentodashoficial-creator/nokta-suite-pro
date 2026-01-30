@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, XCircle, Trash2, MessageCircle, User, Phone } from "lucide-react";
-import { formatPhoneDisplay } from "@/utils/phoneFormat";
+import { formatPhoneDisplay, getLast8Digits } from "@/utils/phoneFormat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,6 +46,8 @@ interface Reuniao {
   cliente_telefone: string | null;
   profissional_id: string | null;
   profissionais?: { nome: string } | null;
+  // Join opcional para puxar o nome atualizado do cliente
+  leads?: { nome: string; telefone: string } | null;
 }
 
 export default function Reunioes() {
@@ -61,6 +63,48 @@ export default function Reunioes() {
   const [reuniaoParaReagendar, setReuniaoParaReagendar] = useState<Reuniao | null>(null);
   const [reuniaoParaExcluir, setReuniaoParaExcluir] = useState<Reuniao | null>(null);
 
+  // Índice simples (telefone -> nome) para reuniões que ainda não estejam vinculadas via cliente_id
+  const { data: leadNames } = useQuery({
+    queryKey: ["leads", "names", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("nome, telefone")
+        .is("deleted_at", null);
+
+      if (error) throw error;
+      return (data || []) as Array<{ nome: string; telefone: string }>;
+    },
+    enabled: !!user?.id,
+  });
+
+  const leadNameByLast8 = useMemo(() => {
+    const map = new Map<string, string>();
+    (leadNames || []).forEach((l) => {
+      const key = getLast8Digits(l.telefone || "");
+      if (!key) return;
+      // Mantém o primeiro encontrado (não importa muito porque o nome é sincronizado)
+      if (!map.has(key)) map.set(key, l.nome);
+    });
+    return map;
+  }, [leadNames]);
+
+  const getClienteNome = (reuniao: Reuniao) => {
+    if (reuniao.leads?.nome) return reuniao.leads.nome;
+
+    if (reuniao.cliente_telefone) {
+      const key = getLast8Digits(reuniao.cliente_telefone);
+      const nome = leadNameByLast8.get(key);
+      if (nome) return nome;
+    }
+
+    if (reuniao.participantes && reuniao.participantes.length > 0) {
+      return reuniao.participantes.join(", ");
+    }
+
+    return "Cliente não informado";
+  };
+
   const { data: reunioes, isLoading, refetch } = useQuery({
     queryKey: ["reunioes", user?.id],
     queryFn: async () => {
@@ -68,7 +112,7 @@ export default function Reunioes() {
       // Reuniões só do Fireflies (sem google_event_id e sem status agendado) ficam ocultas
       const { data, error } = await supabase
         .from("reunioes" as any)
-        .select("*, profissionais(nome)")
+        .select("*, profissionais(nome), leads:cliente_id(nome, telefone)")
         .or("google_event_id.not.is.null,status.eq.agendado")
         .order("data_reuniao", { ascending: false });
       
@@ -334,9 +378,7 @@ export default function Reunioes() {
                               </div>
                               {/* Nome do Cliente como Título */}
                               <h3 className="font-semibold text-lg text-foreground">
-                                {reuniao.participantes && reuniao.participantes.length > 0
-                                  ? reuniao.participantes.join(", ")
-                                  : "Cliente não informado"}
+                                {getClienteNome(reuniao)}
                               </h3>
                             </div>
 
