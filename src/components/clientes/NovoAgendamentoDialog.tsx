@@ -6,6 +6,7 @@ import * as z from "zod";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, Check, Video, Calendar as CalendarIconSolid, ChevronDown } from "lucide-react";
 import { formatPhone, normalizePhone, getLast8Digits, formatPhoneByCountry, getPhonePlaceholder, extractCountryCode, stripCountryCode } from "@/utils/phoneFormat";
+import { syncContactNameEverywhere, CONTACT_NAME_QUERY_KEYS } from "@/utils/syncContactName";
 import {
   Dialog,
   DialogContent,
@@ -616,66 +617,15 @@ export function NovoAgendamentoDialog({
   }, [dataWatch, procedimentoWatch, profissionais, escalas, ausencias, todosAgendamentos, reunioes, intervaloEfetivo, tempoAtendimento]);
 
   // Função para atualizar nome em todos os registros relacionados
-  const atualizarNomeEmTodosRegistros = async (userId: string, last8Digits: string, novoNome: string) => {
+  const atualizarNomeEmTodosRegistros = async (userId: string, telefone: string, novoNome: string) => {
     try {
-      // Buscar todos os leads com mesmo telefone (últimos 8 dígitos)
-      const { data: allLeads } = await supabase
-        .from("leads")
-        .select("id, telefone")
-        .eq("user_id", userId)
-        .is("deleted_at", null);
+      // Usar função centralizada para sincronizar nome em todas as tabelas
+      await syncContactNameEverywhere(telefone, novoNome);
 
-      const leadsParaAtualizar = allLeads?.filter(lead => 
-        getLast8Digits(lead.telefone) === last8Digits
-      ) || [];
-
-      // Atualizar todos os leads encontrados
-      for (const lead of leadsParaAtualizar) {
-        await supabase
-          .from("leads")
-          .update({ nome: novoNome })
-          .eq("id", lead.id);
-      }
-
-      // Atualizar chats do WhatsApp com mesmo número
-      const { data: whatsappChats } = await supabase
-        .from("whatsapp_chats")
-        .select("id, normalized_number")
-        .eq("user_id", userId)
-        .is("deleted_at", null);
-
-      const chatsWhatsappParaAtualizar = whatsappChats?.filter(chat => 
-        getLast8Digits(chat.normalized_number) === last8Digits
-      ) || [];
-
-      for (const chat of chatsWhatsappParaAtualizar) {
-        await supabase
-          .from("whatsapp_chats")
-          .update({ contact_name: novoNome })
-          .eq("id", chat.id);
-      }
-
-      // Atualizar chats de Disparos com mesmo número
-      const { data: disparosChats } = await supabase
-        .from("disparos_chats")
-        .select("id, normalized_number")
-        .eq("user_id", userId)
-        .is("deleted_at", null);
-
-      const chatsDisparosParaAtualizar = disparosChats?.filter(chat => 
-        getLast8Digits(chat.normalized_number) === last8Digits
-      ) || [];
-
-      for (const chat of chatsDisparosParaAtualizar) {
-        await supabase
-          .from("disparos_chats")
-          .update({ contact_name: novoNome })
-          .eq("id", chat.id);
-      }
-
-      // Invalidar queries para atualizar a UI
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-chats"] });
-      queryClient.invalidateQueries({ queryKey: ["disparos-chats"] });
+      // Invalidar todas as queries relacionadas
+      CONTACT_NAME_QUERY_KEYS.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
     } catch (error) {
       console.error("Erro ao atualizar nome em registros relacionados:", error);
     }

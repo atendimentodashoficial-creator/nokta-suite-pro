@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { MessageBubble } from "@/components/whatsapp/MessageBubble";
 import { DateSeparator, isDifferentDay } from "@/components/whatsapp/DateSeparator";
 import { getInitials, normalizePhoneNumber, formatPhoneNumber, getLast8Digits } from "@/utils/whatsapp";
+import { syncContactNameEverywhere, CONTACT_NAME_QUERY_KEYS } from "@/utils/syncContactName";
 import { NovoAgendamentoDialog } from "@/components/clientes/NovoAgendamentoDialog";
 import { useMensagensPredefinidas } from "@/hooks/useMensagensPredefinidas";
 import { useBlocosMensagens } from "@/hooks/useBlocosMensagens";
@@ -596,7 +597,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     setIsEditingName(false);
   }, [chat.id, chat.contact_name]);
 
-  // Salvar nome do contato
+  // Salvar nome do contato (sincroniza em todas as tabelas)
   const handleSaveName = async () => {
     if (!editedName.trim() || editedName === chat.contact_name) {
       setIsEditingName(false);
@@ -606,70 +607,13 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
 
     setIsSavingName(true);
     try {
-      const last8Digits = getLast8Digits(chat.contact_number);
+      // Usar função centralizada para sincronizar nome em todas as tabelas
+      await syncContactNameEverywhere(chat.contact_number, editedName.trim());
 
-      // 1) Update ALL disparos_chats with matching phone (not just current)
-      const { data: allDisparosChats } = await supabase
-        .from('disparos_chats')
-        .select('id, normalized_number');
-
-      if (allDisparosChats) {
-        const matchingDisparosChats = allDisparosChats.filter(
-          (c: any) => getLast8Digits(c.normalized_number) === last8Digits
-        );
-
-        for (const c of matchingDisparosChats) {
-          await supabase
-            .from('disparos_chats')
-            .update({ contact_name: editedName.trim() })
-            .eq('id', c.id);
-        }
-      }
-
-      // 2) Update leads table
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('id, telefone')
-        .is('deleted_at', null);
-
-      if (leads) {
-        const matchingLeads = leads.filter(
-          (lead) => getLast8Digits(lead.telefone) === last8Digits
-        );
-
-        for (const lead of matchingLeads) {
-          await supabase
-            .from('leads')
-            .update({ nome: editedName.trim() })
-            .eq('id', lead.id);
-        }
-      }
-
-      // 3) Update whatsapp_chats (sync across systems)
-      const { data: whatsappChats } = await supabase
-        .from('whatsapp_chats')
-        .select('id, normalized_number');
-
-      if (whatsappChats) {
-        const matchingWhatsappChats = whatsappChats.filter(
-          (c: any) => getLast8Digits(c.normalized_number) === last8Digits
-        );
-
-        for (const c of matchingWhatsappChats) {
-          await supabase
-            .from('whatsapp_chats')
-            .update({ contact_name: editedName.trim() })
-            .eq('id', c.id);
-        }
-      }
-
-      // 4) Invalidate queries so UI updates everywhere
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      queryClient.invalidateQueries({ queryKey: ["disparos-chats"] });
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-chats"] });
-      queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
-      queryClient.invalidateQueries({ queryKey: ["faturas"] });
-      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
+      // Invalidar todas as queries relacionadas
+      CONTACT_NAME_QUERY_KEYS.forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
 
       if (onChatUpdated) {
         onChatUpdated({ ...chat, contact_name: editedName.trim() });
