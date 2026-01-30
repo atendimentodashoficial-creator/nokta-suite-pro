@@ -90,13 +90,14 @@ export function VincularTranscricaoDialog({
       }
 
       // 2. Agora podemos atualizar a reunião agendada com os dados da transcrição
+      // Sempre limpa o resumo_ia para permitir gerar um novo resumo com a nova transcrição
       const { error: updateError } = await supabase
         .from("reunioes" as any)
         .update({
           fireflies_id: reuniaoFireflies.fireflies_id,
           transcricao: reuniaoFireflies.transcricao,
-          resumo_ia: reuniaoFireflies.resumo_ia,
-          status: reuniaoFireflies.resumo_ia ? "resumido" : "transcrito",
+          resumo_ia: null, // Limpa resumo para permitir gerar novamente
+          status: "transcrito",
         })
         .eq("id", reuniaoId);
 
