@@ -89,7 +89,18 @@ export function VincularTranscricaoDialog({
         throw deleteError;
       }
 
-      // 2. Agora podemos atualizar a reunião agendada com os dados da transcrição
+      // 2. Deletar campos preenchidos anteriores para permitir gerar novo resumo
+      const { error: deleteCamposError } = await supabase
+        .from("reuniao_campos_preenchidos" as any)
+        .delete()
+        .eq("reuniao_id", reuniaoId);
+
+      if (deleteCamposError) {
+        console.error("Erro ao deletar campos anteriores:", deleteCamposError);
+        // Não bloqueia, apenas loga
+      }
+
+      // 3. Agora podemos atualizar a reunião agendada com os dados da transcrição
       // Sempre limpa o resumo_ia para permitir gerar um novo resumo com a nova transcrição
       const { error: updateError } = await supabase
         .from("reunioes" as any)
@@ -105,6 +116,7 @@ export function VincularTranscricaoDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reunioes"] });
+      queryClient.invalidateQueries({ queryKey: ["reuniao-campos-preenchidos"] });
       toast.success("Transcrição vinculada com sucesso!");
       onOpenChange(false);
     },
