@@ -748,12 +748,22 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
     try {
       const last8Digits = getLast8Digits(chat.contact_number);
 
-      // 1) Update whatsapp_chats
-      if (isUuid(chat.id)) {
-        await supabase
-          .from('whatsapp_chats')
-          .update({ contact_name: editedName.trim() })
-          .eq('id', chat.id);
+      // 1) Update ALL whatsapp_chats with matching phone (not just current)
+      const { data: allWhatsappChats } = await supabase
+        .from('whatsapp_chats')
+        .select('id, normalized_number');
+
+      if (allWhatsappChats) {
+        const matchingWhatsappChats = allWhatsappChats.filter(
+          (c: any) => getLast8Digits(c.normalized_number) === last8Digits
+        );
+
+        for (const c of matchingWhatsappChats) {
+          await supabase
+            .from('whatsapp_chats')
+            .update({ contact_name: editedName.trim() })
+            .eq('id', c.id);
+        }
       }
 
       // 2) Update leads table (find by last 8 digits)
