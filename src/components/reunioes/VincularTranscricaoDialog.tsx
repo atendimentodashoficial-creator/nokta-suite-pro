@@ -127,7 +127,7 @@ export function VincularTranscricaoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="w-5 h-5 shrink-0" />
@@ -141,20 +141,20 @@ export function VincularTranscricaoDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-hidden">
           {/* Transcrição atualmente vinculada */}
           {transcricaoAtual?.transcricao && (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2 overflow-hidden">
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-primary" />
+                <Check className="w-4 h-4 text-primary shrink-0" />
                 <span className="font-medium text-sm text-primary">Transcrição atualmente vinculada</span>
               </div>
               {transcricaoAtual.resumo_ia ? (
-                <p className="text-sm text-muted-foreground line-clamp-3 italic border-l-2 border-primary/30 pl-2">
+                <p className="text-sm text-muted-foreground line-clamp-3 italic border-l-2 border-primary/30 pl-2 break-words">
                   {transcricaoAtual.resumo_ia}
                 </p>
               ) : (
-                <p className="text-sm text-muted-foreground line-clamp-3">
+                <p className="text-sm text-muted-foreground line-clamp-3 break-words">
                   {transcricaoAtual.transcricao.substring(0, 200)}...
                 </p>
               )}
@@ -173,7 +173,7 @@ export function VincularTranscricaoDialog({
           </div>
 
           {/* Lista de reuniões do Fireflies */}
-          <ScrollArea className="h-[350px] border rounded-lg">
+          <ScrollArea className="h-[350px] border rounded-lg overflow-hidden">
             {isLoading ? (
               <div className="p-4 text-center text-muted-foreground">
                 Carregando transcrições...
