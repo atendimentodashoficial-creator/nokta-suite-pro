@@ -201,13 +201,9 @@ export function VincularTranscricaoDialog({
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {reuniao.resumo_ia ? (
-                          <Badge className="bg-green-500/20 text-green-700">Resumido</Badge>
-                        ) : (
-                          <Badge variant="secondary">Transcrito</Badge>
-                        )}
-                      </div>
+                      {reuniao.resumo_ia && (
+                        <Badge className="bg-green-500/20 text-green-700 shrink-0">Resumido</Badge>
+                      )}
                     </div>
 
                     {/* Preview da transcrição */}
