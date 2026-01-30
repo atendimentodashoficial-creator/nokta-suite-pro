@@ -13,6 +13,7 @@ import { ChatAvatar } from "@/components/whatsapp/ChatAvatar";
 import { WhatsAppKanban } from "@/components/whatsapp/WhatsAppKanban";
 import { CountryCodeSelect } from "@/components/whatsapp/CountryCodeSelect";
 import { formatPhoneNumber, formatRelativeTime, truncateText, getInitials, normalizePhoneNumber, getLast8Digits, formatLastMessagePreview } from "@/utils/whatsapp";
+import { CONTACT_NAME_UPDATED_EVENT } from "@/utils/syncContactName";
 import { formatPhoneByCountry, getPhonePlaceholder, stripCountryCode } from "@/utils/phoneFormat";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -115,7 +116,7 @@ export default function AdminWhatsApp() {
 
   // Load chats from database (excluding deleted ones)
   // Optionally pass connectedAt timestamp to filter old chats (useful when called right after checkConfig)
-  const loadChats = async (connectedAtOverride?: string | null) => {
+  const loadChats = async (connectedAtOverride?: string | null): Promise<any[]> => {
     try {
       const { data, error } = await supabase
         .from('whatsapp_chats')
@@ -146,10 +147,12 @@ export default function AdminWhatsApp() {
       setChats(visible);
       setFilteredChats(visible);
       setChatsLoaded(true);
+      return visible;
     } catch (error: any) {
       console.error('Error loading chats:', error);
       toast.error('Erro ao carregar chats');
       setChatsLoaded(true);
+      return [];
     }
   };
 
@@ -1076,6 +1079,27 @@ export default function AdminWhatsApp() {
       await loadChats(connectedAt);
     })();
   }, []);
+
+  // Listen for contact name updates from other components (e.g., EditarClienteDialog)
+  useEffect(() => {
+    const handleContactNameUpdated = async () => {
+      // Reload chats to get updated names
+      const updatedChats = await loadChats();
+      
+      // Also update the selected chat if it exists
+      if (selectedChat && updatedChats) {
+        const updatedSelectedChat = updatedChats.find((c: any) => c.id === selectedChat.id);
+        if (updatedSelectedChat) {
+          setSelectedChat(updatedSelectedChat);
+        }
+      }
+    };
+
+    window.addEventListener(CONTACT_NAME_UPDATED_EVENT, handleContactNameUpdated);
+    return () => {
+      window.removeEventListener(CONTACT_NAME_UPDATED_EVENT, handleContactNameUpdated);
+    };
+  }, [selectedChat]);
 
   // Sync is now manual only (via refresh button) or triggered after first instance connection
   // This saves cloud credits - webhooks/Realtime handle ongoing message updates

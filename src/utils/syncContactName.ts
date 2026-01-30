@@ -2,6 +2,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { getLast8Digits } from "@/utils/phoneFormat";
 
 /**
+ * Evento customizado disparado quando um nome de contato é alterado.
+ * Componentes podem ouvir este evento para recarregar seus dados.
+ */
+export const CONTACT_NAME_UPDATED_EVENT = "contact-name-updated";
+
+/**
+ * Dispara o evento de atualização de nome de contato
+ */
+export function dispatchContactNameUpdatedEvent(telefone: string, novoNome: string) {
+  window.dispatchEvent(
+    new CustomEvent(CONTACT_NAME_UPDATED_EVENT, {
+      detail: { telefone, novoNome },
+    })
+  );
+}
+
+/**
  * Propaga a alteração de nome de contato para todas as tabelas relacionadas:
  * - leads (todos com mesmo telefone)
  * - whatsapp_chats (todos com mesmo telefone)
@@ -83,6 +100,9 @@ export async function syncContactNameEverywhere(
         .eq("id", chat.id);
     }
   }
+
+  // 4. Disparar evento para que componentes com estado local recarreguem
+  dispatchContactNameUpdatedEvent(telefone, trimmedName);
 }
 
 /**
