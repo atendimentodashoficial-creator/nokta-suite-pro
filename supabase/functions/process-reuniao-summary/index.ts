@@ -113,16 +113,12 @@ Por favor, preencha os seguintes campos baseado na transcrição acima:
 
 ${fieldsDescription}`;
 
-    // 4. Get OpenAI API key from user's configuration
-    const { data: openaiConfig, error: configError } = await supabase
-      .from("openai_config")
-      .select("api_key")
-      .single();
-
-    if (configError || !openaiConfig?.api_key) {
-      console.error("OpenAI API key not configured for user");
-      return new Response(JSON.stringify({ error: "Configure sua chave da OpenAI em Configurações > Conexões" }), {
-        status: 400,
+    // 4. Get Lovable AI API key (automatically provided)
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.error("LOVABLE_API_KEY not configured");
+      return new Response(JSON.stringify({ error: "AI service not configured" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -161,16 +157,16 @@ ${fieldsDescription}`;
       },
     ];
 
-    console.log("Calling OpenAI API...");
+    console.log("Calling Lovable AI Gateway...");
 
-    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${openaiConfig.api_key}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -204,7 +200,7 @@ ${fieldsDescription}`;
     }
 
     const aiData = await aiResponse.json();
-    console.log("AI Response received");
+    console.log("Lovable AI Response received");
 
     // Parse the tool call response
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
