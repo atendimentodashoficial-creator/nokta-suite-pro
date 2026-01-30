@@ -775,13 +775,33 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         }
       }
 
-      // 3) Invalidate queries so UI updates everywhere
+      // 3) Update disparos_chats (sync across systems)
+      const { data: disparosChats } = await supabase
+        .from('disparos_chats')
+        .select('id, normalized_number');
+
+      if (disparosChats) {
+        const matchingDisparosChats = disparosChats.filter(
+          (c: any) => getLast8Digits(c.normalized_number) === last8Digits
+        );
+
+        for (const c of matchingDisparosChats) {
+          await supabase
+            .from('disparos_chats')
+            .update({ contact_name: editedName.trim() })
+            .eq('id', c.id);
+        }
+      }
+
+      // 4) Invalidate queries so UI updates everywhere
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-chats"] });
+      queryClient.invalidateQueries({ queryKey: ["disparos-chats"] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
+      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
 
-      // 4) Notify parent to update local state
+      // 5) Notify parent to update local state
       if (onChatUpdated) {
         onChatUpdated({ ...chat, contact_name: editedName.trim() });
       }
