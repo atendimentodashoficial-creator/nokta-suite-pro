@@ -411,7 +411,7 @@ Deno.serve(async (req) => {
         .from("reunioes")
         .select("*")
         .eq("user_id", userId)
-        .in("status", ["agendada", "confirmada"])
+        .in("status", ["agendado", "confirmado"])
         .gte("data_reuniao", hojeSP.toISOString())
         .lte("data_reuniao", em7Dias.toISOString());
 
