@@ -31,6 +31,49 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
+// Normalize provider message id to stable form (strip optional "owner:" prefix)
+const normalizeProviderMessageId = (raw: unknown): string => {
+  const s = String(raw ?? '').trim();
+  if (!s) return '';
+  const parts = s.split(':').filter(Boolean);
+  return (parts.length > 1 ? parts[parts.length - 1] : s).trim();
+};
+
+const scoreMessageForDedupe = (m: any) => {
+  let score = 0;
+  const id = String(m?.message_id ?? '');
+  if (id && !id.includes(':')) score += 2; // prefer stable id without prefix
+  const mediaUrl = String(m?.media_url ?? '').trim();
+  if (mediaUrl) score += 1;
+  return score;
+};
+
+const dedupeMessagesByProviderId = (msgs: any[]) => {
+  const out: any[] = [];
+  const indexByKey = new Map<string, number>();
+
+  for (const msg of msgs) {
+    const key = normalizeProviderMessageId(msg?.message_id) || String(msg?.message_id ?? msg?.id ?? '');
+    if (!key) {
+      out.push(msg);
+      continue;
+    }
+    const existingIndex = indexByKey.get(key);
+    if (existingIndex == null) {
+      indexByKey.set(key, out.length);
+      out.push(msg);
+      continue;
+    }
+
+    const existing = out[existingIndex];
+    if (scoreMessageForDedupe(msg) > scoreMessageForDedupe(existing)) {
+      out[existingIndex] = msg;
+    }
+  }
+
+  return out;
+};
+
 
 interface Chat {
   id: string;
@@ -296,6 +339,8 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
         fb_ad_name: msg.fb_ad_name,
       }));
 
+      const formattedMessagesDeduped = dedupeMessagesByProviderId(formattedMessages);
+
       // Calculate if there are more messages
       const newOffset = currentOffset + (dbMessages?.length || 0);
       const hasMore = (totalCount || 0) > newOffset;
@@ -304,11 +349,11 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
 
       if (loadMore) {
         // Prepend older messages
-        setMessages(prev => [...formattedMessages, ...prev]);
+        setMessages(prev => dedupeMessagesByProviderId([...formattedMessagesDeduped, ...prev]));
         setIsLoadingMore(false);
       } else {
         // Initial load or refresh
-        let finalMessages = formattedMessages;
+        let finalMessages = formattedMessagesDeduped;
         
         // If no messages in DB but chat has last_message, create a virtual message
         if (finalMessages.length === 0 && chat.last_message && chat.last_message_time) {
@@ -1195,11 +1240,23 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
             fbclid: payload.new.fbclid,
             ad_thumbnail_url: payload.new.ad_thumbnail_url,
           };
-          // Evitar duplicatas: só adiciona se não existir
+          // Evitar duplicatas: deduplica por id estável (sem prefixo "owner:")
           setMessages(prev => {
-            const exists = prev.some(m => m.message_id === newMsg.message_id);
-            if (exists) return prev;
-            return [...prev, newMsg];
+            const key = normalizeProviderMessageId(newMsg.message_id) || newMsg.message_id;
+            const idx = prev.findIndex(
+              (m) => (normalizeProviderMessageId(m.message_id) || m.message_id) === key
+            );
+
+            if (idx === -1) return [...prev, newMsg];
+
+            const existing = prev[idx];
+            if (scoreMessageForDedupe(newMsg) > scoreMessageForDedupe(existing)) {
+              const next = [...prev];
+              next[idx] = newMsg;
+              return next;
+            }
+
+            return prev;
           });
           setShouldScrollToBottom(true);
         }

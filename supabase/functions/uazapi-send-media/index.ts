@@ -82,7 +82,17 @@ Deno.serve(async (req) => {
     // Log message to database + update chat preview if chatDbId is provided
     if (chatDbId) {
       const nowIso = new Date().toISOString();
-      const messageId = result.id || result.messageId || `media_${Date.now()}`;
+
+      // Normalize provider message id to a stable form (strip optional "owner:" prefix)
+      const normalizeProviderMessageId = (raw: unknown): string => {
+        const s = String(raw ?? "").trim();
+        if (!s) return "";
+        const parts = s.split(":").filter(Boolean);
+        return (parts.length > 1 ? parts[parts.length - 1] : s).trim();
+      };
+
+      const rawMessageId = result.id || result.messageId;
+      const messageId = normalizeProviderMessageId(rawMessageId) || `media_${Date.now()}`;
       const preview =
         caption ||
         `[${type === 'ptt' ? 'Áudio' : type === 'image' ? 'Imagem' : type === 'video' ? 'Vídeo' : 'Documento'}]`;

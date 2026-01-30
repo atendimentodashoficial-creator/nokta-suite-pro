@@ -111,6 +111,16 @@ Deno.serve(async (req) => {
     const result = await response.json();
     console.log('Message sent successfully:', result);
 
+    // Normalize provider message id to a stable form (strip optional "owner:" prefix)
+    const normalizeProviderMessageId = (raw: unknown): string => {
+      const s = String(raw ?? '').trim();
+      if (!s) return '';
+      const parts = s.split(':').filter(Boolean);
+      return (parts.length > 1 ? parts[parts.length - 1] : s).trim();
+    };
+
+    const stableMessageId = normalizeProviderMessageId(result.id) || `local_${Date.now()}`;
+
     // Save message to database + update chat preview if chatDbId is provided
     if (chatDbId) {
       const nowIso = new Date().toISOString();
@@ -119,7 +129,7 @@ Deno.serve(async (req) => {
         .from('whatsapp_messages')
         .insert({
           chat_id: chatDbId,
-          message_id: result.id || `local_${Date.now()}`,
+          message_id: stableMessageId,
           sender_type: 'agent',
           admin_id: user.id,
           content: messageToSend,
@@ -148,7 +158,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, messageId: result.id }),
+      JSON.stringify({ success: true, messageId: stableMessageId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
