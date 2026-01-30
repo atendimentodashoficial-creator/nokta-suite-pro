@@ -198,6 +198,8 @@ export function EditarClienteDialog({
             .eq("id", chat.id);
         }
       }
+
+      // 4. Reuniões usam cliente_id com join para leads, então a atualização do lead já propaga automaticamente
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
@@ -205,6 +207,7 @@ export function EditarClienteDialog({
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-chats"] });
       queryClient.invalidateQueries({ queryKey: ["disparos-chats"] });
+      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
       toast.success("Cliente atualizado com sucesso!");
       onOpenChange(false);
     },
