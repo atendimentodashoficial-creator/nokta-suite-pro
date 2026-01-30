@@ -524,23 +524,17 @@ Deno.serve(async (req) => {
 
       console.log(`${pendingAvisos.length} messages to send for aviso "${aviso.nome}"`);
 
-      // Load Disparos instances for this user (reunioes use disparos instances)
+      // Load ALL Disparos instances for this user (to match by chat)
       const { data: disparosInstances } = await supabase
         .from("disparos_instancias")
-        .select("nome, base_url, api_key")
+        .select("id, nome, base_url, api_key")
         .eq("user_id", userId)
-        .eq("is_active", true)
-        .limit(1);
+        .eq("is_active", true);
 
       if (!disparosInstances || disparosInstances.length === 0) {
         console.log(`No active Disparos instance for user ${userId}, skipping aviso`);
         continue;
       }
-
-      const config: WhatsAppConfig = {
-        base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
-        api_key: disparosInstances[0].api_key,
-      };
 
       // Process messages (up to MAX_MESSAGES_PER_EXECUTION to avoid timeout)
       let processedInThisAviso = 0;
@@ -554,6 +548,47 @@ Deno.serve(async (req) => {
             .eq("id", aviso.id);
           console.log(`Reached message limit, scheduled next check at ${nextCheckAt}`);
           break;
+        }
+
+        // Find the correct instance for this contact by looking up their chat
+        const normalizedPhone = normalizePhone(pending.telefone);
+        const { data: existingChat } = await supabase
+          .from("disparos_chats")
+          .select("instancia_id")
+          .eq("user_id", userId)
+          .eq("normalized_number", normalizedPhone)
+          .is("deleted_at", null)
+          .order("updated_at", { ascending: false })
+          .limit(1);
+
+        let config: WhatsAppConfig;
+        
+        if (existingChat && existingChat.length > 0 && existingChat[0].instancia_id) {
+          // Use the instance from the existing chat
+          const chatInstanceId = existingChat[0].instancia_id;
+          const matchedInstance = disparosInstances.find(inst => inst.id === chatInstanceId);
+          
+          if (matchedInstance) {
+            console.log(`Using chat's instance "${matchedInstance.nome}" for ${pending.telefone}`);
+            config = {
+              base_url: matchedInstance.base_url.replace(/\/+$/, ""),
+              api_key: matchedInstance.api_key,
+            };
+          } else {
+            // Instance not found or inactive, use first available
+            console.log(`Chat instance not found/active, using fallback for ${pending.telefone}`);
+            config = {
+              base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
+              api_key: disparosInstances[0].api_key,
+            };
+          }
+        } else {
+          // No existing chat, use first available instance
+          console.log(`No existing chat found, using first instance for ${pending.telefone}`);
+          config = {
+            base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
+            api_key: disparosInstances[0].api_key,
+          };
         }
 
         const { success, result } = await processAviso(supabase, pending, config);
