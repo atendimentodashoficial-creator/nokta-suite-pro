@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, XCircle, Trash2, MessageCircle, User, Phone } from "lucide-react";
 import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -48,6 +49,7 @@ interface Reuniao {
 }
 
 export default function Reunioes() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
@@ -426,8 +428,8 @@ export default function Reunioes() {
                                   className="w-full aspect-square p-0 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50" 
                                   onClick={() => {
                                     const phone = reuniao.cliente_telefone?.replace(/\D/g, "") || "";
-                                    window.open(`/disparos?telefone=${phone}`, "_blank");
-                                  }} 
+                                    navigate(`/disparos?telefone=${phone}`);
+                                  }}
                                   title="WhatsApp"
                                 >
                                   <MessageCircle className="h-4 w-4" />
