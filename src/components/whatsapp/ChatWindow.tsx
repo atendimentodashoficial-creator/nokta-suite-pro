@@ -1195,7 +1195,12 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
             fbclid: payload.new.fbclid,
             ad_thumbnail_url: payload.new.ad_thumbnail_url,
           };
-          setMessages(prev => [...prev, newMsg]);
+          // Evitar duplicatas: só adiciona se não existir
+          setMessages(prev => {
+            const exists = prev.some(m => m.message_id === newMsg.message_id);
+            if (exists) return prev;
+            return [...prev, newMsg];
+          });
           setShouldScrollToBottom(true);
         }
       )
