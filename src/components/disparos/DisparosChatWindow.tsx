@@ -608,7 +608,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     try {
       const last8Digits = getLast8Digits(chat.contact_number);
 
-      // Update disparos_chats
+      // 1) Update disparos_chats
       if (isUuid(chat.id)) {
         await supabase
           .from('disparos_chats')
@@ -616,7 +616,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
           .eq('id', chat.id);
       }
 
-      // Update leads table
+      // 2) Update leads table
       const { data: leads } = await supabase
         .from('leads')
         .select('id, telefone')
@@ -635,10 +635,31 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
         }
       }
 
+      // 3) Update whatsapp_chats (sync across systems)
+      const { data: whatsappChats } = await supabase
+        .from('whatsapp_chats')
+        .select('id, normalized_number');
+
+      if (whatsappChats) {
+        const matchingWhatsappChats = whatsappChats.filter(
+          (c: any) => getLast8Digits(c.normalized_number) === last8Digits
+        );
+
+        for (const c of matchingWhatsappChats) {
+          await supabase
+            .from('whatsapp_chats')
+            .update({ contact_name: editedName.trim() })
+            .eq('id', c.id);
+        }
+      }
+
+      // 4) Invalidate queries so UI updates everywhere
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["disparos-chats"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-chats"] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
       queryClient.invalidateQueries({ queryKey: ["faturas"] });
+      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
 
       if (onChatUpdated) {
         onChatUpdated({ ...chat, contact_name: editedName.trim() });
