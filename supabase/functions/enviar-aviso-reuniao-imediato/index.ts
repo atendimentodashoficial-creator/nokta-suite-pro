@@ -269,10 +269,45 @@ serve(async (req) => {
       );
     }
 
-    // Pick instance: prefer the one from Disparos chat (instanciaId / instanciaNome)
+    // Pick instance: prefer the one from the client's chat history (same instance they were chatting with)
     let instancia: InstanciaConfig | null = null;
+    
+    // First, try to find the instance from the client's existing chat (maintains conversation continuity)
+    const phoneLast8 = telefone.replace(/\D/g, "").slice(-8);
+    console.log(`Looking for chat with phone last8: ${phoneLast8}`);
+    
+    const { data: existingChat, error: chatError } = await supabase
+      .from("disparos_chats")
+      .select("instancia_id, instancia_nome")
+      .eq("user_id", resolvedUserId)
+      .is("deleted_at", null)
+      .like("normalized_number", `%${phoneLast8}`)
+      .order("last_message_time", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (chatError) {
+      console.error("Error fetching existing chat:", chatError);
+    }
+    
+    if (existingChat?.instancia_id) {
+      console.log(`Found existing chat with instance: ${existingChat.instancia_id} (${existingChat.instancia_nome})`);
+      const { data: chatInstance } = await supabase
+        .from("disparos_instancias")
+        .select("*")
+        .eq("id", existingChat.instancia_id)
+        .eq("user_id", resolvedUserId)
+        .eq("is_active", true)
+        .maybeSingle();
+      
+      if (chatInstance) {
+        instancia = chatInstance as any;
+        console.log(`Using instance from chat history: ${chatInstance.nome}`);
+      }
+    }
 
-    if (instanciaId) {
+    // If no chat found, try the one passed from parameters (instanciaId / instanciaNome)
+    if (!instancia && instanciaId) {
       const { data: byId } = await supabase
         .from("disparos_instancias")
         .select("*")
@@ -300,7 +335,9 @@ serve(async (req) => {
       if (byName && byName.length > 0) instancia = byName[0] as any;
     }
 
+    // Last resort: use the first active instance
     if (!instancia) {
+      console.log("No chat history or parameter instance found, using first active instance");
       const { data: instancias, error: instanciasError } = await supabase
         .from("disparos_instancias")
         .select("*")
@@ -325,6 +362,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    console.log(`Final instance selected: ${instancia.nome} (${instancia.id})`)
 
     const baseUrl = String(instancia.base_url || "").replace(/\/+$/, "");
     const apiKey = String(instancia.api_key || "");
