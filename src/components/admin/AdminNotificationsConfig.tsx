@@ -400,7 +400,7 @@ Período: {data_inicio} a {data_fim}
 
           return (
             <Collapsible key={user.id} open={isExpanded} onOpenChange={() => handleToggleUser(user.id)}>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 overflow-hidden">
                 {/* Switch fora do card - carrega config ao montar se necessário */}
                 <div 
                   className="flex-shrink-0"
@@ -425,11 +425,11 @@ Período: {data_inicio} a {data_fim}
                 </div>
 
                 <CollapsibleTrigger asChild className="flex-1">
-                  <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors">
-                    <div className="flex items-center gap-3">
-                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium text-sm">{displayName}</p>
+                  <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{displayName}</p>
                         {config?.destination_value ? (
                           <p className="text-xs text-muted-foreground">
                             {config.destination_type === "group" ? "Grupo" : "Número"}: {config.destination_value}
@@ -439,7 +439,7 @@ Período: {data_inicio} a {data_fim}
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                       {/* Saldo Atual */}
                       <div className="flex items-center gap-1.5">
                         <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
@@ -495,7 +495,7 @@ Período: {data_inicio} a {data_fim}
               </div>
 
               <CollapsibleContent>
-                <div className="mt-2 p-4 border rounded-lg bg-muted/30 space-y-4 ml-10">
+                <div className="mt-2 p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-4 ml-0 sm:ml-10">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -597,7 +597,7 @@ Período: {data_inicio} a {data_fim}
 
                       {config.low_balance_enabled && (
                         <div className="space-y-4 pl-4">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`threshold-${user.id}`}>Limite de Saldo (R$)</Label>
                               <Input
@@ -790,7 +790,7 @@ Período: {data_inicio} a {data_fim}
 
                       {config.keyword_enabled && (
                         <div className="space-y-4 pl-4">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`keyword-balance-${user.id}`}>
                                 Palavra para Saldo
