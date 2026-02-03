@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { ShaderBackground } from "@/components/ui/shader-background";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import { z } from "zod";
+
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres")
@@ -57,8 +58,10 @@ export default function Auth() {
         <div className="animate-pulse text-muted-foreground">Carregando...</div>
       </div>;
   }
-  return <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
-      <div className="w-full max-w-md space-y-6">
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <ShaderBackground />
+      <div className="w-full max-w-md space-y-6 relative z-10">
         {/* Logo/Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
@@ -96,5 +99,6 @@ export default function Auth() {
           </form>
         </Card>
       </div>
-    </div>;
+    </div>
+  );
 }
