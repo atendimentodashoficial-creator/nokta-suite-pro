@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ShaderBackground } from "@/components/ui/shader-background";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import noktaLogo from "@/assets/nokta-odonto-logo.png";
+import noktaLogo from "@/assets/nokta-logo-black.png";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -78,6 +78,9 @@ export default function Auth() {
               src={noktaLogo} 
               alt="Nokta Odonto" 
               className="h-16 w-auto mb-3"
+              style={{
+                filter: "brightness(0) saturate(100%) invert(12%) sepia(50%) saturate(2000%) hue-rotate(190deg) brightness(95%) contrast(95%)"
+              }}
             />
             <p className="text-muted-foreground text-sm text-center">
               Sistema de gestão para clínicas odontológicas
