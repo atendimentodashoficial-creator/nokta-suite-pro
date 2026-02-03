@@ -347,6 +347,66 @@ serve(async (req) => {
         );
       }
 
+      case 'create_notification_instance': {
+        // Criar nova instância de notificação manualmente (modo manual)
+        const { nome, base_url, api_key } = body;
+        
+        if (!nome || !base_url || !api_key) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'nome, base_url e api_key são obrigatórios' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const { data: instance, error: insertError } = await supabase
+          .from('admin_notification_instances')
+          .insert({
+            nome: nome.trim(),
+            base_url: base_url.trim().replace(/\/+$/, ''),
+            api_key: api_key.trim(),
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        return new Response(
+          JSON.stringify({ success: true, instance }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'update_notification_instance': {
+        // Atualizar instância existente (ex: credenciais via aba Credenciais)
+        const { instanceId: instId, base_url: newUrl, api_key: newKey } = body;
+        
+        if (!instId) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'instanceId é obrigatório' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const updateData: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (newUrl) updateData.base_url = newUrl.trim().replace(/\/+$/, '');
+        if (newKey) updateData.api_key = newKey.trim();
+
+        const { data: updated, error: updateError } = await supabase
+          .from('admin_notification_instances')
+          .update(updateData)
+          .eq('id', instId)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+
+        return new Response(
+          JSON.stringify({ success: true, instance: updated }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: 'Ação inválida' }),
