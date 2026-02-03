@@ -77,7 +77,7 @@ export default function Auth() {
             <img 
               src={noktaLogo} 
               alt="Nokta Clinic" 
-              className="h-12 w-auto mb-3"
+              className="h-20 w-auto mb-3"
               style={{
                 filter: "brightness(0) saturate(100%) invert(15%) sepia(60%) saturate(1500%) hue-rotate(190deg) brightness(90%) contrast(90%)"
               }}
