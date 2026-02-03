@@ -217,33 +217,45 @@ serve(async (req) => {
         console.log("Reuniao saved to database:", reuniaoData?.id);
         reuniaoId = reuniaoData?.id;
 
-        // Trigger immediate notification if phone number is provided
+        // Trigger immediate notification in background if phone number is provided
         if (participanteTelefone && reuniaoId) {
-          try {
-            console.log("Triggering immediate notification for reuniao:", reuniaoId);
-            const notifyResponse = await fetch(
-              `${supabaseUrl}/functions/v1/enviar-aviso-reuniao-imediato`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${supabaseKey}`,
-                },
-                body: JSON.stringify({
-                  reuniaoId: reuniaoId,
-                  userId: user.id,
-                  clienteTelefone: participanteTelefone,
-                  clienteNome: participanteNome,
-                  instanciaId: instanciaId || null,
-                  instanciaNome: instanciaNome || null,
-                }),
-              }
-            );
-            const notifyResult = await notifyResponse.json();
-            console.log("Immediate notification result:", notifyResult);
-          } catch (notifyError) {
-            console.error("Error triggering immediate notification:", notifyError);
-            // Don't fail the main request
+          console.log("Triggering immediate notification in background for reuniao:", reuniaoId);
+          
+          // Use waitUntil to run notification in background without blocking response
+          const notificationPromise = (async () => {
+            try {
+              const notifyResponse = await fetch(
+                `${supabaseUrl}/functions/v1/enviar-aviso-reuniao-imediato`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${supabaseKey}`,
+                  },
+                  body: JSON.stringify({
+                    reuniaoId: reuniaoId,
+                    userId: user.id,
+                    clienteTelefone: participanteTelefone,
+                    clienteNome: participanteNome,
+                    instanciaId: instanciaId || null,
+                    instanciaNome: instanciaNome || null,
+                  }),
+                }
+              );
+              const notifyResult = await notifyResponse.json();
+              console.log("Background notification result:", notifyResult);
+            } catch (notifyError) {
+              console.error("Error in background notification:", notifyError);
+            }
+          })();
+          
+          // Use globalThis to access EdgeRuntime without TypeScript errors
+          const runtime = (globalThis as Record<string, unknown>).EdgeRuntime as { waitUntil?: (p: Promise<unknown>) => void } | undefined;
+          if (runtime?.waitUntil) {
+            runtime.waitUntil(notificationPromise);
+          } else {
+            // Fallback: don't await, let it run in background
+            notificationPromise.catch(console.error);
           }
         }
       }
