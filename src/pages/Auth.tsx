@@ -7,11 +7,13 @@ import { Card } from "@/components/ui/card";
 import { ShaderBackground } from "@/components/ui/shader-background";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
+import noktaLogo from "@/assets/nokta-odonto-logo.png";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres")
 });
+
 export default function Auth() {
   const {
     signIn,
@@ -27,11 +29,13 @@ export default function Auth() {
       navigate("/");
     }
   }, [user, loading, navigate]);
+  
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: ""
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -53,43 +57,63 @@ export default function Auth() {
       setIsSubmitting(false);
     }
   };
+  
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
         <div className="animate-pulse text-muted-foreground">Carregando...</div>
-      </div>;
+      </div>
+    );
   }
+  
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       <ShaderBackground />
-      <div className="w-full max-w-md space-y-6 relative z-10">
-        {/* Logo/Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            Nokta Clinic
-          </h1>
-          <p className="text-muted-foreground">
-            Sistema de gestão para clínicas odontológicas 
-          </p>
-        </div>
-
+      <div className="w-full max-w-md relative z-10">
         {/* Auth Card */}
         <Card className="p-6 shadow-elegant">
+          {/* Logo inside card */}
+          <div className="flex flex-col items-center mb-6">
+            <img 
+              src={noktaLogo} 
+              alt="Nokta Odonto" 
+              className="h-16 w-auto mb-3"
+            />
+            <p className="text-muted-foreground text-sm text-center">
+              Sistema de gestão para clínicas odontológicas
+            </p>
+          </div>
+          
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="login-email">Email</Label>
-              <Input id="login-email" type="email" placeholder="seu@email.com" value={loginForm.email} onChange={e => setLoginForm({
-              ...loginForm,
-              email: e.target.value
-            })} required />
+              <Input 
+                id="login-email" 
+                type="email" 
+                placeholder="seu@email.com" 
+                value={loginForm.email} 
+                onChange={e => setLoginForm({
+                  ...loginForm,
+                  email: e.target.value
+                })} 
+                required 
+              />
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="login-password">Senha</Label>
-              <Input id="login-password" type="password" placeholder="••••••••" value={loginForm.password} onChange={e => setLoginForm({
-              ...loginForm,
-              password: e.target.value
-            })} required />
+              <Input 
+                id="login-password" 
+                type="password" 
+                placeholder="••••••••" 
+                value={loginForm.password} 
+                onChange={e => setLoginForm({
+                  ...loginForm,
+                  password: e.target.value
+                })} 
+                required 
+              />
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             </div>
 
