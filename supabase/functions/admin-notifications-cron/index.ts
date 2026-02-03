@@ -353,22 +353,33 @@ Deno.serve(async (req) => {
 
     for (const config of configs) {
       const adminInstance = config.admin_notification_instances;
+      console.log(`[admin-notifications-cron] Processing config for user ${config.user_id}, instance: ${adminInstance?.nome || 'none'}`);
+      
       if (!adminInstance || !adminInstance.is_active) {
+        console.log(`[admin-notifications-cron] Skipping user ${config.user_id}: no active instance`);
         continue;
       }
 
-      // Get destination phone
+      // Get destination phone - support both number and group
       let destinationPhone = config.destination_value;
-      if (config.destination_type !== 'number' || !destinationPhone) {
+      if (!destinationPhone) {
+        console.log(`[admin-notifications-cron] Skipping user ${config.user_id}: no destination configured`);
         continue;
       }
+
+      console.log(`[admin-notifications-cron] User ${config.user_id} destination: ${config.destination_type} -> ${destinationPhone}`);
 
       // === Check Low Balance Alerts ===
       if (config.low_balance_enabled && config.low_balance_threshold > 0) {
         const cooldownHours = config.low_balance_cooldown_hours ?? 24;
+        const cooldownActive = isCooldownActive(config.low_balance_last_sent_at, cooldownHours);
         
-        if (!isCooldownActive(config.low_balance_last_sent_at, cooldownHours)) {
+        console.log(`[admin-notifications-cron] User ${config.user_id} low_balance check: enabled=${config.low_balance_enabled}, threshold=${config.low_balance_threshold}, cooldown=${cooldownActive}, lastSent=${config.low_balance_last_sent_at}`);
+        
+        if (!cooldownActive) {
           const { balance, hasAccount } = await getAccountBalance(supabase, config.user_id, exchangeRate);
+          
+          console.log(`[admin-notifications-cron] User ${config.user_id} balance: ${balance}, hasAccount: ${hasAccount}`);
           
           if (hasAccount && balance < config.low_balance_threshold) {
             console.log(`[admin-notifications-cron] Low balance alert for user ${config.user_id}: ${balance} < ${config.low_balance_threshold}`);
@@ -394,9 +405,14 @@ Deno.serve(async (req) => {
               results.lowBalanceAlerts++;
               console.log(`[admin-notifications-cron] Low balance alert sent for user ${config.user_id}`);
             } else {
+              console.log(`[admin-notifications-cron] Failed to send low balance alert for user ${config.user_id}`);
               results.errors++;
             }
+          } else {
+            console.log(`[admin-notifications-cron] User ${config.user_id} balance OK or no account: balance=${balance}, threshold=${config.low_balance_threshold}`);
           }
+        } else {
+          console.log(`[admin-notifications-cron] User ${config.user_id} skipped due to cooldown`);
         }
       }
 
