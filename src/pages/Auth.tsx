@@ -82,7 +82,7 @@ export default function Auth() {
                 filter: "brightness(0) saturate(100%) invert(15%) sepia(60%) saturate(1500%) hue-rotate(190deg) brightness(90%) contrast(90%)"
               }}
             />
-            <p className="text-muted-foreground text-sm text-center">
+            <p className="text-muted-foreground text-base text-center">
               Sistema de gestão para clínicas odontológicas
             </p>
           </div>
