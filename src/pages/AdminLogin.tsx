@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ShaderBackground } from "@/components/ui/shader-background";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Lock, Users } from "lucide-react";
@@ -101,8 +102,9 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <ShaderBackground />
+      <Card className="w-full max-w-md relative z-10">
         <CardHeader className="space-y-1 flex flex-col items-center">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
             <Lock className="w-8 h-8 text-primary" />
