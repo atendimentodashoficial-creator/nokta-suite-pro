@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ShaderBackground } from "@/components/ui/shader-background";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import noktaLogo from "@/assets/nokta-logo.png";
+import noktaLogo from "@/assets/nokta-logo-black.png";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
