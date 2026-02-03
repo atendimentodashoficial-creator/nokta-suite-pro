@@ -70,8 +70,8 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       <ShaderBackground />
       <div className="w-full max-w-md relative z-10">
-        {/* Auth Card */}
-        <Card className="p-6 shadow-elegant">
+        {/* Auth Card - Glassmorphism */}
+        <Card className="p-6 shadow-elegant bg-card/80 backdrop-blur-md border border-white/20">
           {/* Logo inside card */}
           <div className="flex flex-col items-center mb-6">
             <img 
