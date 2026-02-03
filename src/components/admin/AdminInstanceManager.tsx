@@ -81,9 +81,14 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
   const [selectedInstanceForQr, setSelectedInstanceForQr] = useState<AdminInstance | null>(null);
   
   // Pairing Code state (for manual connection mode in QR dialog)
-  const [connectionMode, setConnectionMode] = useState<'qrcode' | 'paircode'>('qrcode');
+  const [connectionMode, setConnectionMode] = useState<'qrcode' | 'paircode' | 'credentials'>('qrcode');
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [pairingPhoneNumber, setPairingPhoneNumber] = useState("");
+  
+  // Credentials mode state (for connecting via URL + API Key)
+  const [credentialsUrl, setCredentialsUrl] = useState("");
+  const [credentialsApiKey, setCredentialsApiKey] = useState("");
+  const [credentialsLoading, setCredentialsLoading] = useState(false);
   
   // Polling ref
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -541,10 +546,102 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
     setQrCode(null);
     setPairingCode(null);
     setPairingPhoneNumber("");
+    setCredentialsUrl("");
+    setCredentialsApiKey("");
     setConnectionMode('qrcode');
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
+    }
+  };
+
+  const handleConnectWithCredentials = async () => {
+    if (!selectedInstanceForQr) return;
+    
+    if (!credentialsUrl.trim() || !credentialsApiKey.trim()) {
+      toast.error("Preencha a URL Base e o Token da instância");
+      return;
+    }
+
+    setCredentialsLoading(true);
+
+    try {
+      const adminToken = localStorage.getItem("admin_token");
+      const baseUrl = credentialsUrl.trim().replace(/\/+$/, "");
+      const apiKey = credentialsApiKey.trim();
+
+      // First, test if the credentials work and instance is connected
+      const { data: testData, error: testError } = await supabase.functions.invoke("uazapi-test-connection", {
+        body: { base_url: baseUrl, api_key: apiKey },
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+
+      if (testError) throw testError;
+
+      const isConnected = testData?.success === true;
+      const details = testData?.details;
+      const phone = details?.jid ? String(details.jid).split("@")[0] : undefined;
+
+      // Update the instance in database with new credentials
+      const { error: updateError } = await supabase
+        .from("admin_notification_instances")
+        .update({
+          base_url: baseUrl,
+          api_key: apiKey,
+        })
+        .eq("id", selectedInstanceForQr.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setInstances(prev => 
+        prev.map(i => i.id === selectedInstanceForQr.id 
+          ? { ...i, base_url: baseUrl, api_key: apiKey } 
+          : i
+        )
+      );
+
+      if (isConnected) {
+        setConnectionStatus(prev => ({
+          ...prev,
+          [selectedInstanceForQr.id]: { connected: true, phone, loading: false }
+        }));
+        toast.success("Instância conectada com sucesso!");
+        setQrDialogOpen(false);
+        
+        // Configure webhook
+        try {
+          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "rgaqvlsjaapjhlhevsrf";
+          const webhookUrl = `https://${projectId}.supabase.co/functions/v1/whatsapp-webhook?instance=${selectedInstanceForQr.id}`;
+          
+          await supabase.functions.invoke("uazapi-set-webhook", {
+            headers: { Authorization: `Bearer ${adminToken}` },
+            body: {
+              base_url: baseUrl,
+              api_key: apiKey,
+              webhook_url: webhookUrl,
+              instancia_id: selectedInstanceForQr.id,
+            },
+          });
+          console.log("[Admin] Webhook configured for credentials connection");
+        } catch (webhookError) {
+          console.error("[Admin] Error configuring webhook:", webhookError);
+        }
+      } else {
+        toast.info("Credenciais salvas! A instância precisa ser conectada no servidor UAZapi.");
+        setConnectionStatus(prev => ({
+          ...prev,
+          [selectedInstanceForQr.id]: { connected: false, loading: false }
+        }));
+        // Show QR code option
+        setConnectionMode('qrcode');
+        handleGetQrCode({ ...selectedInstanceForQr, base_url: baseUrl, api_key: apiKey });
+      }
+    } catch (error: any) {
+      console.error("Erro ao conectar com credenciais:", error);
+      toast.error(error?.message || "Erro ao conectar com credenciais");
+    } finally {
+      setCredentialsLoading(false);
     }
   };
 
@@ -802,8 +899,8 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
             </DialogDescription>
           </DialogHeader>
           
-          {/* Connection Mode Tabs - same as Disparos */}
-          <div className="flex gap-2 border-b pb-2">
+          {/* Connection Mode Tabs - same as Disparos + Credentials */}
+          <div className="flex gap-1 border-b pb-2">
             <Button
               variant={connectionMode === 'qrcode' ? 'default' : 'ghost'}
               size="sm"
@@ -827,7 +924,19 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
               }}
             >
               <Hash className="h-4 w-4 mr-2" />
-              Código Manual
+              Código
+            </Button>
+            <Button
+              variant={connectionMode === 'credentials' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => {
+                setConnectionMode('credentials');
+                setQrCode(null);
+                setPairingCode(null);
+              }}
+            >
+              <Wifi className="h-4 w-4 mr-2" />
+              Credenciais
             </Button>
           </div>
           
@@ -873,7 +982,7 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
                   </div>
                 )}
               </>
-            ) : (
+            ) : connectionMode === 'paircode' ? (
               // Pairing Code Mode
               <>
                 {!pairingCode ? (
@@ -929,6 +1038,47 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
                   </div>
                 )}
               </>
+            ) : (
+              // Credentials Mode
+              <div className="w-full space-y-4">
+                <div className="space-y-2">
+                  <Label>URL Base da Instância</Label>
+                  <Input
+                    placeholder="https://sua-instancia.uazapi.com"
+                    value={credentialsUrl}
+                    onChange={(e) => setCredentialsUrl(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Token da Instância</Label>
+                  <Input
+                    type="password"
+                    placeholder="Token de autenticação"
+                    value={credentialsApiKey}
+                    onChange={(e) => setCredentialsApiKey(e.target.value)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Use esta opção para conectar uma instância UAZapi existente que já está vinculada a um número.
+                </p>
+                <Button 
+                  onClick={handleConnectWithCredentials} 
+                  disabled={credentialsLoading}
+                  className="w-full"
+                >
+                  {credentialsLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Conectando...
+                    </>
+                  ) : (
+                    <>
+                      <Wifi className="h-4 w-4 mr-2" />
+                      Conectar com Credenciais
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
           </div>
         </DialogContent>
