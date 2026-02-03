@@ -77,12 +77,12 @@ export default function Auth() {
             <img 
               src={noktaLogo} 
               alt="Nokta Clinic" 
-              className="h-16 w-auto mb-3"
+              className="h-16 w-auto mb-3 animate-scale-in"
               style={{
-                filter: "invert(30%) sepia(90%) saturate(1500%) hue-rotate(190deg) brightness(95%) contrast(95%)"
+                filter: "invert(10%) sepia(50%) saturate(2000%) hue-rotate(190deg) brightness(30%) contrast(100%)"
               }}
             />
-            <p className="text-muted-foreground text-base text-center">
+            <p className="text-muted-foreground text-base text-center animate-scale-in" style={{ animationDelay: '0.1s' }}>
               Sistema de gestão para clínicas odontológicas
             </p>
           </div>
