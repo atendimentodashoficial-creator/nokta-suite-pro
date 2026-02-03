@@ -237,18 +237,21 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
       const baseUrl = newInstanceUrl.trim().replace(/\/+$/, "");
       const apiKey = newInstanceApiKey.trim();
 
-      const { data, error } = await supabase
-        .from("admin_notification_instances")
-        .insert({
+      // Use edge function to bypass RLS
+      const { data: response, error } = await supabase.functions.invoke("admin-manage-users", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: {
+          action: "create_notification_instance",
           nome: newInstanceName.trim(),
           base_url: baseUrl,
           api_key: apiKey,
-          is_active: true,
-        })
-        .select()
-        .single();
+        },
+      });
 
       if (error) throw error;
+      if (!response?.success) throw new Error(response?.error || "Erro ao criar instância");
+
+      const data = response.instance;
 
       setInstances((prev) => [data, ...prev]);
       setNewInstanceName("");
@@ -582,16 +585,19 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
       const details = testData?.details;
       const phone = details?.jid ? String(details.jid).split("@")[0] : undefined;
 
-      // Update the instance in database with new credentials
-      const { error: updateError } = await supabase
-        .from("admin_notification_instances")
-        .update({
+      // Update the instance in database with new credentials via edge function
+      const { data: updateResponse, error: updateError } = await supabase.functions.invoke("admin-manage-users", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: {
+          action: "update_notification_instance",
+          instanceId: selectedInstanceForQr.id,
           base_url: baseUrl,
           api_key: apiKey,
-        })
-        .eq("id", selectedInstanceForQr.id);
+        },
+      });
 
       if (updateError) throw updateError;
+      if (!updateResponse?.success) throw new Error(updateResponse?.error || "Erro ao atualizar instância");
 
       // Update local state
       setInstances(prev => 
