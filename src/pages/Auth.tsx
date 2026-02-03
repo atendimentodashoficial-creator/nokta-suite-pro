@@ -79,10 +79,20 @@ export default function Auth() {
               alt="Nokta Clinic" 
               className="h-16 w-auto mb-3 animate-scale-in"
               style={{
-                filter: "brightness(0) saturate(100%) invert(12%) sepia(30%) saturate(1200%) hue-rotate(180deg) brightness(95%) contrast(95%)"
+                filter: "brightness(0) saturate(100%) invert(12%) sepia(30%) saturate(1200%) hue-rotate(180deg) brightness(95%) contrast(95%)",
+                animationDuration: '0.5s',
+                animationFillMode: 'both'
               }}
             />
-            <p className="text-muted-foreground text-base text-center animate-scale-in" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+            <p 
+              className="text-muted-foreground text-center animate-scale-in"
+              style={{ 
+                animationDelay: '0.15s', 
+                animationDuration: '0.5s',
+                animationFillMode: 'both',
+                fontSize: '1.0625rem'
+              }}
+            >
               Sistema de gestão para clínicas odontológicas
             </p>
           </div>
