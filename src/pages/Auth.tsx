@@ -78,6 +78,9 @@ export default function Auth() {
               src={noktaLogo} 
               alt="Nokta Clinic" 
               className="h-16 w-auto mb-3"
+              style={{
+                filter: "invert(30%) sepia(90%) saturate(1500%) hue-rotate(190deg) brightness(95%) contrast(95%)"
+              }}
             />
             <p className="text-muted-foreground text-base text-center">
               Sistema de gestão para clínicas odontológicas
