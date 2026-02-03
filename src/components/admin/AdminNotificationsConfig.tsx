@@ -73,6 +73,26 @@ export function AdminNotificationsConfig({ users, isActive = true, instancesRefr
 
   const [adminInstances, setAdminInstances] = useState<AdminInstance[]>([]);
 
+  const loadAdminInstances = async () => {
+    const adminToken = localStorage.getItem("admin_token");
+    if (!adminToken) {
+      setAdminInstances([]);
+      return;
+    }
+
+    const { data, error } = await supabase.functions.invoke("admin-manage-users", {
+      body: { action: "list_notification_instances" },
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+
+    if (error) throw error;
+    const instances: AdminInstance[] = (data?.instances || [])
+      .filter((i: AdminInstance) => i?.is_active)
+      .sort((a: AdminInstance, b: AdminInstance) => a.nome.localeCompare(b.nome));
+
+    setAdminInstances(instances);
+  };
+
   // Evita fazer upsert de defaults repetidamente para o mesmo usuário
   const ensuredConfigRef = useRef<Record<string, boolean>>({});
 
@@ -182,14 +202,15 @@ Período: {data_inicio} a {data_fim}
   useEffect(() => {
     const loadInitialData = async () => {
       setInitialLoading(true);
-      // Carregar instâncias admin
-      const { data: instances } = await supabase
-        .from("admin_notification_instances")
-        .select("id, nome, base_url, is_active")
-        .eq("is_active", true)
-        .order("nome");
-      
-      setAdminInstances(instances || []);
+
+      // Carregar instâncias admin (via função de backend para não depender de sessão do usuário)
+      try {
+        await loadAdminInstances();
+      } catch (err) {
+        console.error("Erro ao carregar instâncias admin:", err);
+        setAdminInstances([]);
+        toast.error("Não foi possível carregar as instâncias do admin");
+      }
       
       // Carregar configs de usuários
       for (const user of users) {
@@ -206,13 +227,13 @@ Período: {data_inicio} a {data_fim}
   useEffect(() => {
     if (instancesRefreshTrigger > 0) {
       const reloadInstances = async () => {
-        const { data: instances } = await supabase
-          .from("admin_notification_instances")
-          .select("id, nome, base_url, is_active")
-          .eq("is_active", true)
-          .order("nome");
-        
-        setAdminInstances(instances || []);
+        try {
+          await loadAdminInstances();
+        } catch (err) {
+          console.error("Erro ao recarregar instâncias admin:", err);
+          setAdminInstances([]);
+          toast.error("Não foi possível recarregar as instâncias do admin");
+        }
       };
       reloadInstances();
     }
