@@ -550,23 +550,58 @@ Deno.serve(async (req) => {
           break;
         }
 
-        // Find the correct instance for this contact by looking up their chat
-        const normalizedPhone = normalizePhone(pending.telefone);
-        const { data: existingChat } = await supabase
+        // Find the correct instance for this contact by looking up their chat.
+        // IMPORTANT: match using phone candidates (with/without 9th digit) to avoid missing the real chat,
+        // and prefer conversation continuity (instancia_original_id or the oldest chat).
+        const phoneCandidates = buildPhoneCandidates(pending.telefone);
+        const lookupCandidatesSet = new Set<string>();
+        for (const c of phoneCandidates) {
+          lookupCandidatesSet.add(c);
+          if (c.startsWith("55")) lookupCandidatesSet.add(c.slice(2));
+        }
+
+        const lookupCandidates = Array.from(lookupCandidatesSet);
+
+        const { data: existingChats, error: chatLookupError } = await supabase
           .from("disparos_chats")
-          .select("instancia_id")
+          .select("id, instancia_id, instancia_original_id, created_at, updated_at")
           .eq("user_id", userId)
-          .eq("normalized_number", normalizedPhone)
           .is("deleted_at", null)
-          .order("updated_at", { ascending: false })
-          .limit(1);
+          .in("normalized_number", lookupCandidates);
+
+        if (chatLookupError) {
+          console.error("Error looking up existing chats for instance routing:", chatLookupError);
+        }
 
         let config: WhatsAppConfig;
         
-        if (existingChat && existingChat.length > 0 && existingChat[0].instancia_id) {
-          // Use the instance from the existing chat
-          const chatInstanceId = existingChat[0].instancia_id;
-          const matchedInstance = disparosInstances.find(inst => inst.id === chatInstanceId);
+        const chatsWithInstance = (existingChats || []).filter((c: any) => c?.instancia_id);
+
+        if (chatsWithInstance.length > 0) {
+          let selectedInstanceId: string | null = null;
+
+          // Prefer migrated chats: use the original instance for continuity.
+          const chatWithOriginal = chatsWithInstance.find((c: any) => c?.instancia_original_id);
+          if (chatWithOriginal?.instancia_original_id) {
+            selectedInstanceId = chatWithOriginal.instancia_original_id;
+            console.log(
+              `Using instancia_original_id for ${pending.telefone}: ${selectedInstanceId}`
+            );
+          } else {
+            // Otherwise, pick the oldest chat (original conversation start).
+            const oldestChat = [...chatsWithInstance].sort(
+              (a: any, b: any) =>
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            )[0];
+            selectedInstanceId = oldestChat?.instancia_id ?? null;
+            console.log(
+              `Using oldest chat instance for ${pending.telefone}: ${selectedInstanceId}`
+            );
+          }
+
+          const matchedInstance = selectedInstanceId
+            ? disparosInstances.find((inst) => inst.id === selectedInstanceId)
+            : null;
           
           if (matchedInstance) {
             console.log(`Using chat's instance "${matchedInstance.nome}" for ${pending.telefone}`);
