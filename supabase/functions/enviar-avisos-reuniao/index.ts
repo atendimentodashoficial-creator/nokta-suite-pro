@@ -25,6 +25,8 @@ interface AvisoReuniao {
 interface WhatsAppConfig {
   base_url: string;
   api_key: string;
+  instancia_id: string;
+  instancia_nome: string;
 }
 
 interface PendingAviso {
@@ -205,7 +207,7 @@ async function processAviso(
   if (deliveredTo) {
     console.log(`Message sent successfully to ${deliveredTo}`);
 
-    // Log the sent aviso
+    // Log the sent aviso (with instance info for audit)
     await supabase.from("avisos_reuniao_log").insert({
       user_id: aviso.userId,
       aviso_id: aviso.avisoId,
@@ -217,6 +219,8 @@ async function processAviso(
       mensagem_enviada: mensagem,
       status: "enviado",
       enviado_em: new Date().toISOString(),
+      instancia_id: config.instancia_id,
+      instancia_nome: config.instancia_nome,
     });
 
     // Update aviso flags on reuniao
@@ -249,7 +253,7 @@ async function processAviso(
   } else {
     console.error(`Error sending message to ${aviso.telefone}:`, lastError);
 
-    // Log the failed aviso
+    // Log the failed aviso (with instance info for audit)
     await supabase.from("avisos_reuniao_log").insert({
       user_id: aviso.userId,
       aviso_id: aviso.avisoId,
@@ -262,6 +266,8 @@ async function processAviso(
       status: "erro",
       erro: lastError || "Unknown error",
       enviado_em: new Date().toISOString(),
+      instancia_id: config.instancia_id,
+      instancia_nome: config.instancia_nome,
     });
 
     return {
@@ -608,6 +614,8 @@ Deno.serve(async (req) => {
             config = {
               base_url: matchedInstance.base_url.replace(/\/+$/, ""),
               api_key: matchedInstance.api_key,
+              instancia_id: matchedInstance.id,
+              instancia_nome: matchedInstance.nome,
             };
           } else {
             // Instance not found or inactive, use first available
@@ -615,6 +623,8 @@ Deno.serve(async (req) => {
             config = {
               base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
               api_key: disparosInstances[0].api_key,
+              instancia_id: disparosInstances[0].id,
+              instancia_nome: disparosInstances[0].nome,
             };
           }
         } else {
@@ -623,6 +633,8 @@ Deno.serve(async (req) => {
           config = {
             base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
             api_key: disparosInstances[0].api_key,
+            instancia_id: disparosInstances[0].id,
+            instancia_nome: disparosInstances[0].nome,
           };
         }
 

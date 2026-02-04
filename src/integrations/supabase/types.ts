@@ -771,6 +771,8 @@ export type Database = {
           enviado_em: string
           erro: string | null
           id: string
+          instancia_id: string | null
+          instancia_nome: string | null
           mensagem_enviada: string
           reuniao_id: string | null
           status: string
@@ -786,6 +788,8 @@ export type Database = {
           enviado_em?: string
           erro?: string | null
           id?: string
+          instancia_id?: string | null
+          instancia_nome?: string | null
           mensagem_enviada: string
           reuniao_id?: string | null
           status?: string
@@ -801,6 +805,8 @@ export type Database = {
           enviado_em?: string
           erro?: string | null
           id?: string
+          instancia_id?: string | null
+          instancia_nome?: string | null
           mensagem_enviada?: string
           reuniao_id?: string | null
           status?: string

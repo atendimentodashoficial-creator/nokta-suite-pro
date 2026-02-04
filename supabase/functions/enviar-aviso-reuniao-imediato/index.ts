@@ -416,6 +416,8 @@ serve(async (req) => {
         mensagem_enviada: "",
         status: "erro",
         erro: msg,
+        instancia_id: instancia.id,
+        instancia_nome: instancia.nome,
       });
 
       return new Response(
@@ -503,6 +505,8 @@ serve(async (req) => {
             mensagem_enviada: mensagem,
             status: "erro",
             erro: lastError || "Erro ao enviar mensagem",
+            instancia_id: instancia.id,
+            instancia_nome: instancia.nome,
           });
           continue;
         }
@@ -510,7 +514,7 @@ serve(async (req) => {
         console.log(`Successfully sent ${isReagendamento ? 'rescheduling' : 'immediate'} notification "${aviso.nome}" to ${deliveredTo}`);
         sentCount++;
 
-        // Log the success
+        // Log the success (with instance info for audit)
         await supabase.from("avisos_reuniao_log").insert({
           user_id: resolvedUserId,
           aviso_id: aviso.id,
@@ -521,6 +525,8 @@ serve(async (req) => {
           dias_antes: 0,
           mensagem_enviada: mensagem,
           status: "enviado",
+          instancia_id: instancia.id,
+          instancia_nome: instancia.nome,
         });
 
         // For rescheduling type, update ultimo_reagendamento_avisado after sending
@@ -535,7 +541,7 @@ serve(async (req) => {
       } catch (err) {
         console.error(`Error processing aviso "${aviso.nome}":`, err);
         
-        // Log the error
+        // Log the error (with instance info for audit)
         await supabase.from("avisos_reuniao_log").insert({
           user_id: resolvedUserId,
           aviso_id: aviso.id,
@@ -547,6 +553,8 @@ serve(async (req) => {
           mensagem_enviada: aviso.mensagem,
           status: "erro",
           erro: String(err),
+          instancia_id: instancia.id,
+          instancia_nome: instancia.nome,
         });
       }
     }
