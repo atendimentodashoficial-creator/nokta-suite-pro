@@ -272,30 +272,60 @@ serve(async (req) => {
     // Pick instance: prefer the one from the client's chat history (same instance they were chatting with)
     let instancia: InstanciaConfig | null = null;
     
-    // First, try to find the instance from the client's existing chat (maintains conversation continuity)
+    // First, try to find the instance from the client's existing chat
+    // Priority: instancia_original (where chat was created) > most messages > latest message
     const phoneLast8 = telefone.replace(/\D/g, "").slice(-8);
     console.log(`Looking for chat with phone last8: ${phoneLast8}`);
     
-    const { data: existingChat, error: chatError } = await supabase
+    // Get all chats for this phone number to analyze
+    const { data: existingChats, error: chatError } = await supabase
       .from("disparos_chats")
-      .select("instancia_id, instancia_nome")
+      .select("id, instancia_id, instancia_nome, instancia_original_id, instancia_original_nome, last_message_time, created_at")
       .eq("user_id", resolvedUserId)
       .is("deleted_at", null)
-      .like("normalized_number", `%${phoneLast8}`)
-      .order("last_message_time", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .like("normalized_number", `%${phoneLast8}`);
     
     if (chatError) {
-      console.error("Error fetching existing chat:", chatError);
+      console.error("Error fetching existing chats:", chatError);
     }
     
-    if (existingChat?.instancia_id) {
-      console.log(`Found existing chat with instance: ${existingChat.instancia_id} (${existingChat.instancia_nome})`);
+    let selectedChat: { instancia_id: string; instancia_nome: string | null } | null = null;
+    
+    if (existingChats && existingChats.length > 0) {
+      console.log(`Found ${existingChats.length} chat(s) for phone ${phoneLast8}`);
+      
+      // If there's only one chat, use it
+      if (existingChats.length === 1) {
+        selectedChat = existingChats[0];
+        console.log(`Single chat found, using instance: ${selectedChat.instancia_nome}`);
+      } else {
+        // Multiple chats - prioritize the one that has instancia_original_id set (migrated chat)
+        // or the oldest chat (original conversation)
+        const chatWithOriginal = existingChats.find(c => c.instancia_original_id);
+        if (chatWithOriginal) {
+          // This chat was migrated, use the original instance for continuity
+          selectedChat = {
+            instancia_id: chatWithOriginal.instancia_original_id!,
+            instancia_nome: chatWithOriginal.instancia_original_nome
+          };
+          console.log(`Found migrated chat, using original instance: ${selectedChat.instancia_nome}`);
+        } else {
+          // Use the oldest chat (the original conversation)
+          const oldestChat = existingChats.sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          )[0];
+          selectedChat = oldestChat;
+          console.log(`Multiple chats found, using oldest (original): ${selectedChat.instancia_nome} created at ${oldestChat.created_at}`);
+        }
+      }
+    }
+    
+    if (selectedChat?.instancia_id) {
+      console.log(`Selected chat instance: ${selectedChat.instancia_id} (${selectedChat.instancia_nome})`);
       const { data: chatInstance } = await supabase
         .from("disparos_instancias")
         .select("*")
-        .eq("id", existingChat.instancia_id)
+        .eq("id", selectedChat.instancia_id)
         .eq("user_id", resolvedUserId)
         .eq("is_active", true)
         .maybeSingle();
@@ -303,6 +333,8 @@ serve(async (req) => {
       if (chatInstance) {
         instancia = chatInstance as any;
         console.log(`Using instance from chat history: ${chatInstance.nome}`);
+      } else {
+        console.log(`Instance ${selectedChat.instancia_id} not active, will try fallbacks`);
       }
     }
 
