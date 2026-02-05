@@ -378,18 +378,18 @@ Período: {data_inicio} a {data_fim}
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="p-4 sm:p-6">
         <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-primary" />
-          <div>
-            <CardTitle>Configurações de Avisos por Cliente</CardTitle>
-            <CardDescription>
-              Configure a instância WhatsApp e preferências de avisos para cada cliente
+          <Bell className="h-5 w-5 text-primary flex-shrink-0" />
+          <div className="min-w-0">
+            <CardTitle className="text-base sm:text-2xl">Configurações de Avisos</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Configure avisos para cada cliente
             </CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 p-4 sm:p-6 pt-0 sm:pt-0">
         {users.map((user) => {
           const displayName = user.user_metadata?.full_name || user.email;
           const isExpanded = expandedUser === user.id;
@@ -495,7 +495,7 @@ Período: {data_inicio} a {data_fim}
               </div>
 
               <CollapsibleContent>
-                <div className="mt-2 p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-4 ml-0 sm:ml-10">
+                <div className="mt-2 p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-4 ml-0">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

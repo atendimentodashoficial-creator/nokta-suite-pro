@@ -664,26 +664,26 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5 text-primary" />
-            <div>
-              <CardTitle>Instância WhatsApp do Admin</CardTitle>
-              <CardDescription>
-                Configure a instância WhatsApp que será usada para enviar avisos aos clientes
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Smartphone className="h-5 w-5 text-primary flex-shrink-0" />
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-2xl">Instância WhatsApp do Admin</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Configure a instância WhatsApp para enviar avisos
               </CardDescription>
             </div>
           </div>
           
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" className="w-full sm:w-auto flex-shrink-0">
                 <Plus className="h-4 w-4 mr-2" />
-                Adicionar Instância
+                <span className="sm:inline">Adicionar</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md mx-4 sm:mx-auto">
               <DialogHeader>
                 <DialogTitle>Nova Instância</DialogTitle>
                 <DialogDescription>
@@ -766,7 +766,7 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 p-4 sm:p-6 pt-0 sm:pt-0">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -786,101 +786,110 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
             return (
               <div 
                 key={instance.id} 
-                className={`flex items-center justify-between p-4 rounded-lg border ${
+                className={`p-3 sm:p-4 rounded-lg border ${
                   instance.is_active ? "bg-card" : "bg-muted/50 opacity-60"
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  {/* Connection Status Indicator */}
-                  <div className="relative">
-                    {status?.loading ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    ) : status?.connected ? (
-                      <Wifi className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <WifiOff className="h-5 w-5 text-red-500" />
-                    )}
-                  </div>
-                  
-                  <div>
-                    <p className="font-medium">{instance.nome}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="truncate max-w-48">{instance.base_url}</span>
-                      {status?.phone && (
-                        <span className="text-green-600">• {status.phone}</span>
+                {/* Mobile: stacked layout, Desktop: row layout */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  {/* Instance info */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Connection Status Indicator */}
+                    <div className="relative flex-shrink-0">
+                      {status?.loading ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      ) : status?.connected ? (
+                        <Wifi className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <WifiOff className="h-5 w-5 text-red-500" />
                       )}
                     </div>
+                    
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium truncate">{instance.nome}</p>
+                        {/* Status Badge - inline on mobile */}
+                        <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          status?.connected 
+                            ? "bg-green-500/20 text-green-600" 
+                            : "bg-red-500/20 text-red-600"
+                        }`}>
+                          {status?.loading ? "..." : status?.connected ? "Conectado" : "Desconectado"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="truncate max-w-[150px] sm:max-w-[200px]">{instance.base_url}</span>
+                        {status?.phone && (
+                          <span className="text-green-600 flex-shrink-0">• {status.phone}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {/* Status Badge */}
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    status?.connected 
-                      ? "bg-green-500/20 text-green-600" 
-                      : "bg-red-500/20 text-red-600"
-                  }`}>
-                    {status?.loading ? "Verificando..." : status?.connected ? "Conectado" : "Desconectado"}
-                  </span>
                   
-                  {/* Refresh Status */}
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => checkConnectionStatus(instance)}
-                    disabled={status?.loading}
-                  >
-                    <RefreshCw className={`h-4 w-4 ${status?.loading ? "animate-spin" : ""}`} />
-                  </Button>
-                  
-                  {/* QR Code Button */}
-                  {!status?.connected && (
+                  {/* Actions - row on mobile, stays on right on desktop */}
+                  <div className="flex items-center gap-1 sm:gap-2 justify-end flex-shrink-0">
+                    {/* Refresh Status */}
                     <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleGetQrCode(instance)}
+                      variant="ghost" 
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => checkConnectionStatus(instance)}
+                      disabled={status?.loading}
                     >
-                      <QrCode className="h-4 w-4 mr-2" />
-                      Conectar
+                      <RefreshCw className={`h-4 w-4 ${status?.loading ? "animate-spin" : ""}`} />
                     </Button>
-                  )}
-                  
-                  {/* Toggle Active */}
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => toggleInstanceActive(instance)}
-                  >
-                    {instance.is_active ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                  
-                  {/* Delete */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive">
-                        <Trash2 className="h-4 w-4" />
+                    
+                    {/* QR Code Button */}
+                    {!status?.connected && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="h-8 px-2 sm:px-3"
+                        onClick={() => handleGetQrCode(instance)}
+                      >
+                        <QrCode className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Conectar</span>
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover Instância</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que deseja remover a instância "{instance.nome}"? 
-                          Essa ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteInstance(instance.id)}>
-                          Remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    )}
+                    
+                    {/* Toggle Active */}
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => toggleInstanceActive(instance)}
+                    >
+                      {instance.is_active ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                    
+                    {/* Delete */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="mx-4 sm:mx-auto">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover Instância</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja remover a instância "{instance.nome}"? 
+                            Essa ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteInstance(instance.id)}>
+                            Remover
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </div>
             );
