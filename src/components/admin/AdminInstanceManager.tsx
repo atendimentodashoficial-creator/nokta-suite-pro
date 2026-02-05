@@ -663,14 +663,14 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
   };
 
   return (
-    <Card>
-      <CardHeader className="p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Smartphone className="h-5 w-5 text-primary flex-shrink-0" />
-            <div className="min-w-0">
-              <CardTitle className="text-base sm:text-2xl">Instância WhatsApp do Admin</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+    <Card className="overflow-hidden">
+      <CardHeader className="p-3 sm:p-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start gap-2">
+            <Smartphone className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-sm sm:text-2xl leading-tight">Instância WhatsApp do Admin</CardTitle>
+              <CardDescription className="text-xs sm:text-sm mt-0.5">
                 Configure a instância WhatsApp para enviar avisos
               </CardDescription>
             </div>
@@ -678,12 +678,12 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
           
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="w-full sm:w-auto flex-shrink-0">
+              <Button size="sm" className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
-                <span className="sm:inline">Adicionar</span>
+                Adicionar Instância
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md mx-4 sm:mx-auto">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:mx-auto">
               <DialogHeader>
                 <DialogTitle>Nova Instância</DialogTitle>
                 <DialogDescription>
@@ -766,17 +766,17 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-3 p-4 sm:p-6 pt-0 sm:pt-0">
+      <CardContent className="space-y-2 p-3 sm:p-6 pt-0">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : instances.length === 0 ? (
-          <div className="text-center py-8 border-2 border-dashed rounded-lg">
-            <Smartphone className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-            <p className="text-muted-foreground mb-2">Nenhuma instância configurada</p>
-            <p className="text-xs text-muted-foreground">
-              Adicione uma instância WhatsApp para enviar avisos aos clientes
+          <div className="text-center py-6 border-2 border-dashed rounded-lg mx-0">
+            <Smartphone className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground mb-1">Nenhuma instância configurada</p>
+            <p className="text-xs text-muted-foreground px-2">
+              Adicione uma instância WhatsApp para enviar avisos
             </p>
           </div>
         ) : (
@@ -786,7 +786,7 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
             return (
               <div 
                 key={instance.id} 
-                className={`p-3 sm:p-4 rounded-lg border ${
+                className={`p-3 rounded-lg border overflow-hidden ${
                   instance.is_active ? "bg-card" : "bg-muted/50 opacity-60"
                 }`}
               >
@@ -805,20 +805,19 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
                       )}
                     </div>
                     
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium truncate">{instance.nome}</p>
-                        {/* Status Badge - inline on mobile */}
-                        <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-medium text-sm truncate max-w-[120px] sm:max-w-none">{instance.nome}</p>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${
                           status?.connected 
                             ? "bg-green-500/20 text-green-600" 
                             : "bg-red-500/20 text-red-600"
                         }`}>
-                          {status?.loading ? "..." : status?.connected ? "Conectado" : "Desconectado"}
+                          {status?.loading ? "..." : status?.connected ? "On" : "Off"}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="truncate max-w-[150px] sm:max-w-[200px]">{instance.base_url}</span>
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                        <span className="truncate max-w-[100px] sm:max-w-[180px]">{instance.base_url}</span>
                         {status?.phone && (
                           <span className="text-green-600 flex-shrink-0">• {status.phone}</span>
                         )}
