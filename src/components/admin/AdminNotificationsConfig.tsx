@@ -377,19 +377,19 @@ Período: {data_inicio} a {data_fim}
   };
 
   return (
-    <Card>
-      <CardHeader className="p-4 sm:p-6">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-primary flex-shrink-0" />
-          <div className="min-w-0">
-            <CardTitle className="text-base sm:text-2xl">Configurações de Avisos</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
+    <Card className="overflow-hidden">
+      <CardHeader className="p-3 sm:p-6">
+        <div className="flex items-start gap-2">
+          <Bell className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-sm sm:text-2xl leading-tight">Configurações de Avisos</CardTitle>
+            <CardDescription className="text-xs sm:text-sm mt-0.5">
               Configure avisos para cada cliente
             </CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 p-4 sm:p-6 pt-0 sm:pt-0">
+      <CardContent className="space-y-2 p-3 sm:p-6 pt-0">
         {users.map((user) => {
           const displayName = user.user_metadata?.full_name || user.email;
           const isExpanded = expandedUser === user.id;
@@ -401,15 +401,12 @@ Período: {data_inicio} a {data_fim}
           return (
             <Collapsible key={user.id} open={isExpanded} onOpenChange={() => handleToggleUser(user.id)}>
               <div className="flex items-center gap-2 overflow-hidden">
-                {/* Switch fora do card - carrega config ao montar se necessário */}
+                {/* Switch externo */}
                 <div 
                   className="flex-shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Carregar config se ainda não foi carregada
-                    if (!config) {
-                      loadConfig(user.id);
-                    }
+                    if (!config) loadConfig(user.id);
                   }}
                 >
                   <Switch
@@ -421,73 +418,58 @@ Período: {data_inicio} a {data_fim}
                       }
                     }}
                     disabled={!config}
+                    className="scale-90"
                   />
                 </div>
 
-                <CollapsibleTrigger asChild className="flex-1">
-                  <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors min-w-0">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">{displayName}</p>
+                <CollapsibleTrigger asChild className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors overflow-hidden">
+                    <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <p className="font-medium text-xs sm:text-sm truncate">{displayName}</p>
                         {config?.destination_value ? (
-                          <p className="text-xs text-muted-foreground">
-                            {config.destination_type === "group" ? "Grupo" : "Número"}: {config.destination_value}
+                          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                            {config.destination_type === "group" ? "Grupo" : ""}{config.destination_value}
                           </p>
                         ) : (
-                          <p className="text-xs text-muted-foreground">Destino não configurado</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">Sem destino</p>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                      {/* Saldo Atual */}
-                      <div className="flex items-center gap-1.5">
-                        <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-1">
+                      {/* Saldo Atual - simplificado no mobile */}
+                      <div className="hidden sm:flex items-center gap-1">
+                        <DollarSign className="h-3 w-3 text-muted-foreground" />
                         {balanceInfo?.loading ? (
                           <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                         ) : balanceInfo?.error ? (
-                          <span className="text-xs text-muted-foreground" title={balanceInfo.error}>
-                            {balanceInfo.error}
-                          </span>
+                          <span className="text-[10px] text-muted-foreground">{balanceInfo.error}</span>
                         ) : balanceInfo?.balance !== null && balanceInfo?.balance !== undefined ? (
-                          <span className={`text-xs font-medium ${
-                            config && balanceInfo.balance < config.low_balance_threshold
-                              ? "text-red-500"
-                              : "text-green-600"
+                          <span className={`text-[10px] font-medium ${
+                            config && balanceInfo.balance < config.low_balance_threshold ? "text-red-500" : "text-green-600"
                           }`}>
-                            R$ {balanceInfo.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {balanceInfo.balance.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">--</span>
+                          <span className="text-[10px] text-muted-foreground">--</span>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            fetchUserBalance(user.id);
-                          }}
-                          disabled={balanceInfo?.loading}
-                        >
-                          <RefreshCw className={`h-3 w-3 ${balanceInfo?.loading ? "animate-spin" : ""}`} />
-                        </Button>
                       </div>
 
-                      {/* Status Badge */}
+                      {/* Status Badge - compacto */}
                       {config && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                           config.low_balance_enabled || config.campaign_reports_enabled 
                             ? "bg-green-500/20 text-green-600" 
                             : "bg-muted text-muted-foreground"
                         }`}>
-                          {config.low_balance_enabled || config.campaign_reports_enabled ? "Ativo" : "Inativo"}
+                          {config.low_balance_enabled || config.campaign_reports_enabled ? "On" : "Off"}
                         </span>
                       )}
                       {isExpanded ? (
-                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                       )}
                     </div>
                   </div>
@@ -495,15 +477,15 @@ Período: {data_inicio} a {data_fim}
               </div>
 
               <CollapsibleContent>
-                <div className="mt-2 p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-4 ml-0">
+                <div className="mt-2 p-2 sm:p-4 border rounded-lg bg-muted/30 space-y-3 overflow-hidden">
                   {isLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
                   ) : config ? (
                     <>
                       {/* Instância WhatsApp Admin para envio */}
-                      <div className="space-y-3 p-3 rounded-lg border bg-background">
+                      <div className="space-y-2 p-2 sm:p-3 rounded-lg border bg-background">
                         <Label className="flex items-center gap-2 font-medium">
                           <Smartphone className="h-4 w-4" />
                           Instância WhatsApp para Envio
