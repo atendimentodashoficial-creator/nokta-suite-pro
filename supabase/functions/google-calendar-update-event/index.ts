@@ -67,27 +67,44 @@ serve(async (req) => {
     // Increment numero_reagendamentos
     const newNumeroReagendamentos = (reuniao.numero_reagendamentos || 0) + 1;
 
-    // Helper function to trigger rescheduling notifications
-    const triggerReschedulingNotifications = async () => {
-      try {
-        console.log("Triggering rescheduling notifications...");
-        const { data, error } = await supabase.functions.invoke("enviar-aviso-reuniao-imediato", {
-          body: {
-            reuniaoId,
-            userId: user.id,
-            clienteTelefone: reuniao.cliente_telefone,
-            clienteNome: reuniao.participantes?.[0] || "Cliente",
-            tipo: "reagendamento"
-          }
-        });
-        
-        if (error) {
-          console.error("Error triggering rescheduling notifications:", error);
-        } else {
-          console.log("Rescheduling notifications triggered:", data);
+    // Helper function to trigger rescheduling notifications in background (non-blocking)
+    const triggerReschedulingNotificationsInBackground = () => {
+      const notificationPromise = (async () => {
+        try {
+          console.log("Triggering rescheduling notifications in background...");
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const notifyResponse = await fetch(
+            `${supabaseUrl}/functions/v1/enviar-aviso-reuniao-imediato`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${supabaseKey}`,
+              },
+              body: JSON.stringify({
+                reuniaoId,
+                userId: user.id,
+                clienteTelefone: reuniao.cliente_telefone,
+                clienteNome: reuniao.participantes?.[0] || "Cliente",
+                tipo: "reagendamento",
+              }),
+            }
+          );
+          const notifyResult = await notifyResponse.json();
+          console.log("Background rescheduling notification result:", notifyResult);
+        } catch (err) {
+          console.error("Error in background rescheduling notification:", err);
         }
-      } catch (err) {
-        console.error("Error invoking rescheduling notifications:", err);
+      })();
+
+      // Use EdgeRuntime.waitUntil to run in background without blocking response
+      const runtime = (globalThis as Record<string, unknown>).EdgeRuntime as { waitUntil?: (p: Promise<unknown>) => void } | undefined;
+      if (runtime?.waitUntil) {
+        runtime.waitUntil(notificationPromise);
+      } else {
+        // Fallback: don't await, let it run in background
+        notificationPromise.catch(console.error);
       }
     };
 
@@ -104,8 +121,8 @@ serve(async (req) => {
 
       if (updateError) throw updateError;
 
-      // Trigger rescheduling notifications
-      await triggerReschedulingNotifications();
+      // Trigger rescheduling notifications in background (non-blocking)
+      triggerReschedulingNotificationsInBackground();
 
       return new Response(
         JSON.stringify({ success: true, message: "Reunião reagendada localmente" }),
@@ -129,8 +146,8 @@ serve(async (req) => {
         numero_reagendamentos: newNumeroReagendamentos
       }).eq("id", reuniaoId);
       
-      // Trigger rescheduling notifications
-      await triggerReschedulingNotifications();
+      // Trigger rescheduling notifications in background (non-blocking)
+      triggerReschedulingNotificationsInBackground();
       
       return new Response(
         JSON.stringify({ success: true, message: "Reunião reagendada localmente (Google Calendar não conectado)" }),
@@ -166,8 +183,8 @@ serve(async (req) => {
           numero_reagendamentos: newNumeroReagendamentos
         }).eq("id", reuniaoId);
         
-        // Trigger rescheduling notifications
-        await triggerReschedulingNotifications();
+        // Trigger rescheduling notifications in background (non-blocking)
+        triggerReschedulingNotificationsInBackground();
         
         return new Response(
           JSON.stringify({ success: true, warning: "Reunião reagendada localmente. Erro ao renovar token do Google." }),
@@ -225,8 +242,8 @@ serve(async (req) => {
         numero_reagendamentos: newNumeroReagendamentos
       }).eq("id", reuniaoId);
       
-      // Trigger rescheduling notifications
-      await triggerReschedulingNotifications();
+      // Trigger rescheduling notifications in background (non-blocking)
+      triggerReschedulingNotificationsInBackground();
       
       return new Response(
         JSON.stringify({ 
@@ -254,8 +271,8 @@ serve(async (req) => {
       console.error("Error updating local record:", updateError);
     }
 
-    // Trigger rescheduling notifications
-    await triggerReschedulingNotifications();
+    // Trigger rescheduling notifications in background (non-blocking)
+    triggerReschedulingNotificationsInBackground();
 
     return new Response(
       JSON.stringify({ 
