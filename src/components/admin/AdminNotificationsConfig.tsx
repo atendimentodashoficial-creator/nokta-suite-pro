@@ -413,8 +413,10 @@ Período: {data_inicio} a {data_fim}
                     checked={config ? (config.low_balance_enabled || config.campaign_reports_enabled) : false}
                     onCheckedChange={(checked) => {
                       if (config) {
-                        updateConfig(user.id, "low_balance_enabled", checked);
-                        updateConfig(user.id, "campaign_reports_enabled", checked);
+                        autoSavePatch(user.id, {
+                          low_balance_enabled: checked,
+                          campaign_reports_enabled: checked,
+                        });
                       }
                     }}
                     disabled={!config}
