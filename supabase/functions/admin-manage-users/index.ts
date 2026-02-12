@@ -163,6 +163,20 @@ serve(async (req) => {
         );
       }
 
+      case 'update_password': {
+        // Atualizar senha do usuário
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          userId,
+          { password }
+        );
+
+        if (updateError) throw updateError;
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Senha atualizada' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       case 'update_order': {
         // Atualizar ordem de exibição do usuário
         const { error: updateError } = await supabase.auth.admin.updateUserById(

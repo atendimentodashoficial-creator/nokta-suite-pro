@@ -312,6 +312,7 @@ export default function AdminDashboard() {
   // Estados para edição de nome
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingPassword, setEditingPassword] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   
   // Estados para permissões
@@ -557,15 +558,18 @@ export default function AdminDashboard() {
   const handleOpenEditDialog = (userId: string, currentName: string) => {
     setEditingUserId(userId);
     setEditingName(currentName);
+    setEditingPassword("");
     setEditDialogOpen(true);
   };
 
   // Função para salvar nome editado
-  const handleSaveUserName = async () => {
+  const handleSaveUserEdit = async () => {
     if (!editingUserId) return;
     
     try {
       const adminToken = localStorage.getItem('admin_token');
+      
+      // Update name
       const { error } = await supabase.functions.invoke('admin-manage-users', {
         body: {
           action: 'update_name',
@@ -576,16 +580,32 @@ export default function AdminDashboard() {
           Authorization: `Bearer ${adminToken}`
         }
       });
-
       if (error) throw error;
-      toast.success('Nome atualizado com sucesso!');
+
+      // Update password if provided
+      if (editingPassword.trim()) {
+        const { error: pwError } = await supabase.functions.invoke('admin-manage-users', {
+          body: {
+            action: 'update_password',
+            userId: editingUserId,
+            password: editingPassword.trim()
+          },
+          headers: {
+            Authorization: `Bearer ${adminToken}`
+          }
+        });
+        if (pwError) throw pwError;
+      }
+
+      toast.success('Dados atualizados com sucesso!');
       setEditDialogOpen(false);
       setEditingUserId(null);
       setEditingName("");
+      setEditingPassword("");
       loadData();
     } catch (error: any) {
-      console.error('Erro ao atualizar nome:', error);
-      toast.error('Erro ao atualizar nome');
+      console.error('Erro ao atualizar dados:', error);
+      toast.error('Erro ao atualizar dados');
     }
   };
 
@@ -925,13 +945,13 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Dialog para Editar Nome */}
+        {/* Dialog para Editar Cliente */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Editar Nome do Cliente</DialogTitle>
+              <DialogTitle>Editar Cliente</DialogTitle>
               <DialogDescription>
-                Altere o nome de exibição do cliente
+                Altere o nome e/ou a senha do cliente
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -944,11 +964,21 @@ export default function AdminDashboard() {
                   placeholder="Nome do cliente"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-password">Nova Senha</Label>
+                <Input 
+                  id="edit-password" 
+                  type="password"
+                  value={editingPassword} 
+                  onChange={e => setEditingPassword(e.target.value)} 
+                  placeholder="Deixe vazio para manter a senha atual"
+                />
+              </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleSaveUserName}>
+                <Button onClick={handleSaveUserEdit}>
                   Salvar
                 </Button>
               </div>
