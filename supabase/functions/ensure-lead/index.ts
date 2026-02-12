@@ -235,13 +235,50 @@ serve(async (req) => {
         });
       }
 
-      // Se existe um lead de WhatsApp/Disparos mas não é cliente, criar um NOVO registro como cliente
-      // (mantém o lead original intacto na aba Leads)
+      // Se é lead de WhatsApp/Disparos mas não é cliente
       if (existingByPhone?.id) {
         const existingOrigem = (existingByPhone.origem || "").toLowerCase();
         
         if (existingOrigem === "whatsapp" || existingOrigem === "disparos") {
-          // Criar novo registro como cliente
+          // First check if there's already a null-origin record for this phone
+          const existingNullOrigem = (leads || []).find((l: any) => {
+            const leadLast8 = last8(l.telefone);
+            const leadOrigem = (l.origem || "").toLowerCase();
+            return leadLast8 === wantedLast8 && !l.deleted_at && !leadOrigem;
+          });
+
+          if (existingNullOrigem?.id) {
+            await admin
+              .from("leads")
+              .update({ nome, email, status: "cliente", origem_tipo: origem_tipo || existingOrigem.charAt(0).toUpperCase() + existingOrigem.slice(1) })
+              .eq("id", existingNullOrigem.id)
+              .eq("user_id", userId);
+            return new Response(JSON.stringify({ id: existingNullOrigem.id, reused: true }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // Check for deleted null-origin records to restore
+          const deletedNullOrigem = (leads || []).find((l: any) => {
+            const leadLast8 = last8(l.telefone);
+            const leadOrigem = (l.origem || "").toLowerCase();
+            return leadLast8 === wantedLast8 && l.deleted_at && !leadOrigem;
+          });
+
+          if (deletedNullOrigem?.id) {
+            await admin
+              .from("leads")
+              .update({ deleted_at: null, nome, email, status: "cliente", origem_tipo: origem_tipo || existingOrigem.charAt(0).toUpperCase() + existingOrigem.slice(1) })
+              .eq("id", deletedNullOrigem.id)
+              .eq("user_id", userId);
+            return new Response(JSON.stringify({ id: deletedNullOrigem.id, reused: true }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // No null-origin record exists, safe to create new
           const { data: created, error: insertError } = await admin
             .from("leads")
             .insert({
@@ -251,26 +288,24 @@ serve(async (req) => {
               email,
               procedimento_nome: "Agendamento",
               status: "cliente",
+              origem: null,
               origem_tipo: origem_tipo || existingOrigem.charAt(0).toUpperCase() + existingOrigem.slice(1),
             })
             .select("id")
             .single();
 
           if (insertError) {
-            // Constraint duplicate: try to find existing client record
-            console.log("[ensure-lead] Insert conflict for cliente from lead, searching existing...", insertError.message);
-            const { data: existingClientes } = await admin
+            console.log("[ensure-lead] Insert conflict, fresh search...", insertError.message);
+            const { data: freshAll } = await admin
               .from("leads")
-              .select("id, telefone, status, deleted_at")
+              .select("id, telefone, status, origem, deleted_at")
               .eq("user_id", userId)
-              .eq("status", "cliente")
               .is("deleted_at", null);
 
-            const matchByLast8 = (existingClientes || []).find((l: any) => last8(l.telefone) === wantedLast8);
-            if (matchByLast8?.id) {
-              // Update name/email on existing record
-              await admin.from("leads").update({ nome, email }).eq("id", matchByLast8.id);
-              return new Response(JSON.stringify({ id: matchByLast8.id, reused: true }), {
+            const freshMatch = (freshAll || []).find((l: any) => last8(l.telefone) === wantedLast8 && !(l.origem || "").toLowerCase());
+            if (freshMatch?.id) {
+              await admin.from("leads").update({ nome, email, status: "cliente" }).eq("id", freshMatch.id);
+              return new Response(JSON.stringify({ id: freshMatch.id, reused: true }), {
                 status: 200,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
               });
