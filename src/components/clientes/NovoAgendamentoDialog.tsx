@@ -738,15 +738,21 @@ export function NovoAgendamentoDialog({
           },
         });
 
-        if (res.error) throw res.error;
+     if (res.error) {
+          console.error("[NovoAgendamento] ensure-lead error:", res.error);
+          throw res.error;
+        }
+
+        console.log("[NovoAgendamento] ensure-lead response:", JSON.stringify(res.data));
 
         const ensuredLeadId = (res.data as any)?.id as string | undefined;
         const ensuredClienteId = (res.data as any)?.cliente_id as string | undefined;
 
         // Quando veio de Leads (WhatsApp/Disparos), usamos o cliente_id para criar o agendamento.
         // Quando é manual, usamos o id retornado.
-        const targetClienteId = origem ? ensuredClienteId : ensuredLeadId;
-        if (!targetClienteId) throw new Error("Não foi possível identificar o cliente.");
+        // FALLBACK: se cliente_id não veio mas temos o lead id, usar o lead id mesmo
+        const targetClienteId = origem ? (ensuredClienteId || ensuredLeadId) : ensuredLeadId;
+        if (!targetClienteId) throw new Error(`Não foi possível identificar o cliente. Response: ${JSON.stringify(res.data)}`);
 
         finalClienteId = targetClienteId;
         
@@ -937,9 +943,10 @@ export function NovoAgendamentoDialog({
       onOpenChange(false);
       form.reset();
       setTipoCalendario("app");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao criar agendamento:", error);
-      toast.error("Erro ao criar agendamento");
+      const errorMsg = error?.message || error?.msg || "Erro desconhecido";
+      toast.error(`Erro ao criar agendamento: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
     }
