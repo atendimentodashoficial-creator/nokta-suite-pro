@@ -95,33 +95,46 @@ serve(async (req) => {
       const existingClienteAtivo = (leadsList || []).find((l: any) => {
         const leadLast8 = last8(l.telefone);
         const leadOrigem = (l.origem || "").toLowerCase();
-        // Cliente manual tem origem vazia ou null
         return leadLast8 === wantedLast8 && l.status === "cliente" && !l.deleted_at && !leadOrigem;
       });
 
       if (existingClienteAtivo?.id) {
-        // Já existe cliente ativo, apenas atualizar nome e email
-        // NÃO atualizar origem_tipo - manter a origem original do primeiro cadastro
         await admin
           .from("leads")
           .update({ nome, email })
           .eq("id", existingClienteAtivo.id)
           .eq("user_id", userId);
-
         return existingClienteAtivo.id;
+      }
+
+      // Busca QUALQUER registro ativo sem origem (pode ser lead) - para evitar constraint conflict
+      const existingAtivoSemOrigem = (leadsList || []).find((l: any) => {
+        const leadLast8 = last8(l.telefone);
+        const leadOrigem = (l.origem || "").toLowerCase();
+        return leadLast8 === wantedLast8 && !l.deleted_at && !leadOrigem;
+      });
+
+      if (existingAtivoSemOrigem?.id) {
+        // Converter para cliente se necessário
+        const updateData: Record<string, any> = { nome, email, status: "cliente" };
+        if (origem_tipo) updateData.origem_tipo = origem_tipo;
+        await admin
+          .from("leads")
+          .update(updateData)
+          .eq("id", existingAtivoSemOrigem.id)
+          .eq("user_id", userId);
+        return existingAtivoSemOrigem.id;
       }
 
       // Busca cliente deletado (status=cliente, deletado, sem origem específica)
       const existingClienteDeletado = (leadsList || []).find((l: any) => {
         const leadLast8 = last8(l.telefone);
         const leadOrigem = (l.origem || "").toLowerCase();
-        return leadLast8 === wantedLast8 && l.status === "cliente" && l.deleted_at && !leadOrigem;
+        return leadLast8 === wantedLast8 && l.deleted_at && !leadOrigem;
       });
 
       if (existingClienteDeletado?.id) {
-        // Restaurar o cliente deletado
-        // Incluir origem_tipo se foi passado
-        const restoreData: Record<string, any> = { deleted_at: null, nome, email };
+        const restoreData: Record<string, any> = { deleted_at: null, nome, email, status: "cliente" };
         if (origem_tipo) restoreData.origem_tipo = origem_tipo;
         
         const { error: restoreError } = await admin
@@ -130,16 +143,13 @@ serve(async (req) => {
           .eq("id", existingClienteDeletado.id)
           .eq("user_id", userId);
 
-        if (restoreError) {
-          console.error("[ensure-lead] ensureClienteRecord restore error", restoreError);
-          // Se falhou restaurar, tentar criar novo
-        } else {
+        if (!restoreError) {
           return existingClienteDeletado.id;
         }
+        console.error("[ensure-lead] ensureClienteRecord restore error", restoreError);
       }
 
-      // Criar novo registro como cliente SEM origem (para não conflitar com lead de WhatsApp/Disparos)
-      // A constraint usa COALESCE(origem, '') então origem=null é diferente de origem='WhatsApp'
+      // Criar novo registro como cliente SEM origem
       const { data: createdCliente, error: insertError } = await admin
         .from("leads")
         .insert({
@@ -149,7 +159,7 @@ serve(async (req) => {
           email,
           procedimento_nome: "Agendamento",
           status: "cliente",
-          origem: null, // Importante: null para não conflitar
+          origem: null,
           origem_tipo: origem_tipo || "Manual",
         })
         .select("id")
@@ -158,17 +168,21 @@ serve(async (req) => {
       if (insertError) {
         console.log("[ensure-lead] ensureClienteRecord insert conflict, searching fresh...", insertError.message);
         
-        // Fresh query to find existing client (stale list may miss it)
-        const { data: freshClientes } = await admin
+        // Fresh query - busca QUALQUER registro com telefone matching (sem filtrar status)
+        const { data: freshRecords } = await admin
           .from("leads")
-          .select("id, telefone")
+          .select("id, telefone, status, origem")
           .eq("user_id", userId)
-          .eq("status", "cliente")
           .is("deleted_at", null);
 
-        const freshMatch = (freshClientes || []).find((l: any) => last8(l.telefone) === wantedLast8);
+        const freshMatch = (freshRecords || []).find((l: any) => {
+          const leadOrigem = (l.origem || "").toLowerCase();
+          return last8(l.telefone) === wantedLast8 && !leadOrigem;
+        });
+        
         if (freshMatch?.id) {
-          await admin.from("leads").update({ nome, email }).eq("id", freshMatch.id);
+          // Converter para cliente e atualizar dados
+          await admin.from("leads").update({ nome, email, status: "cliente" }).eq("id", freshMatch.id);
           return freshMatch.id;
         }
         
