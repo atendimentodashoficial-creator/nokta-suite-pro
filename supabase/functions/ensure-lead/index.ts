@@ -192,11 +192,13 @@ serve(async (req) => {
       return createdCliente?.id || null;
     };
 
-    // Busca todos os leads do usuário e compara pelos últimos 8 dígitos
+    // Busca leads do usuário filtrando pelo telefone (últimos 8 dígitos) para evitar limite de 1000 rows
+    const phonePattern = `%${wantedLast8}`;
     const { data: leads, error: leadsError } = await admin
       .from("leads")
       .select("id, user_id, telefone, origem, status, deleted_at")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .like("telefone", phonePattern);
 
     if (leadsError) {
       return new Response(JSON.stringify({ error: leadsError.message }), {
@@ -204,6 +206,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log(`[ensure-lead] Leads matching phone: ${(leads || []).length}, wantedLast8: ${wantedLast8}, telefone: ${telefone}, status: ${status}, origem: ${origem}`);
 
     // Busca cliente existente (status = "cliente") por telefone
     const existingCliente = (leads || []).find((l) => {
@@ -216,6 +220,8 @@ serve(async (req) => {
       const leadLast8 = last8(l.telefone);
       return leadLast8 === wantedLast8 && !l.deleted_at;
     });
+
+    console.log(`[ensure-lead] existingCliente: ${existingCliente?.id || 'none'}, existingByPhone: ${existingByPhone?.id || 'none'} (origem: ${existingByPhone?.origem || 'null'})`);
 
     // Se o status desejado é "cliente" (agendamento), garantir que existe um cliente
     if (status === "cliente") {
