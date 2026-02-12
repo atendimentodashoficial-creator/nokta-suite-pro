@@ -156,17 +156,20 @@ serve(async (req) => {
         .single();
 
       if (insertError) {
-        console.error("[ensure-lead] ensureClienteRecord insert error", insertError);
+        console.log("[ensure-lead] ensureClienteRecord insert conflict, searching fresh...", insertError.message);
         
-        // Se deu erro de constraint, pode ser que já existe cliente com mesma origem
-        // Tentar buscar qualquer cliente existente para este telefone
-        const anyExistingCliente = (leadsList || []).find((l: any) => {
-          const leadLast8 = last8(l.telefone);
-          return leadLast8 === wantedLast8 && l.status === "cliente" && !l.deleted_at;
-        });
-        
-        if (anyExistingCliente?.id) {
-          return anyExistingCliente.id;
+        // Fresh query to find existing client (stale list may miss it)
+        const { data: freshClientes } = await admin
+          .from("leads")
+          .select("id, telefone")
+          .eq("user_id", userId)
+          .eq("status", "cliente")
+          .is("deleted_at", null);
+
+        const freshMatch = (freshClientes || []).find((l: any) => last8(l.telefone) === wantedLast8);
+        if (freshMatch?.id) {
+          await admin.from("leads").update({ nome, email }).eq("id", freshMatch.id);
+          return freshMatch.id;
         }
         
         return null;
@@ -240,6 +243,25 @@ serve(async (req) => {
             .single();
 
           if (insertError) {
+            // Constraint duplicate: try to find existing client record
+            console.log("[ensure-lead] Insert conflict for cliente from lead, searching existing...", insertError.message);
+            const { data: existingClientes } = await admin
+              .from("leads")
+              .select("id, telefone, status, deleted_at")
+              .eq("user_id", userId)
+              .eq("status", "cliente")
+              .is("deleted_at", null);
+
+            const matchByLast8 = (existingClientes || []).find((l: any) => last8(l.telefone) === wantedLast8);
+            if (matchByLast8?.id) {
+              // Update name/email on existing record
+              await admin.from("leads").update({ nome, email }).eq("id", matchByLast8.id);
+              return new Response(JSON.stringify({ id: matchByLast8.id, reused: true }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+
             return new Response(JSON.stringify({ error: insertError.message }), {
               status: 409,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -295,6 +317,23 @@ serve(async (req) => {
         .single();
 
       if (insertError) {
+        console.log("[ensure-lead] Insert conflict for new cliente, searching existing...", insertError.message);
+        const { data: freshClientes } = await admin
+          .from("leads")
+          .select("id, telefone")
+          .eq("user_id", userId)
+          .eq("status", "cliente")
+          .is("deleted_at", null);
+
+        const freshMatch = (freshClientes || []).find((l: any) => last8(l.telefone) === wantedLast8);
+        if (freshMatch?.id) {
+          await admin.from("leads").update({ nome, email }).eq("id", freshMatch.id);
+          return new Response(JSON.stringify({ id: freshMatch.id, reused: true }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         return new Response(JSON.stringify({ error: insertError.message }), {
           status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
