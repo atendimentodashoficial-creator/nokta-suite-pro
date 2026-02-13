@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GOOGLE_ADS_API_VERSION = 'v19';
+const GOOGLE_ADS_API_VERSION = 'v18';
 const GOOGLE_ADS_API_BASE = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}`;
 
 interface GoogleAdsConfig {
@@ -229,14 +229,19 @@ serve(async (req) => {
         const accessToken = await getValidAccessToken(supabaseClient, user.id, config);
         const cleanCustomerId = customer_id.replace(/-/g, '');
 
-        // Get customer info
+        // Get customer info using GAQL query via searchStream
+        const query = `SELECT customer.id, customer.descriptive_name, customer.currency_code FROM customer LIMIT 1`;
+        
         const response = await fetch(
-          `${GOOGLE_ADS_API_BASE}/customers/${cleanCustomerId}`,
+          `${GOOGLE_ADS_API_BASE}/customers/${cleanCustomerId}/googleAds:searchStream`,
           {
+            method: 'POST',
             headers: {
               'Authorization': `Bearer ${accessToken}`,
               'developer-token': config.developer_token,
+              'Content-Type': 'application/json',
             },
+            body: JSON.stringify({ query }),
           }
         );
 
@@ -245,17 +250,20 @@ serve(async (req) => {
           throw new Error(`Failed to get account info: ${error}`);
         }
 
-        const customerData = await response.json();
+        const data = await response.json();
+        let accountInfo = { id: cleanCustomerId, name: '', currency: '' };
+        
+        if (data && Array.isArray(data) && data[0]?.results?.[0]?.customer) {
+          const customer = data[0].results[0].customer;
+          accountInfo = {
+            id: customer.id || cleanCustomerId,
+            name: customer.descriptiveName || '',
+            currency: customer.currencyCode || '',
+          };
+        }
 
         return new Response(
-          JSON.stringify({
-            success: true,
-            account: {
-              id: customerData.id,
-              name: customerData.descriptiveName,
-              currency: customerData.currencyCode,
-            },
-          }),
+          JSON.stringify({ success: true, account: accountInfo }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
