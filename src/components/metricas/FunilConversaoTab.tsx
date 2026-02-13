@@ -314,6 +314,14 @@ function AdItem({ item, index, numberBgClass, numberBgInactiveClass, numberTextC
                 src={thumbnailUrl}
                 alt="Imagem do anúncio em tamanho completo"
                 className="w-full h-auto rounded-lg"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  const fallback = document.createElement('div');
+                  fallback.className = 'flex flex-col items-center justify-center p-8 text-muted-foreground bg-muted rounded-lg';
+                  fallback.innerHTML = '<p class="text-sm">A imagem do anúncio expirou ou não está disponível.</p><p class="text-xs mt-1">As imagens do Meta Ads possuem validade limitada.</p>';
+                  target.parentElement?.appendChild(fallback);
+                }}
               />
             </div>
           </DialogContent>
