@@ -1,0 +1,1 @@
+ALTER TABLE public.google_ads_config ADD CONSTRAINT google_ads_config_user_id_key UNIQUE (user_id);
