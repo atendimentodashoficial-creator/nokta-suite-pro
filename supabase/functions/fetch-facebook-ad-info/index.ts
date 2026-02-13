@@ -5,6 +5,75 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function persistThumbnail(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  adId: string,
+  thumbnailUrl: string
+): Promise<string | null> {
+  const bucket = 'public-assets';
+  const filePath = `ad-thumbnails/${adId}.jpg`;
+
+  try {
+    // Check if already exists
+    const { data: existing } = await supabaseAdmin.storage
+      .from(bucket)
+      .createSignedUrl(filePath, 1);
+
+    // If file exists (no error getting signed url), return public URL
+    if (existing?.signedUrl) {
+      const { data: publicUrl } = supabaseAdmin.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+      console.log('Thumbnail already cached:', filePath);
+      return publicUrl.publicUrl;
+    }
+  } catch {
+    // File doesn't exist, continue to download
+  }
+
+  try {
+    // Download image from Meta CDN
+    const imgResponse = await fetch(thumbnailUrl);
+    if (!imgResponse.ok) {
+      console.error('Failed to download thumbnail:', imgResponse.status);
+      return null;
+    }
+
+    const imgBuffer = await imgResponse.arrayBuffer();
+    const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
+
+    // Upload to storage
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(bucket)
+      .upload(filePath, imgBuffer, {
+        contentType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      // If duplicate, just return public URL
+      if (uploadError.message?.includes('already exists') || uploadError.message?.includes('Duplicate')) {
+        const { data: publicUrl } = supabaseAdmin.storage
+          .from(bucket)
+          .getPublicUrl(filePath);
+        return publicUrl.publicUrl;
+      }
+      console.error('Upload error:', uploadError);
+      return null;
+    }
+
+    const { data: publicUrl } = supabaseAdmin.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    console.log('Thumbnail saved to storage:', filePath);
+    return publicUrl.publicUrl;
+  } catch (err) {
+    console.error('Error persisting thumbnail:', err);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,6 +91,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: `Bearer ${jwt}` } } }
+    );
+
+    // Admin client for storage operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
@@ -78,6 +153,15 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Persist thumbnail to storage so it never expires
+    let permanentThumbnailUrl = thumbnailUrl;
+    if (thumbnailUrl && ad_id) {
+      const storedUrl = await persistThumbnail(supabaseAdmin, ad_id, thumbnailUrl);
+      if (storedUrl) {
+        permanentThumbnailUrl = storedUrl;
+      }
+    }
+
     const result = {
       ad_id: ad_id,
       ad_name: data.name || null,
@@ -88,7 +172,7 @@ Deno.serve(async (req) => {
       adset_id: data.adset?.id || null,
       adset_name: data.adset?.name || null,
       adset_status: data.adset?.status || null,
-      thumbnail_url: thumbnailUrl,
+      thumbnail_url: permanentThumbnailUrl,
       creative_title: data.creative?.title || null,
       creative_body: data.creative?.body || null,
     };
