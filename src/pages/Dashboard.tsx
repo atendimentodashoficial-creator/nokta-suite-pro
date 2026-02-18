@@ -783,8 +783,8 @@ export default function Dashboard() {
               <StatsCard
                 title="Agendamentos Registrados"
                 value={numeroAgendamentosRegistrados}
-                change={`${agendamentosRegistradosCompareceu} compareceram • ${agendamentosRegistradosNaoCompareceu} não compareceram`}
-                changeType="positive"
+                change="No período"
+                changeType="neutral"
                 icon={Calendar}
               />
               <StatsCard
