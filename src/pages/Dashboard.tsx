@@ -607,16 +607,13 @@ export default function Dashboard() {
       }
     };
 
-    // Agendamentos: contar realizados apenas quando existe fatura vinculada (mesma regra dos cards)
+    // Agendamentos por profissional: contar TODOS do período
     dadosFiltrados.agendamentos.forEach((ag: any) => {
       const profId = ag.profissional_id || "sem-profissional";
       const profNome = (ag.profissionais as any)?.nome || "Sem Profissional";
       ensureProf(profId, profNome);
 
-      // aqui tratamos apenas itens concluídos (compareceu + não compareceu)
-      if (ag.status === "cancelado" || agendamentoIdsComFatura.has(ag.id)) {
-        profMap[profId].agendamentos++;
-      }
+      profMap[profId].agendamentos++;
 
       if (agendamentoIdsComFatura.has(ag.id)) {
         profMap[profId].realizados++;
@@ -648,14 +645,13 @@ export default function Dashboard() {
       }
     };
 
+    // Agendamentos por procedimento: contar TODOS do período
     dadosFiltrados.agendamentos.forEach((ag: any) => {
       const procId = ag.procedimento_id || "sem-procedimento";
       const procNome = (ag.procedimentos as any)?.nome || "Sem Procedimento";
       ensureProc(procId, procNome);
 
-      if (ag.status === "cancelado" || agendamentoIdsComFatura.has(ag.id)) {
-        procMap[procId].agendamentos++;
-      }
+      procMap[procId].agendamentos++;
 
       if (agendamentoIdsComFatura.has(ag.id)) {
         procMap[procId].realizados++;
