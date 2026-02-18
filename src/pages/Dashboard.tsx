@@ -516,15 +516,19 @@ export default function Dashboard() {
     (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
   ).length;
 
-  // === AGENDAMENTOS REALIZADOS (por data_agendamento) ===
-  const numeroAgendamentosRealizados = dadosFiltrados.agendamentosRealizados.length;
-  
-  const agendamentosRealizadosCompareceu = dadosFiltrados.agendamentosRealizados.filter((a: any) =>
-    agendamentoIdsComFatura.has(a.id)
-  ).length;
-  
-  const agendamentosRealizadosNaoCompareceu = dadosFiltrados.agendamentosRealizados.filter(
-    (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
+  // === AGENDAMENTOS REALIZADOS = agendamentos (criados no período) que têm fatura vinculada (fechado ou negociação) ===
+  // Usar o set global (não filtrado por período da fatura) para não perder vínculo
+  const agendamentoIdsComFaturaGlobal = new Set<string>();
+  (faturas || []).forEach((f: any) => {
+    if (f.status === "fechado" || f.status === "negociacao") {
+      (f.fatura_agendamentos || []).forEach((fa: any) => {
+        if (fa.agendamento_id) agendamentoIdsComFaturaGlobal.add(fa.agendamento_id);
+      });
+    }
+  });
+
+  const numeroAgendamentosRealizados = dadosFiltrados.agendamentos.filter((a: any) =>
+    agendamentoIdsComFaturaGlobal.has(a.id)
   ).length;
 
   // Variáveis legadas para compatibilidade com outras partes do código
@@ -776,15 +780,15 @@ export default function Dashboard() {
               <StatsCard
                 title="Agendamentos Realizados"
                 value={numeroAgendamentosRealizados}
-                change={`${agendamentosRealizadosCompareceu} compareceram • ${agendamentosRealizadosNaoCompareceu} não compareceram`}
+                change={`Agendamentos com fatura ou negociação`}
                 changeType="positive"
                 icon={CalendarCheck}
               />
               <StatsCard
                 title="% Não Compareceu"
-                value={`${numeroAgendamentosRealizados > 0 ? Math.round((agendamentosRealizadosNaoCompareceu / numeroAgendamentosRealizados) * 100) : 0}%`}
-                change={`${agendamentosRealizadosNaoCompareceu}/${numeroAgendamentosRealizados}`}
-                changeType={agendamentosRealizadosNaoCompareceu > 0 ? "negative" : "positive"}
+                value={`${numeroAgendamentosRegistrados > 0 ? Math.round((agendamentosRegistradosNaoCompareceu / numeroAgendamentosRegistrados) * 100) : 0}%`}
+                change={`${agendamentosRegistradosNaoCompareceu}/${numeroAgendamentosRegistrados}`}
+                changeType={agendamentosRegistradosNaoCompareceu > 0 ? "negative" : "positive"}
                 icon={UserX}
                 gradient
               />
