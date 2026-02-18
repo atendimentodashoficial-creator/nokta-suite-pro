@@ -487,8 +487,28 @@ export default function Dashboard() {
 
   const leadsFollowUp = dadosFiltrados.leads.filter(l => l.status === "follow_up").length;
 
-  // Total de clientes no período
-  const totalClientes = dadosFiltrados.clientes.length;
+  // Total de clientes no período = clientes únicos com agendamento no período,
+  // excluindo quem já era cliente (status "cliente") antes do início do período
+  const clienteIdsNoPeriodo = new Set<string>();
+  const clientesJaExistentes = new Set<string>();
+  
+  // Identificar clientes que já tinham status "cliente" antes do período
+  const periodStart = toZonedBrasilia(dateStart);
+  periodStart.setHours(0, 0, 0, 0);
+  clientes?.forEach(c => {
+    const clienteDate = toZonedBrasilia(new Date(c.created_at));
+    if (clienteDate < periodStart) {
+      clientesJaExistentes.add(c.id);
+    }
+  });
+  
+  // Contar clientes únicos dos agendamentos do período, excluindo os já existentes
+  dadosFiltrados.agendamentos.forEach((ag: any) => {
+    if (ag.cliente_id && !clientesJaExistentes.has(ag.cliente_id)) {
+      clienteIdsNoPeriodo.add(ag.cliente_id);
+    }
+  });
+  const totalClientes = clienteIdsNoPeriodo.size;
   
   // AGENDAMENTOS
   // 
