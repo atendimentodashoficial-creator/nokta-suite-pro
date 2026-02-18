@@ -111,20 +111,15 @@ export default function Dashboard() {
       });
     });
 
-    // Função para verificar se agendamento é visível no app
+    // Função para verificar se agendamento é visível no app (usada para métricas detalhadas)
     const isAgendamentoVisivel = (ag: any) => {
       // Ignorar agendamentos de leads excluídos
       if (!leadsNaoExcluidosIds.has(ag.cliente_id)) return false;
-      
-      // Ignorar agendamentos "realizado" sem fatura vinculada diretamente ao agendamento
-      // (não basta o cliente ter fatura, precisa estar vinculada via fatura_agendamentos)
-      const agendamentoTemFatura = agendamentoIdsComFatura.has(ag.id);
-      if (ag.status === "realizado" && !agendamentoTemFatura) return false;
-      
       return true;
     };
 
     // Filtrar agendamentos por created_at (quando foi REGISTRADO/criado)
+    // Inclui TODOS os agendamentos do período independente do status (calendario, não compareceu, faturas, negociação)
     const agendsRegistrados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
       const agDate = toZonedBrasilia(new Date(ag.created_at));
