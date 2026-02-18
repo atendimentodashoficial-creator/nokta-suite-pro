@@ -549,18 +549,18 @@ export default function Dashboard() {
     return agDate > endOfPeriod || agDate < startOfPeriod;
   }).length;
 
-  // Faturas realizadas no período mas cujos agendamentos são de meses anteriores
-  const faturasDeAgendamentosAnteriores = dadosFiltrados.faturas
+  // Faturas realizadas no período mas cujos agendamentos são de outro período
+  const startOfPeriodFat = new Date(dateStart.getFullYear(), dateStart.getMonth(), dateStart.getDate(), 0, 0, 0, 0);
+  const endOfPeriodFat = new Date(dateEnd.getFullYear(), dateEnd.getMonth(), dateEnd.getDate(), 23, 59, 59, 999);
+  const faturasDeAgendamentosOutroPeriodo = dadosFiltrados.faturas
     .filter((f: any) => f.status === "fechado" || f.status === "negociacao")
     .filter((fat: any) => {
       const agendamentos = fat.fatura_agendamentos || [];
       if (agendamentos.length === 0) return false;
-      const startMonth = dateStart.getMonth();
-      const startYear = dateStart.getFullYear();
       return agendamentos.some((fa: any) => {
         if (!fa.agendamentos?.data_agendamento) return false;
         const agDate = toZonedBrasilia(new Date(fa.agendamentos.data_agendamento));
-        return agDate.getMonth() < startMonth || agDate.getFullYear() < startYear;
+        return agDate < startOfPeriodFat || agDate > endOfPeriodFat;
       });
     }).length;
 
@@ -811,7 +811,7 @@ export default function Dashboard() {
                 change={`${faturasFechadasCount} fechadas • ${faturasNegociacaoCount} em negociação`}
                 changeType="positive"
                 icon={CalendarCheck}
-                extraInfo={faturasDeAgendamentosAnteriores > 0 ? `${faturasDeAgendamentosAnteriores} de agendamento(s) anterior(es)` : undefined}
+                extraInfo={faturasDeAgendamentosOutroPeriodo > 0 ? `${faturasDeAgendamentosOutroPeriodo} de agendamento(s) de outro período` : undefined}
                 extraInfoType="neutral"
               />
               <StatsCard
