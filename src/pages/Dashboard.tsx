@@ -532,12 +532,10 @@ export default function Dashboard() {
     agendamentoIdsComFatura.has(a.id)
   ).length;
   
+  // "% Não Compareceu" = todos os cancelados registrados no período (sem excluir os com fatura)
   const agendamentosRegistradosNaoCompareceu = dadosFiltrados.agendamentos.filter(
-    (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
+    (a: any) => a.status === "cancelado"
   ).length;
-
-  // "% Não Compareceu" usa agendamentos registrados (created_at) e exclui cancelados com fatura
-  // (pois provavelmente foram reagendados manualmente e compareceram depois)
 
   // === AGENDAMENTOS REALIZADOS = faturas (fechadas + negociação) no período ===
   const faturasFechadasCount = dadosFiltrados.faturas.filter(f => f.status === "fechado").length;
