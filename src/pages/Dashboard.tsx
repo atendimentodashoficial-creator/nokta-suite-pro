@@ -121,7 +121,9 @@ export default function Dashboard() {
     // Filtrar agendamentos por data_agendamento (data marcada para o agendamento)
     // Inclui TODOS os agendamentos do período independente do status ou etapa
     // Isso garante consistência com as abas Calendário, Não Compareceu, Faturas e Negociação
+    // Também filtra agendamentos de leads excluídos para consistência
     const agendsRegistrados = agendamentos?.filter(ag => {
+      if (!isAgendamentoVisivel(ag)) return false;
       const agDate = toZonedBrasilia(new Date(ag.data_agendamento));
       if (agDate < startOfPeriod) return false;
       if (agDate > endOfPeriod) return false;
