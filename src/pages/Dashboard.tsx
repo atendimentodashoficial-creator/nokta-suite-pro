@@ -515,20 +515,10 @@ export default function Dashboard() {
     (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
   ).length;
 
-  // === AGENDAMENTOS REALIZADOS = agendamentos (criados no período) que têm fatura vinculada (fechado ou negociação) ===
-  // Usar o set global (não filtrado por período da fatura) para não perder vínculo
-  const agendamentoIdsComFaturaGlobal = new Set<string>();
-  (faturas || []).forEach((f: any) => {
-    if (f.status === "fechado" || f.status === "negociacao") {
-      (f.fatura_agendamentos || []).forEach((fa: any) => {
-        if (fa.agendamento_id) agendamentoIdsComFaturaGlobal.add(fa.agendamento_id);
-      });
-    }
-  });
-
-  const numeroAgendamentosRealizados = dadosFiltrados.agendamentos.filter((a: any) =>
-    agendamentoIdsComFaturaGlobal.has(a.id)
-  ).length;
+  // === AGENDAMENTOS REALIZADOS = faturas (fechadas + negociação) no período ===
+  const faturasFechadasCount = dadosFiltrados.faturas.filter(f => f.status === "fechado").length;
+  const faturasNegociacaoCount = dadosFiltrados.faturas.filter(f => f.status === "negociacao").length;
+  const numeroAgendamentosRealizados = faturasFechadasCount + faturasNegociacaoCount;
 
   // Variáveis legadas para compatibilidade com outras partes do código
   const numeroAgendamentos = numeroAgendamentosRegistrados;
@@ -779,7 +769,7 @@ export default function Dashboard() {
               <StatsCard
                 title="Agendamentos Realizados"
                 value={numeroAgendamentosRealizados}
-                change={`Agendamentos com fatura ou negociação`}
+                change={`${faturasFechadasCount} fechadas • ${faturasNegociacaoCount} em negociação`}
                 changeType="positive"
                 icon={CalendarCheck}
               />
