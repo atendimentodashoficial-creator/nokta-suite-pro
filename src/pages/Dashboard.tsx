@@ -119,9 +119,8 @@ export default function Dashboard() {
     };
 
     // Filtrar agendamentos por created_at (quando foi REGISTRADO/criado)
-    // Inclui TODOS os agendamentos do período independente do status (calendario, não compareceu, faturas, negociação)
+    // Inclui TODOS os agendamentos do período independente do status ou etapa
     const agendsRegistrados = agendamentos?.filter(ag => {
-      if (!isAgendamentoVisivel(ag)) return false;
       const agDate = toZonedBrasilia(new Date(ag.created_at));
       if (agDate < startOfPeriod) return false;
       if (agDate > endOfPeriod) return false;
