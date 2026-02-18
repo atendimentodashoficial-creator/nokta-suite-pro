@@ -118,15 +118,13 @@ export default function Dashboard() {
       return true;
     };
 
-    // Filtrar agendamentos por data_agendamento (data marcada para o agendamento)
-    // Inclui TODOS os agendamentos do período independente do status ou etapa
-    // Isso garante consistência com as abas Calendário, Não Compareceu, Faturas e Negociação
-    // Também filtra agendamentos de leads excluídos para consistência
+    // Filtrar agendamentos REGISTRADOS por created_at (quando o agendamento foi criado)
+    // Isso mostra quantos agendamentos foram feitos no período, independente da data da consulta
     const agendsRegistrados = agendamentos?.filter(ag => {
       if (!isAgendamentoVisivel(ag)) return false;
-      const agDate = toZonedBrasilia(new Date(ag.data_agendamento));
-      if (agDate < startOfPeriod) return false;
-      if (agDate > endOfPeriod) return false;
+      const createdDate = toZonedBrasilia(new Date(ag.created_at));
+      if (createdDate < startOfPeriod) return false;
+      if (createdDate > endOfPeriod) return false;
       return true;
     }) || [];
 
@@ -543,12 +541,12 @@ export default function Dashboard() {
   const faturasNegociacaoCount = dadosFiltrados.faturas.filter(f => f.status === "negociacao").length;
   const numeroAgendamentosRealizados = faturasFechadasCount + faturasNegociacaoCount;
 
-  // Agendamentos registrados no período mas com data_agendamento para mês(es) futuro(s)
-  const agendamentosParaMesesFuturos = dadosFiltrados.agendamentos.filter((ag: any) => {
+  // Agendamentos registrados (created_at) no período mas com data_agendamento fora do período
+  const agendamentosParaOutroMes = dadosFiltrados.agendamentos.filter((ag: any) => {
     const agDate = toZonedBrasilia(new Date(ag.data_agendamento));
-    const endMonth = dateEnd.getMonth();
-    const endYear = dateEnd.getFullYear();
-    return agDate.getMonth() > endMonth || agDate.getFullYear() > endYear;
+    const startOfPeriod = new Date(dateStart.getFullYear(), dateStart.getMonth(), dateStart.getDate(), 0, 0, 0, 0);
+    const endOfPeriod = new Date(dateEnd.getFullYear(), dateEnd.getMonth(), dateEnd.getDate(), 23, 59, 59, 999);
+    return agDate > endOfPeriod || agDate < startOfPeriod;
   }).length;
 
   // Faturas realizadas no período mas cujos agendamentos são de meses anteriores
@@ -804,7 +802,7 @@ export default function Dashboard() {
                 change="No período"
                 changeType="neutral"
                 icon={Calendar}
-                extraInfo={agendamentosParaMesesFuturos > 0 ? `${agendamentosParaMesesFuturos} para mês(es) seguinte(s)` : undefined}
+                extraInfo={agendamentosParaOutroMes > 0 ? `${agendamentosParaOutroMes} com consulta fora do período` : undefined}
                 extraInfoType="neutral"
               />
               <StatsCard
