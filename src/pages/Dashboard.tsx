@@ -612,24 +612,22 @@ export default function Dashboard() {
       const profId = ag.profissional_id || "sem-profissional";
       const profNome = (ag.profissionais as any)?.nome || "Sem Profissional";
       ensureProf(profId, profNome);
-
       profMap[profId].agendamentos++;
-
-      if (agendamentoIdsComFatura.has(ag.id)) {
-        profMap[profId].realizados++;
-      }
     });
 
-    // Faturas fechadas por profissional
+    // Faturas (fechadas + negociação) por profissional
     dadosFiltrados.faturas
-      .filter((f: any) => f.status === "fechado")
+      .filter((f: any) => f.status === "fechado" || f.status === "negociacao")
       .forEach((fat: any) => {
         const profId = fat.profissional_id || "sem-profissional";
         const profNome = (fat.profissionais as any)?.nome || profMap[profId]?.nome || "Sem Profissional";
         ensureProf(profId, profNome);
 
-        profMap[profId].faturas++;
-        profMap[profId].valorTotal += Number(fat.valor);
+        profMap[profId].realizados++;
+        if (fat.status === "fechado") {
+          profMap[profId].faturas++;
+          profMap[profId].valorTotal += Number(fat.valor);
+        }
       });
 
     return Object.values(profMap);
@@ -650,23 +648,22 @@ export default function Dashboard() {
       const procId = ag.procedimento_id || "sem-procedimento";
       const procNome = (ag.procedimentos as any)?.nome || "Sem Procedimento";
       ensureProc(procId, procNome);
-
       procMap[procId].agendamentos++;
-
-      if (agendamentoIdsComFatura.has(ag.id)) {
-        procMap[procId].realizados++;
-      }
     });
 
+    // Faturas (fechadas + negociação) por procedimento
     dadosFiltrados.faturas
-      .filter((f: any) => f.status === "fechado")
+      .filter((f: any) => f.status === "fechado" || f.status === "negociacao")
       .forEach((fat: any) => {
         const procId = fat.procedimento_id || "sem-procedimento";
         const procNome = (fat.procedimentos as any)?.nome || procMap[procId]?.nome || "Sem Procedimento";
         ensureProc(procId, procNome);
 
-        procMap[procId].faturas++;
-        procMap[procId].valorTotal += Number(fat.valor);
+        procMap[procId].realizados++;
+        if (fat.status === "fechado") {
+          procMap[procId].faturas++;
+          procMap[procId].valorTotal += Number(fat.valor);
+        }
       });
 
     return Object.values(procMap);
