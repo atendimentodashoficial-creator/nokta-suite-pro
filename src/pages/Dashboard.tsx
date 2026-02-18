@@ -536,12 +536,8 @@ export default function Dashboard() {
     (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
   ).length;
 
-  // "% Não Compareceu" usa data_agendamento e exclui cancelados que têm fatura vinculada
+  // "% Não Compareceu" usa agendamentos registrados (created_at) e exclui cancelados com fatura
   // (pois provavelmente foram reagendados manualmente e compareceram depois)
-  const naoCompareceuPorDataAgendamento = dadosFiltrados.agendamentosRealizados.filter(
-    (a: any) => a.status === "cancelado" && !agendamentoIdsComFatura.has(a.id)
-  ).length;
-  const totalAgendamentosPorDataAgendamento = dadosFiltrados.agendamentosRealizados.length;
 
   // === AGENDAMENTOS REALIZADOS = faturas (fechadas + negociação) no período ===
   const faturasFechadasCount = dadosFiltrados.faturas.filter(f => f.status === "fechado").length;
@@ -823,9 +819,9 @@ export default function Dashboard() {
               />
               <StatsCard
                 title="% Não Compareceu"
-                value={`${totalAgendamentosPorDataAgendamento > 0 ? Math.round((naoCompareceuPorDataAgendamento / totalAgendamentosPorDataAgendamento) * 100) : 0}%`}
-                change={`${naoCompareceuPorDataAgendamento}/${totalAgendamentosPorDataAgendamento}`}
-                changeType={naoCompareceuPorDataAgendamento > 0 ? "negative" : "positive"}
+                value={`${numeroAgendamentosRegistrados > 0 ? Math.round((agendamentosRegistradosNaoCompareceu / numeroAgendamentosRegistrados) * 100) : 0}%`}
+                change={`${agendamentosRegistradosNaoCompareceu}/${numeroAgendamentosRegistrados}`}
+                changeType={agendamentosRegistradosNaoCompareceu > 0 ? "negative" : "positive"}
                 icon={UserX}
                 gradient
               />
