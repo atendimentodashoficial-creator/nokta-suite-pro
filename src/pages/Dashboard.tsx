@@ -543,6 +543,29 @@ export default function Dashboard() {
   const faturasNegociacaoCount = dadosFiltrados.faturas.filter(f => f.status === "negociacao").length;
   const numeroAgendamentosRealizados = faturasFechadasCount + faturasNegociacaoCount;
 
+  // Agendamentos registrados no período mas com data_agendamento para mês(es) futuro(s)
+  const agendamentosParaMesesFuturos = dadosFiltrados.agendamentos.filter((ag: any) => {
+    const agDate = toZonedBrasilia(new Date(ag.data_agendamento));
+    const endMonth = dateEnd.getMonth();
+    const endYear = dateEnd.getFullYear();
+    return agDate.getMonth() > endMonth || agDate.getFullYear() > endYear;
+  }).length;
+
+  // Faturas realizadas no período mas cujos agendamentos são de meses anteriores
+  const faturasDeAgendamentosAnteriores = dadosFiltrados.faturas
+    .filter((f: any) => f.status === "fechado" || f.status === "negociacao")
+    .filter((fat: any) => {
+      const agendamentos = fat.fatura_agendamentos || [];
+      if (agendamentos.length === 0) return false;
+      const startMonth = dateStart.getMonth();
+      const startYear = dateStart.getFullYear();
+      return agendamentos.some((fa: any) => {
+        if (!fa.agendamentos?.data_agendamento) return false;
+        const agDate = toZonedBrasilia(new Date(fa.agendamentos.data_agendamento));
+        return agDate.getMonth() < startMonth || agDate.getFullYear() < startYear;
+      });
+    }).length;
+
   // Variáveis legadas para compatibilidade com outras partes do código
   const numeroAgendamentos = numeroAgendamentosRegistrados;
   const agendamentosRealizados = agendamentosRegistradosCompareceu;
@@ -781,6 +804,8 @@ export default function Dashboard() {
                 change="No período"
                 changeType="neutral"
                 icon={Calendar}
+                extraInfo={agendamentosParaMesesFuturos > 0 ? `${agendamentosParaMesesFuturos} para mês(es) seguinte(s)` : undefined}
+                extraInfoType="neutral"
               />
               <StatsCard
                 title="Agendamentos Realizados"
@@ -788,6 +813,8 @@ export default function Dashboard() {
                 change={`${faturasFechadasCount} fechadas • ${faturasNegociacaoCount} em negociação`}
                 changeType="positive"
                 icon={CalendarCheck}
+                extraInfo={faturasDeAgendamentosAnteriores > 0 ? `${faturasDeAgendamentosAnteriores} de agendamento(s) anterior(es)` : undefined}
+                extraInfoType="neutral"
               />
               <StatsCard
                 title="% Não Compareceu"

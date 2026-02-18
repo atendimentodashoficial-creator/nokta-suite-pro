@@ -9,6 +9,8 @@ interface StatsCardProps {
   changeType?: "positive" | "negative" | "neutral";
   icon: LucideIcon;
   gradient?: boolean;
+  extraInfo?: string;
+  extraInfoType?: "positive" | "negative" | "neutral";
 }
 
 export const StatsCard = ({ 
@@ -17,7 +19,9 @@ export const StatsCard = ({
   change, 
   changeType = "neutral", 
   icon: Icon,
-  gradient = false 
+  gradient = false,
+  extraInfo,
+  extraInfoType = "neutral"
 }: StatsCardProps) => {
   return (
     <Card className={cn(
@@ -36,6 +40,16 @@ export const StatsCard = ({
               changeType === "neutral" && "text-muted-foreground"
             )}>
               {change}
+            </p>
+          )}
+          {extraInfo && (
+            <p className={cn(
+              "text-xs font-medium",
+              extraInfoType === "positive" && "text-green-600",
+              extraInfoType === "negative" && "text-destructive",
+              extraInfoType === "neutral" && "text-muted-foreground"
+            )}>
+              {extraInfo}
             </p>
           )}
         </div>
