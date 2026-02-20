@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, XCircle, Trash2, MessageCircle, User, Phone } from "lucide-react";
+import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, XCircle, Trash2, MessageCircle, User, Phone, CheckCircle2 } from "lucide-react";
 import { formatPhoneDisplay, getLast8Digits } from "@/utils/phoneFormat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDial
 import { AvisosReuniaoTab } from "@/components/reunioes/AvisosReuniaoTab";
 import { VincularTranscricaoDialog } from "@/components/reunioes/VincularTranscricaoDialog";
 import { ReagendarReuniaoDialog } from "@/components/reunioes/ReagendarReuniaoDialog";
+import { ComparecimentoDialog } from "@/components/reunioes/ComparecimentoDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,6 +63,8 @@ export default function Reunioes() {
   const [reuniaoParaDesmarcar, setReuniaoParaDesmarcar] = useState<Reuniao | null>(null);
   const [reuniaoParaReagendar, setReuniaoParaReagendar] = useState<Reuniao | null>(null);
   const [reuniaoParaExcluir, setReuniaoParaExcluir] = useState<Reuniao | null>(null);
+  const [comparecimentoReuniao, setComparecimentoReuniao] = useState<Reuniao | null>(null);
+  const [comparecimentoTipo, setComparecimentoTipo] = useState<"compareceu" | "nao_compareceu" | null>(null);
 
   // Índice simples (telefone -> nome) para reuniões que ainda não estejam vinculadas via cliente_id
   const { data: leadNames } = useQuery({
@@ -234,6 +237,14 @@ export default function Reunioes() {
     },
   });
 
+  const isWithinOneHour = (dataReuniao: string) => {
+    const now = new Date();
+    const reuniaoTime = new Date(dataReuniao);
+    const diffMs = reuniaoTime.getTime() - now.getTime();
+    // Mostra se estiver dentro de 1h antes ou já passou (mas menos de 12h atrás)
+    return diffMs <= 60 * 60 * 1000 && diffMs > -12 * 60 * 60 * 1000;
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "transcrito":
@@ -244,6 +255,10 @@ export default function Reunioes() {
         return <Badge variant="outline">Pendente</Badge>;
       case "cancelado":
         return <Badge variant="destructive">Cancelado</Badge>;
+      case "realizada":
+        return <Badge className="bg-green-500/20 text-green-700">Realizada</Badge>;
+      case "nao_compareceu":
+        return <Badge variant="destructive">Não Compareceu</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -450,6 +465,35 @@ export default function Reunioes() {
                                 {reuniao.transcricao ? "Vincular outra" : "Vincular"}
                               </Button>
                             </div>
+
+                            {/* Botões de Comparecimento - visíveis 1h antes e até 12h após */}
+                            {reuniao.status !== "cancelado" && reuniao.status !== "realizada" && reuniao.status !== "nao_compareceu" && isWithinOneHour(reuniao.data_reuniao) && (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                                  onClick={() => {
+                                    setComparecimentoReuniao(reuniao);
+                                    setComparecimentoTipo("compareceu");
+                                  }}
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  Compareceu
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="flex-1 gap-1.5"
+                                  onClick={() => {
+                                    setComparecimentoReuniao(reuniao);
+                                    setComparecimentoTipo("nao_compareceu");
+                                  }}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  Não Compareceu
+                                </Button>
+                              </div>
+                            )}
                           
                             {/* Grid de Ícones - Reagendar, WhatsApp, Desmarcar */}
                           {reuniao.status !== "cancelado" && (
@@ -590,6 +634,19 @@ export default function Reunioes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de comparecimento */}
+      <ComparecimentoDialog
+        reuniao={comparecimentoReuniao}
+        tipo={comparecimentoTipo}
+        open={!!comparecimentoReuniao}
+        onOpenChange={(open) => {
+          if (!open) {
+            setComparecimentoReuniao(null);
+            setComparecimentoTipo(null);
+          }
+        }}
+      />
     </div>
   );
 }
