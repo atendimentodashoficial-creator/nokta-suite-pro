@@ -241,8 +241,8 @@ export default function Reunioes() {
     const now = new Date();
     const reuniaoTime = new Date(dataReuniao);
     const diffMs = reuniaoTime.getTime() - now.getTime();
-    // Mostra se estiver dentro de 1h antes ou já passou (mas menos de 12h atrás)
-    return diffMs <= 60 * 60 * 1000 && diffMs > -12 * 60 * 60 * 1000;
+    // Mostra se faltam até 1h para a reunião OU se ela já passou (sem limite de tempo)
+    return diffMs <= 60 * 60 * 1000;
   };
 
   const getStatusBadge = (status: string) => {
