@@ -217,6 +217,56 @@ serve(async (req) => {
         console.log("Reuniao saved to database:", reuniaoData?.id);
         reuniaoId = reuniaoData?.id;
 
+        // Auto-move kanban card when meeting is scheduled (fire-and-forget)
+        if (participanteTelefone) {
+          const last8 = participanteTelefone.replace(/\D/g, '').slice(-8);
+          if (last8.length === 8) {
+            (async () => {
+              try {
+                const { data: kanbanConfig } = await supabase
+                  .from("disparos_kanban_config")
+                  .select("auto_move_reuniao_column_id")
+                  .eq("user_id", user.id)
+                  .maybeSingle();
+
+                const targetColumnId = (kanbanConfig as any)?.auto_move_reuniao_column_id;
+                if (targetColumnId) {
+                  const { data: chats } = await supabase
+                    .from("disparos_chats")
+                    .select("id")
+                    .eq("user_id", user.id)
+                    .is("deleted_at", null)
+                    .like("contact_number", `%${last8}`);
+
+                  for (const chat of chats || []) {
+                    const { data: entry } = await supabase
+                      .from("disparos_chat_kanban")
+                      .select("id")
+                      .eq("chat_id", chat.id)
+                      .maybeSingle();
+
+                    if (entry) {
+                      await supabase
+                        .from("disparos_chat_kanban")
+                        .update({ column_id: targetColumnId, updated_at: new Date().toISOString() })
+                        .eq("id", entry.id);
+                    } else {
+                      await supabase.from("disparos_chat_kanban").insert({
+                        user_id: user.id,
+                        chat_id: chat.id,
+                        column_id: targetColumnId,
+                      });
+                    }
+                  }
+                  console.log("[AutoMove] Kanban moved to meeting column for", last8);
+                }
+              } catch (e) {
+                console.error("[AutoMove] Error:", e);
+              }
+            })();
+          }
+        }
+
         // Trigger immediate notification in background if phone number is provided
         if (participanteTelefone && reuniaoId) {
           console.log("Triggering immediate notification in background for reuniao:", reuniaoId);

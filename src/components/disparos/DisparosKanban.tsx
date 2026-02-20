@@ -111,6 +111,8 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
 
   // Auto-move on first reply config
   const [autoMoveColumnId, setAutoMoveColumnId] = useState<string>("none");
+  // Auto-move on meeting scheduled config
+  const [autoMoveReuniaoColumnId, setAutoMoveReuniaoColumnId] = useState<string>("none");
 
   // Filter chats by instance
   const filteredChats = useMemo(() => {
@@ -167,7 +169,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
         user
           ? supabase
               .from("disparos_kanban_config")
-              .select("auto_move_column_id")
+              .select("auto_move_column_id, auto_move_reuniao_column_id")
               .eq("user_id", user.id)
               .maybeSingle()
           : Promise.resolve({ data: null, error: null }),
@@ -181,11 +183,9 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       });
       setChatColumnMap(map);
 
-      if (configResult.data?.auto_move_column_id) {
-        setAutoMoveColumnId(configResult.data.auto_move_column_id);
-      } else {
-        setAutoMoveColumnId("none");
-      }
+      const cfg = configResult.data as any;
+      setAutoMoveColumnId(cfg?.auto_move_column_id || "none");
+      setAutoMoveReuniaoColumnId(cfg?.auto_move_reuniao_column_id || "none");
     } catch (error) {
       console.error("Error loading kanban data:", error);
     } finally {
@@ -208,9 +208,31 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
         );
 
       setAutoMoveColumnId(columnId);
-      toast.success(columnId === "none" ? "Auto-movimentação desativada" : "Coluna de auto-movimentação salva!");
+      toast.success(columnId === "none" ? "Auto-movimentação desativada" : "Coluna salva!");
     } catch (error) {
       console.error("Error saving auto-move config:", error);
+      toast.error("Erro ao salvar configuração");
+    }
+  };
+
+  const saveAutoMoveReuniaoColumn = async (columnId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const value = columnId === "none" ? null : columnId;
+
+      await supabase
+        .from("disparos_kanban_config")
+        .upsert(
+          { user_id: user.id, auto_move_reuniao_column_id: value, updated_at: new Date().toISOString() },
+          { onConflict: "user_id" }
+        );
+
+      setAutoMoveReuniaoColumnId(columnId);
+      toast.success(columnId === "none" ? "Auto-movimentação por reunião desativada" : "Coluna salva!");
+    } catch (error) {
+      console.error("Error saving auto-move reuniao config:", error);
       toast.error("Erro ao salvar configuração");
     }
   };
@@ -697,6 +719,30 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Sem auto-movimentação</SelectItem>
+              {columns.map(col => (
+                <SelectItem key={col.id} value={col.id}>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: col.cor }}
+                    />
+                    {col.nome}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Auto-move on meeting scheduled */}
+        <div className="flex items-center gap-1.5">
+          <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <Select value={autoMoveReuniaoColumnId} onValueChange={saveAutoMoveReuniaoColumn}>
+            <SelectTrigger className="w-[175px] h-8 text-xs">
+              <SelectValue placeholder="Mover ao agendar reunião" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sem mover em reunião</SelectItem>
               {columns.map(col => (
                 <SelectItem key={col.id} value={col.id}>
                   <span className="flex items-center gap-1.5">
