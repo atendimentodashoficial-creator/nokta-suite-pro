@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import { Database, Trash2, Plus, Users, RefreshCw } from "lucide-react";
+import { Database, Trash2, Plus, Users, RefreshCw, ChevronRight } from "lucide-react";
 import { CamposSistemaManager } from "./CamposSistemaManager";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,12 +10,19 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ImportarListaDialog } from "./ImportarListaDialog";
+import { ListaContatosView } from "./ListaContatosView";
+
+interface ColunaMapeamento {
+  colunaCsv: string;
+  campoSistema: string;
+}
 
 interface ListaImportada {
   id: string;
   nome: string;
   total_contatos: number;
   created_at: string;
+  colunas_mapeamento?: ColunaMapeamento[] | null;
 }
 
 export function ListasImportadasManager() {
@@ -26,6 +31,7 @@ export function ListasImportadasManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [importarOpen, setImportarOpen] = useState(false);
   const [listaParaExcluir, setListaParaExcluir] = useState<ListaImportada | null>(null);
+  const [listaAberta, setListaAberta] = useState<ListaImportada | null>(null);
 
   const loadListas = async () => {
     if (!user) return;
@@ -33,22 +39,20 @@ export function ListasImportadasManager() {
     try {
       const { data, error } = await supabase
         .from("listas_importadas")
-        .select("id, nome, total_contatos, created_at")
+        .select("id, nome, total_contatos, created_at, colunas_mapeamento")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setListas(data || []);
-    } catch (err) {
+      setListas((data ?? []) as unknown as ListaImportada[]);
+    } catch {
       toast.error("Erro ao carregar listas");
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadListas();
-  }, [user]);
+  useEffect(() => { loadListas(); }, [user]);
 
   const handleExcluir = async () => {
     if (!listaParaExcluir) return;
@@ -61,12 +65,24 @@ export function ListasImportadasManager() {
       if (error) throw error;
       toast.success("Lista excluída com sucesso");
       setListaParaExcluir(null);
+      if (listaAberta?.id === listaParaExcluir.id) setListaAberta(null);
       loadListas();
     } catch {
       toast.error("Erro ao excluir lista");
     }
   };
 
+  // ── Vista interna de contatos ──────────────────────────────────────────
+  if (listaAberta) {
+    return (
+      <ListaContatosView
+        lista={listaAberta}
+        onVoltar={() => setListaAberta(null)}
+      />
+    );
+  }
+
+  // ── Vista de listagem ──────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -105,22 +121,31 @@ export function ListasImportadasManager() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {listas.map((lista) => (
-            <Card key={lista.id} className="p-4 flex flex-col gap-3">
+            <Card
+              key={lista.id}
+              className="p-4 flex flex-col gap-3 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group"
+              onClick={() => setListaAberta(lista)}
+            >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{lista.nome}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium truncate group-hover:text-primary transition-colors">
+                    {lista.nome}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {format(new Date(lista.created_at), "dd/MM/yyyy", { locale: ptBR })}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => setListaParaExcluir(lista)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); setListaParaExcluir(lista); }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
               </div>
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Users className="w-4 h-4" />
