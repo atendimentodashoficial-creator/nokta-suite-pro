@@ -1453,47 +1453,48 @@ export function NovaCampanhaDialog({
 
             {/* Blocos de Mensagem */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <Label className="text-sm font-medium">Blocos de Mensagem ({blocos.length})</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  {templates.length > 0 && (
-                    <Popover open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <FileDown className="h-4 w-4 mr-1" />
-                          Importar Template
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-0" align="end">
-                        <div className="p-3 border-b">
-                          <p className="font-medium text-sm">Selecionar Template</p>
-                          <p className="text-xs text-muted-foreground">Escolha um template para importar</p>
+              {/* Buttons row — above the label */}
+              <div className="flex items-center gap-2 justify-end">
+                {templates.length > 0 && (
+                  <Popover open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <FileDown className="h-4 w-4 mr-1" />
+                        Importar Template
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0" align="end">
+                      <div className="p-3 border-b">
+                        <p className="font-medium text-sm">Selecionar Template</p>
+                        <p className="text-xs text-muted-foreground">Escolha um template para importar</p>
+                      </div>
+                      <ScrollArea className="max-h-64">
+                        <div className="p-2 space-y-1">
+                          {templates.map(template => (
+                            <Button key={template.id} variant="ghost" className="w-full justify-start text-left h-auto py-2" onClick={() => importTemplate(template)}>
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium text-sm">{template.nome}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Set(template.variacoes?.map(v => v.bloco) || []).size} bloco(s), {template.variacoes?.length || 0} variação(ões)
+                                </span>
+                              </div>
+                            </Button>
+                          ))}
                         </div>
-                        <ScrollArea className="max-h-64">
-                          <div className="p-2 space-y-1">
-                            {templates.map(template => (
-                              <Button key={template.id} variant="ghost" className="w-full justify-start text-left h-auto py-2" onClick={() => importTemplate(template)}>
-                                <div className="flex flex-col items-start">
-                                  <span className="font-medium text-sm">{template.nome}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {new Set(template.variacoes?.map(v => v.bloco) || []).size} bloco(s), {template.variacoes?.length || 0} variação(ões)
-                                  </span>
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                  <Button variant="outline" size="sm" onClick={addBloco}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Adicionar Bloco
-                  </Button>
-                </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                )}
+                <Button variant="outline" size="sm" onClick={addBloco}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Adicionar Bloco
+                </Button>
+              </div>
+
+              {/* Label */}
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Label className="text-sm font-medium">Blocos de Mensagem ({blocos.length})</Label>
               </div>
 
               <div className="space-y-4">
