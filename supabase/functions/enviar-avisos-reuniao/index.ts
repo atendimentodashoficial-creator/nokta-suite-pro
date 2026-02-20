@@ -622,9 +622,32 @@ Deno.serve(async (req) => {
               console.log(`Using oldest chat instance for ${pending.telefone}: ${selectedInstanceId}`);
             }
 
-            const matchedInstance = selectedInstanceId
+          // Try the preferred instance (original or oldest)
+            let matchedInstance = selectedInstanceId
               ? disparosInstances.find((inst) => inst.id === selectedInstanceId)
               : null;
+
+            // If preferred instance not active, try the current instancia_id of the chat as fallback
+            if (!matchedInstance && chatWithOriginal) {
+              const currentInstId = chatWithOriginal.instancia_id;
+              if (currentInstId) {
+                matchedInstance = disparosInstances.find((inst) => inst.id === currentInstId) ?? null;
+                if (matchedInstance) {
+                  console.log(`Original instance not active, using current chat instance "${matchedInstance.nome}" for ${pending.telefone}`);
+                }
+              }
+            }
+
+            if (!matchedInstance) {
+              // Last resort: try the instancia_id of the oldest chat
+              const oldestChatInstId = chatsWithInstance[0]?.instancia_id;
+              if (oldestChatInstId) {
+                matchedInstance = disparosInstances.find((inst) => inst.id === oldestChatInstId) ?? null;
+                if (matchedInstance) {
+                  console.log(`Using oldest chat current instance "${matchedInstance.nome}" for ${pending.telefone}`);
+                }
+              }
+            }
 
             if (matchedInstance) {
               console.log(`Using chat's instance "${matchedInstance.nome}" for ${pending.telefone}`);
@@ -635,7 +658,7 @@ Deno.serve(async (req) => {
                 instancia_nome: matchedInstance.nome,
               };
             } else {
-              console.log(`Chat instance not found/active, using fallback for ${pending.telefone}`);
+              console.log(`No chat instance active, using first active instance for ${pending.telefone}`);
               config = {
                 base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
                 api_key: disparosInstances[0].api_key,
