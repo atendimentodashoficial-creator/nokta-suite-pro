@@ -1928,22 +1928,11 @@ export function NovaCampanhaDialog({
           {/* Linha 2: seleção em massa + filtro origem */}
           {contatos.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap">
-              <Button variant="default" size="sm" className="text-xs px-2 h-7" onClick={() => setSelectedContacts(new Set(contatos.map(c => c.numero)))}>
+              <Button variant="default" size="sm" className="text-xs px-2 h-7" onClick={() => setSelectedContacts(prev => { const next = new Set(prev); pageContatos.forEach(c => next.add(c.numero)); return next; })}>
                 <CheckSquare className="h-3 w-3 mr-1" />Marcar Todos
               </Button>
-              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => setSelectedContacts(new Set())}>
+              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => setSelectedContacts(prev => { const next = new Set(prev); pageContatos.forEach(c => next.delete(c.numero)); return next; })}>
                 <Square className="h-3 w-3 mr-1" />Desmarcar Todos
-              </Button>
-              <div className="w-px h-5 bg-border mx-0.5" />
-              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
-                setSelectedContacts(prev => { const next = new Set(prev); pageContatos.forEach(c => next.add(c.numero)); return next; });
-              }}>
-                <CheckSquare className="h-3 w-3 mr-1" />Marcar Página
-              </Button>
-              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
-                setSelectedContacts(prev => { const next = new Set(prev); pageContatos.forEach(c => next.delete(c.numero)); return next; });
-              }}>
-                <Square className="h-3 w-3 mr-1" />Desmarcar Página
               </Button>
               {origensUnicas.length > 1 && (
                 <>
