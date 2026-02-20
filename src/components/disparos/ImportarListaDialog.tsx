@@ -69,31 +69,60 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
   ];
 
   // ── Parsing CSV ─────────────────────────────────────────────────────────
+  // Suporta campos com quebras de linha dentro de aspas (ex: campo Descrição)
   const parseCsv = (text: string): { headers: string[]; rows: string[][] } => {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length === 0) return { headers: [], rows: [] };
-
-    const parseRow = (line: string): string[] => {
-      const result: string[] = [];
+    const parseAllRows = (input: string): string[][] => {
+      const rows: string[][] = [];
+      let row: string[] = [];
       let current = "";
       let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
+      // Detecta delimitador predominante
+      const firstLine = input.slice(0, input.indexOf("\n") || input.length);
+      const delimiter = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ";" : ",";
+
+      for (let i = 0; i < input.length; i++) {
+        const ch = input[i];
+        const next = input[i + 1];
+
         if (ch === '"') {
-          inQuotes = !inQuotes;
-        } else if ((ch === "," || ch === ";") && !inQuotes) {
-          result.push(current.trim());
+          if (inQuotes && next === '"') {
+            // Escaped quote ""
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === delimiter && !inQuotes) {
+          row.push(current.trim());
           current = "";
+        } else if ((ch === "\n" || (ch === "\r" && next === "\n")) && !inQuotes) {
+          if (ch === "\r") i++; // skip \n after \r
+          row.push(current.trim());
+          current = "";
+          if (row.some((c) => c !== "")) rows.push(row);
+          row = [];
+        } else if (ch === "\r" && !inQuotes) {
+          // lone \r
+          row.push(current.trim());
+          current = "";
+          if (row.some((c) => c !== "")) rows.push(row);
+          row = [];
         } else {
           current += ch;
         }
       }
-      result.push(current.trim());
-      return result;
+      // Last field
+      if (current.trim() || row.length > 0) {
+        row.push(current.trim());
+        if (row.some((c) => c !== "")) rows.push(row);
+      }
+      return rows;
     };
 
-    const headers = parseRow(lines[0]);
-    const rows = lines.slice(1).map(parseRow);
+    const allRows = parseAllRows(text);
+    if (allRows.length === 0) return { headers: [], rows: [] };
+    const headers = allRows[0];
+    const rows = allRows.slice(1);
     return { headers, rows };
   };
 
