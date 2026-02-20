@@ -5,7 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Pencil, Settings2, GripVertical,
-  Type, Hash, Mail, Link, Phone, Calendar, FileText, List, MapPin, IdCard, AtSign
+  Type, Hash, Mail, Link, Phone, Calendar, FileText, List, MapPin, IdCard, AtSign,
+  Building2, DollarSign, Percent, Star, Tag, Globe, Milestone, ToggleLeft, Clock
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
@@ -32,21 +33,39 @@ export interface CampoSistema {
 }
 
 export const TIPOS_CAMPO = [
-  { value: "texto",      label: "Texto",        icon: Type },
-  { value: "numero",     label: "Número",       icon: Hash },
-  { value: "email",      label: "E-mail",       icon: Mail },
-  { value: "link",       label: "Link / URL",   icon: Link },
-  { value: "telefone",   label: "Telefone",     icon: Phone },
-  { value: "data",       label: "Data",         icon: Calendar },
-  { value: "cpf",        label: "CPF",          icon: IdCard },
-  { value: "cep",        label: "CEP",          icon: MapPin },
-  { value: "select",     label: "Seleção",      icon: List },
-  { value: "instagram",  label: "Instagram",    icon: AtSign, prefix: "instagram.com/" },
-  { value: "facebook",   label: "Facebook",     icon: AtSign, prefix: "facebook.com/" },
-  { value: "tiktok",     label: "TikTok",       icon: AtSign, prefix: "tiktok.com/@" },
-  { value: "youtube",    label: "YouTube",      icon: AtSign, prefix: "youtube.com/@" },
-  { value: "linkedin",   label: "LinkedIn",     icon: AtSign, prefix: "linkedin.com/in/" },
-  { value: "twitter",    label: "X / Twitter",  icon: AtSign, prefix: "x.com/" },
+  // Texto / Numérico
+  { value: "texto",       label: "Texto",           icon: Type,       grupo: "basico" },
+  { value: "textarea",    label: "Texto longo",      icon: FileText,   grupo: "basico" },
+  { value: "numero",      label: "Número",           icon: Hash,       grupo: "basico" },
+  { value: "moeda",       label: "Moeda (R$)",       icon: DollarSign, grupo: "basico" },
+  { value: "percentual",  label: "Percentual (%)",   icon: Percent,    grupo: "basico" },
+  { value: "booleano",    label: "Sim / Não",        icon: ToggleLeft, grupo: "basico" },
+  { value: "select",      label: "Seleção",          icon: List,       grupo: "basico" },
+  { value: "data",        label: "Data",             icon: Calendar,   grupo: "basico" },
+  { value: "hora",        label: "Hora",             icon: Clock,      grupo: "basico" },
+  { value: "avaliacao",   label: "Avaliação (1–5)",  icon: Star,       grupo: "basico" },
+  { value: "tag",         label: "Tags",             icon: Tag,        grupo: "basico" },
+  // Contato / Localização
+  { value: "email",       label: "E-mail",           icon: Mail,       grupo: "contato" },
+  { value: "telefone",    label: "Telefone",         icon: Phone,      grupo: "contato" },
+  { value: "link",        label: "Link / URL",       icon: Link,       grupo: "contato" },
+  { value: "cep",         label: "CEP",              icon: MapPin,     grupo: "contato" },
+  { value: "cidade",      label: "Cidade",           icon: Globe,      grupo: "contato" },
+  { value: "estado",      label: "Estado (UF)",      icon: Milestone,  grupo: "contato" },
+  { value: "endereco",    label: "Endereço",         icon: MapPin,     grupo: "contato" },
+  // Documentos
+  { value: "cpf",         label: "CPF",              icon: IdCard,     grupo: "documento" },
+  { value: "cnpj",        label: "CNPJ",             icon: Building2,  grupo: "documento" },
+  { value: "rg",          label: "RG",               icon: IdCard,     grupo: "documento" },
+  // Redes sociais
+  { value: "instagram",   label: "Instagram",        icon: AtSign,     grupo: "social", prefix: "instagram.com/" },
+  { value: "facebook",    label: "Facebook",         icon: AtSign,     grupo: "social", prefix: "facebook.com/" },
+  { value: "tiktok",      label: "TikTok",           icon: AtSign,     grupo: "social", prefix: "tiktok.com/@" },
+  { value: "youtube",     label: "YouTube",          icon: AtSign,     grupo: "social", prefix: "youtube.com/@" },
+  { value: "linkedin",    label: "LinkedIn",         icon: AtSign,     grupo: "social", prefix: "linkedin.com/in/" },
+  { value: "twitter",     label: "X / Twitter",      icon: AtSign,     grupo: "social", prefix: "x.com/" },
+  { value: "whatsapp",    label: "WhatsApp",         icon: Phone,      grupo: "social", prefix: "wa.me/" },
+  { value: "kwai",        label: "Kwai",             icon: AtSign,     grupo: "social", prefix: "kwai.com/@" },
 ];
 
 // Campos fixos (não cadastráveis, sempre existem)
@@ -223,32 +242,33 @@ export function CamposSistemaManager() {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                        Tipos básicos
-                      </div>
-                      {TIPOS_CAMPO.filter((t) => !["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(t.value)).map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          <div className="flex items-center gap-2">
-                            <t.icon className="w-4 h-4 text-muted-foreground" />
-                            {t.label}
+                    <SelectContent className="max-h-80">
+                      {[
+                        { grupo: "basico",    label: "Básico" },
+                        { grupo: "contato",   label: "Contato / Localização" },
+                        { grupo: "documento", label: "Documentos" },
+                        { grupo: "social",    label: "Redes Sociais" },
+                      ].map(({ grupo, label }) => {
+                        const itens = TIPOS_CAMPO.filter((t) => t.grupo === grupo);
+                        return (
+                          <div key={grupo}>
+                            <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                              {label}
+                            </div>
+                            {itens.map((t) => (
+                              <SelectItem key={t.value} value={t.value}>
+                                <div className="flex items-center gap-2">
+                                  <t.icon className="w-4 h-4 text-muted-foreground" />
+                                  <span>{t.label}</span>
+                                  {"prefix" in t && (
+                                    <span className="text-xs text-muted-foreground">{t.prefix}…</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
                           </div>
-                        </SelectItem>
-                      ))}
-                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mt-1">
-                        Redes sociais
-                      </div>
-                      {TIPOS_CAMPO.filter((t) => ["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(t.value)).map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          <div className="flex items-center gap-2">
-                            <t.icon className="w-4 h-4 text-muted-foreground" />
-                            <span>{t.label}</span>
-                            {"prefix" in t && (
-                              <span className="text-xs text-muted-foreground">{t.prefix}…</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
