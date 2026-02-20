@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Clock, Search, Users, ChevronDown, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Search, Users, AlertCircle, WifiOff } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -66,14 +66,20 @@ export function ContatosCampanhaDialog({
     }
   };
 
+  const isSemWhatsApp = (contato: Contato) =>
+    contato.status === "failed" &&
+    !!contato.erro &&
+    contato.erro.toUpperCase().startsWith("SEM_WHATSAPP:");
+
   const filteredContatos = contatos.filter(contato => {
-    const matchesSearch = 
+    const matchesSearch =
       contato.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (contato.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
-    
+
     if (activeTab === "all") return matchesSearch;
     if (activeTab === "sent") return matchesSearch && contato.status === "sent";
     if (activeTab === "failed") return matchesSearch && contato.status === "failed";
+    if (activeTab === "no_whatsapp") return matchesSearch && isSemWhatsApp(contato);
     if (activeTab === "pending") return matchesSearch && contato.status === "pending";
     return matchesSearch;
   });
@@ -82,19 +88,27 @@ export function ContatosCampanhaDialog({
     all: contatos.length,
     sent: contatos.filter(c => c.status === "sent").length,
     failed: contatos.filter(c => c.status === "failed").length,
-    pending: contatos.filter(c => c.status === "pending").length
+    no_whatsapp: contatos.filter(c => isSemWhatsApp(c)).length,
+    pending: contatos.filter(c => c.status === "pending").length,
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (contato: Contato) => {
+    if (isSemWhatsApp(contato)) {
+      return (
+        <Badge variant="outline" className="gap-1 border-orange-400 text-orange-500">
+          <WifiOff className="h-3 w-3" /> Sem WhatsApp
+        </Badge>
+      );
+    }
+    switch (contato.status) {
       case "sent":
-        return <Badge className="gap-1 bg-green-500"><CheckCircle className="h-3 w-3" /> Enviado</Badge>;
+        return <Badge className="gap-1 bg-green-500 text-white border-transparent"><CheckCircle className="h-3 w-3" /> Enviado</Badge>;
       case "failed":
         return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" /> Falhou</Badge>;
       case "pending":
         return <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" /> Pendente</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{contato.status}</Badge>;
     }
   };
 
@@ -133,12 +147,17 @@ export function ContatosCampanhaDialog({
                 </SelectItem>
                 <SelectItem value="sent">
                   <span className="flex items-center gap-2">
-                    Enviados <Badge variant="secondary" className="bg-green-100 text-green-700">{counts.sent}</Badge>
+                    Enviados <Badge variant="secondary">{counts.sent}</Badge>
                   </span>
                 </SelectItem>
                 <SelectItem value="failed">
                   <span className="flex items-center gap-2">
-                    Falhas <Badge variant="secondary" className="bg-red-100 text-red-700">{counts.failed}</Badge>
+                    Falhas <Badge variant="secondary">{counts.failed}</Badge>
+                  </span>
+                </SelectItem>
+                <SelectItem value="no_whatsapp">
+                  <span className="flex items-center gap-2">
+                    Sem WhatsApp <Badge variant="secondary">{counts.no_whatsapp}</Badge>
                   </span>
                 </SelectItem>
                 <SelectItem value="pending">
@@ -157,10 +176,13 @@ export function ContatosCampanhaDialog({
                 Todos <Badge variant="secondary" className="ml-1 text-[10px]">{counts.all}</Badge>
               </TabsTrigger>
               <TabsTrigger value="sent" className="gap-1 text-xs px-3 h-7">
-                Enviados <Badge variant="secondary" className="ml-1 bg-green-100 text-green-700 text-[10px]">{counts.sent}</Badge>
+                Enviados <Badge variant="secondary" className="ml-1 text-[10px]">{counts.sent}</Badge>
               </TabsTrigger>
               <TabsTrigger value="failed" className="gap-1 text-xs px-3 h-7">
-                Falhas <Badge variant="secondary" className="ml-1 bg-red-100 text-red-700 text-[10px]">{counts.failed}</Badge>
+                Falhas <Badge variant="secondary" className="ml-1 text-[10px]">{counts.failed}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="no_whatsapp" className="gap-1 text-xs px-3 h-7">
+                Sem WhatsApp <Badge variant="secondary" className="ml-1 text-[10px]">{counts.no_whatsapp}</Badge>
               </TabsTrigger>
               <TabsTrigger value="pending" className="gap-1 text-xs px-3 h-7">
                 Pendentes <Badge variant="secondary" className="ml-1 text-[10px]">{counts.pending}</Badge>
@@ -198,7 +220,7 @@ export function ContatosCampanhaDialog({
                           {contato.nome || "-"}
                         </TableCell>
                         <TableCell>{contato.numero}</TableCell>
-                        <TableCell>{getStatusBadge(contato.status)}</TableCell>
+                        <TableCell>{getStatusBadge(contato)}</TableCell>
                         <TableCell className="text-center whitespace-nowrap">
                           {contato.enviado_em
                             ? format(new Date(contato.enviado_em), "dd/MM/yy HH:mm", { locale: ptBR })
