@@ -1454,7 +1454,7 @@ export function NovaCampanhaDialog({
             {/* Blocos de Mensagem */}
             <div className="space-y-3">
               {/* Buttons row — above the label */}
-              <div className="flex items-center gap-2 justify-end">
+              <div className="flex items-center gap-2">
                 {templates.length > 0 && (
                   <Popover open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
                     <PopoverTrigger asChild>
