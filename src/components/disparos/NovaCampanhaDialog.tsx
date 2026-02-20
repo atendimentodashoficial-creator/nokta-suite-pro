@@ -715,12 +715,6 @@ export function NovaCampanhaDialog({
         })
         .map(c => ({ ...c, origem: origem || c.origem }));
       
-      // Auto-select all new contacts
-      setSelectedContacts(prevSelected => {
-        const next = new Set(prevSelected);
-        unique.forEach(c => next.add(c.numero));
-        return next;
-      });
       return [...prev, ...unique];
     });
   };
