@@ -238,7 +238,7 @@ export function NovaCampanhaDialog({
       loadInstancias();
       loadTemplates();
       loadListasExtrator();
-      loadListasImportadas();
+      loadListasImportadasAndAutoImport();
       loadNumerosDisparados();
     }
   }, [open, user]);
@@ -341,6 +341,43 @@ export function NovaCampanhaDialog({
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (data) setListasImportadas(data);
+    } catch (error) {
+      console.error("Error loading listas importadas:", error);
+    }
+  };
+
+  // Carrega listas importadas e já pré-popula contatos da etapa 3 automaticamente
+  const loadListasImportadasAndAutoImport = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from("listas_importadas")
+        .select("id, nome, total_contatos")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (!data || data.length === 0) return;
+      setListasImportadas(data);
+
+      // Busca todos os contatos de todas as listas em paralelo e importa automaticamente
+      const allContatos: Contato[] = [];
+      for (const lista of data) {
+        const { data: contatosData } = await supabase
+          .from("lista_importada_contatos")
+          .select("telefone, nome")
+          .eq("lista_id", lista.id)
+          .eq("user_id", user.id);
+        (contatosData || []).forEach((c: any) => {
+          if (c.telefone) {
+            const numero = normalizePhoneNumber(c.telefone);
+            if (numero.length >= 8) {
+              allContatos.push({ numero, nome: c.nome || undefined, origem: lista.nome });
+            }
+          }
+        });
+      }
+      if (allContatos.length > 0) {
+        addContatosWithSelection(allContatos);
+      }
     } catch (error) {
       console.error("Error loading listas importadas:", error);
     }
@@ -1853,11 +1890,6 @@ export function NovaCampanhaDialog({
                 <ClipboardPaste className="h-4 w-4 mr-1" />
                 Colar
               </Button>
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none">
-                <Upload className="h-4 w-4 mr-1" />
-                CSV/TXT
-              </Button>
-              <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
             </div>
           </div>
 
@@ -1910,17 +1942,21 @@ export function NovaCampanhaDialog({
               <div className="max-h-64 overflow-y-auto border rounded-lg p-2 space-y-1">
                 {contatos.slice(0, 50).map(c => {
                   const isSelected = selectedContacts.has(c.numero);
+                  const isNutrindo = numerosDisparados.has(c.numero.slice(-8));
                   return (
                     <div
                       key={c.numero}
                       className={`flex items-center justify-between p-1.5 hover:bg-muted rounded text-sm cursor-pointer ${isSelected ? "bg-primary/5" : "opacity-50"}`}
                       onClick={() => toggleContactSelection(c.numero)}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <Checkbox checked={isSelected} onCheckedChange={() => toggleContactSelection(c.numero)} onClick={e => e.stopPropagation()} />
-                        <span>{c.nome ? `${c.nome} - ` : ""}{c.numero}</span>
+                        <span className="truncate">{c.nome ? `${c.nome} - ` : ""}{c.numero}</span>
+                        {isNutrindo && (
+                          <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                        )}
                       </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => { e.stopPropagation(); removeContato(c.numero); }}>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => { e.stopPropagation(); removeContato(c.numero); }}>
                         <X className="h-3 w-3" />
                       </Button>
                     </div>
