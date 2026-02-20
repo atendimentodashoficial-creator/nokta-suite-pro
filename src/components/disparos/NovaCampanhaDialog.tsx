@@ -385,7 +385,8 @@ export function NovaCampanhaDialog({
           .from("lista_importada_contatos")
           .select("telefone, nome, dados_extras")
           .eq("lista_id", lista.id)
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .limit(50000);
         (contatosData || []).forEach((c: any) => {
           if (c.telefone) {
             const numero = normalizePhoneNumber(c.telefone);
