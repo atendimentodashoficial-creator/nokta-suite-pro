@@ -1453,16 +1453,16 @@ export function NovaCampanhaDialog({
 
             {/* Blocos de Mensagem */}
             <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <Label className="text-sm">Blocos de Mensagem ({blocos.length})</Label>
+                  <Label className="text-sm font-medium">Blocos de Mensagem ({blocos.length})</Label>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2">
                   {templates.length > 0 && (
                     <Popover open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+                        <Button variant="outline" size="sm">
                           <FileDown className="h-4 w-4 mr-1" />
                           Importar Template
                         </Button>
@@ -1489,7 +1489,7 @@ export function NovaCampanhaDialog({
                       </PopoverContent>
                     </Popover>
                   )}
-                  <Button variant="outline" size="sm" onClick={addBloco} className="flex-1 sm:flex-none">
+                  <Button variant="outline" size="sm" onClick={addBloco}>
                     <Plus className="h-4 w-4 mr-1" />
                     Adicionar Bloco
                   </Button>
