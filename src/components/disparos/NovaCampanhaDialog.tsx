@@ -1952,8 +1952,8 @@ export function NovaCampanhaDialog({
     <>
       {/* Main Dialog */}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] overflow-hidden p-0 flex flex-col">
-          <div className="flex flex-col h-full min-h-0">
+        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] overflow-hidden p-0 !flex !flex-col gap-0">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {/* Fixed Header */}
             <div className="p-4 sm:p-6 pb-3 flex-shrink-0 border-b border-border">
               <div className="flex items-center justify-between mb-3">
