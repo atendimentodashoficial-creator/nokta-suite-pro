@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { normalizePhoneNumber } from "@/utils/whatsapp";
+import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { expandSpintax, processSpintaxRandom } from "@/utils/spintax";
 import { ContatoDetalhesPopup } from "./ContatoDetalhesPopup";
 interface TemplateData {
@@ -1986,7 +1987,7 @@ export function NovaCampanhaDialog({
                         <span className="text-xs text-muted-foreground w-7 shrink-0">{globalIdx + 1}.</span>
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="truncate text-sm">{c.nome ? `${c.nome} - ` : ""}{c.numero}</span>
+                            <span className="truncate text-sm">{c.nome ? `${c.nome} - ` : ""}{formatPhoneDisplay(c.numero)}</span>
                             {isNutrindo && (
                               <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
                             )}
@@ -2351,7 +2352,7 @@ export function NovaCampanhaDialog({
                           <span className="text-xs text-muted-foreground w-8">{globalIdx + 1}.</span>
                           <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-1.5 truncate">
-                              <span className="truncate">{c.nome ? `${c.nome} - ` : ""}{c.numero}</span>
+                              <span className="truncate">{c.nome ? `${c.nome} - ` : ""}{formatPhoneDisplay(c.numero)}</span>
                               {numerosDisparados.has(c.numero.slice(-8)) && (
                                 <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
                               )}
