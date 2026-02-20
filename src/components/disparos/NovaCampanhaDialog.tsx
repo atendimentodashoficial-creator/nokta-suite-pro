@@ -431,16 +431,41 @@ export function NovaCampanhaDialog({
   const loadNumerosDisparados = async () => {
     if (!user) return;
     try {
-      // Pega todos os números que já foram enviados em qualquer campanha (status = 'sent' ou 'delivered')
-      const { data } = await supabase
-        .from("disparos_campanha_contatos")
-        .select("numero, campanha_id, disparos_campanhas!inner(user_id)")
-        .eq("disparos_campanhas.user_id", user.id)
-        .in("status", ["sent", "delivered"]);
-      if (data) {
-        const nums = new Set<string>(data.map((d: any) => d.numero?.replace(/\D/g, "").slice(-8)).filter(Boolean));
-        setNumerosDisparados(nums);
+      // Busca campanhas do usuário primeiro
+      const { data: campanhas } = await supabase
+        .from("disparos_campanhas")
+        .select("id")
+        .eq("user_id", user.id);
+
+      if (!campanhas || campanhas.length === 0) return;
+
+      const campanhaIds = campanhas.map((c: any) => c.id);
+      const nums = new Set<string>();
+
+      // Busca em lotes para contornar limite de 1000 linhas
+      const BATCH = 500;
+      for (let i = 0; i < campanhaIds.length; i += BATCH) {
+        const batchIds = campanhaIds.slice(i, i + BATCH);
+        let from = 0;
+        const PAGE = 1000;
+        while (true) {
+          const { data } = await supabase
+            .from("disparos_campanha_contatos")
+            .select("numero")
+            .in("campanha_id", batchIds)
+            .in("status", ["sent", "delivered"])
+            .range(from, from + PAGE - 1);
+          if (!data || data.length === 0) break;
+          data.forEach((d: any) => {
+            const cleaned = d.numero?.replace(/\D/g, "");
+            if (cleaned) nums.add(cleaned.slice(-8));
+          });
+          if (data.length < PAGE) break;
+          from += PAGE;
+        }
       }
+
+      setNumerosDisparados(nums);
     } catch (error) {
       console.error("Error loading numeros disparados:", error);
     }
