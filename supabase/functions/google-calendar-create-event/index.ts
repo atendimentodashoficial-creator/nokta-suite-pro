@@ -236,7 +236,7 @@ serve(async (req) => {
                     .select("id")
                     .eq("user_id", user.id)
                     .is("deleted_at", null)
-                    .like("contact_number", `%${last8}`);
+                    .like("normalized_number", `%${last8}`);
 
                   for (const chat of chats || []) {
                     const { data: entry } = await supabase
