@@ -66,10 +66,18 @@ export function ContatosCampanhaDialog({
     }
   };
 
-  const isSemWhatsApp = (contato: Contato) =>
-    contato.status === "failed" &&
-    !!contato.erro &&
-    contato.erro.toUpperCase().startsWith("SEM_WHATSAPP:");
+  const isSemWhatsApp = (contato: Contato) => {
+    if (contato.status !== "failed" || !contato.erro) return false;
+    const lower = contato.erro.toLowerCase();
+    return (
+      lower.includes("sem_whatsapp:") ||
+      lower.includes("not on whatsapp") ||
+      lower.includes("number not exists") ||
+      lower.includes("not registered") ||
+      lower.includes("phone not registered") ||
+      lower.includes("invalid phone")
+    );
+  };
 
   const filteredContatos = contatos.filter(contato => {
     const matchesSearch =
