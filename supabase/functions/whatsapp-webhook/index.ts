@@ -1470,6 +1470,64 @@ Deno.serve(async (req) => {
             } else {
               console.log('Saved Disparos message with UTM:', messageId, hasEarlyUtm ? earlyUtmData : '(no UTM)');
             }
+
+            // === Auto-move kanban card on first customer reply ===
+            // Only runs when the message is FROM the customer (not from us/agent)
+            if (!isFromMe && !wasSentByApi && !isOutboundBySender) {
+              try {
+                // Check if user has auto-move configured
+                const { data: kanbanConfig } = await supabase
+                  .from('disparos_kanban_config')
+                  .select('auto_move_column_id')
+                  .eq('user_id', effectiveUserId)
+                  .maybeSingle();
+
+                if (kanbanConfig?.auto_move_column_id) {
+                  // Check if the chat has a kanban entry and whether it was already auto-moved
+                  const { data: kanbanEntry } = await supabase
+                    .from('disparos_chat_kanban')
+                    .select('id, column_id, first_reply_moved')
+                    .eq('chat_id', matchingDisparosChat.id)
+                    .maybeSingle();
+
+                  if (!kanbanEntry) {
+                    // Chat has no kanban entry yet - create one and move to configured column
+                    const { error: insertErr } = await supabase
+                      .from('disparos_chat_kanban')
+                      .insert({
+                        user_id: effectiveUserId,
+                        chat_id: matchingDisparosChat.id,
+                        column_id: kanbanConfig.auto_move_column_id,
+                        first_reply_moved: true,
+                      });
+                    if (insertErr) {
+                      console.error('[AutoMove] Error inserting kanban entry:', insertErr);
+                    } else {
+                      console.log('[AutoMove] Chat auto-moved (new entry) to column', kanbanConfig.auto_move_column_id);
+                    }
+                  } else if (!kanbanEntry.first_reply_moved) {
+                    // Chat already exists in kanban but was NOT yet auto-moved - move it now
+                    const { error: updateErr } = await supabase
+                      .from('disparos_chat_kanban')
+                      .update({
+                        column_id: kanbanConfig.auto_move_column_id,
+                        first_reply_moved: true,
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq('id', kanbanEntry.id);
+                    if (updateErr) {
+                      console.error('[AutoMove] Error updating kanban entry:', updateErr);
+                    } else {
+                      console.log('[AutoMove] Chat auto-moved (existing entry) to column', kanbanConfig.auto_move_column_id);
+                    }
+                  } else {
+                    console.log('[AutoMove] Chat already auto-moved once, skipping.');
+                  }
+                }
+              } catch (autoMoveError) {
+                console.error('[AutoMove] Unexpected error during auto-move:', autoMoveError);
+              }
+            }
           } else if (instanciaId) {
             // Chat doesn't exist for this instance - check tombstone first
             const { data: tombstone } = await supabase
