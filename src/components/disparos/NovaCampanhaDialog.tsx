@@ -1444,9 +1444,10 @@ export function NovaCampanhaDialog({
 
   // ── Etapa 2: Mensagens ───────────────────────────────────────────────────────
   const renderEtapa2 = () => (
-    <div className="flex flex-col lg:flex-row h-full min-h-0 overflow-hidden">
-      {/* Form col */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      {/* Content row: form + preview */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Form col */}
         <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
           <div className="space-y-6 pt-4">
 
@@ -1695,24 +1696,8 @@ export function NovaCampanhaDialog({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-between gap-2 pt-4 border-t px-6 pb-6 flex-shrink-0">
-          <Button variant="outline" onClick={() => setEtapaCriacao(1)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Voltar
-          </Button>
-          <Button
-            onClick={() => setEtapaCriacao(3)}
-            disabled={blocos.length === 0}
-          >
-            Próximo: Contatos
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Live Preview - desktop only */}
-      <div className="hidden lg:flex w-80 border-l flex-col bg-muted/30">
+        {/* Live Preview - desktop only */}
+        <div className="hidden lg:flex w-80 border-l flex-col bg-muted/30">
         <div className="p-3 border-b bg-background flex items-center gap-2">
           <p className="font-medium text-sm">Prévia do Disparo</p>
           <Button
@@ -1806,6 +1791,22 @@ export function NovaCampanhaDialog({
             </div>
           </div>
         </div>
+      </div>
+      </div>{/* end content row */}
+
+      {/* Footer — full width below both columns */}
+      <div className="flex justify-between gap-2 pt-4 border-t px-6 pb-4 flex-shrink-0">
+        <Button variant="outline" onClick={() => setEtapaCriacao(1)}>
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Voltar
+        </Button>
+        <Button
+          onClick={() => setEtapaCriacao(3)}
+          disabled={blocos.length === 0}
+        >
+          Próximo: Contatos
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
       </div>
     </div>
   );
