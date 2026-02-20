@@ -2058,65 +2058,63 @@ export function NovaCampanhaDialog({
     <>
       {/* Main Dialog */}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] overflow-hidden p-0 !flex !flex-col gap-0">
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* Fixed Header */}
-            <div className="p-4 sm:p-6 pb-3 flex-shrink-0 border-b border-border">
-              <div className="flex items-center justify-between mb-3">
-                <DialogTitle className="text-base sm:text-lg">Nova Campanha de Disparo</DialogTitle>
-              </div>
-              <DialogDescription className="sr-only">Configure uma campanha para enviar mensagens em massa</DialogDescription>
-              {/* Nome */}
-              <div className="mb-4">
-                <Input
-                  placeholder="Nome da campanha…"
-                  value={nome}
-                  onChange={e => setNome(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              {/* Stepper */}
-              <div className="flex items-center gap-0">
-                {([
-                  { n: 1, label: "Instâncias" },
-                  { n: 2, label: "Mensagens" },
-                  { n: 3, label: "Contatos" },
-                ] as const).map(({ n, label }, idx) => (
-                  <div key={n} className="flex items-center flex-1">
-                    <button
-                      className="flex items-center gap-2 group flex-1"
-                      onClick={() => {
-                        if (n < etapaCriacao || (n === 2 && selectedInstancias.length > 0) || (n === 3 && blocos.length > 0)) {
-                          setEtapaCriacao(n);
-                        }
-                      }}
-                    >
-                      <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all shrink-0 ${
-                        etapaCriacao === n ? "bg-primary text-primary-foreground shadow" :
-                        etapaCriacao > n ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-                      }`}>
-                        {etapaCriacao > n ? "✓" : n}
-                      </div>
-                      <span className={`text-xs font-medium transition-colors hidden sm:block ${
-                        etapaCriacao === n ? "text-foreground" : "text-muted-foreground"
-                      }`}>
-                        {label}
-                      </span>
-                    </button>
-                    {idx < 2 && (
-                      <div className={`h-px flex-1 mx-2 transition-colors ${etapaCriacao > n ? "bg-primary/40" : "bg-border"}`} />
-                    )}
-                  </div>
-                ))}
-              </div>
+        <DialogContent className="w-[95vw] max-w-4xl p-0 gap-0 !grid-rows-none !flex flex-col overflow-hidden" style={{ height: "min(90vh, 800px)" }}>
+          {/* Fixed Header */}
+          <div className="p-4 sm:p-6 pb-3 flex-shrink-0 border-b border-border">
+            <div className="flex items-center justify-between mb-3">
+              <DialogTitle className="text-base sm:text-lg">Nova Campanha de Disparo</DialogTitle>
             </div>
+            <DialogDescription className="sr-only">Configure uma campanha para enviar mensagens em massa</DialogDescription>
+            {/* Nome */}
+            <div className="mb-4">
+              <Input
+                placeholder="Nome da campanha…"
+                value={nome}
+                onChange={e => setNome(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            {/* Stepper */}
+            <div className="flex items-center gap-0">
+              {([
+                { n: 1, label: "Instâncias" },
+                { n: 2, label: "Mensagens" },
+                { n: 3, label: "Contatos" },
+              ] as const).map(({ n, label }, idx) => (
+                <div key={n} className="flex items-center flex-1">
+                  <button
+                    className="flex items-center gap-2 group flex-1"
+                    onClick={() => {
+                      if (n < etapaCriacao || (n === 2 && selectedInstancias.length > 0) || (n === 3 && blocos.length > 0)) {
+                        setEtapaCriacao(n);
+                      }
+                    }}
+                  >
+                    <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all shrink-0 ${
+                      etapaCriacao === n ? "bg-primary text-primary-foreground shadow" :
+                      etapaCriacao > n ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {etapaCriacao > n ? "✓" : n}
+                    </div>
+                    <span className={`text-xs font-medium transition-colors hidden sm:block ${
+                      etapaCriacao === n ? "text-foreground" : "text-muted-foreground"
+                    }`}>
+                      {label}
+                    </span>
+                  </button>
+                  {idx < 2 && (
+                    <div className={`h-px flex-1 mx-2 transition-colors ${etapaCriacao > n ? "bg-primary/40" : "bg-border"}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
 
-            {/* Step Content */}
-            <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
-              {etapaCriacao === 1 && renderEtapa1()}
-              {etapaCriacao === 2 && renderEtapa2()}
-              {etapaCriacao === 3 && renderEtapa3()}
-            </div>
+          {/* Step Content — fills remaining height */}
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            {etapaCriacao === 1 && renderEtapa1()}
+            {etapaCriacao === 2 && renderEtapa2()}
+            {etapaCriacao === 3 && renderEtapa3()}
           </div>
         </DialogContent>
       </Dialog>
