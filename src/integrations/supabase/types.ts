@@ -703,6 +703,7 @@ export type Database = {
           envio_imediato: boolean
           horario_envio: string
           id: string
+          instancia_id: string | null
           intervalo_max: number
           intervalo_min: number
           last_check_at: string | null
@@ -721,6 +722,7 @@ export type Database = {
           envio_imediato?: boolean
           horario_envio?: string
           id?: string
+          instancia_id?: string | null
           intervalo_max?: number
           intervalo_min?: number
           last_check_at?: string | null
@@ -739,6 +741,7 @@ export type Database = {
           envio_imediato?: boolean
           horario_envio?: string
           id?: string
+          instancia_id?: string | null
           intervalo_max?: number
           intervalo_min?: number
           last_check_at?: string | null
@@ -751,6 +754,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "avisos_reuniao_instancia_id_fkey"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "disparos_instancias"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "avisos_reuniao_procedimento_id_fkey"
             columns: ["procedimento_id"]
