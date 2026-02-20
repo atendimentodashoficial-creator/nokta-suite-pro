@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, type ReactNode, useMemo } from "react";
 import { Upload, FileText, Image, Video, Music, X, Plus, Trash2, Users, Kanban, Phone, Shuffle, ChevronDown, ChevronUp, Layers, Copy, FileDown, List, ClipboardPaste, Database, RefreshCw, Check, CheckSquare, Square, ChevronLeft, ChevronRight, ExternalLink, AtSign, Info } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -2075,15 +2075,15 @@ export function NovaCampanhaDialog({
               />
             </div>
             {/* Stepper */}
-            <div className="flex items-center gap-0">
+            <div className="flex items-center">
               {([
                 { n: 1, label: "Instâncias" },
                 { n: 2, label: "Mensagens" },
                 { n: 3, label: "Contatos" },
               ] as const).map(({ n, label }, idx) => (
-                <div key={n} className="flex items-center flex-1">
+                <React.Fragment key={n}>
                   <button
-                    className="flex items-center gap-2 group flex-1"
+                    className="flex items-center gap-2 group shrink-0"
                     onClick={() => {
                       if (n < etapaCriacao || (n === 2 && selectedInstancias.length > 0) || (n === 3 && blocos.length > 0)) {
                         setEtapaCriacao(n);
@@ -2103,9 +2103,9 @@ export function NovaCampanhaDialog({
                     </span>
                   </button>
                   {idx < 2 && (
-                    <div className={`h-px flex-1 mx-2 transition-colors ${etapaCriacao > n ? "bg-primary/40" : "bg-border"}`} />
+                    <div className={`h-px flex-1 mx-3 transition-colors ${etapaCriacao > n ? "bg-primary/40" : "bg-border"}`} />
                   )}
-                </div>
+                </React.Fragment>
               ))}
             </div>
           </div>
