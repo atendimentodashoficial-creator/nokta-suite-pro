@@ -74,7 +74,7 @@ async function autoMoveKanbanOnReuniao(userId: string, telefone: string) {
       .select("id")
       .eq("user_id", userId)
       .is("deleted_at", null)
-      .like("contact_number", `%${last8}`);
+      .like("normalized_number", `%${last8}`);
 
     if (!chats || chats.length === 0) return;
 
