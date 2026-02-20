@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, XCircle, Trash2, MessageCircle, User, Phone, CheckCircle2 } from "lucide-react";
 import { formatPhoneDisplay, getLast8Digits } from "@/utils/phoneFormat";
+import { navigateToChat } from "@/utils/chatRouting";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -514,9 +515,9 @@ export default function Reunioes() {
                                   className="w-full aspect-square p-0 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50" 
                                   onClick={() => {
                                     const phone = reuniao.cliente_telefone?.replace(/\D/g, "") || "";
-                                    navigate(`/disparos?telefone=${phone}`);
+                                    navigateToChat(navigate, phone);
                                   }}
-                                  title="WhatsApp"
+                                  title="WhatsApp / Chat"
                                 >
                                   <MessageCircle className="h-4 w-4" />
                                 </Button>
