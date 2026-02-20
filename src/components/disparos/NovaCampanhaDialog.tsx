@@ -1922,22 +1922,7 @@ export function NovaCampanhaDialog({
                 )}
               </Label>
             </div>
-            <div className="flex gap-1.5">
-              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
-                if (contatos.length === 0) { toast.error("Nenhum contato para copiar"); return; }
-                const text = contatos.map(c => c.nome ? `${c.nome},${c.numero}` : c.numero).join("\n");
-                navigator.clipboard.writeText(text);
-                toast.success("Lista copiada!");
-              }}>
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={exportContatos}>
-                <FileDown className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive h-8 px-2">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+            
           </div>
 
           {/* Linha 2: seleção em massa + filtro origem */}
