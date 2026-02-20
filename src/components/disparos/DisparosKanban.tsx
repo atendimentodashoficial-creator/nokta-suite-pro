@@ -163,9 +163,12 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
           .select("*")
           .eq("ativo", true)
           .order("ordem", { ascending: true }),
-        supabase
-          .from("disparos_chat_kanban")
-          .select("chat_id, column_id"),
+        user
+          ? supabase
+              .from("disparos_chat_kanban")
+              .select("chat_id, column_id")
+              .eq("user_id", user.id)
+          : Promise.resolve({ data: [], error: null }),
         user
           ? supabase
               .from("disparos_kanban_config")
@@ -246,19 +249,28 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       };
 
       const chatIdToLast8: Record<string, string> = {};
-      const last8List: string[] = [];
+      const uniqueLast8Set = new Set<string>();
       chats.forEach((chat) => {
         const k = last8(chat?.normalized_number || chat?.contact_number || "");
         if (!k) return;
         chatIdToLast8[chat.id] = k;
-        last8List.push(k);
+        uniqueLast8Set.add(k);
       });
 
-      if (last8List.length === 0) return;
+      if (uniqueLast8Set.size === 0) return;
 
+      // Batch leads lookup using OR filters on last 8 digits (much faster than loading all leads)
+      const uniqueLast8 = Array.from(uniqueLast8Set);
+      
+      // Build OR filter: telefone.like.%12345678,telefone.like.%87654321,...
+      const orFilter = uniqueLast8.map(k => `telefone.like.%${k}`).join(",");
+      
       const { data: leads } = await supabase
         .from("leads")
-        .select("id, telefone");
+        .select("id, telefone")
+        .or(orFilter)
+        .is("deleted_at", null)
+        .limit(500);
 
       if (!leads || leads.length === 0) return;
 
@@ -272,12 +284,21 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       const leadIds = Array.from(new Set(Object.values(last8ToLeadId)));
       if (leadIds.length === 0) return;
 
+      // Only fetch upcoming agendamentos (next 30 days) to reduce data size
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const in30Days = new Date(today);
+      in30Days.setDate(in30Days.getDate() + 30);
+
       const { data: agendamentos } = await supabase
         .from("agendamentos")
         .select("id, cliente_id, data_agendamento, status")
         .in("cliente_id", leadIds)
-        .in("status", ["agendado", "confirmado", "realizado"])
-        .order("data_agendamento", { ascending: true });
+        .in("status", ["agendado", "confirmado"])
+        .gte("data_agendamento", today.toISOString())
+        .lte("data_agendamento", in30Days.toISOString())
+        .order("data_agendamento", { ascending: true })
+        .limit(500);
 
       const leadIdToAgendamento: Record<string, ChatAgendamento> = {};
       agendamentos?.forEach((ag) => {
