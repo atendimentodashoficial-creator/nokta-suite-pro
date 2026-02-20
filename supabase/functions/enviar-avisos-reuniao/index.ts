@@ -580,46 +580,71 @@ Deno.serve(async (req) => {
         }
 
         let config: WhatsAppConfig;
-        
-        const chatsWithInstance = (existingChats || []).filter((c: any) => c?.instancia_id);
 
-        if (chatsWithInstance.length > 0) {
-          let selectedInstanceId: string | null = null;
-
-          // Prefer migrated chats: use the original instance for continuity.
-          const chatWithOriginal = chatsWithInstance.find((c: any) => c?.instancia_original_id);
-          if (chatWithOriginal?.instancia_original_id) {
-            selectedInstanceId = chatWithOriginal.instancia_original_id;
-            console.log(
-              `Using instancia_original_id for ${pending.telefone}: ${selectedInstanceId}`
-            );
-          } else {
-            // Otherwise, pick the oldest chat (original conversation start).
-            const oldestChat = [...chatsWithInstance].sort(
-              (a: any, b: any) =>
-                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-            )[0];
-            selectedInstanceId = oldestChat?.instancia_id ?? null;
-            console.log(
-              `Using oldest chat instance for ${pending.telefone}: ${selectedInstanceId}`
-            );
-          }
-
-          const matchedInstance = selectedInstanceId
-            ? disparosInstances.find((inst) => inst.id === selectedInstanceId)
-            : null;
-          
-          if (matchedInstance) {
-            console.log(`Using chat's instance "${matchedInstance.nome}" for ${pending.telefone}`);
+        // If aviso has a fixed instancia_id configured, use it directly
+        const avisoInstanciaId: string | null = (aviso as any).instancia_id ?? null;
+        if (avisoInstanciaId) {
+          const forcedInstance = disparosInstances.find((inst) => inst.id === avisoInstanciaId);
+          if (forcedInstance) {
+            console.log(`Using forced instancia "${forcedInstance.nome}" from aviso config for ${pending.telefone}`);
             config = {
-              base_url: matchedInstance.base_url.replace(/\/+$/, ""),
-              api_key: matchedInstance.api_key,
-              instancia_id: matchedInstance.id,
-              instancia_nome: matchedInstance.nome,
+              base_url: forcedInstance.base_url.replace(/\/+$/, ""),
+              api_key: forcedInstance.api_key,
+              instancia_id: forcedInstance.id,
+              instancia_nome: forcedInstance.nome,
             };
           } else {
-            // Instance not found or inactive, use first available
-            console.log(`Chat instance not found/active, using fallback for ${pending.telefone}`);
+            console.log(`Forced instancia ${avisoInstanciaId} not active/found, falling back to chat routing`);
+            // Fall through to chat-based routing below
+            config = null as any;
+          }
+        } else {
+          config = null as any;
+        }
+
+        if (!config) {
+          const chatsWithInstance = (existingChats || []).filter((c: any) => c?.instancia_id);
+
+          if (chatsWithInstance.length > 0) {
+            let selectedInstanceId: string | null = null;
+
+            // Prefer migrated chats: use the original instance for continuity.
+            const chatWithOriginal = chatsWithInstance.find((c: any) => c?.instancia_original_id);
+            if (chatWithOriginal?.instancia_original_id) {
+              selectedInstanceId = chatWithOriginal.instancia_original_id;
+              console.log(`Using instancia_original_id for ${pending.telefone}: ${selectedInstanceId}`);
+            } else {
+              const oldestChat = [...chatsWithInstance].sort(
+                (a: any, b: any) =>
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              )[0];
+              selectedInstanceId = oldestChat?.instancia_id ?? null;
+              console.log(`Using oldest chat instance for ${pending.telefone}: ${selectedInstanceId}`);
+            }
+
+            const matchedInstance = selectedInstanceId
+              ? disparosInstances.find((inst) => inst.id === selectedInstanceId)
+              : null;
+
+            if (matchedInstance) {
+              console.log(`Using chat's instance "${matchedInstance.nome}" for ${pending.telefone}`);
+              config = {
+                base_url: matchedInstance.base_url.replace(/\/+$/, ""),
+                api_key: matchedInstance.api_key,
+                instancia_id: matchedInstance.id,
+                instancia_nome: matchedInstance.nome,
+              };
+            } else {
+              console.log(`Chat instance not found/active, using fallback for ${pending.telefone}`);
+              config = {
+                base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
+                api_key: disparosInstances[0].api_key,
+                instancia_id: disparosInstances[0].id,
+                instancia_nome: disparosInstances[0].nome,
+              };
+            }
+          } else {
+            console.log(`No existing chat found, using first instance for ${pending.telefone}`);
             config = {
               base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
               api_key: disparosInstances[0].api_key,
@@ -627,15 +652,6 @@ Deno.serve(async (req) => {
               instancia_nome: disparosInstances[0].nome,
             };
           }
-        } else {
-          // No existing chat, use first available instance
-          console.log(`No existing chat found, using first instance for ${pending.telefone}`);
-          config = {
-            base_url: disparosInstances[0].base_url.replace(/\/+$/, ""),
-            api_key: disparosInstances[0].api_key,
-            instancia_id: disparosInstances[0].id,
-            instancia_nome: disparosInstances[0].nome,
-          };
         }
 
         const { success, result } = await processAviso(supabase, pending, config);

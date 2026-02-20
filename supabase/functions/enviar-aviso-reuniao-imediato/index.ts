@@ -434,8 +434,33 @@ serve(async (req) => {
     const phoneCandidates = buildPhoneCandidates(telefone);
     let sentCount = 0;
 
+    // Fetch all active instances for this user (needed to resolve per-aviso instancia_id)
+    const { data: allInstancias } = await supabase
+      .from("disparos_instancias")
+      .select("id, nome, base_url, api_key")
+      .eq("user_id", resolvedUserId)
+      .eq("is_active", true);
+
     for (const aviso of avisos) {
       try {
+        // Resolve instance: use aviso's fixed instancia_id if set, otherwise use the one from chat history
+        let avisoBaseUrl = baseUrl;
+        let avisoApiKey = apiKey;
+        let avisoInstanciaId = instancia.id;
+        let avisoInstanciaNome = instancia.nome;
+
+        const avisoFixedInstanciaId: string | null = (aviso as any).instancia_id ?? null;
+        if (avisoFixedInstanciaId && allInstancias) {
+          const forced = allInstancias.find((i) => i.id === avisoFixedInstanciaId);
+          if (forced) {
+            console.log(`Aviso "${aviso.nome}" using forced instancia "${forced.nome}"`);
+            avisoBaseUrl = String(forced.base_url || "").replace(/\/+$/, "");
+            avisoApiKey = String(forced.api_key || "");
+            avisoInstanciaId = forced.id;
+            avisoInstanciaNome = forced.nome;
+          }
+        }
+
         // Calculate random delay within interval
         const delayMs = Math.floor(
           Math.random() * (aviso.intervalo_max - aviso.intervalo_min) + aviso.intervalo_min
@@ -448,7 +473,7 @@ serve(async (req) => {
         const mensagem = replaceVariables(aviso.mensagem, reuniao, clienteNome);
 
         // Send WhatsApp message (UAZapi padrão usado em Disparos)
-        const sendUrl = `${baseUrl}/send/text`;
+        const sendUrl = `${avisoBaseUrl}/send/text`;
 
         let deliveredTo: string | null = null;
         let lastError: string | null = null;
@@ -459,7 +484,7 @@ serve(async (req) => {
             headers: {
               Accept: "application/json",
               "Content-Type": "application/json",
-              token: apiKey,
+              token: avisoApiKey,
             },
             body: JSON.stringify({
               number: candidate,
@@ -505,8 +530,8 @@ serve(async (req) => {
             mensagem_enviada: mensagem,
             status: "erro",
             erro: lastError || "Erro ao enviar mensagem",
-            instancia_id: instancia.id,
-            instancia_nome: instancia.nome,
+            instancia_id: avisoInstanciaId,
+            instancia_nome: avisoInstanciaNome,
           });
           continue;
         }
@@ -525,8 +550,8 @@ serve(async (req) => {
           dias_antes: 0,
           mensagem_enviada: mensagem,
           status: "enviado",
-          instancia_id: instancia.id,
-          instancia_nome: instancia.nome,
+          instancia_id: avisoInstanciaId,
+          instancia_nome: avisoInstanciaNome,
         });
 
         // For rescheduling type, update ultimo_reagendamento_avisado after sending

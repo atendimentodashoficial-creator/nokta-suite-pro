@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw, Save, Eye, ChevronDown, TrendingUp, Video, User, Phone } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Bell, Plus, Trash2, Edit, Loader2, Send, Clock, Zap, FileText, RefreshCw, Save, Eye, ChevronDown, TrendingUp, Video, User, Phone, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -77,9 +77,15 @@ interface AvisoReuniao {
   intervalo_min: number;
   intervalo_max: number;
   procedimento_id: string | null;
+  instancia_id: string | null;
   tipo_gatilho: string;
   created_at: string;
   updated_at: string;
+}
+
+interface Instancia {
+  id: string;
+  nome: string;
 }
 
 export function AvisosReuniaoTab() {
@@ -88,6 +94,7 @@ export function AvisosReuniaoTab() {
   const [isSaving, setIsSaving] = useState(false);
   const [avisos, setAvisos] = useState<AvisoReuniao[]>([]);
   const [reunioes, setReunioes] = useState<Reuniao[]>([]);
+  const [instancias, setInstancias] = useState<Instancia[]>([]);
   
   // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -106,6 +113,7 @@ export function AvisosReuniaoTab() {
   const [formIntervaloUnit, setFormIntervaloUnit] = useState<"seconds" | "minutes">("seconds");
   const [formAtivo, setFormAtivo] = useState(true);
   const [formProcedimentoId, setFormProcedimentoId] = useState<string | null>(null);
+  const [formInstanciaId, setFormInstanciaId] = useState<string | null>(null);
   const [formTipoGatilho, setFormTipoGatilho] = useState<"dias_antes" | "imediato" | "reagendamento">("dias_antes");
 
   const { data: procedimentos } = useProcedimentos();
@@ -126,6 +134,22 @@ export function AvisosReuniaoTab() {
       .sort((a, b) => new Date(a.data_reuniao).getTime() - new Date(b.data_reuniao).getTime())
       .slice(0, 10);
   }, [reunioes]);
+
+  // Load instâncias
+  const loadInstancias = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('disparos_instancias')
+        .select('id, nome')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('nome');
+      setInstancias((data || []) as Instancia[]);
+    } catch (error) {
+      console.error('Error loading instancias:', error);
+    }
+  };
 
   // Load reuniões
   const loadReunioes = async () => {
@@ -165,7 +189,8 @@ export function AvisosReuniaoTab() {
   useEffect(() => {
     loadAvisos();
     loadReunioes();
-  }, []);
+    loadInstancias();
+  }, [user]);
 
   // Reset form
   const resetForm = () => {
@@ -180,6 +205,7 @@ export function AvisosReuniaoTab() {
     setFormIntervaloUnit("seconds");
     setFormAtivo(true);
     setFormProcedimentoId(null);
+    setFormInstanciaId(null);
     setFormTipoGatilho("dias_antes");
     setEditingAviso(null);
   };
@@ -219,6 +245,7 @@ export function AvisosReuniaoTab() {
     }
     setFormAtivo(aviso.ativo);
     setFormProcedimentoId(aviso.procedimento_id || null);
+    setFormInstanciaId(aviso.instancia_id || null);
     // Map envio_imediato to tipo_gatilho for backwards compatibility
     if (aviso.envio_imediato) {
       setFormTipoGatilho("imediato");
@@ -285,6 +312,7 @@ export function AvisosReuniaoTab() {
             envio_imediato: isImediato,
             next_check_at: nextCheckAt,
             procedimento_id: formProcedimentoId,
+            instancia_id: formInstanciaId,
             tipo_gatilho: tipoGatilhoToSave,
           })
           .eq('id', editingAviso.id);
@@ -306,6 +334,7 @@ export function AvisosReuniaoTab() {
             envio_imediato: isImediato,
             next_check_at: nextCheckAt,
             procedimento_id: formProcedimentoId,
+            instancia_id: formInstanciaId,
             tipo_gatilho: tipoGatilhoToSave,
           });
 
@@ -464,6 +493,16 @@ export function AvisosReuniaoTab() {
                       </div>
                     )}
 
+                    {/* Instância configurada */}
+                    {aviso.instancia_id && (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 text-green-600" />
+                        <span className="truncate">
+                          {instancias.find(i => i.id === aviso.instancia_id)?.nome || "Instância específica"}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Preview da mensagem */}
                     <p className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
                       {aviso.mensagem}
@@ -540,6 +579,16 @@ export function AvisosReuniaoTab() {
                         <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="truncate">
                           {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Instância configurada */}
+                    {aviso.instancia_id && (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 text-green-600" />
+                        <span className="truncate">
+                          {instancias.find(i => i.id === aviso.instancia_id)?.nome || "Instância específica"}
                         </span>
                       </div>
                     )}
@@ -642,6 +691,16 @@ export function AvisosReuniaoTab() {
                         <FileText className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="truncate">
                           {procedimentos?.find(p => p.id === aviso.procedimento_id)?.nome || "Específico"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Instância configurada */}
+                    {aviso.instancia_id && (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <MessageCircle className="h-3.5 w-3.5 flex-shrink-0 text-green-600" />
+                        <span className="truncate">
+                          {instancias.find(i => i.id === aviso.instancia_id)?.nome || "Instância específica"}
                         </span>
                       </div>
                     )}
@@ -871,6 +930,39 @@ export function AvisosReuniaoTab() {
               </Select>
               <p className="text-xs text-muted-foreground">
                 Deixe em "Todos" para enviar para qualquer reunião, ou escolha um específico
+              </p>
+            </div>
+
+            {/* Instância de envio */}
+            <div className="space-y-2">
+              <Label>Instância de envio (opcional)</Label>
+              <Select
+                value={formInstanciaId || "default"}
+                onValueChange={(v) => setFormInstanciaId(v === "default" ? null : v)}
+              >
+                <SelectTrigger className="bg-background">
+                  <MessageCircle className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Instância padrão do cliente" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="default">
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                      <span>Instância padrão do cliente</span>
+                    </div>
+                  </SelectItem>
+                  {instancias.map(inst => (
+                    <SelectItem key={inst.id} value={inst.id}>
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="h-4 w-4 text-green-600" />
+                        <span>{inst.nome}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Por padrão usa a instância original do chat com o cliente. Escolha outra para forçar uma instância específica.
               </p>
             </div>
 
