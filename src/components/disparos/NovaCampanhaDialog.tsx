@@ -2018,8 +2018,10 @@ export function NovaCampanhaDialog({
       if (allContactsFilterEtiquetas.size > 0) {
         const isNutrindo = numerosDisparados.has(c.numero.slice(-8));
         const isSemWpp = numerosSemWhatsApp.has(c.numero.slice(-8));
+        const temEtiqueta = isNutrindo || isSemWpp;
         if (allContactsFilterEtiquetas.has("nutrindo") && !isNutrindo) return false;
         if (allContactsFilterEtiquetas.has("sem_whatsapp") && !isSemWpp) return false;
+        if (allContactsFilterEtiquetas.has("sem_etiqueta") && temEtiqueta) return false;
       }
       return true;
     });
@@ -2103,6 +2105,7 @@ export function NovaCampanhaDialog({
                     {[
                       { key: "nutrindo", label: "Nutrindo", count: contatos.filter(c => numerosDisparados.has(c.numero.slice(-8))).length },
                       { key: "sem_whatsapp", label: "Sem WhatsApp", count: contatos.filter(c => numerosSemWhatsApp.has(c.numero.slice(-8))).length },
+                      { key: "sem_etiqueta", label: "Sem Etiqueta", count: contatos.filter(c => !numerosDisparados.has(c.numero.slice(-8)) && !numerosSemWhatsApp.has(c.numero.slice(-8))).length },
                     ].map(({ key, label, count }) => (
                       <div key={key} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer" onClick={() => setAllContactsFilterEtiquetas(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; })}>
                         <Checkbox checked={allContactsFilterEtiquetas.has(key)} onCheckedChange={() => setAllContactsFilterEtiquetas(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; })} />
@@ -2143,10 +2146,11 @@ export function NovaCampanhaDialog({
                         <Checkbox checked={isSelected} onCheckedChange={() => toggleContactSelection(c.numero)} onClick={e => e.stopPropagation()} />
                         <span className="text-xs text-muted-foreground w-7 shrink-0">{globalIdx + 1}.</span>
                          <div className="flex flex-col min-w-0">
-                           {c.nome && <span className="truncate text-sm font-medium leading-tight">{c.nome}</span>}
-                           <div className="flex items-center gap-1 flex-wrap">
-                             <span className="text-xs text-muted-foreground leading-tight shrink-0">{formatPhoneDisplay(c.numero)}</span>
-                             {c.origem && <span className="text-[9px] text-muted-foreground/60 bg-muted px-1 py-0 rounded shrink-0 truncate max-w-[120px]">{c.origem}</span>}
+                           <div className="flex items-center gap-1.5 flex-wrap">
+                             <div className="flex flex-col min-w-0">
+                               {c.nome && <span className="truncate text-sm font-medium leading-tight">{c.nome}</span>}
+                               <span className="truncate text-xs text-muted-foreground leading-tight">{formatPhoneDisplay(c.numero)}</span>
+                             </div>
                              {isNutrindo && (
                                <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
                              )}
@@ -2154,6 +2158,7 @@ export function NovaCampanhaDialog({
                                <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">sem whatsapp</Badge>
                              )}
                            </div>
+                           {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
                          </div>
                       </div>
                       <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
