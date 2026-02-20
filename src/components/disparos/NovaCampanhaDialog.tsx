@@ -2116,7 +2116,7 @@ export function NovaCampanhaDialog({
 
         {/* Footer: paginação + ações */}
         <div className="flex-shrink-0 border-t px-6 pb-4 pt-3 space-y-2">
-          {contatosFiltrados.length > allContactsPerPage && (
+          {contatosFiltrados.length > 0 && (
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <span>Por página:</span>
@@ -2131,8 +2131,8 @@ export function NovaCampanhaDialog({
                 <Button variant="outline" size="icon" className="h-6 w-6" disabled={allContactsPage === 1} onClick={() => setAllContactsPage(p => p - 1)}>
                   <ChevronLeft className="h-3 w-3" />
                 </Button>
-                <span className="px-2">{allContactsPage} / {totalPages}</span>
-                <Button variant="outline" size="icon" className="h-6 w-6" disabled={allContactsPage === totalPages} onClick={() => setAllContactsPage(p => p + 1)}>
+                <span className="px-2">{allContactsPage} / {totalPages || 1}</span>
+                <Button variant="outline" size="icon" className="h-6 w-6" disabled={allContactsPage >= (totalPages || 1)} onClick={() => setAllContactsPage(p => p + 1)}>
                   <ChevronRight className="h-3 w-3" />
                 </Button>
               </div>
