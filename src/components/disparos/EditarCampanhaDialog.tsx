@@ -1210,7 +1210,7 @@ export function EditarCampanhaDialog({
                 <p className="text-[10px] text-white/70">online</p>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 relative" style={{ backgroundColor: "#ECE5DD" }}>
+            <div className="flex-1 overflow-y-auto p-3 relative" style={{ backgroundColor: "#ECE5DD", backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cdc4' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}>
               {blocos.length > 1 && (
                 <div className="absolute top-1 left-1">
                   <span className="bg-[#FFF3CD] text-[#856404] text-[9px] px-1.5 py-0.5 rounded-full shadow-sm">
@@ -1321,45 +1321,7 @@ export function EditarCampanhaDialog({
                 )}
               </Label>
             </div>
-            <div className="flex gap-1">
-              <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource}>
-                <Users className="h-4 w-4 mr-1" />Importar
-              </Button>
-              <Button variant="outline" size="sm" onClick={async () => {
-                try {
-                  const text = await navigator.clipboard.readText();
-                  if (!text.trim()) { toast.info("Área de transferência vazia"); return; }
-                  const lines = text.split(/[\n\r]+/).filter(l => l.trim());
-                  const novos: Contato[] = [];
-                  for (const line of lines) {
-                    const parts = line.split(/[,;\t]+/).map(p => p.trim());
-                    let numero = ""; let nome = "";
-                    for (const part of parts) {
-                      const digits = part.replace(/\D/g, "");
-                      if (digits.length >= 8 && !numero) { numero = normalizePhoneNumber(digits); }
-                      else if (part && !nome && !/^\d+$/.test(part)) { nome = part; }
-                    }
-                    if (numero && numero.length >= 8) novos.push({ numero, nome: nome || undefined });
-                  }
-                  if (novos.length === 0) { toast.error("Nenhum número válido"); return; }
-                  addContatosWithSelection(novos);
-                  toast.success(`${novos.length} contato(s) colado(s)`);
-                } catch { toast.error("Não foi possível acessar a área de transferência"); }
-              }}>
-                <ClipboardPaste className="h-4 w-4 mr-1" />Colar
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="h-4 w-4 mr-1" />CSV/TXT
-              </Button>
-              <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
-            </div>
-          </div>
-
-          {/* Add manual */}
-          <div className="flex gap-2">
-            <Input placeholder="Nome (opcional)" value={novoNome} onChange={e => setNovoNome(e.target.value)} className="flex-1" />
-            <Input placeholder="Número (ex: 5521999999999)" value={novoNumero} onChange={e => setNovoNumero(e.target.value)} onKeyDown={e => e.key === "Enter" && addContato()} className="flex-1" />
-            <Button onClick={addContato} variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
+            
           </div>
 
           {/* Selection + origin filter */}
@@ -1658,48 +1620,6 @@ export function EditarCampanhaDialog({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Import Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Importar Contatos</DialogTitle>
-            <DialogDescription>Escolha a origem dos contatos para importar</DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh]">
-            <div className="space-y-1 pr-4">
-              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForLeads(); }} disabled={loadingDataSource}>
-                <Users className="h-4 w-4 mr-2" />Todos os Leads
-              </Button>
-              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForClientes(); }} disabled={loadingDataSource}>
-                <Users className="h-4 w-4 mr-2" />Apenas Clientes
-              </Button>
-              {kanbanColumns.length > 0 && (
-                <>
-                  <div className="border-t my-2" />
-                  <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Kanban WhatsApp</p>
-                  {kanbanColumns.map(col => (
-                    <Button key={col.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForKanbanWhatsApp(col.id); }} disabled={loadingDataSource}>
-                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: col.cor }} />{col.nome}
-                    </Button>
-                  ))}
-                </>
-              )}
-              {disparosKanbanColumns.length > 0 && (
-                <>
-                  <div className="border-t my-2" />
-                  <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Kanban Disparos</p>
-                  {disparosKanbanColumns.map(col => (
-                    <Button key={col.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForKanbanDisparos(col.id); }} disabled={loadingDataSource}>
-                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: col.cor }} />{col.nome}
-                    </Button>
-                  ))}
-                </>
-              )}
-            </div>
-          </ScrollArea>
         </DialogContent>
       </Dialog>
 
