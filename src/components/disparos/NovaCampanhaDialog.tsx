@@ -370,9 +370,13 @@ export function NovaCampanhaDialog({
       if (!data || data.length === 0) return;
       setListasImportadas(data);
 
-      // Busca todos os contatos de todas as listas e importa automaticamente
-      const allContatos: Contato[] = [];
-      for (const lista of data) {
+      // Busca contatos de cada lista (da mais nova para a mais antiga)
+      // e monta mapa por chave (últimos 8 dígitos) para deduplicar
+      // O contato da lista mais recente tem prioridade e fica no início
+      const contatosPorChave = new Map<string, Contato & { listaIndex: number }>();
+
+      for (let listaIndex = 0; listaIndex < data.length; listaIndex++) {
+        const lista = data[listaIndex];
         // Monta mapa campo -> label amigável
         const mapeamento = (lista.colunas_mapeamento as unknown as ColunaMapeamento[] | null) ?? [];
         const camposMapeados: Record<string, string> = {};
@@ -388,23 +392,37 @@ export function NovaCampanhaDialog({
           .eq("lista_id", lista.id)
           .eq("user_id", user.id)
           .limit(50000);
+
         (contatosData || []).forEach((c: any) => {
           if (c.telefone) {
             const numero = normalizePhoneNumber(c.telefone);
             if (numero.length >= 8) {
-              allContatos.push({
-                numero,
-                nome: c.nome || undefined,
-                origem: lista.nome,
-                dados_extras: c.dados_extras || null,
-                camposMapeados: Object.keys(camposMapeados).length > 0 ? camposMapeados : null,
-              });
+              const chave = getLast8Digits(numero);
+              // Se o contato ainda não está no mapa, ou se esta lista é mais nova
+              // (listaIndex menor = mais recente, pois ordenamos desc), sobrescreve
+              const existing = contatosPorChave.get(chave);
+              if (!existing || listaIndex < existing.listaIndex) {
+                contatosPorChave.set(chave, {
+                  numero,
+                  nome: c.nome || undefined,
+                  origem: lista.nome,
+                  dados_extras: c.dados_extras || null,
+                  camposMapeados: Object.keys(camposMapeados).length > 0 ? camposMapeados : null,
+                  listaIndex,
+                });
+              }
             }
           }
         });
       }
-      if (allContatos.length > 0) {
-        addContatosWithSelection(allContatos);
+
+      if (contatosPorChave.size > 0) {
+        // Ordena: contatos da lista mais nova (listaIndex menor) vêm primeiro
+        const allContatos: Contato[] = Array.from(contatosPorChave.values())
+          .sort((a, b) => a.listaIndex - b.listaIndex)
+          .map(({ listaIndex: _, ...c }) => c);
+
+        setContatos(allContatos);
       }
     } catch (error) {
       console.error("Error loading listas importadas:", error);
