@@ -87,6 +87,7 @@ export function NovaCampanhaDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [nome, setNome] = useState("");
+  const [etapaCriacao, setEtapaCriacao] = useState<1 | 2 | 3>(1);
   const [blocos, setBlocos] = useState<BlocoMensagem[]>([]);
   const [blocosAbertos, setBlocosAbertos] = useState<Record<string, boolean>>({});
   const [variacoesAbertas, setVariacoesAbertas] = useState<Record<string, boolean>>({});
@@ -1255,6 +1256,7 @@ export function NovaCampanhaDialog({
     }
   };
   const resetForm = () => {
+    setEtapaCriacao(1);
     setNome("");
     setBlocos([]);
     setBlocosAbertos({});
@@ -1349,9 +1351,56 @@ export function NovaCampanhaDialog({
         <div className="flex flex-col lg:flex-row h-full max-h-[85vh] sm:max-h-[90vh]">
           {/* Form Section */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-            <DialogHeader className="p-4 sm:p-6 pb-2 flex-shrink-0">
-              <DialogTitle className="text-base sm:text-lg">Nova Campanha de Disparo</DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm">
+            <div className="p-4 sm:p-6 pb-3 flex-shrink-0 border-b border-border">
+              {/* Título + nome */}
+              <div className="flex items-center justify-between mb-3">
+                <DialogTitle className="text-base sm:text-lg">Nova Campanha de Disparo</DialogTitle>
+              </div>
+              {/* Nome da campanha */}
+              <div className="mb-4">
+                <Input
+                  placeholder="Nome da campanha…"
+                  value={nome}
+                  onChange={e => setNome(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              {/* Stepper */}
+              <div className="flex items-center gap-0">
+                {[
+                  { n: 1, label: "Instâncias" },
+                  { n: 2, label: "Mensagens" },
+                  { n: 3, label: "Contatos" },
+                ].map(({ n, label }, idx) => (
+                  <div key={n} className="flex items-center flex-1">
+                    <button
+                      className="flex items-center gap-2 group flex-1"
+                      onClick={() => setEtapaCriacao(n as 1 | 2 | 3)}
+                    >
+                      <div className={`
+                        flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all shrink-0
+                        ${etapaCriacao === n
+                          ? "bg-primary text-primary-foreground shadow"
+                          : etapaCriacao > n
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                        }
+                      `}>
+                        {etapaCriacao > n ? "✓" : n}
+                      </div>
+                      <span className={`text-xs font-medium transition-colors hidden sm:block
+                        ${etapaCriacao === n ? "text-foreground" : "text-muted-foreground"}
+                      `}>
+                        {label}
+                      </span>
+                    </button>
+                    {idx < 2 && (
+                      <div className={`h-px flex-1 mx-2 transition-colors ${etapaCriacao > n ? "bg-primary/40" : "bg-border"}`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
                 Configure uma campanha para enviar mensagens em massa
               </DialogDescription>
             </DialogHeader>
