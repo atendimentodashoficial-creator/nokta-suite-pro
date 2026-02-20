@@ -3413,6 +3413,50 @@ export type Database = {
           },
         ]
       }
+      lista_importada_contatos: {
+        Row: {
+          cidade: string | null
+          created_at: string
+          dados_extras: Json | null
+          email: string | null
+          id: string
+          lista_id: string
+          nome: string | null
+          telefone: string
+          user_id: string
+        }
+        Insert: {
+          cidade?: string | null
+          created_at?: string
+          dados_extras?: Json | null
+          email?: string | null
+          id?: string
+          lista_id: string
+          nome?: string | null
+          telefone: string
+          user_id: string
+        }
+        Update: {
+          cidade?: string | null
+          created_at?: string
+          dados_extras?: Json | null
+          email?: string | null
+          id?: string
+          lista_id?: string
+          nome?: string | null
+          telefone?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lista_importada_contatos_lista_id_fkey"
+            columns: ["lista_id"]
+            isOneToOne: false
+            referencedRelation: "listas_importadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listas_extrator: {
         Row: {
           busca_original: string | null
@@ -3447,6 +3491,39 @@ export type Database = {
           localizacao?: string | null
           nome?: string
           total_contatos?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      listas_importadas: {
+        Row: {
+          colunas_mapeamento: Json | null
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          total_contatos: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          colunas_mapeamento?: Json | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          total_contatos?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          colunas_mapeamento?: Json | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          total_contatos?: number | null
           updated_at?: string
           user_id?: string
         }

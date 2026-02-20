@@ -54,6 +54,11 @@ interface ListaExtrator {
   dados: any[];
   total_contatos: number;
 }
+interface ListaImportada {
+  id: string;
+  nome: string;
+  total_contatos: number;
+}
 interface DisparosInstancia {
   id: string;
   nome: string;
@@ -125,6 +130,12 @@ export function NovaCampanhaDialog({
 
   // Listas do extrator
   const [listasExtrator, setListasExtrator] = useState<ListaExtrator[]>([]);
+
+  // Listas importadas
+  const [listasImportadas, setListasImportadas] = useState<ListaImportada[]>([]);
+
+  // Números que já foram disparados em alguma campanha (para badge "nutrindo")
+  const [numerosDisparados, setNumerosDisparados] = useState<Set<string>>(new Set());
 
   // Seleção de contatos (para permitir desselecionar antes de criar campanha)
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
@@ -226,6 +237,8 @@ export function NovaCampanhaDialog({
       loadInstancias();
       loadTemplates();
       loadListasExtrator();
+      loadListasImportadas();
+      loadNumerosDisparados();
     }
   }, [open, user]);
   const loadTemplates = async () => {
@@ -316,6 +329,36 @@ export function NovaCampanhaDialog({
       }
     } catch (error) {
       console.error("Error loading listas extrator:", error);
+    }
+  };
+  const loadListasImportadas = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from("listas_importadas")
+        .select("id, nome, total_contatos")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (data) setListasImportadas(data);
+    } catch (error) {
+      console.error("Error loading listas importadas:", error);
+    }
+  };
+  const loadNumerosDisparados = async () => {
+    if (!user) return;
+    try {
+      // Pega todos os números que já foram enviados em qualquer campanha (status = 'sent' ou 'delivered')
+      const { data } = await supabase
+        .from("disparos_campanha_contatos")
+        .select("numero, campanha_id, disparos_campanhas!inner(user_id)")
+        .eq("disparos_campanhas.user_id", user.id)
+        .in("status", ["sent", "delivered"]);
+      if (data) {
+        const nums = new Set<string>(data.map((d: any) => d.numero?.replace(/\D/g, "").slice(-8)).filter(Boolean));
+        setNumerosDisparados(nums);
+      }
+    } catch (error) {
+      console.error("Error loading numeros disparados:", error);
     }
   };
   const toggleInstancia = (id: string) => {
@@ -1046,6 +1089,42 @@ export function NovaCampanhaDialog({
     toast.success(`${novosContatos.length} contato(s) importado(s) da lista "${lista.nome}"`);
     setShowImportDialog(false);
   };
+
+  const importFromListaImportada = async (lista: ListaImportada) => {
+    if (!user) return;
+    setLoadingDataSource(true);
+    try {
+      const { data, error } = await supabase
+        .from("lista_importada_contatos")
+        .select("telefone, nome")
+        .eq("lista_id", lista.id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      const novosContatos: Contato[] = (data || [])
+        .filter((c: any) => c.telefone)
+        .map((c: any) => ({
+          numero: normalizePhoneNumber(c.telefone),
+          nome: c.nome || undefined,
+        }))
+        .filter((c: Contato) => c.numero.length >= 8);
+
+      if (novosContatos.length === 0) {
+        toast.info("Nenhum contato válido nesta lista");
+        return;
+      }
+
+      addContatosWithSelection(novosContatos, lista.nome);
+      toast.success(`${novosContatos.length} contato(s) importado(s) de "${lista.nome}"`);
+      setShowImportDialog(false);
+    } catch (err: any) {
+      toast.error("Erro ao carregar lista importada");
+    } finally {
+      setLoadingDataSource(false);
+    }
+  };
+
 
   const handleSubmit = async () => {
     if (!nome.trim()) {
@@ -2030,6 +2109,30 @@ export function NovaCampanhaDialog({
                 </Button>
               ))}
             </>}
+
+            {listasImportadas.length > 0 && <>
+              <div className="border-t my-2" />
+              <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Listas Importadas</p>
+              {listasImportadas.map(lista => {
+                // Contagem de nutrindo: contatos que já foram disparados
+                return (
+                  <Button
+                    key={lista.id}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => importFromListaImportada(lista)}
+                    disabled={loadingDataSource}
+                  >
+                    <Database className="h-3 w-3 mr-2 text-blue-600" />
+                    {lista.nome}
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {lista.total_contatos}
+                    </Badge>
+                  </Button>
+                );
+              })}
+            </>}
           </div>
         </ScrollArea>
       </DialogContent>
@@ -2207,9 +2310,16 @@ export function NovaCampanhaDialog({
                         />
                         <span className="text-xs text-muted-foreground w-8">{globalIdx + 1}.</span>
                         <div className="flex flex-col min-w-0">
-                          <span className="truncate">
-                            {c.nome ? `${c.nome} - ` : ""}{c.numero}
-                          </span>
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="truncate">
+                              {c.nome ? `${c.nome} - ` : ""}{c.numero}
+                            </span>
+                            {numerosDisparados.has(c.numero.slice(-8)) && (
+                              <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">
+                                nutrindo
+                              </Badge>
+                            )}
+                          </div>
                           {c.origem && (
                             <span className="text-[10px] text-muted-foreground truncate">
                               {c.origem}
