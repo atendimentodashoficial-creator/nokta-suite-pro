@@ -1348,7 +1348,7 @@ export function NovaCampanhaDialog({
 
   // ── Etapa 1: Instâncias ──────────────────────────────────────────────────────
   const renderEtapa1 = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
         {/* Header */}
         <div className="flex flex-col items-center gap-2 py-6">
@@ -1381,10 +1381,10 @@ export function NovaCampanhaDialog({
                     }`}
                   >
                     {/* Avatar */}
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0 ${
-                      isSelected ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                      isSelected ? "bg-green-500 text-white shadow-md" : "bg-muted text-muted-foreground"
                     }`}>
-                      {inst.nome.charAt(0).toUpperCase()}
+                      <Phone className="h-5 w-5" />
                     </div>
 
                     {/* Info */}
@@ -1812,7 +1812,7 @@ export function NovaCampanhaDialog({
 
   // ── Etapa 3: Contatos ────────────────────────────────────────────────────────
   const renderEtapa3 = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
         <div className="space-y-4 pt-4">
 
@@ -1952,8 +1952,8 @@ export function NovaCampanhaDialog({
     <>
       {/* Main Dialog */}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden p-0">
-          <div className="flex flex-col h-full max-h-[90vh]">
+        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] overflow-hidden p-0 flex flex-col">
+          <div className="flex flex-col h-full min-h-0">
             {/* Fixed Header */}
             <div className="p-4 sm:p-6 pb-3 flex-shrink-0 border-b border-border">
               <div className="flex items-center justify-between mb-3">
@@ -2006,7 +2006,7 @@ export function NovaCampanhaDialog({
             </div>
 
             {/* Step Content */}
-            <div className="flex-1 overflow-hidden min-h-0">
+            <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
               {etapaCriacao === 1 && renderEtapa1()}
               {etapaCriacao === 2 && renderEtapa2()}
               {etapaCriacao === 3 && renderEtapa3()}
