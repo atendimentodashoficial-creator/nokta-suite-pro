@@ -1923,9 +1923,6 @@ export function NovaCampanhaDialog({
               </Label>
             </div>
             <div className="flex gap-1.5">
-              <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource}>
-                <Users className="h-3.5 w-3.5 mr-1" />Importar
-              </Button>
               <Button variant="outline" size="sm" onClick={async () => {
                 try {
                   const text = await navigator.clipboard.readText();

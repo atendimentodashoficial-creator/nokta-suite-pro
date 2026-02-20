@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Database, Trash2, Plus, Users, RefreshCw, ChevronRight } from "lucide-react";
+import { Database, Trash2, Plus, Users, RefreshCw, ChevronRight, Download } from "lucide-react";
 import { CamposSistemaManager } from "./CamposSistemaManager";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ImportarListaDialog } from "./ImportarListaDialog";
+import { ImportarDeOrigemDialog } from "./ImportarDeOrigemDialog";
 import { ListaContatosView } from "./ListaContatosView";
+
 
 interface ColunaMapeamento {
   colunaCsv: string;
@@ -30,6 +32,7 @@ export function ListasImportadasManager() {
   const [listas, setListas] = useState<ListaImportada[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [importarOpen, setImportarOpen] = useState(false);
+  const [importarOrigemOpen, setImportarOrigemOpen] = useState(false);
   const [listaParaExcluir, setListaParaExcluir] = useState<ListaImportada | null>(null);
   const [listaAberta, setListaAberta] = useState<ListaImportada | null>(null);
 
@@ -95,9 +98,13 @@ export function ListasImportadasManager() {
           <Button variant="outline" size="sm" onClick={loadListas} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportarOrigemOpen(true)}>
+            <Download className="w-4 h-4" />
+            Importar de Origem
+          </Button>
           <Button size="sm" className="gap-2" onClick={() => setImportarOpen(true)}>
             <Plus className="w-4 h-4" />
-            Importar Lista
+            Importar CSV
           </Button>
         </div>
       </div>
@@ -159,6 +166,12 @@ export function ListasImportadasManager() {
       <ImportarListaDialog
         open={importarOpen}
         onOpenChange={setImportarOpen}
+        onListaImportada={loadListas}
+      />
+
+      <ImportarDeOrigemDialog
+        open={importarOrigemOpen}
+        onOpenChange={setImportarOrigemOpen}
         onListaImportada={loadListas}
       />
 
