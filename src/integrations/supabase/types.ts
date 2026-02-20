@@ -1522,6 +1522,7 @@ export type Database = {
       disparos_kanban_config: {
         Row: {
           auto_move_column_id: string | null
+          auto_move_reuniao_column_id: string | null
           created_at: string
           id: string
           updated_at: string
@@ -1529,6 +1530,7 @@ export type Database = {
         }
         Insert: {
           auto_move_column_id?: string | null
+          auto_move_reuniao_column_id?: string | null
           created_at?: string
           id?: string
           updated_at?: string
@@ -1536,6 +1538,7 @@ export type Database = {
         }
         Update: {
           auto_move_column_id?: string | null
+          auto_move_reuniao_column_id?: string | null
           created_at?: string
           id?: string
           updated_at?: string
@@ -1545,6 +1548,13 @@ export type Database = {
           {
             foreignKeyName: "disparos_kanban_config_auto_move_column_id_fkey"
             columns: ["auto_move_column_id"]
+            isOneToOne: false
+            referencedRelation: "disparos_kanban_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disparos_kanban_config_auto_move_reuniao_column_id_fkey"
+            columns: ["auto_move_reuniao_column_id"]
             isOneToOne: false
             referencedRelation: "disparos_kanban_columns"
             referencedColumns: ["id"]
