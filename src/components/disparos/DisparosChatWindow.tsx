@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { RefreshCw, Send, Calendar, Trash2, MessageSquare, Image, Mic, Forward, X, ArrowLeft, Pencil, Check, ChevronDown, Repeat, Wifi } from "lucide-react";
+import { RefreshCw, Send, Calendar, Trash2, MessageSquare, Image, Mic, Forward, X, ArrowLeft, Pencil, Check, ChevronDown, Repeat, Wifi, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +32,7 @@ import { useBlocosMensagens } from "@/hooks/useBlocosMensagens";
 import { useAudiosPredefinidos } from "@/hooks/useAudiosPredefinidos";
 import { useBlocosAudios } from "@/hooks/useBlocosAudios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ContatoDetalhesPopup } from "./ContatoDetalhesPopup";
 
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -236,6 +237,8 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   const [instanciasStatus, setInstanciasStatus] = useState<Record<string, 'loading' | 'connected' | 'disconnected'>>({});
   const [changeInstanceOpen, setChangeInstanceOpen] = useState(false);
   const [changingInstance, setChangingInstance] = useState(false);
+  const [contatoDetalhesOpen, setContatoDetalhesOpen] = useState(false);
+  const [contatoMapeado, setContatoMapeado] = useState<{ contato: any; camposMapeados: Record<string, string> } | null>(null);
 
   // Atualizar cache sempre que mensagens mudarem
   useEffect(() => {
@@ -592,6 +595,50 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     }
   };
 
+  // Buscar dados mapeados do contato nas listas importadas
+  const loadContatoMapeado = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const phoneDigits = chat.contact_number.replace(/\D/g, "");
+      const last8 = phoneDigits.slice(-8);
+
+      // Buscar contato nas listas importadas pelos últimos 8 dígitos
+      const { data: contatos } = await supabase
+        .from("lista_importada_contatos")
+        .select("id, nome, telefone, email, cidade, dados_extras, lista_id")
+        .eq("user_id", user.id)
+        .ilike("telefone", `%${last8}`)
+        .limit(1);
+
+      if (!contatos || contatos.length === 0) return;
+
+      const contato = contatos[0];
+
+      // Buscar mapeamento da lista
+      const { data: lista } = await supabase
+        .from("listas_importadas")
+        .select("colunas_mapeamento")
+        .eq("id", contato.lista_id)
+        .single();
+
+      const mapeamento: Array<{ colunaCsv: string; campoSistema: string }> =
+        (lista?.colunas_mapeamento as any) ?? [];
+
+      const camposMapeados: Record<string, string> = {};
+      mapeamento.forEach((m: any) => {
+        if (m.campoSistema && m.campoSistema !== "ignorar") {
+          camposMapeados[m.campoSistema] = m.colunaCsv;
+        }
+      });
+
+      setContatoMapeado({ contato, camposMapeados });
+    } catch (error) {
+      console.error("Erro ao buscar contato mapeado:", error);
+    }
+  };
+
   useEffect(() => {
     setEditedName(chat.contact_name);
     setIsEditingName(false);
@@ -840,6 +887,7 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
   useEffect(() => {
     loadMessages(true);
     loadLeadStatus();
+    loadContatoMapeado();
     
     // Background sync to catch any messages missed by webhook
     syncMessagesFromApiSilent();
@@ -1270,6 +1318,18 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {contatoMapeado && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setContatoDetalhesOpen(true)}
+              title="Ver dados mapeados do contato"
+            >
+              <Info className="w-4 h-4" />
+            </Button>
+          )}
           
           <Button
             variant="ghost"
@@ -1915,6 +1975,16 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Popup de dados mapeados do contato */}
+      {contatoMapeado && (
+        <ContatoDetalhesPopup
+          contato={contatoMapeado.contato}
+          camposMapeados={contatoMapeado.camposMapeados}
+          open={contatoDetalhesOpen}
+          onOpenChange={(o) => !o && setContatoDetalhesOpen(false)}
+        />
+      )}
     </div>
   );
 }
