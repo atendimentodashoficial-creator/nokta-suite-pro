@@ -494,10 +494,6 @@ export function NovaCampanhaDialog({
     }));
   };
   const removeBloco = (blocoId: string) => {
-    if (blocos.length <= 1) {
-      toast.error("É necessário ter pelo menos um bloco de mensagem");
-      return;
-    }
     setBlocos(prev => prev.filter(b => b.id !== blocoId));
     setBlocosAbertos(prev => {
       const newState = {
