@@ -72,6 +72,7 @@ interface DisparosInstancia {
   id: string;
   nome: string;
   base_url: string;
+  api_key: string;
   is_active: boolean;
 }
 interface MensagemVariacao {
@@ -301,14 +302,14 @@ export function NovaCampanhaDialog({
     instanciasList.forEach(i => { loadingMap[i.id] = "loading"; });
     setInstanciaStatusMap(loadingMap);
 
-    // Verifica todas em paralelo
+    // Verifica todas em paralelo passando base_url e api_key
     const results = await Promise.all(
       instanciasList.map(async (inst) => {
         try {
           const { data, error } = await supabase.functions.invoke("uazapi-check-status", {
-            body: { instancia_id: inst.id },
+            body: { base_url: inst.base_url, api_key: inst.api_key },
           });
-          const connected = !error && data?.connected === true;
+          const connected = !error && data?.success === true;
           return { id: inst.id, status: connected ? "connected" : "disconnected" } as const;
         } catch {
           return { id: inst.id, status: "disconnected" } as const;
@@ -336,7 +337,7 @@ export function NovaCampanhaDialog({
     
     const { data } = await supabase
       .from("disparos_instancias")
-      .select("id, nome, base_url, is_active")
+      .select("id, nome, base_url, api_key, is_active")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .order("created_at");
