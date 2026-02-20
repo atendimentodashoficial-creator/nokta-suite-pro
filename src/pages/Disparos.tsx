@@ -14,6 +14,7 @@ import { NovaCampanhaDialog } from "@/components/disparos/NovaCampanhaDialog";
 import { CompararListasDialog } from "@/components/disparos/CompararListasDialog";
 import { CampanhasTab } from "@/components/disparos/CampanhasTab";
 import { TemplatesTab } from "@/components/disparos/TemplatesTab";
+import { ListasImportadasManager } from "@/components/disparos/ListasImportadasManager";
 import { ChatAvatar } from "@/components/whatsapp/ChatAvatar";
 import { formatPhoneNumber, formatRelativeTime, truncateText, getInitials, normalizePhoneNumber, getLast8Digits, formatLastMessagePreview } from "@/utils/whatsapp";
 import { CONTACT_NAME_UPDATED_EVENT } from "@/utils/syncContactName";
@@ -1063,6 +1064,10 @@ export default function Disparos() {
                   <FileText className="h-3.5 w-3.5" />
                   Templates
                 </TabsTrigger>
+                <TabsTrigger value="listas" className="gap-1.5 text-xs px-3 h-7">
+                  <List className="h-3.5 w-3.5" />
+                  Listas
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -1607,6 +1612,10 @@ export default function Disparos() {
       ) : activeTab === "templates" ? (
         <div className="flex-1 overflow-y-auto">
           <TemplatesTab />
+        </div>
+      ) : activeTab === "listas" ? (
+        <div className="flex-1 overflow-y-auto p-4">
+          <ListasImportadasManager />
         </div>
       ) : null}
 
