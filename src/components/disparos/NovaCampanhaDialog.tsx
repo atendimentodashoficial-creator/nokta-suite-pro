@@ -158,7 +158,7 @@ export function NovaCampanhaDialog({
   const [allContactsFilterOrigens, setAllContactsFilterOrigens] = useState<Set<string>>(new Set());
 
   // Deduplicação automática de números
-  const [deduplicarNumeros, setDeduplicarNumeros] = useState(true);
+  const [deduplicarNumeros, setDeduplicarNumeros] = useState(false);
 
   // Lista de origens únicas para o dropdown
   const origensUnicas = useMemo(() => {
@@ -167,6 +167,20 @@ export function NovaCampanhaDialog({
       if (c.origem) origens.add(c.origem);
     });
     return Array.from(origens).sort();
+  }, [contatos]);
+
+  // Conjunto de números duplicados (aparecem mais de uma vez nos últimos 8 dígitos)
+  const numerosComDuplicata = useMemo(() => {
+    const countMap = new Map<string, number>();
+    contatos.forEach(c => {
+      const key = getLast8Digits(c.numero);
+      countMap.set(key, (countMap.get(key) || 0) + 1);
+    });
+    const dup = new Set<string>();
+    countMap.forEach((count, key) => {
+      if (count > 1) dup.add(key);
+    });
+    return dup;
   }, [contatos]);
 
   // Contatos filtrados por origem (multi-select)
@@ -1977,6 +1991,7 @@ export function NovaCampanhaDialog({
                   const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
                   const isSelected = selectedContacts.has(c.numero);
                   const isNutrindo = numerosDisparados.has(c.numero.slice(-8));
+                  const isDuplicado = numerosComDuplicata.has(getLast8Digits(c.numero));
                   const extras = c.dados_extras ?? {};
                   const sociaisDoContato = SOCIAL_TIPOS_CAMP.filter(chave => extras[chave]?.trim());
                   return (
@@ -1993,6 +2008,9 @@ export function NovaCampanhaDialog({
                             <span className="truncate text-sm">{c.nome ? `${c.nome} - ` : ""}{c.numero}</span>
                             {isNutrindo && (
                               <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                            )}
+                            {isDuplicado && (
+                              <Badge className="text-[9px] px-1 py-0 h-4 bg-blue-500/20 text-blue-700 border-blue-500/30 shrink-0">duplicado</Badge>
                             )}
                           </div>
                           {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
@@ -2340,6 +2358,8 @@ export function NovaCampanhaDialog({
                   .map((c, idx) => {
                     const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
                     const isSelected = selectedContacts.has(c.numero);
+                    const isNutrindo = numerosDisparados.has(c.numero.slice(-8));
+                    const isDuplicado = numerosComDuplicata.has(getLast8Digits(c.numero));
                     const extras = c.dados_extras ?? {};
                     const sociaisDoContato = SOCIAL_TIPOS_CAMP.filter(
                       (chave) => extras[chave] && extras[chave].trim()
@@ -2354,10 +2374,13 @@ export function NovaCampanhaDialog({
                           <Checkbox checked={isSelected} onCheckedChange={() => toggleContactSelection(c.numero)} onClick={e => e.stopPropagation()} />
                           <span className="text-xs text-muted-foreground w-8">{globalIdx + 1}.</span>
                           <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-1.5 truncate">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="truncate">{c.nome ? `${c.nome} - ` : ""}{c.numero}</span>
-                              {numerosDisparados.has(c.numero.slice(-8)) && (
+                              {isNutrindo && (
                                 <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                              )}
+                              {isDuplicado && (
+                                <Badge className="text-[9px] px-1 py-0 h-4 bg-blue-500/20 text-blue-700 border-blue-500/30 shrink-0">duplicado</Badge>
                               )}
                             </div>
                             {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
