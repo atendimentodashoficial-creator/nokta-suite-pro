@@ -1923,29 +1923,6 @@ export function NovaCampanhaDialog({
               </Label>
             </div>
             <div className="flex gap-1.5">
-              <Button variant="outline" size="sm" onClick={async () => {
-                try {
-                  const text = await navigator.clipboard.readText();
-                  if (!text.trim()) { toast.info("Área de transferência vazia"); return; }
-                  const lines = text.split(/[\n\r]+/).filter(l => l.trim());
-                  const novosContatos: Contato[] = [];
-                  for (const line of lines) {
-                    const parts = line.split(/[,;\t]+/).map(p => p.trim());
-                    let numero = ""; let nome = "";
-                    for (const part of parts) {
-                      const digits = part.replace(/\D/g, "");
-                      if (digits.length >= 8 && !numero) { numero = normalizePhoneNumber(digits); }
-                      else if (part && !nome && !/^\d+$/.test(part)) { nome = part; }
-                    }
-                    if (numero && numero.length >= 8) { novosContatos.push({ numero, nome: nome || undefined }); }
-                  }
-                  if (novosContatos.length === 0) { toast.error("Nenhum número válido encontrado"); return; }
-                  addContatosWithSelection(novosContatos);
-                  toast.success(`${novosContatos.length} contato(s) colado(s)`);
-                } catch { toast.error("Não foi possível acessar a área de transferência"); }
-              }}>
-                <ClipboardPaste className="h-3.5 w-3.5 mr-1" />Colar
-              </Button>
               <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
                 if (contatos.length === 0) { toast.error("Nenhum contato para copiar"); return; }
                 const text = contatos.map(c => c.nome ? `${c.nome},${c.numero}` : c.numero).join("\n");
@@ -1963,16 +1940,7 @@ export function NovaCampanhaDialog({
             </div>
           </div>
 
-          {/* Linha 2: adicionar manual */}
-          <div className="flex gap-2">
-            <Input placeholder="Nome (opcional)" value={novoNome} onChange={e => setNovoNome(e.target.value)} className="flex-1 h-8 text-sm" />
-            <Input placeholder="Número (ex: 5521999999999)" value={novoNumero} onChange={e => setNovoNumero(e.target.value)} onKeyDown={e => e.key === "Enter" && addContato()} className="flex-1 h-8 text-sm" />
-            <Button onClick={addContato} variant="outline" size="icon" className="h-8 w-8 flex-shrink-0">
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          {/* Linha 3: seleção em massa + filtro origem */}
+          {/* Linha 2: seleção em massa + filtro origem */}
           {contatos.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap">
               <Button variant="default" size="sm" className="text-xs px-2 h-7" onClick={() => setSelectedContacts(new Set(contatos.map(c => c.numero)))}>
