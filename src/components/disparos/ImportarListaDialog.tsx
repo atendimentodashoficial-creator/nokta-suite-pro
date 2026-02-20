@@ -320,8 +320,8 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Database className="w-5 h-5" />
             Importar Lista de Contatos
@@ -365,7 +365,7 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
 
         {/* ─── ETAPA 2: Mapeamento ─────────────────────── */}
         {etapa === "mapeamento" && (
-          <div className="flex-1 flex flex-col gap-4 min-h-0">
+          <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-hidden">
             <div className="space-y-2">
               <Label htmlFor="nome-lista-map">Nome da lista</Label>
               <Input
