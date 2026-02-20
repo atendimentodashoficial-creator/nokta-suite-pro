@@ -209,7 +209,22 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
       .filter(Boolean) as any[];
   }, [csvHeaders, csvRows, mapeamentos]);
 
+  // ── Contatos ignorados (sem telefone válido) ─────────────────────────────
+  const getContatosIgnorados = useCallback((): number => {
+    const telefoneCol = mapeamentos.find((m) => m.campoSistema === "telefone")?.colunaCsv;
+    if (!telefoneCol) return 0;
+    const telefoneIdx = csvHeaders.indexOf(telefoneCol);
+    if (telefoneIdx === -1) return 0;
+
+    return csvRows.filter((row) => {
+      const rawPhone = row[telefoneIdx]?.trim() || "";
+      const telefone = normalizePhoneNumber(rawPhone);
+      return telefone.length < 8;
+    }).length;
+  }, [csvHeaders, csvRows, mapeamentos]);
+
   const contatosValidos = getContatosFromCsv();
+  const contatosIgnorados = getContatosIgnorados();
 
   // ── Salvar ──────────────────────────────────────────────────────────────
   const handleSalvar = async () => {
@@ -447,9 +462,16 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
             </ScrollArea>
 
             <div className="flex items-center justify-between pt-2 border-t border-border">
-              <span className="text-sm text-muted-foreground">
-                {contatosValidos.length} contato(s) válido(s) serão importados
-              </span>
+            <div className="flex flex-col gap-0.5">
+                <span className="text-sm text-muted-foreground">
+                  {contatosValidos.length} contato(s) válido(s) serão importados
+                </span>
+                {contatosIgnorados > 0 && (
+                  <span className="text-xs text-destructive">
+                    {contatosIgnorados} linha(s) ignorada(s) por telefone vazio ou inválido
+                  </span>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setEtapa("upload")}>
                   Voltar
