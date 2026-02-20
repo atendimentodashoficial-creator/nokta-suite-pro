@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode, useMemo } from "react";
-import { Upload, FileText, Image, Video, Music, X, Plus, Trash2, Users, Kanban, Phone, Shuffle, ChevronDown, ChevronUp, Layers, Copy, FileDown, List, ClipboardPaste, Database, RefreshCw, Check, CheckSquare, Square, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, FileText, Image, Video, Music, X, Plus, Trash2, Users, Kanban, Phone, Shuffle, ChevronDown, ChevronUp, Layers, Copy, FileDown, List, ClipboardPaste, Database, RefreshCw, Check, CheckSquare, Square, ChevronLeft, ChevronRight, ExternalLink, AtSign, Info } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { normalizePhoneNumber } from "@/utils/whatsapp";
 import { expandSpintax, processSpintaxRandom } from "@/utils/spintax";
+import { ContatoDetalhesPopup } from "./ContatoDetalhesPopup";
 interface TemplateData {
   id: string;
   nome: string;
@@ -38,10 +39,17 @@ interface NovaCampanhaDialogProps {
   onOpenChange: (open: boolean) => void;
   onCampanhaCriada: () => void;
 }
+interface ColunaMapeamento {
+  colunaCsv: string;
+  campoSistema: string;
+}
+
 interface Contato {
   numero: string;
   nome?: string;
   origem?: string; // Nome da lista/fonte de onde foi importado
+  dados_extras?: Record<string, string> | null;
+  camposMapeados?: Record<string, string> | null; // chave -> nome amigável
 }
 interface KanbanColumn {
   id: string;
@@ -137,6 +145,9 @@ export function NovaCampanhaDialog({
 
   // Números que já foram disparados em alguma campanha (para badge "nutrindo")
   const [numerosDisparados, setNumerosDisparados] = useState<Set<string>>(new Set());
+
+  // Popup de detalhes do contato na etapa 3
+  const [contatoDetalhesAberto, setContatoDetalhesAberto] = useState<Contato | null>(null);
 
   // Seleção de contatos (para permitir desselecionar antes de criar campanha)
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
@@ -352,25 +363,40 @@ export function NovaCampanhaDialog({
     try {
       const { data } = await supabase
         .from("listas_importadas")
-        .select("id, nome, total_contatos")
+        .select("id, nome, total_contatos, colunas_mapeamento")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (!data || data.length === 0) return;
       setListasImportadas(data);
 
-      // Busca todos os contatos de todas as listas em paralelo e importa automaticamente
+      // Busca todos os contatos de todas as listas e importa automaticamente
       const allContatos: Contato[] = [];
       for (const lista of data) {
+        // Monta mapa campo -> label amigável
+        const mapeamento = (lista.colunas_mapeamento as unknown as ColunaMapeamento[] | null) ?? [];
+        const camposMapeados: Record<string, string> = {};
+        mapeamento.forEach((m) => {
+          if (m.campoSistema && m.campoSistema !== "ignorar") {
+            camposMapeados[m.campoSistema] = m.colunaCsv;
+          }
+        });
+
         const { data: contatosData } = await supabase
           .from("lista_importada_contatos")
-          .select("telefone, nome")
+          .select("telefone, nome, dados_extras")
           .eq("lista_id", lista.id)
           .eq("user_id", user.id);
         (contatosData || []).forEach((c: any) => {
           if (c.telefone) {
             const numero = normalizePhoneNumber(c.telefone);
             if (numero.length >= 8) {
-              allContatos.push({ numero, nome: c.nome || undefined, origem: lista.nome });
+              allContatos.push({
+                numero,
+                nome: c.nome || undefined,
+                origem: lista.nome,
+                dados_extras: c.dados_extras || null,
+                camposMapeados: Object.keys(camposMapeados).length > 0 ? camposMapeados : null,
+              });
             }
           }
         });
@@ -1849,7 +1875,28 @@ export function NovaCampanhaDialog({
     </div>
   );
 
+  // ── Helpers de redes sociais para etapa 3 ────────────────────────────────────
+  const SOCIAL_TIPOS_CAMP = ["instagram","facebook","tiktok","youtube","linkedin","twitter","whatsapp","kwai","link"];
+  const SOCIAL_PREFIXES_CAMP: Record<string, string> = {
+    instagram: "https://instagram.com/",
+    facebook:  "https://facebook.com/",
+    tiktok:    "https://tiktok.com/@",
+    youtube:   "https://youtube.com/@",
+    linkedin:  "https://linkedin.com/in/",
+    twitter:   "https://x.com/",
+    whatsapp:  "https://wa.me/",
+    kwai:      "https://kwai.com/@",
+    link:      "",
+  };
+  const buildSocialUrl = (tipo: string, valor: string): string => {
+    const prefix = SOCIAL_PREFIXES_CAMP[tipo] ?? "";
+    if (!prefix) return valor.startsWith("http") ? valor : `https://${valor}`;
+    if (valor.startsWith("http")) return valor;
+    return prefix + valor.replace(/^@/, "");
+  };
+
   // ── Etapa 3: Contatos ────────────────────────────────────────────────────────
+
   const renderEtapa3 = () => (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
@@ -1943,6 +1990,10 @@ export function NovaCampanhaDialog({
                 {contatos.slice(0, 50).map(c => {
                   const isSelected = selectedContacts.has(c.numero);
                   const isNutrindo = numerosDisparados.has(c.numero.slice(-8));
+                  const extras = c.dados_extras ?? {};
+                  const sociaisDoContato = SOCIAL_TIPOS_CAMP.filter(
+                    (chave) => extras[chave] && extras[chave].trim()
+                  );
                   return (
                     <div
                       key={c.numero}
@@ -1956,9 +2007,26 @@ export function NovaCampanhaDialog({
                           <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
                         )}
                       </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => { e.stopPropagation(); removeContato(c.numero); }}>
-                        <X className="h-3 w-3" />
-                      </Button>
+                      <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                        {sociaisDoContato.map((chave) => {
+                          const valor = extras[chave];
+                          const url = buildSocialUrl(chave, valor);
+                          const Icon = chave === "whatsapp" ? Phone : chave === "link" ? ExternalLink : AtSign;
+                          return (
+                            <Button key={chave} size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-primary" title={`${chave}: ${valor}`} asChild>
+                              <a href={url} target="_blank" rel="noreferrer"><Icon className="w-3 h-3" /></a>
+                            </Button>
+                          );
+                        })}
+                        {(Object.keys(extras).length > 0 || c.camposMapeados) && (
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => setContatoDetalhesAberto(c)}>
+                            <Info className="w-3 h-3" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeContato(c.numero)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -2264,6 +2332,10 @@ export function NovaCampanhaDialog({
                   .map((c, idx) => {
                     const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
                     const isSelected = selectedContacts.has(c.numero);
+                    const extras = c.dados_extras ?? {};
+                    const sociaisDoContato = SOCIAL_TIPOS_CAMP.filter(
+                      (chave) => extras[chave] && extras[chave].trim()
+                    );
                     return (
                       <div
                         key={`${globalIdx}-${c.numero}`}
@@ -2283,9 +2355,26 @@ export function NovaCampanhaDialog({
                             {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
                           </div>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => { e.stopPropagation(); removeContato(c.numero); }}>
-                          <X className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                          {sociaisDoContato.map((chave) => {
+                            const valor = extras[chave];
+                            const url = buildSocialUrl(chave, valor);
+                            const Icon = chave === "whatsapp" ? Phone : chave === "link" ? ExternalLink : AtSign;
+                            return (
+                              <Button key={chave} size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-primary" title={`${chave}: ${valor}`} asChild>
+                                <a href={url} target="_blank" rel="noreferrer"><Icon className="w-3 h-3" /></a>
+                              </Button>
+                            );
+                          })}
+                          {(Object.keys(extras).length > 0 || c.camposMapeados) && (
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => setContatoDetalhesAberto(c)}>
+                              <Info className="w-3 h-3" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeContato(c.numero)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
@@ -2325,6 +2414,23 @@ export function NovaCampanhaDialog({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Popup de detalhes do contato */}
+      {contatoDetalhesAberto && (
+        <ContatoDetalhesPopup
+          contato={{
+            id: contatoDetalhesAberto.numero,
+            nome: contatoDetalhesAberto.nome ?? null,
+            telefone: contatoDetalhesAberto.numero,
+            email: null,
+            cidade: null,
+            dados_extras: contatoDetalhesAberto.dados_extras ?? null,
+          }}
+          camposMapeados={contatoDetalhesAberto.camposMapeados ?? {}}
+          open={!!contatoDetalhesAberto}
+          onOpenChange={(o) => !o && setContatoDetalhesAberto(null)}
+        />
+      )}
     </>
   );
 }
