@@ -13,7 +13,7 @@ import {
   formatLastMessagePreview,
   truncateText,
 } from "@/utils/whatsapp";
-import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, Phone, Filter, CheckSquare, Square, XCircle } from "lucide-react";
+import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, Phone, Filter, CheckSquare, Square, XCircle, ArrowRightCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -109,6 +109,9 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Auto-move on first reply config
+  const [autoMoveColumnId, setAutoMoveColumnId] = useState<string>("none");
+
   // Filter chats by instance
   const filteredChats = useMemo(() => {
     if (selectedInstanciaFilter === "all") return chats;
@@ -150,27 +153,65 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const { data: columnsData } = await supabase
-        .from("disparos_kanban_columns")
-        .select("*")
-        .eq("ativo", true)
-        .order("ordem", { ascending: true });
+      const { data: { user } } = await supabase.auth.getUser();
 
-      setColumns(columnsData || []);
+      const [columnsResult, assignmentsResult, configResult] = await Promise.all([
+        supabase
+          .from("disparos_kanban_columns")
+          .select("*")
+          .eq("ativo", true)
+          .order("ordem", { ascending: true }),
+        supabase
+          .from("disparos_chat_kanban")
+          .select("chat_id, column_id"),
+        user
+          ? supabase
+              .from("disparos_kanban_config")
+              .select("auto_move_column_id")
+              .eq("user_id", user.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
-      const { data: assignmentsData } = await supabase
-        .from("disparos_chat_kanban")
-        .select("chat_id, column_id");
+      setColumns(columnsResult.data || []);
 
       const map: Record<string, string> = {};
-      assignmentsData?.forEach((a) => {
+      assignmentsResult.data?.forEach((a) => {
         map[a.chat_id] = a.column_id;
       });
       setChatColumnMap(map);
+
+      if (configResult.data?.auto_move_column_id) {
+        setAutoMoveColumnId(configResult.data.auto_move_column_id);
+      } else {
+        setAutoMoveColumnId("none");
+      }
     } catch (error) {
       console.error("Error loading kanban data:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const saveAutoMoveColumn = async (columnId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const value = columnId === "none" ? null : columnId;
+
+      await supabase
+        .from("disparos_kanban_config")
+        .upsert(
+          { user_id: user.id, auto_move_column_id: value, updated_at: new Date().toISOString() },
+          { onConflict: "user_id" }
+        );
+
+      setAutoMoveColumnId(columnId);
+      toast.success(columnId === "none" ? "Auto-movimentação desativada" : "Coluna de auto-movimentação salva!");
+    } catch (error) {
+      console.error("Error saving auto-move config:", error);
+      toast.error("Erro ao salvar configuração");
     }
   };
 
@@ -646,6 +687,30 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
             <CheckSquare className="w-4 h-4" />
           </Button>
         )}
+
+        {/* Auto-move on first reply */}
+        <div className="flex items-center gap-1.5">
+          <ArrowRightCircle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <Select value={autoMoveColumnId} onValueChange={saveAutoMoveColumn}>
+            <SelectTrigger className="w-[175px] h-8 text-xs">
+              <SelectValue placeholder="Mover na 1ª resposta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sem auto-movimentação</SelectItem>
+              {columns.map(col => (
+                <SelectItem key={col.id} value={col.id}>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: col.cor }}
+                    />
+                    {col.nome}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="flex-1" />
         
