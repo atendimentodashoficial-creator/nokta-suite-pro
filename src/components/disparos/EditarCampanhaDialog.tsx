@@ -282,14 +282,17 @@ export function EditarCampanhaDialog({
       if (campanhaError) throw campanhaError;
 
       setNome(campanha.nome);
-      if (campanha.delay_min >= 60) {
+      // Detect if values were saved in minutes (both divisible by 60 and >= 60)
+      const bothDivisibleBy60 = campanha.delay_min >= 60 && campanha.delay_max >= 60 &&
+        campanha.delay_min % 60 === 0 && campanha.delay_max % 60 === 0;
+      if (bothDivisibleBy60) {
+        setDelayUnit("minutes");
+        setDelayMin(Math.round(campanha.delay_min / 60));
+        setDelayMax(Math.round(campanha.delay_max / 60));
+      } else {
         setDelayUnit("seconds");
         setDelayMin(campanha.delay_min);
         setDelayMax(campanha.delay_max);
-      } else {
-        setDelayUnit("minutes");
-        setDelayMin(Math.max(1, Math.round(campanha.delay_min / 60)));
-        setDelayMax(Math.max(1, Math.round(campanha.delay_max / 60)));
       }
       setDelayBlocoMin(campanha.delay_bloco_min || 3);
       setDelayBlocoMax(campanha.delay_bloco_max || 8);
