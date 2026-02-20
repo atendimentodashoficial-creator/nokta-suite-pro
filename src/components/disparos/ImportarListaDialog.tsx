@@ -390,7 +390,7 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
               <span>Campo do sistema</span>
             </div>
 
-            <ScrollArea className="flex-1 pr-2" style={{ maxHeight: "calc(85vh - 320px)" }}>
+            <div className="flex-1 overflow-y-auto pr-2 min-h-0">
               <div className="space-y-3">
                 {mapeamentos.map((m) => {
                   const colIdx = csvHeaders.indexOf(m.colunaCsv);
@@ -488,7 +488,7 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-border">
             <div className="flex flex-col gap-0.5">
