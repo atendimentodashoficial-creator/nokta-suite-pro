@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   Plus, Trash2, Pencil, Settings2, GripVertical,
-  Type, Hash, Mail, Link, Phone, Calendar, FileText, List, MapPin, IdCard
+  Type, Hash, Mail, Link, Phone, Calendar, FileText, List, MapPin, IdCard, AtSign
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
@@ -32,15 +32,21 @@ export interface CampoSistema {
 }
 
 export const TIPOS_CAMPO = [
-  { value: "texto",    label: "Texto",       icon: Type },
-  { value: "numero",   label: "Número",      icon: Hash },
-  { value: "email",    label: "E-mail",      icon: Mail },
-  { value: "link",     label: "Link / URL",  icon: Link },
-  { value: "telefone", label: "Telefone",    icon: Phone },
-  { value: "data",     label: "Data",        icon: Calendar },
-  { value: "cpf",      label: "CPF",         icon: IdCard },
-  { value: "cep",      label: "CEP",         icon: MapPin },
-  { value: "select",   label: "Seleção",     icon: List },
+  { value: "texto",      label: "Texto",        icon: Type },
+  { value: "numero",     label: "Número",       icon: Hash },
+  { value: "email",      label: "E-mail",       icon: Mail },
+  { value: "link",       label: "Link / URL",   icon: Link },
+  { value: "telefone",   label: "Telefone",     icon: Phone },
+  { value: "data",       label: "Data",         icon: Calendar },
+  { value: "cpf",        label: "CPF",          icon: IdCard },
+  { value: "cep",        label: "CEP",          icon: MapPin },
+  { value: "select",     label: "Seleção",      icon: List },
+  { value: "instagram",  label: "Instagram",    icon: AtSign, prefix: "instagram.com/" },
+  { value: "facebook",   label: "Facebook",     icon: AtSign, prefix: "facebook.com/" },
+  { value: "tiktok",     label: "TikTok",       icon: AtSign, prefix: "tiktok.com/@" },
+  { value: "youtube",    label: "YouTube",      icon: AtSign, prefix: "youtube.com/@" },
+  { value: "linkedin",   label: "LinkedIn",     icon: AtSign, prefix: "linkedin.com/in/" },
+  { value: "twitter",    label: "X / Twitter",  icon: AtSign, prefix: "x.com/" },
 ];
 
 // Campos fixos (não cadastráveis, sempre existem)
@@ -218,11 +224,28 @@ export function CamposSistemaManager() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_CAMPO.map((t) => (
+                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                        Tipos básicos
+                      </div>
+                      {TIPOS_CAMPO.filter((t) => !["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(t.value)).map((t) => (
                         <SelectItem key={t.value} value={t.value}>
                           <div className="flex items-center gap-2">
                             <t.icon className="w-4 h-4 text-muted-foreground" />
                             {t.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mt-1">
+                        Redes sociais
+                      </div>
+                      {TIPOS_CAMPO.filter((t) => ["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(t.value)).map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          <div className="flex items-center gap-2">
+                            <t.icon className="w-4 h-4 text-muted-foreground" />
+                            <span>{t.label}</span>
+                            {"prefix" in t && (
+                              <span className="text-xs text-muted-foreground">{t.prefix}…</span>
+                            )}
                           </div>
                         </SelectItem>
                       ))}
