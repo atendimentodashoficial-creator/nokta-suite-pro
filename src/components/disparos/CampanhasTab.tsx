@@ -866,10 +866,6 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
 
               {/* Timestamps */}
               <div className="text-xs text-muted-foreground space-y-0.5">
-                <div className="flex items-center gap-1">
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground flex-shrink-0" />
-                  <span>Criada em {format(new Date(campanha.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
-                </div>
                 {campanha.iniciado_em && (
                   <div className="flex items-center gap-1">
                     <span className="w-1 h-1 rounded-full bg-muted-foreground flex-shrink-0" />
