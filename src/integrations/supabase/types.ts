@@ -3413,6 +3413,48 @@ export type Database = {
           },
         ]
       }
+      lista_campos_sistema: {
+        Row: {
+          ativo: boolean
+          chave: string
+          created_at: string
+          id: string
+          nome: string
+          obrigatorio: boolean
+          opcoes: Json | null
+          ordem: number
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          chave: string
+          created_at?: string
+          id?: string
+          nome: string
+          obrigatorio?: boolean
+          opcoes?: Json | null
+          ordem?: number
+          tipo?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          chave?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          obrigatorio?: boolean
+          opcoes?: Json | null
+          ordem?: number
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lista_importada_contatos: {
         Row: {
           cidade: string | null

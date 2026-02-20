@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, FileText, ArrowRight, X, Check, ChevronDown, Database, Trash2 } from "lucide-react";
+import { Upload, FileText, ArrowRight, Database } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,21 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { normalizePhoneNumber } from "@/utils/whatsapp";
-
-// ── Campos do sistema para mapear ──────────────────────────────────────────
-const CAMPOS_SISTEMA = [
-  { key: "telefone", label: "Telefone", required: true },
-  { key: "nome", label: "Nome" },
-  { key: "email", label: "Email" },
-  { key: "cidade", label: "Cidade" },
-  { key: "ignorar", label: "Ignorar coluna" },
-];
+import { useQuery } from "@tanstack/react-query";
+import { CAMPOS_FIXOS, TIPOS_CAMPO, CampoSistema } from "./CamposSistemaManager";
 
 interface ImportarListaDialogProps {
   open: boolean;
@@ -31,10 +22,17 @@ interface ImportarListaDialogProps {
 
 interface ColunaMapeamento {
   colunaCsv: string;
-  campoSistema: string; // key do CAMPOS_SISTEMA ou ""
+  campoSistema: string;
 }
 
-type Etapa = "upload" | "mapeamento" | "confirmacao";
+type Etapa = "upload" | "mapeamento";
+
+function getTipoIcon(tipo: string) {
+  const found = TIPOS_CAMPO.find((t) => t.value === tipo);
+  const Icon = found?.icon;
+  if (!Icon) return null;
+  return <Icon className="w-3.5 h-3.5 text-muted-foreground" />;
+}
 
 export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: ImportarListaDialogProps) {
   const { user } = useAuth();
@@ -46,6 +44,29 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [mapeamentos, setMapeamentos] = useState<ColunaMapeamento[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Busca campos personalizados ativos
+  const { data: camposCustom = [] } = useQuery<CampoSistema[]>({
+    queryKey: ["lista-campos-sistema", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lista_campos_sistema" as any)
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("ativo", true)
+        .order("ordem", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as CampoSistema[];
+    },
+    enabled: !!user?.id && open,
+  });
+
+  // Todos os campos disponíveis para mapeamento
+  const todosCampos = [
+    ...CAMPOS_FIXOS.map((f) => ({ key: f.key, label: f.label, required: f.required, tipo: f.tipo, isFixed: true })),
+    ...camposCustom.map((c) => ({ key: c.chave, label: c.nome, required: c.obrigatorio, tipo: c.tipo, isFixed: false })),
+    { key: "ignorar", label: "Ignorar coluna", required: false, tipo: "", isFixed: true },
+  ];
 
   // ── Parsing CSV ─────────────────────────────────────────────────────────
   const parseCsv = (text: string): { headers: string[]; rows: string[][] } => {
@@ -76,7 +97,7 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
     return { headers, rows };
   };
 
-  // ── Auto-detect column mapping ──────────────────────────────────────────
+  // ── Auto-detect ──────────────────────────────────────────────────────────
   const autoDetectMappings = (headers: string[]): ColunaMapeamento[] => {
     return headers.map((h) => {
       const lower = h.toLowerCase();
@@ -86,6 +107,15 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
       else if (/nome|name|primeiro|first/i.test(lower)) campoSistema = "nome";
       else if (/email|e-mail|mail/i.test(lower)) campoSistema = "email";
       else if (/cidad|city|municipio|município/i.test(lower)) campoSistema = "cidade";
+      else {
+        // Tenta detectar entre campos customizados
+        const match = camposCustom.find((c) => {
+          const chk = c.chave.toLowerCase();
+          const nom = c.nome.toLowerCase();
+          return lower.includes(chk) || chk.includes(lower) || lower.includes(nom) || nom.includes(lower);
+        });
+        if (match) campoSistema = match.chave;
+      }
 
       return { colunaCsv: h, campoSistema };
     });
@@ -96,7 +126,6 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Use filename (without extension) as suggested list name
     const suggested = file.name.replace(/\.[^/.]+$/, "");
     if (!nomeLista) setNomeLista(suggested);
 
@@ -120,7 +149,6 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ── Mapeamento helpers ──────────────────────────────────────────────────
   const updateMapeamento = (colunaCsv: string, campoSistema: string) => {
     setMapeamentos((prev) =>
       prev.map((m) => (m.colunaCsv === colunaCsv ? { ...m, campoSistema } : m))
@@ -132,7 +160,7 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
     return mapeamentos.some((m) => m.campoSistema === campoKey && m.colunaCsv !== colunaCsvAtual);
   };
 
-  // ── Contatos parseados (preview + submit) ───────────────────────────────
+  // ── Contatos parseados ───────────────────────────────────────────────────
   const getContatosFromCsv = useCallback((): Array<{
     nome?: string;
     telefone: string;
@@ -159,14 +187,14 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
         const telefone = normalizePhoneNumber(rawPhone);
         if (telefone.length < 8) return null;
 
-        // Extras: columns not mapped to any system field (and not ignored)
+        // Campos customizados → dados_extras
         const dados_extras: Record<string, string> = {};
         mapeamentos.forEach((m) => {
           if (!m.campoSistema || m.campoSistema === "ignorar") return;
           if (["telefone", "nome", "email", "cidade"].includes(m.campoSistema)) return;
           const idx = csvHeaders.indexOf(m.colunaCsv);
           if (idx !== -1 && row[idx]) {
-            dados_extras[m.colunaCsv] = row[idx].trim();
+            dados_extras[m.campoSistema] = row[idx].trim();
           }
         });
 
@@ -183,13 +211,10 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
 
   const contatosValidos = getContatosFromCsv();
 
-  // ── Salvar lista no banco ───────────────────────────────────────────────
+  // ── Salvar ──────────────────────────────────────────────────────────────
   const handleSalvar = async () => {
     if (!user) return;
-    if (!nomeLista.trim()) {
-      toast.error("Digite o nome da lista");
-      return;
-    }
+    if (!nomeLista.trim()) { toast.error("Digite o nome da lista"); return; }
     if (contatosValidos.length === 0) {
       toast.error("Nenhum contato válido. Verifique se a coluna de Telefone está mapeada.");
       return;
@@ -197,7 +222,6 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
 
     setIsLoading(true);
     try {
-      // 1. Criar a lista
       const { data: lista, error: listaError } = await supabase
         .from("listas_importadas")
         .insert({
@@ -211,7 +235,6 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
 
       if (listaError) throw listaError;
 
-      // 2. Inserir contatos em batches de 500
       const BATCH = 500;
       for (let i = 0; i < contatosValidos.length; i += BATCH) {
         const batch = contatosValidos.slice(i, i + BATCH).map((c) => ({
@@ -251,7 +274,6 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
     onOpenChange(false);
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
@@ -262,7 +284,7 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
           </DialogTitle>
         </DialogHeader>
 
-        {/* ─── ETAPA 1: Upload ─────────────────────────────── */}
+        {/* ─── ETAPA 1: Upload ─────────────────────────── */}
         {etapa === "upload" && (
           <div className="flex-1 flex flex-col gap-6 py-4">
             <div className="space-y-2">
@@ -297,7 +319,7 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
           </div>
         )}
 
-        {/* ─── ETAPA 2: Mapeamento ─────────────────────────── */}
+        {/* ─── ETAPA 2: Mapeamento ─────────────────────── */}
         {etapa === "mapeamento" && (
           <div className="flex-1 flex flex-col gap-4 min-h-0">
             <div className="space-y-2">
@@ -311,10 +333,14 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <FileText className="w-4 h-4" />
-              <span>{csvRows.length} linhas detectadas · {csvHeaders.length} colunas</span>
+              <span>{csvRows.length} linhas · {csvHeaders.length} colunas</span>
+              {camposCustom.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  +{camposCustom.length} campo(s) personalizado(s) disponível(is)
+                </Badge>
+              )}
             </div>
 
-            {/* Header labels */}
             <div className="grid grid-cols-2 gap-4 text-xs font-medium text-muted-foreground px-1">
               <span>Coluna do CSV</span>
               <span>Campo do sistema</span>
@@ -323,23 +349,19 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
             <ScrollArea className="flex-1 pr-2">
               <div className="space-y-3">
                 {mapeamentos.map((m) => {
-                  // preview value from first data row
                   const colIdx = csvHeaders.indexOf(m.colunaCsv);
                   const preview = csvRows[0]?.[colIdx]?.trim() || "";
+                  const campoInfo = todosCampos.find((c) => c.key === m.campoSistema);
 
                   return (
                     <div key={m.colunaCsv} className="grid grid-cols-2 gap-4 items-center">
-                      {/* Left: CSV column */}
                       <div className="space-y-0.5">
                         <p className="text-sm font-medium truncate">{m.colunaCsv}</p>
                         {preview && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            Ex: {preview}
-                          </p>
+                          <p className="text-xs text-muted-foreground truncate">Ex: {preview}</p>
                         )}
                       </div>
 
-                      {/* Arrow + Select */}
                       <div className="flex items-center gap-2">
                         <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
                         <Select
@@ -363,13 +385,19 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
                             <SelectItem value="__nenhum__">
                               <span className="text-muted-foreground">— Não mapear —</span>
                             </SelectItem>
-                            {CAMPOS_SISTEMA.map((c) => (
+
+                            {/* Campos fixos */}
+                            <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                              Campos padrão
+                            </div>
+                            {CAMPOS_FIXOS.map((c) => (
                               <SelectItem
                                 key={c.key}
                                 value={c.key}
                                 disabled={campoJaMapeado(c.key, m.colunaCsv)}
                               >
                                 <div className="flex items-center gap-2">
+                                  {getTipoIcon(c.tipo)}
                                   {c.label}
                                   {c.required && (
                                     <Badge variant="destructive" className="text-[10px] px-1 py-0">
@@ -379,6 +407,36 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
                                 </div>
                               </SelectItem>
                             ))}
+
+                            {/* Campos customizados */}
+                            {camposCustom.length > 0 && (
+                              <>
+                                <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mt-1">
+                                  Campos personalizados
+                                </div>
+                                {camposCustom.map((c) => (
+                                  <SelectItem
+                                    key={c.chave}
+                                    value={c.chave}
+                                    disabled={campoJaMapeado(c.chave, m.colunaCsv)}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {getTipoIcon(c.tipo)}
+                                      {c.nome}
+                                      {c.obrigatorio && (
+                                        <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                                          obrigatório
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+
+                            <SelectItem value="ignorar">
+                              <span className="text-muted-foreground">Ignorar coluna</span>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -388,7 +446,6 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
               </div>
             </ScrollArea>
 
-            {/* Preview count */}
             <div className="flex items-center justify-between pt-2 border-t border-border">
               <span className="text-sm text-muted-foreground">
                 {contatosValidos.length} contato(s) válido(s) serão importados
