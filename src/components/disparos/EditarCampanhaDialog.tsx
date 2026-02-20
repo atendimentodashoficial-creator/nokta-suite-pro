@@ -128,6 +128,7 @@ export function EditarCampanhaDialog({
   const [allContactsPage, setAllContactsPage] = useState(1);
   const [allContactsPerPage, setAllContactsPerPage] = useState(50);
   const [allContactsFilterOrigens, setAllContactsFilterOrigens] = useState<Set<string>>(new Set());
+  const [allContactsFilterEtiquetas, setAllContactsFilterEtiquetas] = useState<Set<string>>(new Set());
   const [contatoDetalhesAberto, setContatoDetalhesAberto] = useState<Contato | null>(null);
   const [numerosDisparados, setNumerosDisparados] = useState<Set<string>>(new Set());
   const [numerosSemWhatsApp, setNumerosSemWhatsApp] = useState<Set<string>>(new Set());
@@ -1291,9 +1292,16 @@ export function EditarCampanhaDialog({
 
   // ── Etapa 3: Contatos ──────────────────────────────────────────────────────
   const renderEtapa3 = () => {
-    const contatosFiltrados = allContactsFilterOrigens.size === 0
-      ? contatos
-      : contatos.filter(c => c.origem && allContactsFilterOrigens.has(c.origem));
+    const contatosFiltrados = contatos.filter(c => {
+      if (allContactsFilterOrigens.size > 0 && !(c.origem && allContactsFilterOrigens.has(c.origem))) return false;
+      if (allContactsFilterEtiquetas.size > 0) {
+        const isNutrindo = numerosDisparados.has(c.numero.slice(-8));
+        const isSemWpp = numerosSemWhatsApp.has(c.numero.slice(-8));
+        if (allContactsFilterEtiquetas.has("nutrindo") && !isNutrindo) return false;
+        if (allContactsFilterEtiquetas.has("sem_whatsapp") && !isSemWpp) return false;
+      }
+      return true;
+    });
     const totalPages = Math.ceil(contatosFiltrados.length / allContactsPerPage);
     const pageContatos = contatosFiltrados.slice((allContactsPage - 1) * allContactsPerPage, allContactsPage * allContactsPerPage);
 
@@ -1367,8 +1375,9 @@ export function EditarCampanhaDialog({
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
-                        <ChevronDown className="h-3 w-3" />
+                        <Database className="h-3 w-3" />
                         Origem{allContactsFilterOrigens.size > 0 ? ` (${allContactsFilterOrigens.size})` : ""}
+                        <ChevronDown className="h-3 w-3" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-56 p-0" align="start">
@@ -1391,6 +1400,32 @@ export function EditarCampanhaDialog({
                   </Popover>
                 </>
               )}
+              <div className="w-px h-5 bg-border mx-0.5" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                    <ChevronDown className="h-3 w-3" />
+                    Etiqueta{allContactsFilterEtiquetas.size > 0 ? ` (${allContactsFilterEtiquetas.size})` : ""}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-52 p-0" align="start">
+                  <div className="p-2 border-b flex gap-1">
+                    <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setAllContactsFilterEtiquetas(new Set())}>Limpar</Button>
+                  </div>
+                  <div className="p-2 space-y-1">
+                    {[
+                      { key: "nutrindo", label: "Nutrindo", count: contatos.filter(c => numerosDisparados.has(c.numero.slice(-8))).length },
+                      { key: "sem_whatsapp", label: "Sem WhatsApp", count: contatos.filter(c => numerosSemWhatsApp.has(c.numero.slice(-8))).length },
+                    ].map(({ key, label, count }) => (
+                      <div key={key} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer" onClick={() => setAllContactsFilterEtiquetas(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; })}>
+                        <Checkbox checked={allContactsFilterEtiquetas.has(key)} onCheckedChange={() => setAllContactsFilterEtiquetas(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; })} />
+                        <span className="text-sm flex-1">{label}</span>
+                        <Badge variant="secondary" className="text-xs">{count}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <div className="ml-auto flex gap-1">
                 <Button variant="ghost" size="sm" onClick={exportContatos} className="h-7 text-xs">
                   <FileDown className="h-3 w-3 mr-1" />Exportar
@@ -1426,21 +1461,19 @@ export function EditarCampanhaDialog({
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <Checkbox checked={isSelected} onCheckedChange={() => toggleContactSelection(c.numero)} onClick={e => e.stopPropagation()} />
                         <span className="text-xs text-muted-foreground w-7 shrink-0">{globalIdx + 1}.</span>
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <div className="flex flex-col min-w-0">
-                              {c.nome && <span className="truncate text-sm font-medium leading-tight">{c.nome}</span>}
-                              <span className="truncate text-xs text-muted-foreground leading-tight">{formatPhoneDisplay(c.numero)}</span>
-                            </div>
-                            {isNutrindo && (
-                              <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
-                            )}
-                            {isSemWhatsApp && (
-                              <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">sem whatsapp</Badge>
-                            )}
-                          </div>
-                          {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
-                        </div>
+                         <div className="flex flex-col min-w-0">
+                           {c.nome && <span className="truncate text-sm font-medium leading-tight">{c.nome}</span>}
+                           <div className="flex items-center gap-1 flex-wrap">
+                             <span className="text-xs text-muted-foreground leading-tight shrink-0">{formatPhoneDisplay(c.numero)}</span>
+                             {c.origem && <span className="text-[9px] text-muted-foreground/60 bg-muted px-1 py-0 rounded shrink-0 truncate max-w-[120px]">{c.origem}</span>}
+                             {isNutrindo && (
+                               <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                             )}
+                             {isSemWhatsApp && (
+                               <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">sem whatsapp</Badge>
+                             )}
+                           </div>
+                         </div>
                       </div>
                       <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                         {sociaisDoContato.map(chave => {
