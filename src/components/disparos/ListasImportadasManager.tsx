@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Database, Trash2, Plus, Users, RefreshCw } from "lucide-react";
+import { CamposSistemaManager } from "./CamposSistemaManager";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +75,7 @@ export function ListasImportadasManager() {
           <h2 className="text-lg font-semibold">Listas Importadas</h2>
         </div>
         <div className="flex gap-2">
+          <CamposSistemaManager />
           <Button variant="outline" size="sm" onClick={loadListas} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
