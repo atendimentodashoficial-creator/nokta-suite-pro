@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Video, Calendar, Clock, FileText, RefreshCw, Bell, Link2, XCircle, Trash2, MessageCircle, User, Phone, CheckCircle2 } from "lucide-react";
 import { formatPhoneDisplay, getLast8Digits } from "@/utils/phoneFormat";
@@ -66,6 +66,16 @@ export default function Reunioes() {
   const [reuniaoParaExcluir, setReuniaoParaExcluir] = useState<Reuniao | null>(null);
   const [comparecimentoReuniao, setComparecimentoReuniao] = useState<Reuniao | null>(null);
   const [comparecimentoTipo, setComparecimentoTipo] = useState<"compareceu" | "nao_compareceu" | null>(null);
+
+  // Ouve evento de atualização de nome de contato para recarregar os dados
+  useEffect(() => {
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ["reunioes"] });
+      queryClient.invalidateQueries({ queryKey: ["leads", "names"] });
+    };
+    window.addEventListener("contact-name-updated", handler);
+    return () => window.removeEventListener("contact-name-updated", handler);
+  }, [queryClient]);
 
   // Índice simples (telefone -> nome) para reuniões que ainda não estejam vinculadas via cliente_id
   const { data: leadNames } = useQuery({
