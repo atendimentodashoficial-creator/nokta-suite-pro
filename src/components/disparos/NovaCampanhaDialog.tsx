@@ -131,6 +131,7 @@ export function NovaCampanhaDialog({
   const [instancias, setInstancias] = useState<DisparosInstancia[]>([]);
   const [selectedInstancias, setSelectedInstancias] = useState<string[]>([]);
   const [whatsappInstanciaId, setWhatsappInstanciaId] = useState<string | null>(null);
+  const [instanciaStatusMap, setInstanciaStatusMap] = useState<Record<string, "connected" | "disconnected" | "loading">>({});
 
   // Templates
   const [templates, setTemplates] = useState<TemplateData[]>([]);
@@ -294,6 +295,32 @@ export function NovaCampanhaDialog({
     } = await supabase.from("disparos_kanban_columns").select("id, nome, cor").eq("user_id", user.id).eq("ativo", true).order("ordem");
     if (data) setDisparosKanbanColumns(data);
   };
+  const checkInstanciasStatus = async (instanciasList: DisparosInstancia[]) => {
+    // Inicia todas como "loading"
+    const loadingMap: Record<string, "connected" | "disconnected" | "loading"> = {};
+    instanciasList.forEach(i => { loadingMap[i.id] = "loading"; });
+    setInstanciaStatusMap(loadingMap);
+
+    // Verifica todas em paralelo
+    const results = await Promise.all(
+      instanciasList.map(async (inst) => {
+        try {
+          const { data, error } = await supabase.functions.invoke("uazapi-check-status", {
+            body: { instancia_id: inst.id },
+          });
+          const connected = !error && data?.connected === true;
+          return { id: inst.id, status: connected ? "connected" : "disconnected" } as const;
+        } catch {
+          return { id: inst.id, status: "disconnected" } as const;
+        }
+      })
+    );
+
+    const statusMap: Record<string, "connected" | "disconnected" | "loading"> = {};
+    results.forEach(r => { statusMap[r.id] = r.status; });
+    setInstanciaStatusMap(statusMap);
+  };
+
   const loadInstancias = async () => {
     if (!user) return;
     
@@ -323,6 +350,8 @@ export function NovaCampanhaDialog({
           .map(i => i.id);
         setSelectedInstancias(defaultSelected);
       }
+      // Verifica status real de conexão
+      checkInstanciasStatus(data);
     }
   };
   const loadListasExtrator = async () => {
@@ -1468,6 +1497,9 @@ export function NovaCampanhaDialog({
               {instancias.map(inst => {
                 const isSelected = selectedInstancias.includes(inst.id);
                 const isWhatsAppMain = inst.id === whatsappInstanciaId;
+                const connStatus = instanciaStatusMap[inst.id] ?? "loading";
+                const isConnected = connStatus === "connected";
+                const isLoadingStatus = connStatus === "loading";
                 return (
                   <div
                     key={inst.id}
@@ -1494,8 +1526,20 @@ export function NovaCampanhaDialog({
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
-                        <span className="text-xs text-green-600 font-medium">Ativa</span>
+                        {isLoadingStatus ? (
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse" />
+                        ) : (
+                          <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-destructive"}`} />
+                        )}
+                        <span className={`text-xs font-medium ${
+                          isLoadingStatus
+                            ? "text-muted-foreground"
+                            : isConnected
+                            ? "text-green-600"
+                            : "text-destructive"
+                        }`}>
+                          {isLoadingStatus ? "Verificando…" : isConnected ? "Conectada" : "Desconectada"}
+                        </span>
                       </div>
                     </div>
 
