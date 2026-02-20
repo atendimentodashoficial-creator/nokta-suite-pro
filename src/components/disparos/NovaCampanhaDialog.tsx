@@ -1345,18 +1345,622 @@ export function NovaCampanhaDialog({
   const sliderConfig = getSliderConfig();
   const unitLabel = delayUnit === "minutes" ? "min" : "s";
   const totalVariacoes = blocos.reduce((acc, b) => acc + b.variacoes.length, 0);
-  return <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-5xl max-h-[90vh] sm:max-h-[90vh] overflow-hidden p-0">
-        <div className="flex flex-col lg:flex-row h-full max-h-[85vh] sm:max-h-[90vh]">
-          {/* Form Section */}
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+
+  // ── Etapa 1: Instâncias ──────────────────────────────────────────────────────
+  const renderEtapa1 = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
+        {/* Header */}
+        <div className="flex flex-col items-center gap-2 py-6">
+          <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
+            <Phone className="h-7 w-7 text-white" />
+          </div>
+          <h3 className="text-lg font-semibold">Escolher Instâncias WhatsApp</h3>
+          <p className="text-sm text-muted-foreground text-center max-w-md">
+            Selecione uma ou mais instâncias que serão usadas para enviar as mensagens
+          </p>
+        </div>
+
+        {instancias.length > 0 ? (
+          <>
+            <p className="text-sm font-medium text-muted-foreground mb-3">
+              Instâncias Disponíveis ({instancias.filter(i => selectedInstancias.includes(i.id)).length} selecionada{instancias.filter(i => selectedInstancias.includes(i.id)).length !== 1 ? "s" : ""})
+            </p>
+            <div className="space-y-2">
+              {instancias.map(inst => {
+                const isSelected = selectedInstancias.includes(inst.id);
+                const isWhatsAppMain = inst.id === whatsappInstanciaId;
+                return (
+                  <div
+                    key={inst.id}
+                    onClick={() => toggleInstancia(inst.id)}
+                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-green-500 bg-green-500/5"
+                        : "border-border hover:border-border/80 hover:bg-muted/30"
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0 ${
+                      isSelected ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {inst.nome.charAt(0).toUpperCase()}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">{inst.nome}</span>
+                        {isWhatsAppMain && (
+                          <Badge variant="secondary" className="text-xs">WhatsApp Principal</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <span className="text-xs text-green-600 font-medium">Ativa</span>
+                      </div>
+                    </div>
+
+                    {/* Checkbox */}
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                      isSelected ? "border-green-500 bg-green-500" : "border-border"
+                    }`}>
+                      {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 gap-3 border-2 border-dashed rounded-xl">
+            <Phone className="h-10 w-10 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground text-center">
+              Nenhuma instância configurada.
+              <br />
+              Configure em Configurações → Conexões.
+            </p>
+          </div>
+        )}
+
+        {selectedInstancias.length === 0 && instancias.length > 0 && (
+          <p className="text-xs text-destructive mt-3 text-center">Selecione pelo menos uma instância para continuar</p>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-between gap-2 pt-4 border-t px-6 pb-6 flex-shrink-0">
+        <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+        <Button
+          onClick={() => setEtapaCriacao(2)}
+          disabled={selectedInstancias.length === 0}
+        >
+          Próximo: Mensagens
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  // ── Etapa 2: Mensagens ───────────────────────────────────────────────────────
+  const renderEtapa2 = () => (
+    <div className="flex flex-col lg:flex-row h-full min-h-0 overflow-hidden">
+      {/* Form col */}
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
+          <div className="space-y-6 pt-4">
+
+            {/* Blocos de Mensagem */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <Label className="text-sm">Blocos de Mensagem ({blocos.length})</Label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {templates.length > 0 && (
+                    <Popover open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+                          <FileDown className="h-4 w-4 mr-1" />
+                          Importar Template
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="end">
+                        <div className="p-3 border-b">
+                          <p className="font-medium text-sm">Selecionar Template</p>
+                          <p className="text-xs text-muted-foreground">Escolha um template para importar</p>
+                        </div>
+                        <ScrollArea className="max-h-64">
+                          <div className="p-2 space-y-1">
+                            {templates.map(template => (
+                              <Button key={template.id} variant="ghost" className="w-full justify-start text-left h-auto py-2" onClick={() => importTemplate(template)}>
+                                <div className="flex flex-col items-start">
+                                  <span className="font-medium text-sm">{template.nome}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Set(template.variacoes?.map(v => v.bloco) || []).size} bloco(s), {template.variacoes?.length || 0} variação(ões)
+                                  </span>
+                                </div>
+                              </Button>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  <Button variant="outline" size="sm" onClick={addBloco} className="flex-1 sm:flex-none">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Adicionar Bloco
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {blocos.map((bloco, blocoIndex) => (
+                  <Card key={bloco.id} className="p-3 border-2">
+                    <Collapsible open={blocosAbertos[bloco.id]} onOpenChange={() => toggleBlocoAberto(bloco.id)}>
+                      <div className="flex items-center justify-between">
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="gap-2 p-0 h-auto hover:bg-transparent">
+                            {blocosAbertos[bloco.id] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            <Badge variant="default" className="gap-1 rounded">
+                              <Layers className="h-3 w-3" />
+                              Bloco {blocoIndex + 1}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              ({bloco.variacoes.length} variação{bloco.variacoes.length !== 1 ? "ões" : ""})
+                            </span>
+                          </Button>
+                        </CollapsibleTrigger>
+                        <div className="flex items-center gap-1">
+                          {blocos.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeBloco(bloco.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <CollapsibleContent className="pt-3 space-y-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Shuffle className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs font-medium">Variações (envio aleatório)</span>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => addVariacao(bloco.id)} className="h-7 text-xs">
+                              <Plus className="h-3 w-3 mr-1" />
+                              Variação
+                            </Button>
+                          </div>
+
+                          {bloco.variacoes.map((variacao, variacaoIndex) => (
+                            <Card key={variacao.id} className="p-2 bg-muted/30">
+                              <Collapsible open={variacoesAbertas[variacao.id]} onOpenChange={() => toggleVariacaoAberta(variacao.id)}>
+                                <div className="flex items-center justify-between">
+                                  <CollapsibleTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="gap-2 p-0 h-auto hover:bg-transparent">
+                                      {variacoesAbertas[variacao.id] ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                      <Badge variant="secondary" className="gap-1 text-xs rounded">
+                                        {getMediaIcon(variacao.tipo)}
+                                        {variacaoIndex + 1}. {getTipoLabel(variacao.tipo)}
+                                      </Badge>
+                                    </Button>
+                                  </CollapsibleTrigger>
+                                  {bloco.variacoes.length > 1 && (
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => removeVariacao(bloco.id, variacao.id)}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+
+                                <CollapsibleContent className="pt-2 space-y-2">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Tipo</Label>
+                                    <Tabs value={variacao.tipo} onValueChange={v => {
+                                      updateVariacao(bloco.id, variacao.id, { tipo: v as MensagemVariacao["tipo"], mediaFile: null, mediaPreview: null });
+                                    }}>
+                                      <TabsList className="grid w-full grid-cols-5 h-7">
+                                        <TabsTrigger value="text" className="text-xs">Texto</TabsTrigger>
+                                        <TabsTrigger value="image" className="text-xs">Imagem</TabsTrigger>
+                                        <TabsTrigger value="audio" className="text-xs">Áudio</TabsTrigger>
+                                        <TabsTrigger value="video" className="text-xs">Vídeo</TabsTrigger>
+                                        <TabsTrigger value="document" className="text-xs">Doc</TabsTrigger>
+                                      </TabsList>
+                                    </Tabs>
+                                  </div>
+
+                                  {variacao.tipo === "text" ? (
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Mensagem</Label>
+                                      <Textarea
+                                        placeholder="Digite sua mensagem..."
+                                        value={variacao.mensagem}
+                                        onChange={e => updateVariacao(bloco.id, variacao.id, { mensagem: e.target.value })}
+                                        rows={2}
+                                        className="text-sm"
+                                      />
+                                      <p className="text-xs text-muted-foreground">
+                                        Variáveis: {"{nome}"} - Nome completo | {"{primeironome}"} - Primeiro nome
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      <div
+                                        className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer hover:border-primary transition-colors"
+                                        onClick={() => { const input = mediaInputRefs.current[variacao.id]; if (input) input.click(); }}
+                                      >
+                                        {variacao.mediaPreview ? (
+                                          <div className="space-y-1">
+                                            {variacao.tipo === "image" && <img src={variacao.mediaPreview} alt="Preview" className="max-h-16 mx-auto rounded" />}
+                                            {variacao.tipo === "video" && <video src={variacao.mediaPreview} className="max-h-16 mx-auto rounded" controls />}
+                                            {(variacao.tipo === "audio" || variacao.tipo === "document") && (
+                                              <div className="flex items-center justify-center gap-2">
+                                                {getMediaIcon(variacao.tipo)}
+                                                <span className="text-xs">{variacao.mediaPreview}</span>
+                                              </div>
+                                            )}
+                                            <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={e => {
+                                              e.stopPropagation();
+                                              updateVariacao(bloco.id, variacao.id, { mediaFile: null, mediaPreview: null });
+                                            }}>
+                                              <X className="h-3 w-3 mr-1" />
+                                              Remover
+                                            </Button>
+                                          </div>
+                                        ) : (
+                                          <div className="space-y-1">
+                                            <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
+                                            <p className="text-xs text-muted-foreground">Clique para selecionar</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <input
+                                        ref={el => { mediaInputRefs.current[variacao.id] = el; }}
+                                        type="file"
+                                        accept={getAcceptTypes(variacao.tipo)}
+                                        onChange={e => handleMediaUpload(bloco.id, variacao.id, e)}
+                                        className="hidden"
+                                      />
+                                      <div className="space-y-1">
+                                        <Label className="text-xs">Legenda (opcional)</Label>
+                                        <Textarea
+                                          placeholder="Digite uma legenda..."
+                                          value={variacao.mensagem}
+                                          onChange={e => updateVariacao(bloco.id, variacao.id, { mensagem: e.target.value })}
+                                          rows={1}
+                                          className="text-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </CollapsibleContent>
+                              </Collapsible>
+                            </Card>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Delay entre blocos */}
+            {blocos.length > 1 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <Label className="text-sm">Intervalo entre blocos ({delayBlocoMin} a {delayBlocoMax} seg)</Label>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Mínimo: {delayBlocoMin}s</span>
+                    <span>Máximo: {delayBlocoMax}s</span>
+                  </div>
+                  <Slider value={[delayBlocoMin, delayBlocoMax]} min={1} max={30} step={1} onValueChange={([min, max]) => { setDelayBlocoMin(min); setDelayBlocoMax(max); }} />
+                </div>
+              </div>
+            )}
+
+            {/* Delay entre contatos */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <Label className="text-sm">Intervalo entre contatos ({delayMin} a {delayMax} {delayUnit === "minutes" ? "min" : "seg"})</Label>
+                </div>
+                <Select value={delayUnit} onValueChange={v => {
+                  setDelayUnit(v as "seconds" | "minutes");
+                  if (v === "minutes") { setDelayMin(1); setDelayMax(5); } else { setDelayMin(5); setDelayMax(15); }
+                }}>
+                  <SelectTrigger className="w-full sm:w-[130px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="seconds">Segundos</SelectItem>
+                    <SelectItem value="minutes">Minutos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1 space-y-2">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Mínimo: {delayMin}{unitLabel}</span>
+                  <span>Máximo: {delayMax}{unitLabel}</span>
+                </div>
+                <Slider value={[delayMin, delayMax]} min={sliderConfig.min} max={sliderConfig.max} step={sliderConfig.step} onValueChange={([min, max]) => { setDelayMin(min); setDelayMax(max); }} />
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-between gap-2 pt-4 border-t px-6 pb-6 flex-shrink-0">
+          <Button variant="outline" onClick={() => setEtapaCriacao(1)}>
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Voltar
+          </Button>
+          <Button
+            onClick={() => setEtapaCriacao(3)}
+            disabled={blocos.length === 0}
+          >
+            Próximo: Contatos
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Live Preview - desktop only */}
+      <div className="hidden lg:flex w-80 border-l flex-col bg-muted/30">
+        <div className="p-3 border-b bg-background flex items-center gap-2">
+          <p className="font-medium text-sm">Prévia do Disparo</p>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={generateRandomPreview}
+            className="h-6 w-6"
+            disabled={blocos.length === 0 || blocos.every(b => b.variacoes.every(v => !(v.tipo === "text" && v.mensagem) && !(v.tipo !== "text" && v.mediaPreview)))}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="flex-1 overflow-hidden flex flex-col min-h-[300px] lg:min-h-0">
+          <div className="bg-[#075E54] text-white p-3 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold">C</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">Cliente</p>
+              <p className="text-[10px] text-white/70">online</p>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 relative" style={{ backgroundColor: "#ECE5DD", backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cdc4' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}>
+            {blocos.length > 1 && (
+              <div className="absolute top-1 left-1">
+                <span className="bg-[#FFF3CD] text-[#856404] text-[9px] px-1.5 py-0.5 rounded-full shadow-sm">
+                  ⏱️ {delayBlocoMin}s - {delayBlocoMax}s entre blocos
+                </span>
+              </div>
+            )}
+            <div className="space-y-3 pt-4" key={previewKey}>
+              {Object.keys(previewMessages).length > 0 ? (
+                blocos.map((bloco, blocoIndex) => {
+                  const preview = previewMessages[blocoIndex];
+                  if (!preview) return null;
+                  return (
+                    <div key={`${bloco.id}-preview`} className="space-y-2">
+                      {blocos.length > 1 && (
+                        <div className="flex justify-center">
+                          <span className="bg-[#E1F3FB] text-[#54656F] text-[10px] px-2 py-0.5 rounded-full shadow-sm">Bloco {blocoIndex + 1}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-end">
+                        <div className="max-w-[90%] bg-[#D9FDD3] rounded-lg shadow-sm">
+                          <div className="p-2">
+                            {preview.tipo === "image" && preview.mediaPreview && <img src={preview.mediaPreview} alt="Preview" className="rounded max-h-32 object-contain mb-1" />}
+                            {preview.tipo === "video" && preview.mediaPreview && <div className="w-full h-20 bg-black/20 rounded flex items-center justify-center mb-1"><Video className="h-8 w-8 text-white/70" /></div>}
+                            {preview.tipo === "audio" && preview.mediaPreview && (
+                              <div className="flex items-center gap-2 py-2 px-1 min-w-[150px]">
+                                <div className="w-8 h-8 rounded-full bg-[#075E54] flex items-center justify-center flex-shrink-0"><Music className="h-4 w-4 text-white" /></div>
+                                <div className="flex-1 h-1 bg-[#075E54]/30 rounded-full" />
+                                <span className="text-[10px] text-[#667781]">0:00</span>
+                              </div>
+                            )}
+                            {preview.tipo === "document" && preview.mediaPreview && (
+                              <div className="flex items-center gap-2 p-2 bg-[#C8E6C9] rounded mb-1 min-w-[120px]">
+                                <FileText className="h-6 w-6 text-[#075E54]" />
+                                <span className="text-xs text-[#111B21]">Documento</span>
+                              </div>
+                            )}
+                            {!!preview.text && <p className="text-xs text-[#111B21] whitespace-pre-wrap break-words">{preview.text}</p>}
+                            <div className="flex justify-end items-center gap-0.5 mt-1">
+                              <span className="text-[9px] text-[#667781]">00:00</span>
+                              <svg className="w-3 h-3 text-[#53BDEB]" viewBox="0 0 16 15" fill="currentColor">
+                                <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.032l-.358-.325a.32.32 0 0 0-.484.032l-.378.48a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.88a.32.32 0 0 1-.484.032L1.892 7.77a.366.366 0 0 0-.516.005l-.423.433a.364.364 0 0 0 .006.514l3.255 3.185a.32.32 0 0 0 .484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <Shuffle className="h-6 w-6 text-[#667781]/50" />
+                  <span className="text-[#667781] text-xs text-center px-4">
+                    {blocos.length === 0 || blocos.every(b => b.variacoes.every(v => !(v.tipo === "text" && v.mensagem) && !(v.tipo !== "text" && v.mediaPreview)))
+                      ? "Adicione conteúdo para ver a prévia"
+                      : "Clique no ícone para ver uma possível mensagem"}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="bg-[#F0F2F5] p-2 flex items-center gap-2">
+            <div className="flex-1 bg-white rounded-full px-3 py-1.5 text-xs text-[#667781]">Digite uma mensagem</div>
+            <div className="w-8 h-8 rounded-full bg-[#075E54] flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3z" />
+                <path d="M17 12c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Etapa 3: Contatos ────────────────────────────────────────────────────────
+  const renderEtapa3 = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto px-6 pb-4 min-h-0">
+        <div className="space-y-4 pt-4">
+
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <List className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <Label className="text-sm">Lista de Contatos ({contatos.length})</Label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource} className="flex-1 sm:flex-none">
+                <Users className="h-4 w-4 mr-1" />
+                Importar
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  if (!text.trim()) { toast.info("Área de transferência vazia"); return; }
+                  const lines = text.split(/[\n\r]+/).filter(l => l.trim());
+                  const novosContatos: Contato[] = [];
+                  for (const line of lines) {
+                    const parts = line.split(/[,;\t]+/).map(p => p.trim());
+                    let numero = ""; let nome = "";
+                    for (const part of parts) {
+                      const digits = part.replace(/\D/g, "");
+                      if (digits.length >= 8 && !numero) { numero = normalizePhoneNumber(digits); }
+                      else if (part && !nome && !/^\d+$/.test(part)) { nome = part; }
+                    }
+                    if (numero && numero.length >= 8) { novosContatos.push({ numero, nome: nome || undefined }); }
+                  }
+                  if (novosContatos.length === 0) { toast.error("Nenhum número válido encontrado"); return; }
+                  addContatosWithSelection(novosContatos);
+                  toast.success(`${novosContatos.length} contato(s) colado(s)`);
+                } catch { toast.error("Não foi possível acessar a área de transferência"); }
+              }}>
+                <ClipboardPaste className="h-4 w-4 mr-1" />
+                Colar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none">
+                <Upload className="h-4 w-4 mr-1" />
+                CSV/TXT
+              </Button>
+              <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Switch id="deduplicar" checked={deduplicarNumeros} onCheckedChange={setDeduplicarNumeros} />
+            <Label htmlFor="deduplicar" className="text-xs text-muted-foreground cursor-pointer">Evitar duplicados</Label>
+          </div>
+
+          {/* Manual add */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input placeholder="Nome (opcional)" value={novoNome} onChange={e => setNovoNome(e.target.value)} className="w-full sm:flex-1" />
+            <div className="flex gap-2">
+              <Input placeholder="Número (ex: 5521999999999)" value={novoNumero} onChange={e => setNovoNumero(e.target.value)} onKeyDown={e => e.key === "Enter" && addContato()} className="flex-1" />
+              <Button onClick={addContato} variant="outline" size="icon" className="flex-shrink-0">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Contact list */}
+          {contatos.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {selectedContacts.size} de {contatos.length} selecionado{selectedContacts.size !== 1 ? "s" : ""}
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {contatos.length > 10 && (
+                    <Button variant="ghost" size="sm" onClick={() => setShowAllContacts(true)} className="h-8 px-2">Ver todos</Button>
+                  )}
+                  <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
+                    if (contatos.length === 0) { toast.error("Nenhum contato para copiar"); return; }
+                    const text = contatos.map(c => c.nome ? `${c.nome},${c.numero}` : c.numero).join("\n");
+                    navigator.clipboard.writeText(text);
+                    toast.success("Lista copiada!");
+                  }}>
+                    <Copy className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Copiar</span>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 px-2" onClick={exportContatos}>
+                    <FileDown className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive h-8 px-2">
+                    <Trash2 className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Limpar tudo</span>
+                  </Button>
+                </div>
+              </div>
+              <div className="max-h-64 overflow-y-auto border rounded-lg p-2 space-y-1">
+                {contatos.slice(0, 50).map(c => {
+                  const isSelected = selectedContacts.has(c.numero);
+                  return (
+                    <div
+                      key={c.numero}
+                      className={`flex items-center justify-between p-1.5 hover:bg-muted rounded text-sm cursor-pointer ${isSelected ? "bg-primary/5" : "opacity-50"}`}
+                      onClick={() => toggleContactSelection(c.numero)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Checkbox checked={isSelected} onCheckedChange={() => toggleContactSelection(c.numero)} onClick={e => e.stopPropagation()} />
+                        <span>{c.nome ? `${c.nome} - ` : ""}{c.numero}</span>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => { e.stopPropagation(); removeContato(c.numero); }}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+                {contatos.length > 50 && (
+                  <Button variant="link" size="sm" onClick={() => setShowAllContacts(true)} className="w-full text-xs text-muted-foreground">
+                    ... e mais {contatos.length - 50} contatos (clique para ver todos)
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-between gap-2 pt-4 border-t px-6 pb-6 flex-shrink-0">
+        <Button variant="outline" onClick={() => setEtapaCriacao(2)}>
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Voltar
+        </Button>
+        <Button onClick={handleSubmit} disabled={isLoading || selectedContatosForSubmit.length === 0}>
+          {isLoading ? "Criando..." : `Criar Campanha (${selectedContatosForSubmit.length} contatos)`}
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Main Dialog */}
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden p-0">
+          <div className="flex flex-col h-full max-h-[90vh]">
+            {/* Fixed Header */}
             <div className="p-4 sm:p-6 pb-3 flex-shrink-0 border-b border-border">
-              {/* Título + nome */}
               <div className="flex items-center justify-between mb-3">
                 <DialogTitle className="text-base sm:text-lg">Nova Campanha de Disparo</DialogTitle>
               </div>
-              {/* Nome da campanha */}
+              <DialogDescription className="sr-only">Configure uma campanha para enviar mensagens em massa</DialogDescription>
+              {/* Nome */}
               <div className="mb-4">
                 <Input
                   placeholder="Nome da campanha…"
@@ -1367,30 +1971,29 @@ export function NovaCampanhaDialog({
               </div>
               {/* Stepper */}
               <div className="flex items-center gap-0">
-                {[
+                {([
                   { n: 1, label: "Instâncias" },
                   { n: 2, label: "Mensagens" },
                   { n: 3, label: "Contatos" },
-                ].map(({ n, label }, idx) => (
+                ] as const).map(({ n, label }, idx) => (
                   <div key={n} className="flex items-center flex-1">
                     <button
                       className="flex items-center gap-2 group flex-1"
-                      onClick={() => setEtapaCriacao(n as 1 | 2 | 3)}
-                    >
-                      <div className={`
-                        flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all shrink-0
-                        ${etapaCriacao === n
-                          ? "bg-primary text-primary-foreground shadow"
-                          : etapaCriacao > n
-                          ? "bg-primary/20 text-primary"
-                          : "bg-muted text-muted-foreground"
+                      onClick={() => {
+                        if (n < etapaCriacao || (n === 2 && selectedInstancias.length > 0) || (n === 3 && blocos.length > 0)) {
+                          setEtapaCriacao(n);
                         }
-                      `}>
+                      }}
+                    >
+                      <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all shrink-0 ${
+                        etapaCriacao === n ? "bg-primary text-primary-foreground shadow" :
+                        etapaCriacao > n ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                      }`}>
                         {etapaCriacao > n ? "✓" : n}
                       </div>
-                      <span className={`text-xs font-medium transition-colors hidden sm:block
-                        ${etapaCriacao === n ? "text-foreground" : "text-muted-foreground"}
-                      `}>
+                      <span className={`text-xs font-medium transition-colors hidden sm:block ${
+                        etapaCriacao === n ? "text-foreground" : "text-muted-foreground"
+                      }`}>
                         {label}
                       </span>
                     </button>
@@ -1401,1075 +2004,289 @@ export function NovaCampanhaDialog({
                 ))}
               </div>
             </div>
-                Configure uma campanha para enviar mensagens em massa
-              </DialogDescription>
-            </DialogHeader>
 
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-4 min-h-0">
-              <div className="space-y-6 pt-4">
-          {/* Instâncias para disparo */}
-          {instancias.length > 0 && <div className="space-y-2">
-              <Label>Instâncias para Disparo</Label>
-              
-              <div className="flex flex-wrap gap-2">
-                {instancias.map(inst => {
-                      const isSelected = selectedInstancias.includes(inst.id);
-                      return <Badge key={inst.id} variant={isSelected ? "default" : "outline"} onClick={() => toggleInstancia(inst.id)} className="cursor-pointer hover:opacity-80 transition-opacity py-1.5 px-3 rounded">
-                      <Phone className="h-3 w-3 mr-1" />
-                      {inst.nome}
-                      {isSelected && <X className="h-3 w-3 ml-1" />}
-                    </Badge>;
-                    })}
-              </div>
-              {selectedInstancias.length === 0 && <p className="text-xs text-destructive">Selecione pelo menos uma instância</p>}
-            </div>}
-
-          {instancias.length === 0 && <div className="p-4 border rounded-lg bg-muted/50 text-center">
-              <p className="text-sm text-muted-foreground">
-                Nenhuma instância de disparo configurada. 
-                <br />
-                Configure em Configurações → Conexões.
-              </p>
-            </div>}
-
-          {/* Nome da campanha */}
-          <div className="space-y-2">
-            <Label>Nome da Campanha</Label>
-            <Input placeholder="Ex: Promoção Janeiro" value={nome} onChange={e => setNome(e.target.value)} />
-          </div>
-
-          {/* Blocos de Mensagem */}
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <Label className="text-sm">Blocos de Mensagem ({blocos.length})</Label>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {templates.length > 0 && <Popover open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
-                        <FileDown className="h-4 w-4 mr-1" />
-                        <span className="hidden xs:inline">Importar Template</span>
-                        <span className="xs:hidden">Template</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-72 p-0" align="end">
-                      <div className="p-3 border-b">
-                        <p className="font-medium text-sm">Selecionar Template</p>
-                        <p className="text-xs text-muted-foreground">Escolha um template para importar</p>
-                      </div>
-                      <ScrollArea className="max-h-64">
-                        <div className="p-2 space-y-1">
-                          {templates.map(template => <Button key={template.id} variant="ghost" className="w-full justify-start text-left h-auto py-2" onClick={() => importTemplate(template)}>
-                              <div className="flex flex-col items-start">
-                                <span className="font-medium text-sm">{template.nome}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Set(template.variacoes?.map(v => v.bloco) || []).size} bloco(s), {template.variacoes?.length || 0} variação(ões)
-                                </span>
-                              </div>
-                            </Button>)}
-                        </div>
-                      </ScrollArea>
-                    </PopoverContent>
-                  </Popover>}
-                <Button variant="outline" size="sm" onClick={addBloco} className="flex-1 sm:flex-none">
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="hidden xs:inline">Adicionar Bloco</span>
-                  <span className="xs:hidden">+ Bloco</span>
-                </Button>
-              </div>
-            </div>
-            
-
-            <div className="space-y-4">
-              {blocos.map((bloco, blocoIndex) => <Card key={bloco.id} className="p-3 border-2">
-                  <Collapsible open={blocosAbertos[bloco.id]} onOpenChange={() => toggleBlocoAberto(bloco.id)}>
-                    <div className="flex items-center justify-between">
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gap-2 p-0 h-auto hover:bg-transparent">
-                          {blocosAbertos[bloco.id] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          <Badge variant="default" className="gap-1 rounded">
-                            <Layers className="h-3 w-3" />
-                            Bloco {blocoIndex + 1}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground ml-2">
-                            ({bloco.variacoes.length} variação{bloco.variacoes.length !== 1 ? "ões" : ""})
-                          </span>
-                        </Button>
-                      </CollapsibleTrigger>
-                      <div className="flex items-center gap-1">
-                        {blocos.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeBloco(bloco.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>}
-                      </div>
-                    </div>
-
-                    <CollapsibleContent className="pt-3 space-y-3">
-                      {/* Variações dentro do bloco */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Shuffle className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs font-medium">Variações (envio aleatório)</span>
-                          </div>
-                          <Button variant="ghost" size="sm" onClick={() => addVariacao(bloco.id)} className="h-7 text-xs">
-                            <Plus className="h-3 w-3 mr-1" />
-                            Variação
-                          </Button>
-                        </div>
-
-                        {bloco.variacoes.map((variacao, variacaoIndex) => <Card key={variacao.id} className="p-2 bg-muted/30">
-                            <Collapsible open={variacoesAbertas[variacao.id]} onOpenChange={() => toggleVariacaoAberta(variacao.id)}>
-                              <div className="flex items-center justify-between">
-                                <CollapsibleTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="gap-2 p-0 h-auto hover:bg-transparent">
-                                    {variacoesAbertas[variacao.id] ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                                    <Badge variant="secondary" className="gap-1 text-xs rounded">
-                                      {getMediaIcon(variacao.tipo)}
-                                      {variacaoIndex + 1}. {getTipoLabel(variacao.tipo)}
-                                    </Badge>
-                                  </Button>
-                                </CollapsibleTrigger>
-                                {bloco.variacoes.length > 1 && <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => removeVariacao(bloco.id, variacao.id)}>
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>}
-                              </div>
-
-                              <CollapsibleContent className="pt-2 space-y-2">
-                                {/* Tipo de mensagem */}
-                                <div className="space-y-1">
-                                  <Label className="text-xs">Tipo</Label>
-                                  <Tabs value={variacao.tipo} onValueChange={v => {
-                                      updateVariacao(bloco.id, variacao.id, {
-                                        tipo: v as MensagemVariacao["tipo"],
-                                        mediaFile: null,
-                                        mediaPreview: null
-                                      });
-                                    }}>
-                                    <TabsList className="grid w-full grid-cols-5 h-7">
-                                      <TabsTrigger value="text" className="text-xs">Texto</TabsTrigger>
-                                      <TabsTrigger value="image" className="text-xs">Imagem</TabsTrigger>
-                                      <TabsTrigger value="audio" className="text-xs">Áudio</TabsTrigger>
-                                      <TabsTrigger value="video" className="text-xs">Vídeo</TabsTrigger>
-                                      <TabsTrigger value="document" className="text-xs">Doc</TabsTrigger>
-                                    </TabsList>
-                                  </Tabs>
-                                </div>
-
-                                {/* Content based on type */}
-                                {variacao.tipo === "text" ? <div className="space-y-1">
-                                    <Label className="text-xs">Mensagem</Label>
-                                    <Textarea placeholder="Digite sua mensagem..." value={variacao.mensagem} onChange={e => updateVariacao(bloco.id, variacao.id, {
-                                      mensagem: e.target.value
-                                    })} rows={2} className="text-sm" />
-                                    <p className="text-xs text-muted-foreground">
-                                      Variáveis: {"{nome}"} - Nome completo | {"{primeironome}"} - Primeiro nome
-                                    </p>
-                                  </div> : <div className="space-y-2">
-                                    <div className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer hover:border-primary transition-colors" onClick={() => {
-                                      const input = mediaInputRefs.current[variacao.id];
-                                      if (input) input.click();
-                                    }}>
-                                      {variacao.mediaPreview ? <div className="space-y-1">
-                                          {variacao.tipo === "image" && <img src={variacao.mediaPreview} alt="Preview" className="max-h-16 mx-auto rounded" />}
-                                          {variacao.tipo === "video" && <video src={variacao.mediaPreview} className="max-h-16 mx-auto rounded" controls />}
-                                          {(variacao.tipo === "audio" || variacao.tipo === "document") && <div className="flex items-center justify-center gap-2">
-                                              {getMediaIcon(variacao.tipo)}
-                                              <span className="text-xs">{variacao.mediaPreview}</span>
-                                            </div>}
-                                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={e => {
-                                          e.stopPropagation();
-                                          updateVariacao(bloco.id, variacao.id, {
-                                            mediaFile: null,
-                                            mediaPreview: null
-                                          });
-                                        }}>
-                                            <X className="h-3 w-3 mr-1" />
-                                            Remover
-                                          </Button>
-                                        </div> : <div className="space-y-1">
-                                          <Upload className="h-5 w-5 mx-auto text-muted-foreground" />
-                                          <p className="text-xs text-muted-foreground">
-                                            Clique para selecionar
-                                          </p>
-                                        </div>}
-                                    </div>
-                                    <input ref={el => {
-                                      mediaInputRefs.current[variacao.id] = el;
-                                    }} type="file" accept={getAcceptTypes(variacao.tipo)} onChange={e => handleMediaUpload(bloco.id, variacao.id, e)} className="hidden" />
-                                    <div className="space-y-1">
-                                      <Label className="text-xs">Legenda (opcional)</Label>
-                                      <Textarea placeholder="Digite uma legenda..." value={variacao.mensagem} onChange={e => updateVariacao(bloco.id, variacao.id, {
-                                        mensagem: e.target.value
-                                      })} rows={1} className="text-sm" />
-                                    </div>
-                                  </div>}
-                              </CollapsibleContent>
-                            </Collapsible>
-                          </Card>)}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </Card>)}
-            </div>
-          </div>
-
-          {/* Delay entre blocos (only show if more than 1 block) */}
-          {blocos.length > 1 && <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <Label className="text-sm">Intervalo entre blocos ({delayBlocoMin} a {delayBlocoMax} seg)</Label>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex-1 space-y-2">
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Mínimo: {delayBlocoMin}s</span>
-                    <span>Máximo: {delayBlocoMax}s</span>
-                  </div>
-                  <Slider value={[delayBlocoMin, delayBlocoMax]} min={1} max={30} step={1} onValueChange={([min, max]) => {
-                        setDelayBlocoMin(min);
-                        setDelayBlocoMax(max);
-                      }} />
-                </div>
-              </div>
-              
-            </div>}
-
-          {/* Timer/Delay entre contatos */}
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <Label className="text-sm">Intervalo entre contatos ({delayMin} a {delayMax} {delayUnit === "minutes" ? "min" : "seg"})</Label>
-              </div>
-              <Select value={delayUnit} onValueChange={v => {
-                      setDelayUnit(v as "seconds" | "minutes");
-                      if (v === "minutes") {
-                        setDelayMin(1);
-                        setDelayMax(5);
-                      } else {
-                        setDelayMin(5);
-                        setDelayMax(15);
-                      }
-                    }}>
-                <SelectTrigger className="w-full sm:w-[130px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="seconds">Segundos</SelectItem>
-                  <SelectItem value="minutes">Minutos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Mínimo: {delayMin}{unitLabel}</span>
-                  <span>Máximo: {delayMax}{unitLabel}</span>
-                </div>
-                <Slider value={[delayMin, delayMax]} min={sliderConfig.min} max={sliderConfig.max} step={sliderConfig.step} onValueChange={([min, max]) => {
-                        setDelayMin(min);
-                        setDelayMax(max);
-                      }} />
-              </div>
-            </div>
-            
-          </div>
-
-          {/* Contatos */}
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <List className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <Label className="text-sm">Lista de Contatos ({contatos.length})</Label>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)} disabled={loadingDataSource} className="flex-1 sm:flex-none">
-                  <Users className="h-4 w-4 mr-1" />
-                  <span className="hidden xs:inline">Importar</span>
-                  <span className="xs:hidden">Import</span>
-                </Button>
-
-                <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={async () => {
-                  try {
-                    const text = await navigator.clipboard.readText();
-                    if (!text.trim()) {
-                      toast.info("Área de transferência vazia");
-                      return;
-                    }
-                    const lines = text.split(/[\n\r]+/).filter(l => l.trim());
-                    const novosContatos: Contato[] = [];
-                    for (const line of lines) {
-                      const parts = line.split(/[,;\t]+/).map(p => p.trim());
-                      let numero = "";
-                      let nome = "";
-                      for (const part of parts) {
-                        const digits = part.replace(/\D/g, "");
-                        if (digits.length >= 8 && !numero) {
-                          numero = normalizePhoneNumber(digits);
-                        } else if (part && !nome && !/^\d+$/.test(part)) {
-                          nome = part;
-                        }
-                      }
-                      if (numero && numero.length >= 8) {
-                        novosContatos.push({ numero, nome: nome || undefined });
-                      }
-                    }
-                    if (novosContatos.length === 0) {
-                      toast.error("Nenhum número válido encontrado");
-                      return;
-                    }
-                    addContatosWithSelection(novosContatos);
-                    toast.success(`${novosContatos.length} contato(s) colado(s)`);
-                  } catch (error) {
-                    toast.error("Não foi possível acessar a área de transferência");
-                  }
-                }}>
-                  <ClipboardPaste className="h-4 w-4 mr-1" />
-                  Colar
-                </Button>
-
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none">
-                  <Upload className="h-4 w-4 mr-1" />
-                  <span className="hidden xs:inline">CSV/TXT</span>
-                  <span className="xs:hidden">CSV</span>
-                </Button>
-                <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch 
-                id="deduplicar" 
-                checked={deduplicarNumeros} 
-                onCheckedChange={setDeduplicarNumeros}
-              />
-              <Label htmlFor="deduplicar" className="text-xs text-muted-foreground cursor-pointer">
-                Evitar duplicados
-              </Label>
-            </div>
-
-            {/* Add contact manually */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input placeholder="Nome (opcional)" value={novoNome} onChange={e => setNovoNome(e.target.value)} className="w-full sm:flex-1" />
-              <div className="flex gap-2">
-                <Input placeholder="Número (ex: 5521999999999)" value={novoNumero} onChange={e => setNovoNumero(e.target.value)} onKeyDown={e => e.key === "Enter" && addContato()} className="flex-1" />
-                <Button onClick={addContato} variant="outline" size="icon" className="flex-shrink-0">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Contact list */}
-            {contatos.length > 0 && <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    {selectedContacts.size} de {contatos.length} selecionado{selectedContacts.size !== 1 ? "s" : ""}
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {contatos.length > 10 && <Button variant="ghost" size="sm" onClick={() => setShowAllContacts(true)} className="h-8 px-2">
-                        Ver todos
-                      </Button>}
-                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => {
-                      if (contatos.length === 0) {
-                        toast.error("Nenhum contato para copiar");
-                        return;
-                      }
-                      const text = contatos.map(c => c.nome ? `${c.nome},${c.numero}` : c.numero).join("\n");
-                      navigator.clipboard.writeText(text);
-                      toast.success("Lista copiada para a área de transferência!");
-                    }}>
-                      <Copy className="h-4 w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Copiar</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={exportContatos}>
-                      <FileDown className="h-4 w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Exportar</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive h-8 px-2">
-                      <Trash2 className="h-4 w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Limpar tudo</span>
-                    </Button>
-                  </div>
-                </div>
-                <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
-                  {contatos.slice(0, 50).map(c => {
-                    const isSelected = selectedContacts.has(c.numero);
-                    return (
-                      <div 
-                        key={c.numero} 
-                        className={`flex items-center justify-between p-1.5 hover:bg-muted rounded text-sm cursor-pointer ${isSelected ? 'bg-primary/5' : 'opacity-50'}`}
-                        onClick={() => toggleContactSelection(c.numero)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Checkbox 
-                            checked={isSelected} 
-                            onCheckedChange={() => toggleContactSelection(c.numero)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <span>
-                            {c.nome ? `${c.nome} - ` : ""}{c.numero}
-                          </span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeContato(c.numero);
-                          }}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                  {contatos.length > 50 && <Button variant="link" size="sm" onClick={() => setShowAllContacts(true)} className="w-full text-xs text-muted-foreground">
-                      ... e mais {contatos.length - 50} contatos (clique para ver todos)
-                    </Button>}
-                </div>
-              </div>}
-          </div>
-
-          {/* Submit */}
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t px-4 sm:px-6 pb-4 sm:pb-6 flex-shrink-0">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit} disabled={isLoading || instancias.length === 0}>
-              {isLoading ? "Criando..." : "Criar Campanha"}
-            </Button>
-          </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Live Preview Section - Desktop only */}
-            <div className="hidden lg:flex w-80 border-l flex-col bg-muted/30">
-              <div className="p-3 border-b bg-background flex items-center gap-2">
-                <p className="font-medium text-sm">Prévia do Disparo</p>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={generateRandomPreview}
-                  className="h-6 w-6"
-                  disabled={blocos.length === 0 || blocos.every(b => b.variacoes.every(v => !(v.tipo === "text" && v.mensagem) && !(v.tipo !== "text" && v.mediaPreview)))}
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              
-              <div className="flex-1 overflow-hidden flex flex-col min-h-[300px] lg:min-h-0">
-                {/* WhatsApp-style header - from sender's perspective */}
-                <div className="bg-[#075E54] text-white p-3 flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold">
-                    C
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">Cliente</p>
-                    <p className="text-[10px] text-white/70">online</p>
-                  </div>
-                </div>
-
-                {/* Chat area */}
-                <div className="flex-1 overflow-y-auto p-3 relative" style={{
-                backgroundColor: "#ECE5DD",
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cdc4' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-              }}>
-                  {/* Delay badge */}
-                  {blocos.length > 1 && <div className="absolute top-1 left-1">
-                      <span className="bg-[#FFF3CD] text-[#856404] text-[9px] px-1.5 py-0.5 rounded-full shadow-sm">
-                        ⏱️ {delayBlocoMin}s - {delayBlocoMax}s entre blocos
-                      </span>
-                    </div>}
-                  
-                  <div className="space-y-3 pt-4" key={previewKey}>
-                    {/* Show generated preview if available */}
-                    {Object.keys(previewMessages).length > 0 ? (
-                      blocos.map((bloco, blocoIndex) => {
-                        const preview = previewMessages[blocoIndex];
-                        if (!preview) return null;
-                        
-                        return (
-                          <div key={`${bloco.id}-preview`} className="space-y-2">
-                            {blocos.length > 1 && (
-                              <div className="flex justify-center">
-                                <span className="bg-[#E1F3FB] text-[#54656F] text-[10px] px-2 py-0.5 rounded-full shadow-sm">
-                                  Bloco {blocoIndex + 1}
-                                </span>
-                              </div>
-                            )}
-                            
-                            <div className="flex justify-end">
-                              <div className="max-w-[90%] bg-[#D9FDD3] rounded-lg shadow-sm">
-                                <div className="p-2">
-                                  {preview.tipo === "image" && preview.mediaPreview && (
-                                    <img src={preview.mediaPreview} alt="Preview" className="rounded max-h-32 object-contain mb-1" />
-                                  )}
-                                  {preview.tipo === "video" && preview.mediaPreview && (
-                                    <div className="w-full h-20 bg-black/20 rounded flex items-center justify-center mb-1">
-                                      <Video className="h-8 w-8 text-white/70" />
-                                    </div>
-                                  )}
-                                  {preview.tipo === "audio" && preview.mediaPreview && (
-                                    <div className="flex items-center gap-2 py-2 px-1 min-w-[150px]">
-                                      <div className="w-8 h-8 rounded-full bg-[#075E54] flex items-center justify-center flex-shrink-0">
-                                        <Music className="h-4 w-4 text-white" />
-                                      </div>
-                                      <div className="flex-1 h-1 bg-[#075E54]/30 rounded-full" />
-                                      <span className="text-[10px] text-[#667781]">0:00</span>
-                                    </div>
-                                  )}
-                                  {preview.tipo === "document" && preview.mediaPreview && (
-                                    <div className="flex items-center gap-2 p-2 bg-[#C8E6C9] rounded mb-1 min-w-[120px]">
-                                      <FileText className="h-6 w-6 text-[#075E54]" />
-                                      <span className="text-xs text-[#111B21]">Documento</span>
-                                    </div>
-                                  )}
-
-                                  {!!preview.text && (
-                                    <p className="text-xs text-[#111B21] whitespace-pre-wrap break-words">
-                                      {preview.text}
-                                    </p>
-                                  )}
-
-                                  <div className="flex justify-end items-center gap-0.5 mt-1">
-                                    <span className="text-[9px] text-[#667781]">00:00</span>
-                                    <svg className="w-3 h-3 text-[#53BDEB]" viewBox="0 0 16 15" fill="currentColor">
-                                      <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.032l-.358-.325a.32.32 0 0 0-.484.032l-.378.48a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.88a.32.32 0 0 1-.484.032L1.892 7.77a.366.366 0 0 0-.516.005l-.423.433a.364.364 0 0 0 .006.514l3.255 3.185a.32.32 0 0 0 .484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z" />
-                                    </svg>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      /* Show placeholder or hint to generate */
-                      <div className="flex flex-col items-center justify-center py-8 gap-2">
-                        <Shuffle className="h-6 w-6 text-[#667781]/50" />
-                        <span className="text-[#667781] text-xs text-center px-4">
-                          {blocos.length === 0 || blocos.every(b => b.variacoes.every(v => !(v.tipo === "text" && v.mensagem) && !(v.tipo !== "text" && v.mediaPreview))) 
-                            ? "Adicione conteúdo para ver a prévia"
-                            : "Clique no ícone para ver uma possível mensagem"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer - client's input area */}
-                <div className="bg-[#F0F2F5] p-2 flex items-center gap-2">
-                  <div className="flex-1 bg-white rounded-full px-3 py-1.5 text-xs text-[#667781]">
-                    Digite uma mensagem
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-[#075E54] flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3z" />
-                      <path d="M17 12c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
+            {/* Step Content */}
+            <div className="flex-1 overflow-hidden min-h-0">
+              {etapaCriacao === 1 && renderEtapa1()}
+              {etapaCriacao === 2 && renderEtapa2()}
+              {etapaCriacao === 3 && renderEtapa3()}
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-    {/* Date Filter Dialog */}
-    <Dialog open={showDateFilter} onOpenChange={open => {
-      setShowDateFilter(open);
-      if (!open) {
-        setDateFrom("");
-        setDateTo("");
-        setDateFilterType(null);
-        setSelectedKanbanColumnId(null);
-      }
-    }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Filtrar por Período</DialogTitle>
-          <DialogDescription>
-            {dateFilterType === "leads" && "Importe apenas leads criados em um período específico"}
-            {dateFilterType === "clientes" && "Importe apenas clientes criados em um período específico"}
-            {(dateFilterType === "kanban_whatsapp" || dateFilterType === "kanban_disparos" || 
-              dateFilterType === "kanban_whatsapp_leads" || dateFilterType === "kanban_disparos_leads") && 
-              "Importe contatos com última interação no período selecionado"}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <Label>Data inicial (opcional)</Label>
-            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Data final (opcional)</Label>
-            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => {
-              if (dateFilterType === "leads") {
-                importFromLeads(false);
-              } else if (dateFilterType === "clientes") {
-                importFromClientes(false);
-              } else if (dateFilterType === "kanban_whatsapp" && selectedKanbanColumnId) {
-                importFromKanbanColumn(selectedKanbanColumnId, false);
-              } else if (dateFilterType === "kanban_disparos" && selectedKanbanColumnId) {
-                importFromDisparosKanbanColumn(selectedKanbanColumnId, false);
-              } else if (dateFilterType === "kanban_whatsapp_leads") {
-                importFromKanbanWhatsAppLeads(false);
-              } else if (dateFilterType === "kanban_disparos_leads") {
-                importFromKanbanDisparosLeads(false);
-              }
-            }} disabled={loadingDataSource}>
-              Importar Todos
-            </Button>
-            <Button onClick={() => {
-              if (dateFilterType === "leads") {
-                importFromLeads(true);
-              } else if (dateFilterType === "clientes") {
-                importFromClientes(true);
-              } else if (dateFilterType === "kanban_whatsapp" && selectedKanbanColumnId) {
-                importFromKanbanColumn(selectedKanbanColumnId, true);
-              } else if (dateFilterType === "kanban_disparos" && selectedKanbanColumnId) {
-                importFromDisparosKanbanColumn(selectedKanbanColumnId, true);
-              } else if (dateFilterType === "kanban_whatsapp_leads") {
-                importFromKanbanWhatsAppLeads(true);
-              } else if (dateFilterType === "kanban_disparos_leads") {
-                importFromKanbanDisparosLeads(true);
-              }
-            }} disabled={loadingDataSource || !dateFrom && !dateTo}>
-              {loadingDataSource ? "Importando..." : "Importar Filtrado"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    {/* Import Dialog */}
-    <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Importar Contatos</DialogTitle>
-          <DialogDescription>
-            Escolha a origem dos contatos para importar
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="max-h-[60vh]">
-          <div className="space-y-1 pr-4">
-            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => {
-              setShowImportDialog(false);
-              openDateFilterForLeads();
-            }} disabled={loadingDataSource}>
-              <Users className="h-4 w-4 mr-2" />
-              Todos os Contatos (Leads)
-            </Button>
-            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => {
-              setShowImportDialog(false);
-              openDateFilterForClientes();
-            }} disabled={loadingDataSource}>
-              <Users className="h-4 w-4 mr-2" />
-              Apenas Clientes
-            </Button>
-            
-            <div className="border-t my-2" />
-            <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Kanban WhatsApp</p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full justify-start" 
-              onClick={() => {
-                setShowImportDialog(false);
-                openDateFilterForKanbanWhatsAppLeads();
-              }} 
-              disabled={loadingDataSource}
-            >
-              <div className="w-3 h-3 rounded-full mr-2 bg-gray-400" />
-              Leads (não atribuídos)
-            </Button>
-            {kanbanColumns.map(col => (
-              <Button 
-                key={col.id} 
-                variant="ghost" 
-                size="sm" 
-                className="w-full justify-start" 
-                onClick={() => {
-                  setShowImportDialog(false);
-                  openDateFilterForKanbanWhatsApp(col.id);
-                }} 
-                disabled={loadingDataSource}
-              >
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: col.cor }} />
-                {col.nome}
+      {/* Date Filter Dialog */}
+      <Dialog open={showDateFilter} onOpenChange={open => {
+        setShowDateFilter(open);
+        if (!open) { setDateFrom(""); setDateTo(""); setDateFilterType(null); setSelectedKanbanColumnId(null); }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Filtrar por Período</DialogTitle>
+            <DialogDescription>
+              {dateFilterType === "leads" && "Importe apenas leads criados em um período específico"}
+              {dateFilterType === "clientes" && "Importe apenas clientes criados em um período específico"}
+              {(dateFilterType === "kanban_whatsapp" || dateFilterType === "kanban_disparos" ||
+                dateFilterType === "kanban_whatsapp_leads" || dateFilterType === "kanban_disparos_leads") &&
+                "Importe contatos com última interação no período selecionado"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Data inicial (opcional)</Label>
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Data final (opcional)</Label>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => {
+                if (dateFilterType === "leads") importFromLeads(false);
+                else if (dateFilterType === "clientes") importFromClientes(false);
+                else if (dateFilterType === "kanban_whatsapp" && selectedKanbanColumnId) importFromKanbanColumn(selectedKanbanColumnId, false);
+                else if (dateFilterType === "kanban_disparos" && selectedKanbanColumnId) importFromDisparosKanbanColumn(selectedKanbanColumnId, false);
+                else if (dateFilterType === "kanban_whatsapp_leads") importFromKanbanWhatsAppLeads(false);
+                else if (dateFilterType === "kanban_disparos_leads") importFromKanbanDisparosLeads(false);
+              }} disabled={loadingDataSource}>
+                Importar Todos
               </Button>
-            ))}
-            
-            <div className="border-t my-2" />
-            <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Kanban Disparos</p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full justify-start" 
-              onClick={() => {
-                setShowImportDialog(false);
-                openDateFilterForKanbanDisparosLeads();
-              }} 
-              disabled={loadingDataSource}
-            >
-              <div className="w-3 h-3 rounded-full mr-2 bg-gray-400" />
-              Leads (não atribuídos)
-            </Button>
-            {disparosKanbanColumns.map(col => (
-              <Button 
-                key={col.id} 
-                variant="ghost" 
-                size="sm" 
-                className="w-full justify-start" 
-                onClick={() => {
-                  setShowImportDialog(false);
-                  openDateFilterForKanbanDisparos(col.id);
-                }} 
-                disabled={loadingDataSource}
-              >
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: col.cor }} />
-                {col.nome}
+              <Button onClick={() => {
+                if (dateFilterType === "leads") importFromLeads(true);
+                else if (dateFilterType === "clientes") importFromClientes(true);
+                else if (dateFilterType === "kanban_whatsapp" && selectedKanbanColumnId) importFromKanbanColumn(selectedKanbanColumnId, true);
+                else if (dateFilterType === "kanban_disparos" && selectedKanbanColumnId) importFromDisparosKanbanColumn(selectedKanbanColumnId, true);
+                else if (dateFilterType === "kanban_whatsapp_leads") importFromKanbanWhatsAppLeads(true);
+                else if (dateFilterType === "kanban_disparos_leads") importFromKanbanDisparosLeads(true);
+              }} disabled={loadingDataSource || (!dateFrom && !dateTo)}>
+                {loadingDataSource ? "Importando..." : "Importar Filtrado"}
               </Button>
-            ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            {listasExtrator.length > 0 && <>
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Importar Contatos</DialogTitle>
+            <DialogDescription>Escolha a origem dos contatos para importar</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-1 pr-4">
+              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForLeads(); }} disabled={loadingDataSource}>
+                <Users className="h-4 w-4 mr-2" />Todos os Contatos (Leads)
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForClientes(); }} disabled={loadingDataSource}>
+                <Users className="h-4 w-4 mr-2" />Apenas Clientes
+              </Button>
               <div className="border-t my-2" />
-              <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Listas do Extrator</p>
-              {listasExtrator.map(lista => (
-                <Button 
-                  key={lista.id} 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full justify-start" 
-                  onClick={() => importFromListaExtrator(lista)}
-                  disabled={loadingDataSource}
-                >
-                  <Database className="h-3 w-3 mr-2 text-purple-600" />
-                  {lista.nome}
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    {lista.total_contatos}
-                  </Badge>
+              <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Kanban WhatsApp</p>
+              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForKanbanWhatsAppLeads(); }} disabled={loadingDataSource}>
+                <div className="w-3 h-3 rounded-full mr-2 bg-muted-foreground/40" />Leads (não atribuídos)
+              </Button>
+              {kanbanColumns.map(col => (
+                <Button key={col.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForKanbanWhatsApp(col.id); }} disabled={loadingDataSource}>
+                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: col.cor }} />{col.nome}
                 </Button>
               ))}
-            </>}
-
-            {listasImportadas.length > 0 && <>
               <div className="border-t my-2" />
-              <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Listas Importadas</p>
-              {listasImportadas.map(lista => {
-                // Contagem de nutrindo: contatos que já foram disparados
-                return (
-                  <Button
-                    key={lista.id}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => importFromListaImportada(lista)}
-                    disabled={loadingDataSource}
-                  >
-                    <Database className="h-3 w-3 mr-2 text-blue-600" />
-                    {lista.nome}
-                    <Badge variant="secondary" className="ml-auto text-xs">
-                      {lista.total_contatos}
-                    </Badge>
-                  </Button>
-                );
-              })}
-            </>}
-          </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
-
-    {/* All Contacts Dialog */}
-    <Dialog open={showAllContacts} onOpenChange={(open) => {
-      setShowAllContacts(open);
-      if (!open) {
-        setAllContactsPage(1);
-        setAllContactsFilterOrigens(new Set());
-      }
-    }}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Lista de Contatos ({contatos.length})</DialogTitle>
-          <DialogDescription>
-            {selectedContacts.size} de {contatos.length} selecionados para envio
-            {allContactsFilterOrigens.size > 0 && (
-              <span className="ml-2 text-primary">
-                (mostrando {contatosFiltradosPorOrigem.length} de {allContactsFilterOrigens.size} lista{allContactsFilterOrigens.size > 1 ? 's' : ''})
-              </span>
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Filter by origin - Multi-select */}
-        {origensUnicas.length > 0 && (
-          <div className="flex flex-col gap-2 pb-2">
-            <div className="flex items-center gap-2">
-              <List className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Filtrar por lista:</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 min-w-48 justify-between">
-                    <span className="truncate">
-                      {allContactsFilterOrigens.size === 0 
-                        ? "Todas as listas" 
-                        : `${allContactsFilterOrigens.size} selecionada${allContactsFilterOrigens.size > 1 ? 's' : ''}`}
-                    </span>
-                    <ChevronDown className="h-3 w-3 ml-2 shrink-0" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <div className="p-2 border-b">
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="flex-1 h-7 text-xs"
-                        onClick={() => setAllContactsFilterOrigens(new Set(origensUnicas))}
-                      >
-                        Todas
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="flex-1 h-7 text-xs"
-                        onClick={() => setAllContactsFilterOrigens(new Set())}
-                      >
-                        Limpar
-                      </Button>
-                    </div>
-                  </div>
-                  <ScrollArea className="max-h-48">
-                    <div className="p-2 space-y-1">
-                      {origensUnicas.map(origem => (
-                        <div 
-                          key={origem} 
-                          className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer"
-                          onClick={() => toggleOrigemFilter(origem)}
-                        >
-                          <Checkbox 
-                            checked={allContactsFilterOrigens.has(origem)} 
-                            onCheckedChange={() => toggleOrigemFilter(origem)}
-                          />
-                          <span className="text-sm truncate flex-1">{origem}</span>
-                          <Badge variant="secondary" className="text-xs">
-                            {contatos.filter(c => c.origem === origem).length}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
-              {allContactsFilterOrigens.size > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => setAllContactsFilterOrigens(new Set())} className="h-8 px-2">
-                  <X className="h-3 w-3" />
+              <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Kanban Disparos</p>
+              <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForKanbanDisparosLeads(); }} disabled={loadingDataSource}>
+                <div className="w-3 h-3 rounded-full mr-2 bg-muted-foreground/40" />Leads (não atribuídos)
+              </Button>
+              {disparosKanbanColumns.map(col => (
+                <Button key={col.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => { setShowImportDialog(false); openDateFilterForKanbanDisparos(col.id); }} disabled={loadingDataSource}>
+                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: col.cor }} />{col.nome}
                 </Button>
+              ))}
+              {listasExtrator.length > 0 && (
+                <>
+                  <div className="border-t my-2" />
+                  <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Listas do Extrator</p>
+                  {listasExtrator.map(lista => (
+                    <Button key={lista.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => importFromListaExtrator(lista)} disabled={loadingDataSource}>
+                      <Database className="h-3 w-3 mr-2 text-purple-600" />{lista.nome}
+                      <Badge variant="secondary" className="ml-auto text-xs">{lista.total_contatos}</Badge>
+                    </Button>
+                  ))}
+                </>
+              )}
+              {listasImportadas.length > 0 && (
+                <>
+                  <div className="border-t my-2" />
+                  <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Listas Importadas</p>
+                  {listasImportadas.map(lista => (
+                    <Button key={lista.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => importFromListaImportada(lista)} disabled={loadingDataSource}>
+                      <Database className="h-3 w-3 mr-2 text-blue-600" />{lista.nome}
+                      <Badge variant="secondary" className="ml-auto text-xs">{lista.total_contatos}</Badge>
+                    </Button>
+                  ))}
+                </>
               )}
             </div>
-            {allContactsFilterOrigens.size > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {Array.from(allContactsFilterOrigens).map(origem => (
-                  <Badge key={origem} variant="secondary" className="text-xs gap-1">
-                    {origem}
-                    <X 
-                      className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                      onClick={() => toggleOrigemFilter(origem)}
-                    />
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Selection and pagination controls */}
-        <div className="flex flex-col gap-2 pb-2 border-b">
-          <div className="flex items-center gap-1">
-            <Button variant="default" size="sm" className="text-xs px-2 h-7" onClick={() => {
-              setSelectedContacts(new Set(contatos.map(c => c.numero)));
-            }}>
-              <CheckSquare className="h-3 w-3 mr-1" />
-              Marcar Todos
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
-              setSelectedContacts(new Set());
-            }}>
-              <Square className="h-3 w-3 mr-1" />
-              Desmarcar Todos
-            </Button>
-            <div className="w-px h-5 bg-border mx-1" />
-            <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
-              const pageContacts = contatosFiltradosPorOrigem.slice(
-                (allContactsPage - 1) * allContactsPerPage, 
-                allContactsPage * allContactsPerPage
-              );
-              setSelectedContacts(prev => {
-                const next = new Set(prev);
-                pageContacts.forEach(c => next.add(c.numero));
-                return next;
-              });
-            }}>
-              <CheckSquare className="h-3 w-3 mr-1" />
-              Marcar Página
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
-              const pageContacts = contatosFiltradosPorOrigem.slice(
-                (allContactsPage - 1) * allContactsPerPage, 
-                allContactsPage * allContactsPerPage
-              );
-              setSelectedContacts(prev => {
-                const next = new Set(prev);
-                pageContacts.forEach(c => next.delete(c.numero));
-                return next;
-              });
-            }}>
-              <Square className="h-3 w-3 mr-1" />
-              Desmarcar Página
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-[50vh] pr-4">
-            <div className="space-y-1">
-              {contatosFiltradosPorOrigem
-                .slice((allContactsPage - 1) * allContactsPerPage, allContactsPage * allContactsPerPage)
-                .map((c, idx) => {
-                  const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
-                  const isSelected = selectedContacts.has(c.numero);
-                    return (
-                      <div 
-                        key={`${globalIdx}-${c.numero}`} 
-                      className={`flex items-center justify-between p-2 hover:bg-muted rounded text-sm border-b last:border-b-0 cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
-                      onClick={() => toggleContactSelection(c.numero)}
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <Checkbox 
-                          checked={isSelected} 
-                          onCheckedChange={() => toggleContactSelection(c.numero)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <span className="text-xs text-muted-foreground w-8">{globalIdx + 1}.</span>
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="truncate">
-                              {c.nome ? `${c.nome} - ` : ""}{c.numero}
-                            </span>
-                            {numerosDisparados.has(c.numero.slice(-8)) && (
-                              <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">
-                                nutrindo
-                              </Badge>
-                            )}
-                          </div>
-                          {c.origem && (
-                            <span className="text-[10px] text-muted-foreground truncate">
-                              {c.origem}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeContato(c.numero);
-                        }}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  );
-                })}
-            </div>
           </ScrollArea>
-        </div>
+        </DialogContent>
+      </Dialog>
 
-        {/* Pagination */}
-        {(() => {
-          const totalPages = Math.ceil(contatosFiltradosPorOrigem.length / allContactsPerPage);
-          return (
-            <div className="flex items-center justify-between pt-2 border-t">
+      {/* All Contacts Dialog */}
+      <Dialog open={showAllContacts} onOpenChange={(open) => {
+        setShowAllContacts(open);
+        if (!open) { setAllContactsPage(1); setAllContactsFilterOrigens(new Set()); }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Lista de Contatos ({contatos.length})</DialogTitle>
+            <DialogDescription>
+              {selectedContacts.size} de {contatos.length} selecionados para envio
+              {allContactsFilterOrigens.size > 0 && (
+                <span className="ml-2 text-primary">
+                  (mostrando {contatosFiltradosPorOrigem.length} de {allContactsFilterOrigens.size} lista{allContactsFilterOrigens.size > 1 ? "s" : ""})
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {origensUnicas.length > 0 && (
+            <div className="flex flex-col gap-2 pb-2">
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  disabled={allContactsPage <= 1}
-                  onClick={() => setAllContactsPage(p => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center gap-1 text-sm">
-                  <span>Página</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={totalPages || 1}
-                    value={allContactsPage}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (!isNaN(val) && val >= 1 && val <= (totalPages || 1)) {
-                        setAllContactsPage(val);
-                      }
-                    }}
-                    className="w-16 h-8 text-center"
-                  />
-                  <span>de {totalPages || 1}</span>
+                <List className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Filtrar por lista:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 min-w-48 justify-between">
+                      <span className="truncate">{allContactsFilterOrigens.size === 0 ? "Todas as listas" : `${allContactsFilterOrigens.size} selecionada${allContactsFilterOrigens.size > 1 ? "s" : ""}`}</span>
+                      <ChevronDown className="h-3 w-3 ml-2 shrink-0" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0" align="start">
+                    <div className="p-2 border-b">
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setAllContactsFilterOrigens(new Set(origensUnicas))}>Todas</Button>
+                        <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setAllContactsFilterOrigens(new Set())}>Limpar</Button>
+                      </div>
+                    </div>
+                    <ScrollArea className="max-h-48">
+                      <div className="p-2 space-y-1">
+                        {origensUnicas.map(origem => (
+                          <div key={origem} className="flex items-center gap-2 p-1.5 hover:bg-muted rounded cursor-pointer" onClick={() => toggleOrigemFilter(origem)}>
+                            <Checkbox checked={allContactsFilterOrigens.has(origem)} onCheckedChange={() => toggleOrigemFilter(origem)} />
+                            <span className="text-sm truncate flex-1">{origem}</span>
+                            <Badge variant="secondary" className="text-xs">{contatos.filter(c => c.origem === origem).length}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+                {allContactsFilterOrigens.size > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setAllContactsFilterOrigens(new Set())} className="h-8 px-2"><X className="h-3 w-3" /></Button>
+                )}
+              </div>
+              {allContactsFilterOrigens.size > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {Array.from(allContactsFilterOrigens).map(origem => (
+                    <Badge key={origem} variant="secondary" className="text-xs gap-1">
+                      {origem}
+                      <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => toggleOrigemFilter(origem)} />
+                    </Badge>
+                  ))}
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  disabled={allContactsPage >= totalPages}
-                  onClick={() => setAllContactsPage(p => Math.min(totalPages, p + 1))}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Por página:</span>
-                <Select value={String(allContactsPerPage)} onValueChange={(v) => {
-                  setAllContactsPerPage(Number(v));
-                  setAllContactsPage(1);
-                }}>
-                  <SelectTrigger className="w-20 h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                    <SelectItem value="200">200</SelectItem>
-                    <SelectItem value="500">500</SelectItem>
-                    <SelectItem value="1000">1000</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              )}
             </div>
-          );
-        })()}
-
-        <div className="flex justify-between items-center pt-4 border-t">
-          <Button variant="destructive" size="sm" onClick={() => {
-            clearAll();
-            setShowAllContacts(false);
-          }}>
-            <Trash2 className="h-4 w-4 mr-1" />
-            Limpar todos
-          </Button>
-          <Button onClick={() => setShowAllContacts(false)}>Fechar</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  </>;
+          )}
+          <div className="flex flex-col gap-2 pb-2 border-b">
+            <div className="flex items-center gap-1">
+              <Button variant="default" size="sm" className="text-xs px-2 h-7" onClick={() => setSelectedContacts(new Set(contatos.map(c => c.numero)))}>
+                <CheckSquare className="h-3 w-3 mr-1" />Marcar Todos
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => setSelectedContacts(new Set())}>
+                <Square className="h-3 w-3 mr-1" />Desmarcar Todos
+              </Button>
+              <div className="w-px h-5 bg-border mx-1" />
+              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
+                const pageContacts = contatosFiltradosPorOrigem.slice((allContactsPage - 1) * allContactsPerPage, allContactsPage * allContactsPerPage);
+                setSelectedContacts(prev => { const next = new Set(prev); pageContacts.forEach(c => next.add(c.numero)); return next; });
+              }}>
+                <CheckSquare className="h-3 w-3 mr-1" />Marcar Página
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs px-2 h-7" onClick={() => {
+                const pageContacts = contatosFiltradosPorOrigem.slice((allContactsPage - 1) * allContactsPerPage, allContactsPage * allContactsPerPage);
+                setSelectedContacts(prev => { const next = new Set(prev); pageContacts.forEach(c => next.delete(c.numero)); return next; });
+              }}>
+                <Square className="h-3 w-3 mr-1" />Desmarcar Página
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="h-[50vh] pr-4">
+              <div className="space-y-1">
+                {contatosFiltradosPorOrigem
+                  .slice((allContactsPage - 1) * allContactsPerPage, allContactsPage * allContactsPerPage)
+                  .map((c, idx) => {
+                    const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
+                    const isSelected = selectedContacts.has(c.numero);
+                    return (
+                      <div
+                        key={`${globalIdx}-${c.numero}`}
+                        className={`flex items-center justify-between p-2 hover:bg-muted rounded text-sm border-b last:border-b-0 cursor-pointer ${isSelected ? "bg-primary/5" : ""}`}
+                        onClick={() => toggleContactSelection(c.numero)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <Checkbox checked={isSelected} onCheckedChange={() => toggleContactSelection(c.numero)} onClick={e => e.stopPropagation()} />
+                          <span className="text-xs text-muted-foreground w-8">{globalIdx + 1}.</span>
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="truncate">{c.nome ? `${c.nome} - ` : ""}{c.numero}</span>
+                              {numerosDisparados.has(c.numero.slice(-8)) && (
+                                <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                              )}
+                            </div>
+                            {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0" onClick={e => { e.stopPropagation(); removeContato(c.numero); }}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </ScrollArea>
+          </div>
+          {contatosFiltradosPorOrigem.length > allContactsPerPage && (() => {
+            const totalPages = Math.ceil(contatosFiltradosPorOrigem.length / allContactsPerPage);
+            return (
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Por página:</span>
+                  <Select value={String(allContactsPerPage)} onValueChange={v => { setAllContactsPerPage(Number(v)); setAllContactsPage(1); }}>
+                    <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[25, 50, 100, 200].map(n => <SelectItem key={n} value={String(n)} className="text-xs">{n}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="icon" className="h-7 w-7" disabled={allContactsPage === 1} onClick={() => setAllContactsPage(p => p - 1)}>
+                    <ChevronLeft className="h-3 w-3" />
+                  </Button>
+                  <span className="text-xs px-2">{allContactsPage} / {totalPages}</span>
+                  <Button variant="outline" size="icon" className="h-7 w-7" disabled={allContactsPage === totalPages} onClick={() => setAllContactsPage(p => p + 1)}>
+                    <ChevronRight className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+          <div className="flex justify-between items-center pt-4 border-t">
+            <Button variant="destructive" size="sm" onClick={() => { clearAll(); setShowAllContacts(false); }}>
+              <Trash2 className="h-4 w-4 mr-1" />Limpar todos
+            </Button>
+            <Button onClick={() => setShowAllContacts(false)}>Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
