@@ -1053,6 +1053,19 @@ async function processCampaign(
 
         if (!response.ok) {
           const errorText = await response.text();
+          // Detect "not on WhatsApp" errors and throw with a recognizable prefix
+          const lowerError = errorText.toLowerCase();
+          if (
+            lowerError.includes("not on whatsapp") ||
+            lowerError.includes("number not exists") ||
+            lowerError.includes("não existe no whatsapp") ||
+            lowerError.includes("phone not registered") ||
+            lowerError.includes("invalid phone") ||
+            lowerError.includes("not registered") ||
+            (response.status === 400 && lowerError.includes("phone"))
+          ) {
+            throw new Error(`SEM_WHATSAPP: ${errorText}`);
+          }
           throw new Error(`API error: ${response.status} - ${errorText}`);
         }
 
