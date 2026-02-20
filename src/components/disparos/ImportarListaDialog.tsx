@@ -390,7 +390,7 @@ export function ImportarListaDialog({ open, onOpenChange, onListaImportada }: Im
               <span>Campo do sistema</span>
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2 min-h-0">
+            <div className="flex-1 overflow-y-auto pr-4 min-h-0">
               <div className="space-y-3">
                 {mapeamentos.map((m) => {
                   const colIdx = csvHeaders.indexOf(m.colunaCsv);
