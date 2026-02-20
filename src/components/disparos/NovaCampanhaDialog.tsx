@@ -149,6 +149,9 @@ export function NovaCampanhaDialog({
   // Números que já foram disparados em alguma campanha (para badge "nutrindo")
   const [numerosDisparados, setNumerosDisparados] = useState<Set<string>>(new Set());
 
+  // Números sem WhatsApp em campanhas anteriores (para badge "sem whatsapp")
+  const [numerosSemWhatsApp, setNumerosSemWhatsApp] = useState<Set<string>>(new Set());
+
   // Popup de detalhes do contato na etapa 3
   const [contatoDetalhesAberto, setContatoDetalhesAberto] = useState<Contato | null>(null);
 
@@ -471,6 +474,7 @@ export function NovaCampanhaDialog({
 
       const campanhaIds = campanhas.map((c: any) => c.id);
       const nums = new Set<string>();
+      const semWpp = new Set<string>();
 
       // Busca em lotes para contornar limite de 1000 linhas
       const BATCH = 500;
@@ -478,6 +482,7 @@ export function NovaCampanhaDialog({
         const batchIds = campanhaIds.slice(i, i + BATCH);
         let from = 0;
         const PAGE = 1000;
+        // Nutrindo: enviados com sucesso
         while (true) {
           const { data } = await supabase
             .from("disparos_campanha_contatos")
@@ -493,9 +498,38 @@ export function NovaCampanhaDialog({
           if (data.length < PAGE) break;
           from += PAGE;
         }
+        // Sem WhatsApp: falharam com erro de número inexistente
+        from = 0;
+        while (true) {
+          const { data } = await supabase
+            .from("disparos_campanha_contatos")
+            .select("numero, erro")
+            .in("campanha_id", batchIds)
+            .eq("status", "failed")
+            .not("erro", "is", null)
+            .range(from, from + PAGE - 1);
+          if (!data || data.length === 0) break;
+          data.forEach((d: any) => {
+            const lower = (d.erro || "").toLowerCase();
+            if (
+              lower.includes("sem_whatsapp:") ||
+              lower.includes("not on whatsapp") ||
+              lower.includes("number not exists") ||
+              lower.includes("not registered") ||
+              lower.includes("phone not registered") ||
+              lower.includes("invalid phone")
+            ) {
+              const cleaned = d.numero?.replace(/\D/g, "");
+              if (cleaned) semWpp.add(cleaned.slice(-8));
+            }
+          });
+          if (data.length < PAGE) break;
+          from += PAGE;
+        }
       }
 
       setNumerosDisparados(nums);
+      setNumerosSemWhatsApp(semWpp);
     } catch (error) {
       console.error("Error loading numeros disparados:", error);
     }
@@ -2062,6 +2096,7 @@ export function NovaCampanhaDialog({
                   const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
                   const isSelected = selectedContacts.has(c.numero);
                   const isNutrindo = numerosDisparados.has(c.numero.slice(-8));
+                  const isSemWhatsApp = numerosSemWhatsApp.has(c.numero.slice(-8));
                   const extras = c.dados_extras ?? {};
                   const sociaisDoContato = SOCIAL_TIPOS_CAMP.filter(chave => extras[chave]?.trim());
                   return (
@@ -2081,6 +2116,9 @@ export function NovaCampanhaDialog({
                             </div>
                             {isNutrindo && (
                               <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                            )}
+                            {isSemWhatsApp && (
+                              <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">sem whatsapp</Badge>
                             )}
                           </div>
                           {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
@@ -2449,6 +2487,9 @@ export function NovaCampanhaDialog({
                               </div>
                               {numerosDisparados.has(c.numero.slice(-8)) && (
                                 <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                              )}
+                              {numerosSemWhatsApp.has(c.numero.slice(-8)) && (
+                                <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">sem whatsapp</Badge>
                               )}
                             </div>
                             {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}

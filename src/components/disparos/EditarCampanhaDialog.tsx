@@ -130,6 +130,7 @@ export function EditarCampanhaDialog({
   const [allContactsFilterOrigens, setAllContactsFilterOrigens] = useState<Set<string>>(new Set());
   const [contatoDetalhesAberto, setContatoDetalhesAberto] = useState<Contato | null>(null);
   const [numerosDisparados, setNumerosDisparados] = useState<Set<string>>(new Set());
+  const [numerosSemWhatsApp, setNumerosSemWhatsApp] = useState<Set<string>>(new Set());
 
   const origensUnicas = useMemo(() => {
     const origens = new Set<string>();
@@ -217,9 +218,11 @@ export function EditarCampanhaDialog({
       const campanhaIds = campanhas.map(c => c.id);
       const batchSize = 20;
       const allNums = new Set<string>();
+      const semWpp = new Set<string>();
       for (let i = 0; i < campanhaIds.length; i += batchSize) {
         const batch = campanhaIds.slice(i, i + batchSize);
         let from = 0;
+        // Nutrindo
         while (true) {
           const { data } = await supabase
             .from("disparos_campanha_contatos")
@@ -232,8 +235,37 @@ export function EditarCampanhaDialog({
           if (data.length < 1000) break;
           from += 1000;
         }
+        // Sem WhatsApp
+        from = 0;
+        while (true) {
+          const { data } = await supabase
+            .from("disparos_campanha_contatos")
+            .select("numero, erro")
+            .in("campanha_id", batch)
+            .eq("status", "failed")
+            .not("erro", "is", null)
+            .range(from, from + 999);
+          if (!data || data.length === 0) break;
+          data.forEach(c => {
+            const lower = (c.erro || "").toLowerCase();
+            if (
+              lower.includes("sem_whatsapp:") ||
+              lower.includes("not on whatsapp") ||
+              lower.includes("number not exists") ||
+              lower.includes("not registered") ||
+              lower.includes("phone not registered") ||
+              lower.includes("invalid phone")
+            ) {
+              const d = c.numero.replace(/\D/g, "");
+              semWpp.add(d.slice(-8));
+            }
+          });
+          if (data.length < 1000) break;
+          from += 1000;
+        }
       }
       setNumerosDisparados(allNums);
+      setNumerosSemWhatsApp(semWpp);
     } catch {}
   };
 
@@ -1382,6 +1414,7 @@ export function EditarCampanhaDialog({
                   const globalIdx = (allContactsPage - 1) * allContactsPerPage + idx;
                   const isSelected = selectedContacts.has(c.numero);
                   const isNutrindo = numerosDisparados.has(c.numero.slice(-8));
+                  const isSemWhatsApp = numerosSemWhatsApp.has(c.numero.slice(-8));
                   const extras = c.dados_extras ?? {};
                   const sociaisDoContato = SOCIAL_TIPOS.filter(chave => extras[chave]?.trim());
                   return (
@@ -1401,6 +1434,9 @@ export function EditarCampanhaDialog({
                             </div>
                             {isNutrindo && (
                               <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                            )}
+                            {isSemWhatsApp && (
+                              <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">sem whatsapp</Badge>
                             )}
                           </div>
                           {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
