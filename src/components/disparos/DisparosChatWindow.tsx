@@ -421,30 +421,18 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
     try {
       const currentOffset = loadMore ? messagesOffset : 0;
       
-      // Build count query with history_cleared_at filter
-      let countQuery = supabase
-        .from('disparos_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('chat_id', chat.id);
-      
-      if (chat.history_cleared_at) {
-        countQuery = countQuery.gte('timestamp', chat.history_cleared_at);
-      }
-      
-      const { count: totalCount } = await countQuery;
-      
       // Build data query - filter by history_cleared_at if set
       let query = supabase
         .from('disparos_messages')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('chat_id', chat.id);
 
       if (chat.history_cleared_at) {
         query = query.gte('timestamp', chat.history_cleared_at);
       }
 
-      // Fetch page of messages (newest first for pagination)
-      const { data: dbMessages, error } = await query
+      // Fetch page of messages (newest first for pagination) - single query with count
+      const { data: dbMessages, error, count: totalCount } = await query
         .order('timestamp', { ascending: false })
         .range(currentOffset, currentOffset + MESSAGES_PAGE_SIZE - 1);
 
@@ -523,13 +511,15 @@ export function DisparosChatWindow({ chat, onBack, onChatDeleted, onChatUpdated,
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      await supabase.functions.invoke('disparos-get-messages', {
+      const { data } = await supabase.functions.invoke('disparos-get-messages', {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: { chat_id: chat.chat_id, db_chat_id: chat.id }
       });
 
-      // Reload from DB after sync (realtime will also catch new inserts)
-      await loadMessages(false);
+      // Only reload from DB if sync actually found new messages
+      if (data?.count > 0) {
+        await loadMessages(false);
+      }
     } catch (syncError) {
       // Silent fail - don't show error to user for background sync
       console.error('Background sync error:', syncError);
