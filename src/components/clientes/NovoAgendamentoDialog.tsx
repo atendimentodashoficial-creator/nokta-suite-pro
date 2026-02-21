@@ -997,7 +997,7 @@ export function NovoAgendamentoDialog({
       queryClient.invalidateQueries({ queryKey: ["reunioes"] });
       onOpenChange(false);
       form.reset();
-      setTipoCalendario("app");
+      setTipoCalendario("both");
     } catch (error: any) {
       console.error("Erro ao criar agendamento:", error);
       const errorMsg = error?.message || error?.msg || "Erro desconhecido";
