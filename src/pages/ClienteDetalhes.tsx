@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, Calendar, Tag, DollarSign, CalendarCheck, Edit, Plus, RefreshCw, UserCheck, ChevronDown, ShoppingBag, Clock, CreditCard, Trash2, MessageCircle, Send, History, CalendarX, FileText, Copy, ExternalLink } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Calendar, Tag, DollarSign, CalendarCheck, Edit, Plus, RefreshCw, UserCheck, ChevronDown, ShoppingBag, Clock, CreditCard, Trash2, MessageCircle, Send, History, CalendarX, FileText, Copy, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -129,6 +129,17 @@ export default function ClienteDetalhes() {
     return sum + valorLiquido;
   }, 0);
   const totalReagendamentos = clienteAgendamentos.reduce((sum, a) => sum + (a.numero_reagendamentos || 0), 0);
+
+  // Compute retorno counts per fatura
+  const retornosPorFatura = useMemo(() => {
+    const map: Record<string, number> = {};
+    clienteAgendamentos.forEach((ag: any) => {
+      if (ag.retorno_fatura_id) {
+        map[ag.retorno_fatura_id] = (map[ag.retorno_fatura_id] || 0) + 1;
+      }
+    });
+    return map;
+  }, [clienteAgendamentos]);
 
   const handleDeleteAgendamento = async (e: React.MouseEvent, agendamentoId: string) => {
     e.stopPropagation();
@@ -592,9 +603,17 @@ export default function ClienteDetalhes() {
                                 <h3 className="text-base font-semibold text-foreground line-clamp-2">
                                   {(fatura.procedimentos as any)?.nome || "Procedimento não especificado"}
                                 </h3>
-                                <Badge className={`${statusFaturaConfig[fatura.status].color} mt-1`}>
-                                  {statusFaturaConfig[fatura.status].label}
-                                </Badge>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  <Badge className={statusFaturaConfig[fatura.status].color}>
+                                    {statusFaturaConfig[fatura.status].label}
+                                  </Badge>
+                                  {retornosPorFatura[fatura.id] > 0 && (
+                                    <Badge className="bg-blue-500/20 text-blue-700 gap-1">
+                                      <RotateCcw className="h-3 w-3" />
+                                      {retornosPorFatura[fatura.id]} retorno{retornosPorFatura[fatura.id] > 1 ? "s" : ""}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>

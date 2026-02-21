@@ -186,6 +186,7 @@ export type Database = {
           origem_instancia_nome: string | null
           procedimento_id: string | null
           profissional_id: string | null
+          retorno_fatura_id: string | null
           status: Database["public"]["Enums"]["status_agendamento"]
           tipo: string
           ultimo_reagendamento_avisado: number | null
@@ -208,6 +209,7 @@ export type Database = {
           origem_instancia_nome?: string | null
           procedimento_id?: string | null
           profissional_id?: string | null
+          retorno_fatura_id?: string | null
           status?: Database["public"]["Enums"]["status_agendamento"]
           tipo?: string
           ultimo_reagendamento_avisado?: number | null
@@ -230,6 +232,7 @@ export type Database = {
           origem_instancia_nome?: string | null
           procedimento_id?: string | null
           profissional_id?: string | null
+          retorno_fatura_id?: string | null
           status?: Database["public"]["Enums"]["status_agendamento"]
           tipo?: string
           ultimo_reagendamento_avisado?: number | null
@@ -263,6 +266,13 @@ export type Database = {
             columns: ["profissional_id"]
             isOneToOne: false
             referencedRelation: "profissionais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_retorno_fatura_id_fkey"
+            columns: ["retorno_fatura_id"]
+            isOneToOne: false
+            referencedRelation: "faturas"
             referencedColumns: ["id"]
           },
         ]

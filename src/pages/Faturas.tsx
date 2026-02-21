@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, CreditCard, Receipt, Phone, Plus } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, CreditCard, Receipt, Phone, Plus, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { useFaturas, useDeleteFatura } from "@/hooks/useFaturas";
 import { useLeads } from "@/hooks/useLeads";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
+import { useAgendamentos } from "@/hooks/useAgendamentos";
 import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
 import { EditarFaturaDialog } from "@/components/clientes/EditarFaturaDialog";
 import { format } from "date-fns";
@@ -54,6 +55,19 @@ export default function Faturas() {
   const {
     data: profissionais
   } = useProfissionais();
+  const { data: allAgendamentos } = useAgendamentos();
+
+  // Compute retorno counts per fatura
+  const retornosPorFatura = useMemo(() => {
+    const map: Record<string, number> = {};
+    (allAgendamentos || []).forEach((ag: any) => {
+      if (ag.retorno_fatura_id) {
+        map[ag.retorno_fatura_id] = (map[ag.retorno_fatura_id] || 0) + 1;
+      }
+    });
+    return map;
+  }, [allAgendamentos]);
+
   const faturasFiltradas = todasFaturas?.filter(fatura => {
     // Converter UTC para Brasília para comparar com filtros locais
     const faturaDate = toZonedBrasilia(fatura.created_at);
@@ -190,9 +204,17 @@ export default function Faturas() {
                       <h3 className="text-lg font-semibold text-foreground truncate">
                         {(fatura.leads as any)?.nome || "Cliente não identificado"}
                       </h3>
-                      <Badge className="bg-green-500/20 text-green-700 mt-1">
-                        Fechado
-                      </Badge>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <Badge className="bg-green-500/20 text-green-700">
+                          Fechado
+                        </Badge>
+                        {retornosPorFatura[fatura.id] > 0 && (
+                          <Badge className="bg-blue-500/20 text-blue-700 gap-1">
+                            <RotateCcw className="h-3 w-3" />
+                            {retornosPorFatura[fatura.id]} retorno{retornosPorFatura[fatura.id] > 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
