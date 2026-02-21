@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Database, Trash2, Plus, Users, RefreshCw, ChevronRight, Download } from "lucide-react";
-import { CamposSistemaManager } from "./CamposSistemaManager";
+import { Database, Trash2, Plus, Users, ChevronRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -88,21 +87,15 @@ export function ListasImportadasManager() {
   // ── Vista de listagem ──────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-start">
-        <div className="flex gap-2">
-          <CamposSistemaManager />
-          <Button variant="outline" size="sm" onClick={loadListas} disabled={isLoading}>
-            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportarOrigemOpen(true)}>
+      <div className="flex items-center justify-start gap-2">
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setImportarOrigemOpen(true)}>
             <Download className="w-4 h-4" />
             Importar de Origem
           </Button>
-          <Button size="sm" className="gap-2" onClick={() => setImportarOpen(true)}>
+          <Button size="sm" className="gap-1" onClick={() => setImportarOpen(true)}>
             <Plus className="w-4 h-4" />
             Importar CSV
           </Button>
-        </div>
       </div>
 
       {isLoading ? (
