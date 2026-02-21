@@ -77,8 +77,7 @@ export default function FormulariosTemplates() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Templates de Formulários</h2>
+      <div className="flex items-center justify-start">
         <Button onClick={() => { setEditingTemplate(null); setTemplateDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
           Novo Template
