@@ -292,16 +292,10 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
       
       const currentOffset = loadMore ? messagesOffset : 0;
       
-      // Get total count first
-      const { count: totalCount } = await supabase
+      // Single query with count to avoid extra round-trip
+      const { data: dbMessages, error, count: totalCount } = await supabase
         .from('whatsapp_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('chat_id', chat.id);
-      
-      // Fetch page of messages (newest first for pagination)
-      const { data: dbMessages, error } = await supabase
-        .from('whatsapp_messages')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('chat_id', chat.id)
         .order('timestamp', { ascending: false })
         .range(currentOffset, currentOffset + MESSAGES_PAGE_SIZE - 1);
