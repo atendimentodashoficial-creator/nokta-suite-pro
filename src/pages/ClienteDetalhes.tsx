@@ -512,7 +512,7 @@ export default function ClienteDetalhes() {
                               <Badge className={statusConfig[agendamento.status as keyof typeof statusConfig].color}>
                                 {statusConfig[agendamento.status as keyof typeof statusConfig].label}
                               </Badge>
-                              <Badge variant="outline">{agendamento.tipo}</Badge>
+                              {agendamento.tipo && <Badge variant="outline">{agendamento.tipo}</Badge>}
                               {(() => {
                                 const origemKey = agendamento.origem_agendamento || "Manual";
                                 const origemConfig = origemAgendamentoConfig[origemKey] || origemAgendamentoConfig.Manual;
