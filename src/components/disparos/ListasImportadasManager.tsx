@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Database, Trash2, Plus, Users, ChevronRight, Download } from "lucide-react";
+import { CamposSistemaManager } from "./CamposSistemaManager";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -88,6 +89,7 @@ export function ListasImportadasManager() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-start gap-2">
+          <CamposSistemaManager />
           <Button variant="outline" size="sm" className="gap-1" onClick={() => setImportarOrigemOpen(true)}>
             <Download className="w-4 h-4" />
             Importar de Origem
