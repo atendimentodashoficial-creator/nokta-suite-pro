@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, Handshake, Phone, Plus } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, Handshake, Phone, Plus, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useFaturas, useDeleteFatura } from "@/hooks/useFaturas";
+import { useAgendamentos } from "@/hooks/useAgendamentos";
 import { useLeads } from "@/hooks/useLeads";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
@@ -52,6 +53,17 @@ export default function EmNegociacao() {
   const {
     data: profissionais
   } = useProfissionais();
+  const { data: allAgendamentos } = useAgendamentos();
+
+  const retornosPorFatura = useMemo(() => {
+    const map: Record<string, number> = {};
+    (allAgendamentos || []).forEach((ag: any) => {
+      if (ag.retorno_fatura_id) {
+        map[ag.retorno_fatura_id] = (map[ag.retorno_fatura_id] || 0) + 1;
+      }
+    });
+    return map;
+  }, [allAgendamentos]);
   const faturasFiltradas = todasFaturas?.filter(fatura => {
     // Converter UTC para Brasília para comparar com filtros locais
     const faturaDate = toZonedBrasilia(fatura.created_at);
@@ -180,6 +192,12 @@ export default function EmNegociacao() {
                       <Badge className="bg-blue-500/20 text-blue-700 mt-1">
                         Negociação
                       </Badge>
+                      {retornosPorFatura[fatura.id] > 0 && (
+                        <Badge className="bg-purple-500/20 text-purple-700 mt-1 gap-1">
+                          <RotateCcw className="h-3 w-3" />
+                          {retornosPorFatura[fatura.id]} retorno{retornosPorFatura[fatura.id] > 1 ? "s" : ""}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   
