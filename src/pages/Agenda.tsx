@@ -18,7 +18,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { RetornoDialog } from "@/components/clientes/RetornoDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,11 +45,6 @@ export default function Agenda() {
   const [novoAgendamentoOpen, setNovoAgendamentoOpen] = useState(false);
   const [deleteAgendamento, setDeleteAgendamento] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [retornoData, setRetornoData] = useState<{
-    clienteId: string;
-    clienteNome: string;
-    agendamentoId: string;
-  } | null>(null);
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("mes-atual");
   const [dataInicio, setDataInicio] = useState<Date>(startOfMonth(new Date()));
   const [dataFim, setDataFim] = useState<Date>(endOfMonth(new Date()));
@@ -410,23 +404,10 @@ export default function Agenda() {
                         {/* Ações - Botões Empilhados */}
                         <div className="mt-4 pt-3 border-t border-border space-y-2">
                           <div className="flex flex-col gap-2">
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" size="sm" className="w-full text-green-600 border-green-600 hover:bg-green-600 hover:text-white" onClick={e => handleMarcarCompareceu(agendamento, e)}>
-                                <Check className="h-4 w-4 mr-1" />
-                                Compareceu
-                              </Button>
-                              <Button variant="outline" size="sm" className="w-full text-blue-600 border-blue-600 hover:bg-blue-600 hover:text-white" onClick={e => {
-                                e.stopPropagation();
-                                setRetornoData({
-                                  clienteId: agendamento.cliente_id,
-                                  clienteNome: agendamento.leads?.nome || "Cliente",
-                                  agendamentoId: agendamento.id,
-                                });
-                              }}>
-                                <RefreshCw className="h-4 w-4 mr-1" />
-                                Retorno
-                              </Button>
-                            </div>
+                            <Button variant="outline" size="sm" className="w-full text-green-600 border-green-600 hover:bg-green-600 hover:text-white" onClick={e => handleMarcarCompareceu(agendamento, e)}>
+                              <Check className="h-4 w-4 mr-1" />
+                              Compareceu
+                            </Button>
                             <Button variant="outline" size="sm" className="w-full text-red-600 border-red-600 hover:bg-red-600 hover:text-white" onClick={e => handleMarcarNaoCompareceu(agendamento.id, e)}>
                               <X className="h-4 w-4 mr-1" />
                               Não Compareceu
@@ -513,15 +494,5 @@ export default function Agenda() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>}
-
-      {retornoData && (
-        <RetornoDialog
-          open={!!retornoData}
-          onOpenChange={(open) => !open && setRetornoData(null)}
-          clienteId={retornoData.clienteId}
-          clienteNome={retornoData.clienteNome}
-          agendamentoId={retornoData.agendamentoId}
-        />
-      )}
     </div>;
 }
