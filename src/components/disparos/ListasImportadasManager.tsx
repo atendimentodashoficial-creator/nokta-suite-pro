@@ -88,7 +88,7 @@ export function ListasImportadasManager() {
   // ── Vista de listagem ──────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-start gap-2">
+      <div className="flex items-center justify-start gap-2 pb-2">
           <CamposSistemaManager />
           <Button variant="outline" size="sm" className="gap-1" onClick={() => setImportarOrigemOpen(true)}>
             <Download className="w-4 h-4" />
