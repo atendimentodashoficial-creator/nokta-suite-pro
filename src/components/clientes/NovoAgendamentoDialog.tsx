@@ -822,16 +822,17 @@ export function NovoAgendamentoDialog({
       
       // Get procedimento name for Google Meet description
       const procedimentoSelecionado = procedimentos?.find(p => p.id === data.procedimento_id);
-      
-      // Quando a feature de reuniões está habilitada:
-      // - "app"  => cria SOMENTE na aba Reuniões (tabela reunioes)
-      // - "google" => cria no Google Calendar + salva na aba Reuniões (via backend)
-      // - "both" => cria no Calendário (agendamentos) + Google Calendar + aba Reuniões
-      // Quando a feature NÃO está habilitada, mantém comportamento padrão (Calendário / agendamentos).
+
+      // Lógica das opções de calendário:
+      // - "both"   => Google Calendar + Reuniões + Calendário (agendamentos)
+      // - "google" => Apenas aba Reuniões (+ calendário, pois reunião sempre vai pro calendário)
+      // - "app"    => Apenas Calendário (agendamentos)
+      //
+      // REGRA: sempre que criar reunião, criar no calendário também.
       const meetingsEnabled = reunioesEnabled;
-      const criarNoGoogleCalendar = meetingsEnabled && (tipoCalendario === "google" || tipoCalendario === "both") && showGoogleMeetOption;
-      const criarReuniaoInterna = meetingsEnabled && tipoCalendario === "app";
-      const criarNoCalendarioApp = !meetingsEnabled || tipoCalendario === "both" || tipoCalendario === "app";
+      const criarNoGoogleCalendar = meetingsEnabled && tipoCalendario === "both" && showGoogleMeetOption;
+      const criarReuniaoInterna = meetingsEnabled && (tipoCalendario === "google");
+      const criarNoCalendarioApp = true; // Sempre cria no calendário
 
       // Criar item no Calendário (tabela agendamentos) SOMENTE quando:
       // - feature reuniões desabilitada (fluxo antigo)
