@@ -537,10 +537,11 @@ export default function Dashboard() {
     (a: any) => a.status === "cancelado"
   ).length;
 
-  // === AGENDAMENTOS REALIZADOS = faturas (fechadas + negociação) no período ===
+  // === AGENDAMENTOS REALIZADOS = faturas (fechadas + negociação) + retornos no período ===
   const faturasFechadasCount = dadosFiltrados.faturas.filter(f => f.status === "fechado").length;
   const faturasNegociacaoCount = dadosFiltrados.faturas.filter(f => f.status === "negociacao").length;
-  const numeroAgendamentosRealizados = faturasFechadasCount + faturasNegociacaoCount;
+  const retornosCount = dadosFiltrados.agendamentos.filter((a: any) => a.retorno_fatura_id).length;
+  const numeroAgendamentosRealizados = faturasFechadasCount + faturasNegociacaoCount + retornosCount;
 
   // Agendamentos registrados (created_at) no período mas com data_agendamento fora do período
   const agendamentosParaOutroMes = dadosFiltrados.agendamentos.filter((ag: any) => {
@@ -809,7 +810,7 @@ export default function Dashboard() {
               <StatsCard
                 title="Agendamentos Realizados"
                 value={numeroAgendamentosRealizados}
-                change={`${faturasFechadasCount} Fechadas • ${faturasNegociacaoCount} em Negociação`}
+                change={`${faturasFechadasCount} Fechadas • ${faturasNegociacaoCount} Negociação • ${retornosCount} Retornos`}
                 changeType="positive"
                 icon={CalendarCheck}
               />
