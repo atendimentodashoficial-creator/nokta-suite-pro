@@ -47,9 +47,9 @@ export default function Formularios() {
             </SelectContent>
           </Select>
         ) : (
-          <TabsList className="mb-4">
+          <TabsList className="h-8 mb-4">
             {tabOptions.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
+              <TabsTrigger key={tab.value} value={tab.value} className="text-xs px-3 h-7">
                 {tab.label}
               </TabsTrigger>
             ))}
