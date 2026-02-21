@@ -831,7 +831,7 @@ export function NovoAgendamentoDialog({
       const meetingsEnabled = reunioesEnabled;
       const criarNoGoogleCalendar = meetingsEnabled && (tipoCalendario === "google" || tipoCalendario === "both") && showGoogleMeetOption;
       const criarReuniaoInterna = meetingsEnabled && tipoCalendario === "app";
-      const criarNoCalendarioApp = !meetingsEnabled || tipoCalendario === "both";
+      const criarNoCalendarioApp = !meetingsEnabled || tipoCalendario === "both" || tipoCalendario === "app";
 
       // Criar item no Calendário (tabela agendamentos) SOMENTE quando:
       // - feature reuniões desabilitada (fluxo antigo)
