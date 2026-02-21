@@ -1320,8 +1320,8 @@ export function NovoAgendamentoDialog({
                       </Label>
                       <p className="text-sm text-muted-foreground">
                         {tipoCalendario === "both" && "Ambos os calendários"}
-                        {tipoCalendario === "app" && "Apenas agenda do App"}
-                        {tipoCalendario === "google" && "Apenas Reunião"}
+                        {tipoCalendario === "app" && "Apenas aba Calendário"}
+                        {tipoCalendario === "google" && "Apenas aba Reunião"}
                       </p>
                     </div>
                   </div>
@@ -1347,7 +1347,7 @@ export function NovoAgendamentoDialog({
                               <CalendarIconSolid className="h-4 w-4" />
                               Ambos os calendários
                             </span>
-                            <p className="text-sm text-muted-foreground">Criar no Google Calendar e na agenda do App</p>
+                            <p className="text-sm text-muted-foreground">Google Calendar + aba Reuniões + aba Calendário</p>
                           </Label>
                         </div>
                       )}
@@ -1358,9 +1358,9 @@ export function NovoAgendamentoDialog({
                           <Label htmlFor="calendar-google" className="flex-1 cursor-pointer">
                             <span className="font-medium flex items-center gap-2">
                               <Video className="h-4 w-4" />
-                              Apenas Reunião
+                              Apenas aba Reunião
                             </span>
-                            <p className="text-sm text-muted-foreground">Criar na aba Reuniões com link do Google Meet</p>
+                            <p className="text-sm text-muted-foreground">Google Calendar + aba Reuniões</p>
                           </Label>
                         </div>
                       )}
@@ -1370,9 +1370,9 @@ export function NovoAgendamentoDialog({
                         <Label htmlFor="calendar-app" className="flex-1 cursor-pointer">
                           <span className="font-medium flex items-center gap-2">
                             <CalendarIconSolid className="h-4 w-4" />
-                            Apenas agenda do App
+                            Apenas aba Calendário
                           </span>
-                          <p className="text-sm text-muted-foreground">Criar reunião apenas na agenda interna</p>
+                          <p className="text-sm text-muted-foreground">Apenas aba Calendário</p>
                         </Label>
                       </div>
                     </RadioGroup>
