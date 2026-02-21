@@ -636,13 +636,7 @@ export function TemplatesTab() {
       </div>;
   }
   return <div className="space-y-4 px-1 sm:px-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h3 className="text-base sm:text-lg font-semibold">Templates de Mensagem</h3>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Crie templates com blocos e variações para reutilizar nas campanhas.
-          </p>
-        </div>
+      <div className="flex items-center justify-start">
         <Button onClick={openCreateDialog} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Novo Template
