@@ -636,7 +636,7 @@ export function TemplatesTab() {
       </div>;
   }
   return <div className="space-y-4">
-      <div className="flex items-center justify-start">
+      <div className="flex items-center justify-start pb-2">
         <Button size="sm" onClick={openCreateDialog} className="gap-1">
           <Plus className="h-4 w-4" />
           Novo Template
