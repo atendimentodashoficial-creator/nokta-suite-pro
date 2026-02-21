@@ -29,14 +29,14 @@ import { CurrencyInput, parseCurrencyToNumber } from "@/components/ui/currency-i
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { useCreateFatura } from "@/hooks/useFaturas";
+import { useCreateFatura, useFaturas } from "@/hooks/useFaturas";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { useProdutos } from "@/hooks/useProdutos";
 
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, Package, Stethoscope, CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Package, Stethoscope, CalendarIcon, RotateCcw, DollarSign, User, FileText, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -48,8 +48,8 @@ const upsellSchema = z.object({
 });
 
 const faturaSchema = z.object({
-  valor: z.string().min(1, "Valor é obrigatório"),
-  status: z.enum(["negociacao", "fechado"], { required_error: "Selecione o status" }),
+  valor: z.string().optional(),
+  status: z.enum(["negociacao", "fechado", "retorno"], { required_error: "Selecione o status" }),
   procedimento_id: z.string().optional(),
   profissional_id: z.string().optional(),
   data_fatura: z.string().min(1, "Data é obrigatória"),
@@ -88,11 +88,15 @@ export function NovaFaturaDialog({
   dataAgendamento,
 }: NovaFaturaDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedRetornoFaturaId, setSelectedRetornoFaturaId] = useState<string | null>(null);
   const createFatura = useCreateFatura();
   const queryClient = useQueryClient();
   const { data: procedimentos } = useProcedimentos();
   const { data: profissionais } = useProfissionais();
   const { data: produtos } = useProdutos(true);
+  const { data: allFaturas } = useFaturas();
+  
+  const clienteFaturas = allFaturas?.filter(f => f.cliente_id === clienteId) || [];
 
   // Extrair apenas a data do dataAgendamento (que pode ter hora)
   const getDataFaturaDefault = () => {
@@ -151,12 +155,54 @@ export function NovaFaturaDialog({
     return acc + parseCurrencyToNumber(upsell.valor || "0");
   }, 0);
   const valorTotal = valorBaseNumerico + valorUpsells;
+  const watchedStatus = form.watch("status");
 
   const onSubmit = async (data: FaturaFormData) => {
     setIsSubmitting(true);
     try {
+      const { supabase } = await import("@/integrations/supabase/client");
+
+      // Handle retorno flow - no new fatura, just link agendamento
+      if (data.status === "retorno") {
+        if (!selectedRetornoFaturaId) {
+          toast.error("Selecione uma fatura para o retorno");
+          setIsSubmitting(false);
+          return;
+        }
+        if (agendamentoId) {
+          await supabase
+            .from("agendamentos")
+            .update({ 
+              status: "realizado" as any,
+              retorno_fatura_id: selectedRetornoFaturaId,
+            })
+            .eq("id", agendamentoId);
+
+          await supabase.from("fatura_agendamentos").insert({
+            fatura_id: selectedRetornoFaturaId,
+            agendamento_id: agendamentoId,
+          });
+
+          queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+          queryClient.invalidateQueries({ queryKey: ["faturas"] });
+        }
+        toast.success("Retorno registrado com sucesso!");
+        onOpenChange(false);
+        form.reset();
+        setSelectedRetornoFaturaId(null);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Normal fatura creation flow
       // Converter valor de string para número
-      const valorNumerico = parseCurrencyToNumber(data.valor);
+      const valorNumerico = parseCurrencyToNumber(data.valor || "0");
+
+      if (valorNumerico <= 0) {
+        toast.error("Valor é obrigatório");
+        setIsSubmitting(false);
+        return;
+      }
 
       // Calcular valor total incluindo upsells
       const valorUpsellsTotal = (data.upsells || []).reduce((acc, upsell) => {
@@ -180,10 +226,8 @@ export function NovaFaturaDialog({
       let valorFinal = valorTotalFatura;
       
       if (data.juros_pago_por === "cliente") {
-        // Cliente paga a taxa - adiciona ao valor total
         valorFinal = valorTotalFatura + valorTaxa;
       } else {
-        // Empresa paga a taxa - o valor permanece o mesmo (a taxa será descontada do recebimento)
         valorFinal = valorTotalFatura;
       }
       
@@ -198,7 +242,7 @@ export function NovaFaturaDialog({
       const faturaResult = await createFatura.mutateAsync({
         cliente_id: clienteId,
         valor: valorFinal,
-        status: data.status,
+        status: data.status as "negociacao" | "fechado",
         procedimento_id: data.procedimento_id || null,
         profissional_id: data.profissional_id || null,
         observacoes: data.observacoes || null,
@@ -213,20 +257,20 @@ export function NovaFaturaDialog({
         juros_pago_por: data.juros_pago_por,
       });
 
-      const { supabase } = await import("@/integrations/supabase/client");
+      const { supabase: sb } = await import("@/integrations/supabase/client");
 
       // Se houver agendamentoId, criar vínculo e atualizar status do agendamento
       if (agendamentoId) {
         // Criar vínculo na tabela fatura_agendamentos
         if (faturaResult) {
-          await supabase.from("fatura_agendamentos").insert({
+          await sb.from("fatura_agendamentos").insert({
             fatura_id: faturaResult.id,
             agendamento_id: agendamentoId,
           });
         }
 
         // Atualizar status do agendamento para "realizado"
-        await supabase
+        await sb
           .from("agendamentos")
           .update({ status: "realizado" })
           .eq("id", agendamentoId);
@@ -254,7 +298,7 @@ export function NovaFaturaDialog({
           };
         });
 
-        await supabase.from("fatura_upsells").insert(upsellsToInsert);
+        await sb.from("fatura_upsells").insert(upsellsToInsert);
       }
 
       // Automatically send Purchase event if created with status "fechado"
@@ -271,7 +315,7 @@ export function NovaFaturaDialog({
           
           if (conversionResult.success) {
             // Mark as sent
-            await supabase
+            await sb
               .from("faturas")
               .update({ 
                 pixel_event_sent_at: new Date().toISOString(),
@@ -295,6 +339,7 @@ export function NovaFaturaDialog({
 
       onOpenChange(false);
       form.reset();
+      setSelectedRetornoFaturaId(null);
     } catch (error) {
       console.error("Erro ao criar fatura:", error);
       toast.error("Erro ao criar fatura");
@@ -377,15 +422,26 @@ export function NovaFaturaDialog({
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={(val) => {
+                        field.onChange(val);
+                        if (val !== "retorno") {
+                          setSelectedRetornoFaturaId(null);
+                        }
+                      }} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-10">
                             <SelectValue placeholder="Selecione o status" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="bg-background border shadow-lg z-50">
                           <SelectItem value="negociacao">Negociação</SelectItem>
                           <SelectItem value="fechado">Fechado</SelectItem>
+                          <SelectItem value="retorno">
+                            <span className="flex items-center gap-1.5">
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              Retorno
+                            </span>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -394,6 +450,65 @@ export function NovaFaturaDialog({
                 />
               </div>
 
+              {/* Retorno: Fatura Picker */}
+              {watchedStatus === "retorno" && (
+                <div className="space-y-3 p-4 border border-border rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <RotateCcw className="h-4 w-4 text-blue-600" />
+                    Selecione a fatura referente a este retorno
+                  </div>
+                  {clienteFaturas.length > 0 ? (
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                      {clienteFaturas.map((fatura) => (
+                        <div
+                          key={fatura.id}
+                          onClick={() => setSelectedRetornoFaturaId(fatura.id)}
+                          className={cn(
+                            "p-3 rounded-lg border cursor-pointer transition-all",
+                            selectedRetornoFaturaId === fatura.id
+                              ? "border-primary bg-primary/5 ring-1 ring-primary"
+                              : "border-border hover:bg-muted/50"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm font-medium truncate">
+                                  {(fatura as any).procedimentos?.nome || "Sem procedimento"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                <span className="text-sm font-semibold text-green-600">
+                                  R$ {Number(fatura.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              {(fatura as any).profissionais?.nome && (
+                                <div className="flex items-center gap-2">
+                                  <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {(fatura as any).profissionais.nome}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            {selectedRetornoFaturaId === fatura.id && (
+                              <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhuma fatura encontrada para este cliente.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {watchedStatus !== "retorno" && (<>
               {/* Linha 2: Valor */}
               <FormField
                 control={form.control}
@@ -894,6 +1009,8 @@ export function NovaFaturaDialog({
                 )}
               />
 
+              </>)}
+
               <div className="flex gap-2 justify-end pt-4">
                 <Button
                   type="button"
@@ -903,8 +1020,10 @@ export function NovaFaturaDialog({
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Criando..." : "Criar Fatura"}
+                <Button type="submit" disabled={isSubmitting || (watchedStatus === "retorno" && !selectedRetornoFaturaId)}>
+                  {isSubmitting 
+                    ? (watchedStatus === "retorno" ? "Registrando..." : "Criando...") 
+                    : (watchedStatus === "retorno" ? "Confirmar Retorno" : "Criar Fatura")}
                 </Button>
               </div>
             </form>
