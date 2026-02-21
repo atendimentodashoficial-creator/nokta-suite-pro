@@ -1319,9 +1319,9 @@ export function NovoAgendamentoDialog({
                         Agendar Reunião
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        {tipoCalendario === "both" && "Ambos os calendários"}
+                        {tipoCalendario === "both" && "Ambos os Calendários"}
                         {tipoCalendario === "app" && "Apenas aba Calendário"}
-                        {tipoCalendario === "google" && "Apenas aba Reunião"}
+                        {tipoCalendario === "google" && "Apenas aba Reuniões"}
                       </p>
                     </div>
                   </div>
@@ -1345,7 +1345,7 @@ export function NovoAgendamentoDialog({
                             <span className="font-medium flex items-center gap-2">
                               <Video className="h-4 w-4" />
                               <CalendarIconSolid className="h-4 w-4" />
-                              Ambos os calendários
+                              Ambos os Calendários
                             </span>
                             <p className="text-sm text-muted-foreground">Google Calendar + aba Reuniões + aba Calendário</p>
                           </Label>
@@ -1358,7 +1358,7 @@ export function NovoAgendamentoDialog({
                           <Label htmlFor="calendar-google" className="flex-1 cursor-pointer">
                             <span className="font-medium flex items-center gap-2">
                               <Video className="h-4 w-4" />
-                              Apenas aba Reunião
+                              Apenas aba Reuniões
                             </span>
                             <p className="text-sm text-muted-foreground">Google Calendar + aba Reuniões</p>
                           </Label>
