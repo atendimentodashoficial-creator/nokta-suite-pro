@@ -635,7 +635,7 @@ export function TemplatesTab() {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>;
   }
-  return <div className="space-y-4 px-1 sm:px-0">
+  return <div className="space-y-4">
       <div className="flex items-center justify-start">
         <Button size="sm" onClick={openCreateDialog} className="gap-1">
           <Plus className="h-4 w-4" />

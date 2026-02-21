@@ -1609,8 +1609,10 @@ export default function Disparos() {
           </div>
         </div>
       ) : activeTab === "templates" ? (
-        <div className="flex-1 overflow-y-auto">
-          <TemplatesTab />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-4 py-2">
+            <TemplatesTab />
+          </div>
         </div>
       ) : activeTab === "listas" ? (
         <div className="flex-1 overflow-y-auto p-4">
