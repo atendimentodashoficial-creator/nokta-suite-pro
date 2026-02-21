@@ -825,14 +825,12 @@ export function NovoAgendamentoDialog({
 
       // Lógica das opções de calendário:
       // - "both"   => Google Calendar + Reuniões + Calendário (agendamentos)
-      // - "google" => Apenas aba Reuniões (+ calendário, pois reunião sempre vai pro calendário)
-      // - "app"    => Apenas Calendário (agendamentos)
-      //
-      // REGRA: sempre que criar reunião, criar no calendário também.
+      // - "google" => Apenas aba Reuniões (cria no Google Calendar, NÃO cria no calendário de agendamentos)
+      // - "app"    => Apenas Calendário (agendamentos), sem reunião
       const meetingsEnabled = reunioesEnabled;
-      const criarNoGoogleCalendar = meetingsEnabled && tipoCalendario === "both" && showGoogleMeetOption;
-      const criarReuniaoInterna = meetingsEnabled && (tipoCalendario === "google");
-      const criarNoCalendarioApp = true; // Sempre cria no calendário
+      const criarNoGoogleCalendar = meetingsEnabled && (tipoCalendario === "both" || tipoCalendario === "google") && showGoogleMeetOption;
+      const criarReuniaoInterna = false; // Reuniões via Google Calendar são criadas pelo backend
+      const criarNoCalendarioApp = !meetingsEnabled || tipoCalendario === "both" || tipoCalendario === "app";
 
       // Criar item no Calendário (tabela agendamentos) SOMENTE quando:
       // - feature reuniões desabilitada (fluxo antigo)
@@ -1323,7 +1321,7 @@ export function NovoAgendamentoDialog({
                       <p className="text-sm text-muted-foreground">
                         {tipoCalendario === "both" && "Ambos os calendários"}
                         {tipoCalendario === "app" && "Apenas agenda do App"}
-                        {tipoCalendario === "google" && "Apenas Google Calendar"}
+                        {tipoCalendario === "google" && "Apenas Reunião"}
                       </p>
                     </div>
                   </div>
@@ -1360,9 +1358,9 @@ export function NovoAgendamentoDialog({
                           <Label htmlFor="calendar-google" className="flex-1 cursor-pointer">
                             <span className="font-medium flex items-center gap-2">
                               <Video className="h-4 w-4" />
-                              Apenas Google Calendar
+                              Apenas Reunião
                             </span>
-                            <p className="text-sm text-muted-foreground">Criar evento com link do Google Meet</p>
+                            <p className="text-sm text-muted-foreground">Criar na aba Reuniões com link do Google Meet</p>
                           </Label>
                         </div>
                       )}
