@@ -189,15 +189,17 @@ export default function EmNegociacao() {
                       <h3 className="text-lg font-semibold text-foreground truncate">
                         {(fatura.leads as any)?.nome || "Cliente não identificado"}
                       </h3>
-                      <Badge className="bg-blue-500/20 text-blue-700 mt-1">
-                        Negociação
-                      </Badge>
-                      {retornosPorFatura[fatura.id] > 0 && (
-                        <Badge className="bg-purple-500/20 text-purple-700 mt-1 gap-1">
-                          <RotateCcw className="h-3 w-3" />
-                          {retornosPorFatura[fatura.id]} retorno{retornosPorFatura[fatura.id] > 1 ? "s" : ""}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <Badge className="bg-blue-500/20 text-blue-700">
+                          Negociação
                         </Badge>
-                      )}
+                        {retornosPorFatura[fatura.id] > 0 && (
+                          <Badge className="bg-purple-500/20 text-purple-700 gap-1">
+                            <RotateCcw className="h-3 w-3" />
+                            {retornosPorFatura[fatura.id]} retorno{retornosPorFatura[fatura.id] > 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
