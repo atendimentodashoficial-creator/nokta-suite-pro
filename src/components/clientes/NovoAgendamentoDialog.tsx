@@ -431,18 +431,17 @@ export function NovoAgendamentoDialog({
           try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-              // Buscar clientes (status = cliente) para comparar pelos últimos 8 dígitos
-              const { data: allClientes } = await supabase
+              // Buscar cliente existente pelos últimos 8 dígitos (server-side)
+              const { data: matchingClientes } = await supabase
                 .from("leads")
                 .select("nome, email, telefone, status")
                 .eq("user_id", user.id)
                 .eq("status", "cliente")
-                .is("deleted_at", null);
+                .is("deleted_at", null)
+                .like("telefone", `%${last8Digits}`)
+                .limit(1);
 
-              // Encontrar cliente existente pelos últimos 8 dígitos
-              const clienteExistente = allClientes?.find((lead) =>
-                getLast8Digits(lead.telefone) === last8Digits
-              );
+              const clienteExistente = matchingClientes?.[0] || null;
 
               if (clienteExistente) {
                 // Usar dados do cliente existente
@@ -532,17 +531,16 @@ export function NovoAgendamentoDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Buscar todos os leads do usuário para comparar pelos últimos 8 dígitos
-      const { data: allLeads } = await supabase
+      // Buscar cliente existente pelos últimos 8 dígitos (server-side)
+      const { data: matchingLeads } = await supabase
         .from("leads")
         .select("nome, email, telefone")
         .eq("user_id", user.id)
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .like("telefone", `%${last8Digits}`)
+        .limit(1);
 
-      // Encontrar cliente existente pelos últimos 8 dígitos
-      const clienteExistente = allLeads?.find(lead => 
-        getLast8Digits(lead.telefone) === last8Digits
-      );
+      const clienteExistente = matchingLeads?.[0] || null;
 
       if (clienteExistente) {
         form.setValue("nome", clienteExistente.nome);

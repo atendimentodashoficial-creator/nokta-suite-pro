@@ -58,17 +58,16 @@ export function NovoClienteDialog() {
       const fullPhone = `${countryCode}${normalizePhone(data.telefone)}`;
       const last8Digits = getLast8Digits(data.telefone);
 
-      // Buscar todos os leads do usuário para comparar pelos últimos 8 dígitos
-      const { data: allLeads } = await supabase
+      // Buscar cliente existente pelos últimos 8 dígitos (server-side)
+      const { data: matchingLeads } = await supabase
         .from("leads")
         .select("id, nome, email, telefone")
         .eq("user_id", user.id)
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .like("telefone", `%${last8Digits}`)
+        .limit(1);
 
-      // Encontrar cliente existente pelos últimos 8 dígitos
-      const clienteExistente = allLeads?.find(lead => 
-        getLast8Digits(lead.telefone) === last8Digits
-      );
+      const clienteExistente = matchingLeads?.[0] || null;
 
       // Se já existe, não criar novo, apenas atualizar informações
       if (clienteExistente) {
@@ -124,17 +123,16 @@ export function NovoClienteDialog() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Buscar todos os leads do usuário para comparar pelos últimos 8 dígitos
-      const { data: allLeads } = await supabase
+      // Buscar cliente existente pelos últimos 8 dígitos (server-side)
+      const { data: matchingLeads } = await supabase
         .from("leads")
         .select("nome, email, telefone")
         .eq("user_id", user.id)
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .like("telefone", `%${last8Digits}`)
+        .limit(1);
 
-      // Encontrar cliente existente pelos últimos 8 dígitos
-      const clienteExistente = allLeads?.find(lead => 
-        getLast8Digits(lead.telefone) === last8Digits
-      );
+      const clienteExistente = matchingLeads?.[0] || null;
 
       if (clienteExistente) {
         form.setValue("nome", clienteExistente.nome);
