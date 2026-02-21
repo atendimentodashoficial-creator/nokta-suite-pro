@@ -517,8 +517,9 @@ export function NovoAgendamentoDialog({
   // Buscar cliente existente pelo telefone e preencher dados automaticamente
   // Only auto-fill if: name wasn't manually edited AND phone changed from last auto-fill
   const handleTelefoneBlur = async () => {
-    // If user manually edited the name, don't overwrite it
-    if (nameManuallyEdited) return;
+    // If user manually edited the name AND it's not empty, don't overwrite it
+    const currentName = form.getValues("nome")?.trim();
+    if (nameManuallyEdited && currentName) return;
     
     const telefoneValue = form.getValues("telefone");
     const last8Digits = getLast8Digits(telefoneValue);
