@@ -1591,10 +1591,8 @@ export default function Disparos() {
           )}
         </>
       ) : activeTab === "campanhas" ? (
-        /* Campanhas Tab */
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Campanhas header */}
-          <div className="flex-shrink-0 bg-card px-4 py-2">
+          <div className="flex-shrink-0 px-4 py-3">
             <div className="flex items-center justify-start gap-2">
               <Button size="sm" onClick={() => setNovaCampanhaOpen(true)} className="gap-1">
                 <Plus className="h-4 w-4" />
@@ -1602,21 +1600,21 @@ export default function Disparos() {
               </Button>
             </div>
           </div>
-
-          {/* Campanhas list */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto px-4">
             <CampanhasTab onRefresh={() => {}} />
           </div>
         </div>
       ) : activeTab === "templates" ? (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-4 py-2">
+          <div className="flex-1 overflow-y-auto px-4 py-3">
             <TemplatesTab />
           </div>
         </div>
       ) : activeTab === "listas" ? (
-        <div className="flex-1 overflow-y-auto p-4">
-          <ListasImportadasManager />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            <ListasImportadasManager />
+          </div>
         </div>
       ) : null}
 
