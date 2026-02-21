@@ -640,12 +640,15 @@ export default function Disparos() {
   }, [qrPollingInterval]);
 
   // Load chats and config on mount
-  // IMPORTANT: loadInstancias must complete before loadChats so the filter by instance creation date works
+  // Strategy: load cached chats from DB first (instant), then sync with external API in background
   useEffect(() => {
     (async () => {
-      await checkConfig();
-      await loadInstancias();
+      // Run config + instancias in parallel for faster startup
+      await Promise.all([checkConfig(), loadInstancias()]);
+      // Load cached chats immediately (DB query, very fast)
       await loadChats();
+      // Sync with external API in background (doesn't block UI)
+      syncChats({ silent: true });
     })();
   }, []);
 

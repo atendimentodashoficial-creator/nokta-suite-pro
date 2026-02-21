@@ -1073,10 +1073,14 @@ export default function AdminWhatsApp() {
   }, [searchParams, chats, chatsLoaded, hasConfig, setSearchParams, syncChats]);
 
   // Load chats and config on mount
+  // Strategy: load cached chats from DB first (instant), then sync with external API in background
   useEffect(() => {
     (async () => {
       const connectedAt = await checkConfig();
+      // Load cached chats immediately (DB query, very fast)
       await loadChats(connectedAt);
+      // Sync with external API in background (doesn't block UI)
+      syncChats();
     })();
   }, []);
 
