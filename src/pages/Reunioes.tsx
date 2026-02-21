@@ -300,7 +300,7 @@ export default function Reunioes() {
 
         <TabsContent value="reunioes" className="space-y-6 mt-6">
           {/* Header controls for reunioes tab */}
-          <div className="flex items-center justify-end gap-2 flex-wrap">
+          <div className="flex items-center justify-start gap-2 flex-wrap">
             <TemplateCamposDialog />
             <Button 
               onClick={handleSync} 
