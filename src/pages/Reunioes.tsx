@@ -501,7 +501,7 @@ export default function Reunioes() {
                                   }}
                                 >
                                   <XCircle className="w-4 h-4" />
-                                  Não Compareceu
+                                  No-show
                                 </Button>
                               </div>
                             )}
