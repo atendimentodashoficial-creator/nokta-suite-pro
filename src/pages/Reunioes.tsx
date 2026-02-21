@@ -465,7 +465,7 @@ export default function Reunioes() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="gap-2"
+                                className="flex-1 gap-2"
                                 onClick={() => {
                                   setReuniaoParaVincular(reuniao);
                                   setVincularDialogOpen(true);
