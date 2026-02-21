@@ -1595,7 +1595,7 @@ export default function Disparos() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Campanhas header */}
           <div className="flex-shrink-0 border-b bg-card px-4 py-2">
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-start gap-2">
               <Button size="sm" variant="outline" onClick={() => setCompararListasOpen(true)} className="gap-1">
                 <ListFilter className="h-4 w-4" />
                 Comparar Listas
