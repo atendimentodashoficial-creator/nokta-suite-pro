@@ -448,6 +448,12 @@ export default function ClienteDetalhes() {
                                   <RefreshCw className="h-3 w-3 mr-1" />
                                   Reagendado {agendamento.numero_reagendamentos}x
                                 </Badge>}
+                              {(agendamento as any).retorno_fatura_id && (
+                                <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 gap-1">
+                                  <RotateCcw className="h-3 w-3" />
+                                  Retorno
+                                </Badge>
+                              )}
                             </div>
                             <p className="font-medium">
                               {new Date(agendamento.data_agendamento).toLocaleString('pt-BR', {
@@ -521,6 +527,12 @@ export default function ClienteDetalhes() {
                                   <RefreshCw className="h-3 w-3 mr-1" />
                                   Reagendado {agendamento.numero_reagendamentos}x
                                 </Badge>}
+                              {(agendamento as any).retorno_fatura_id && (
+                                <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-500/20 gap-1">
+                                  <RotateCcw className="h-3 w-3" />
+                                  Retorno
+                                </Badge>
+                              )}
                             </div>
                             <p className="font-medium">
                               {new Date(agendamento.data_agendamento).toLocaleString('pt-BR', {
