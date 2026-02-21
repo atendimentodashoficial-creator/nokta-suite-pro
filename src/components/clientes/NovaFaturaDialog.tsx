@@ -436,12 +436,7 @@ export function NovaFaturaDialog({
                         <SelectContent className="bg-background border shadow-lg z-50">
                           <SelectItem value="negociacao">Negociação</SelectItem>
                           <SelectItem value="fechado">Fechado</SelectItem>
-                          <SelectItem value="retorno">
-                            <span className="flex items-center gap-1.5">
-                              <RotateCcw className="h-3.5 w-3.5" />
-                              Retorno
-                            </span>
-                          </SelectItem>
+                          <SelectItem value="retorno">Retorno</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
