@@ -88,11 +88,7 @@ export function ListasImportadasManager() {
   // ── Vista de listagem ──────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Database className="w-5 h-5" />
-          <h2 className="text-lg font-semibold">Listas Importadas</h2>
-        </div>
+      <div className="flex items-center justify-start">
         <div className="flex gap-2">
           <CamposSistemaManager />
           <Button variant="outline" size="sm" onClick={loadListas} disabled={isLoading}>
