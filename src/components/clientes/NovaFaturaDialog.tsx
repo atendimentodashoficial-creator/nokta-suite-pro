@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -472,6 +473,14 @@ export function NovaFaturaDialog({
                                 <span className="text-sm font-medium truncate">
                                   {(fatura as any).procedimentos?.nome || "Sem procedimento"}
                                 </span>
+                                <Badge variant="outline" className={cn(
+                                  "text-[10px] px-1.5 py-0",
+                                  fatura.status === "negociacao"
+                                    ? "border-blue-500 text-blue-600 bg-blue-50"
+                                    : "border-green-500 text-green-600 bg-green-50"
+                                )}>
+                                  {fatura.status === "negociacao" ? "Negociação" : "Fatura"}
+                                </Badge>
                               </div>
                               <div className="flex items-center gap-2">
                                 <DollarSign className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
