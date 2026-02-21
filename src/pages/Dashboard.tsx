@@ -800,7 +800,7 @@ export default function Dashboard() {
               <StatsCard
                 title="Agendamentos Registrados"
                 value={numeroAgendamentosRegistrados}
-                change="No período"
+                change="No Período"
                 changeType="neutral"
                 icon={Calendar}
                 extraInfo={agendamentosParaOutroMes > 0 ? `${agendamentosParaOutroMes} com consulta fora do período` : undefined}
@@ -809,7 +809,7 @@ export default function Dashboard() {
               <StatsCard
                 title="Agendamentos Realizados"
                 value={numeroAgendamentosRealizados}
-                change={`${numeroAgendamentosRegistrados} registrados − ${agendamentosRegistradosNaoCompareceu} não compareceu`}
+                change={`${numeroAgendamentosRealizados} Compareceram • ${agendamentosRegistradosNaoCompareceu} Não Compareceu`}
                 changeType="positive"
                 icon={CalendarCheck}
               />
@@ -834,7 +834,7 @@ export default function Dashboard() {
               <StatsCard
                 title="Receita Atual"
                 value={`R$ ${receitaAtual.toLocaleString("pt-BR")}`}
-                change={`${faturasFechadas} faturas fechadas`}
+                change={`${faturasFechadas} Faturas Fechadas`}
                 changeType="positive"
                 icon={DollarSign}
                 gradient
@@ -842,7 +842,7 @@ export default function Dashboard() {
               <StatsCard
                 title="Negociação"
                 value={`R$ ${receitaEmNegociacao.toLocaleString("pt-BR")}`}
-                change={`${faturasEmNegociacao.length} faturas`}
+                change={`${faturasEmNegociacao.length} Faturas em Negociação`}
                 changeType="positive"
                 icon={Target}
               />
@@ -867,7 +867,7 @@ export default function Dashboard() {
               <StatsCard
                 title="Total Despesas"
                 value={`R$ ${totalDespesasPeriodo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                change={`${dadosFiltrados.despesas.length} despesas no período`}
+                change={`${dadosFiltrados.despesas.length} Despesas no Período`}
                 changeType="negative"
                 icon={Wallet}
                 gradient
@@ -875,14 +875,14 @@ export default function Dashboard() {
               <StatsCard
                 title="Recorrentes"
                 value={`R$ ${totalRecorrentes.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                change={`${despesasRecorrentes.length} despesas`}
+                change={`${despesasRecorrentes.length} Despesas`}
                 changeType="negative"
                 icon={RefreshCcw}
               />
               <StatsCard
                 title="Parceladas"
                 value={`R$ ${totalParceladas.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                change={`${despesasParceladas.length} despesas`}
+                change={`${despesasParceladas.length} Despesas`}
                 changeType="negative"
                 icon={CreditCard}
               />
@@ -893,7 +893,7 @@ export default function Dashboard() {
               <StatsCard
                 title="Variáveis"
                 value={`R$ ${totalVariaveis.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                change={`${despesasVariaveis.length} despesas`}
+                change={`${despesasVariaveis.length} Despesas`}
                 changeType="negative"
                 icon={Receipt}
               />
