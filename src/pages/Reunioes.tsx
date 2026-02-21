@@ -287,13 +287,13 @@ export default function Reunioes() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="reunioes" className="gap-2">
-            <Video className="w-4 h-4" />
+        <TabsList className="h-8">
+          <TabsTrigger value="reunioes" className="gap-1.5 text-xs px-3 h-7">
+            <Video className="h-3.5 w-3.5" />
             Reuniões
           </TabsTrigger>
-          <TabsTrigger value="avisos" className="gap-2">
-            <Bell className="w-4 h-4" />
+          <TabsTrigger value="avisos" className="gap-1.5 text-xs px-3 h-7">
+            <Bell className="h-3.5 w-3.5" />
             Avisos
           </TabsTrigger>
         </TabsList>
