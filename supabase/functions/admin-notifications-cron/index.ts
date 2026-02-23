@@ -49,7 +49,7 @@ async function getAccountBalance(
   supabase: any,
   userId: string,
   exchangeRate: number
-): Promise<{ balance: number; hasAccount: boolean }> {
+): Promise<{ balance: number; hasAccount: boolean; fetchError: boolean }> {
   // Get user's Facebook Ad Account
   const { data: adAccount } = await supabase
     .from('facebook_ad_accounts')
@@ -61,7 +61,7 @@ async function getAccountBalance(
     .maybeSingle();
 
   if (!adAccount) {
-    return { balance: 0, hasAccount: false };
+    return { balance: 0, hasAccount: false, fetchError: false };
   }
 
   // Get user's Facebook token
@@ -72,7 +72,7 @@ async function getAccountBalance(
     .maybeSingle();
 
   if (!fbConfig?.access_token) {
-    return { balance: 0, hasAccount: false };
+    return { balance: 0, hasAccount: false, fetchError: false };
   }
 
   try {
@@ -85,14 +85,14 @@ async function getAccountBalance(
     );
 
     if (!fbResponse.ok) {
-      console.error(`[admin-notifications-cron] FB API error for user ${userId}`);
-      return { balance: 0, hasAccount: true };
+      console.error(`[admin-notifications-cron] FB API error for user ${userId}, status: ${fbResponse.status}`);
+      return { balance: 0, hasAccount: true, fetchError: true };
     }
 
     const fbData = await fbResponse.json();
     if (fbData.error) {
       console.error(`[admin-notifications-cron] FB API error:`, fbData.error);
-      return { balance: 0, hasAccount: true };
+      return { balance: 0, hasAccount: true, fetchError: true };
     }
 
     const isPrepaid = adAccount.account_type === 'prepaid' || fbData.is_prepay_account;
@@ -126,10 +126,10 @@ async function getAccountBalance(
       displayBalance = displayBalance * effectiveRate;
     }
 
-    return { balance: displayBalance, hasAccount: true };
+    return { balance: displayBalance, hasAccount: true, fetchError: false };
   } catch (err) {
     console.error(`[admin-notifications-cron] Error fetching balance for user ${userId}:`, err);
-    return { balance: 0, hasAccount: true };
+    return { balance: 0, hasAccount: true, fetchError: true };
   }
 }
 
@@ -377,11 +377,13 @@ Deno.serve(async (req) => {
         console.log(`[admin-notifications-cron] User ${config.user_id} low_balance check: enabled=${config.low_balance_enabled}, threshold=${config.low_balance_threshold}, cooldown=${cooldownActive}, lastSent=${config.low_balance_last_sent_at}`);
         
         if (!cooldownActive) {
-          const { balance, hasAccount } = await getAccountBalance(supabase, config.user_id, exchangeRate);
+          const { balance, hasAccount, fetchError } = await getAccountBalance(supabase, config.user_id, exchangeRate);
           
-          console.log(`[admin-notifications-cron] User ${config.user_id} balance: ${balance}, hasAccount: ${hasAccount}`);
+          console.log(`[admin-notifications-cron] User ${config.user_id} balance: ${balance}, hasAccount: ${hasAccount}, fetchError: ${fetchError}`);
           
-          if (hasAccount && balance < config.low_balance_threshold) {
+          if (fetchError) {
+            console.log(`[admin-notifications-cron] User ${config.user_id} skipped low balance alert: could not fetch balance from API`);
+          } else if (hasAccount && balance < config.low_balance_threshold) {
             console.log(`[admin-notifications-cron] Low balance alert for user ${config.user_id}: ${balance} < ${config.low_balance_threshold}`);
             
             const messageTemplate = config.low_balance_message || '⚠️ *Alerta de Saldo Baixo*\n\nSeu saldo atual é R$ {saldo}.\nLimite configurado: R$ {limite}';
