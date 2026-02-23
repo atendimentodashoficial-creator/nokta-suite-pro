@@ -731,7 +731,7 @@ Deno.serve(async (req) => {
     
     // Check if this is a group message (chatId ends with @g.us)
     const isGroupMessage = chatId.endsWith('@g.us');
-    if (isGroupMessage) {
+    if (isGroupMessage && !isAdminNotificationInstance) {
       console.log('Ignoring group message, chatId:', chatId);
       await logEvent(effectiveUserId, 'info', `Mensagem de grupo ignorada: ${chatId}`);
       return new Response(
@@ -829,7 +829,8 @@ Deno.serve(async (req) => {
 
     // Use the wa_chatid number for normalized_number if it starts with 55 (has country code)
     // Otherwise use the normalizePhone function
-    const normalizedIncoming = chatIdNumber.startsWith('55') ? chatIdNumber : normalizePhone(phone);
+    // For group messages, chatIdNumber is the group ID, so always use phone-based normalization
+    const normalizedIncoming = (!isGroupMessage && chatIdNumber.startsWith('55')) ? chatIdNumber : normalizePhone(phone);
     console.log('Contact info - Phone:', phone, 'Name:', name);
     console.log('Normalized incoming phone:', normalizedIncoming, '(from chatId:', chatIdNumber, ')');
     await logEvent(effectiveUserId, 'info', `Contato identificado - Telefone: ${phone} (normalizado: ${normalizedIncoming}), Nome: ${name}`);
