@@ -908,6 +908,7 @@ Deno.serve(async (req) => {
               admin_instancia_id: adminNotificationInstanceId,
               phone: normalizedIncoming,
               message_text: messageText,
+              chat_id: chatId,
             }),
           }).catch((err) => {
             console.error('[Admin Instance] Error calling keyword handler:', err?.message || err);
