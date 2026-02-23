@@ -33,6 +33,7 @@ interface KeywordHandlerPayload {
   admin_instancia_id?: string;
   phone: string;
   message_text: string;
+  chat_id?: string;
 }
 
 function getLast8Digits(phone: string): string {
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: KeywordHandlerPayload = await req.json();
-    const { user_id, admin_instancia_id, phone, message_text } = body;
+    const { user_id, admin_instancia_id, phone, message_text, chat_id } = body;
 
     if (!phone || !message_text || (!user_id && !admin_instancia_id)) {
       return new Response(
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
       notifConfig = res.data;
       configError = res.error;
     } else {
-      console.log(`[admin-keyword-handler] Processing (admin instance mode) for admin_instancia_id ${admin_instancia_id}, phone: ${phone}, text: "${message_text.substring(0, 50)}..."`);
+      console.log(`[admin-keyword-handler] Processing (admin instance mode) for admin_instancia_id ${admin_instancia_id}, phone: ${phone}, chat_id: ${chat_id || 'none'}, text: "${message_text.substring(0, 50)}..."`);
 
       const res = await supabase
         .from('admin_client_notifications')
@@ -115,16 +116,28 @@ Deno.serve(async (req) => {
         configError = res.error;
       } else {
         const incomingLast8 = getLast8Digits(phone);
-        const matched = (res.data || []).find((c: any) =>
-          c?.destination_type === 'number' &&
-          c?.destination_value &&
-          getLast8Digits(c.destination_value) === incomingLast8
-        );
+        const isGroupMessage = chat_id ? chat_id.endsWith('@g.us') : false;
+
+        const matched = (res.data || []).find((c: any) => {
+          if (!c?.destination_value) return false;
+
+          // Match by group ID when message comes from a group
+          if (isGroupMessage && c.destination_type === 'group') {
+            return c.destination_value === chat_id;
+          }
+
+          // Match by phone number for direct messages
+          if (!isGroupMessage && c.destination_type === 'number') {
+            return getLast8Digits(c.destination_value) === incomingLast8;
+          }
+
+          return false;
+        });
 
         if (!matched) {
-          console.log('[admin-keyword-handler] No notification config matched for incoming phone');
+          console.log(`[admin-keyword-handler] No notification config matched (isGroup=${isGroupMessage}, chat_id=${chat_id}, phone_last8=${incomingLast8})`);
           return new Response(
-            JSON.stringify({ success: false, matched: false, reason: 'No config matched for phone' }),
+            JSON.stringify({ success: false, matched: false, reason: 'No config matched' }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -195,9 +208,11 @@ Deno.serve(async (req) => {
 
     // No cooldown for keyword triggers - always respond when triggered
 
-    // Get the destination phone number
+    // Get the destination: group ID or phone number
     let destinationPhone = phone;
-    if (notifConfig.destination_type === 'number' && notifConfig.destination_value) {
+    if (notifConfig.destination_type === 'group' && notifConfig.destination_value) {
+      destinationPhone = notifConfig.destination_value;
+    } else if (notifConfig.destination_type === 'number' && notifConfig.destination_value) {
       destinationPhone = notifConfig.destination_value;
     }
 
