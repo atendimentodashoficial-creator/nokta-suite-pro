@@ -750,8 +750,26 @@ Deno.serve(async (req) => {
           .limit(1);
         
         if (groupKeywordConfigs && groupKeywordConfigs.length > 0) {
-          const adminInstanciaId = groupKeywordConfigs[0].admin_instancia_id;
-          console.log(`[Group Keyword] Group ${chatId} matches keyword config, triggering keyword handler with admin_instancia_id: ${adminInstanciaId}`);
+          let adminInstanciaId = groupKeywordConfigs[0].admin_instancia_id;
+          console.log(`[Group Keyword] Group ${chatId} matches keyword config, admin_instancia_id: ${adminInstanciaId}`);
+          
+          // If admin_instancia_id is null, try to find any active admin notification instance as fallback
+          if (!adminInstanciaId) {
+            console.log('[Group Keyword] admin_instancia_id is null, looking for fallback admin instance...');
+            const { data: fallbackInstance } = await supabase
+              .from('admin_notification_instances')
+              .select('id')
+              .eq('is_active', true)
+              .limit(1)
+              .maybeSingle();
+            
+            if (fallbackInstance?.id) {
+              adminInstanciaId = fallbackInstance.id;
+              console.log(`[Group Keyword] Using fallback admin instance: ${adminInstanciaId}`);
+            } else {
+              console.error('[Group Keyword] No active admin notification instance found, cannot send keyword response');
+            }
+          }
           
           // Extract sender phone for group messages
           const senderPn = (normalizedPayload.message as any)?.sender_pn || '';
@@ -770,6 +788,7 @@ Deno.serve(async (req) => {
           
           if (adminInstanciaId && canRun) {
             try {
+              console.log(`[Group Keyword] Calling admin-keyword-handler for group ${chatId}, text: "${messageTextForGroup.substring(0, 30)}"`);
               const kwResponse = await fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
                 method: 'POST',
                 headers: {
@@ -790,7 +809,11 @@ Deno.serve(async (req) => {
             }
           } else if (!canRun) {
             console.log('[Group Keyword] Skipped - dedup prevented duplicate trigger');
+          } else {
+            console.error(`[Group Keyword] Cannot trigger: adminInstanciaId=${adminInstanciaId}, canRun=${canRun}`);
           }
+        } else {
+          console.log(`[Group Keyword] No keyword config found for group ${chatId}`);
         }
       }
       
