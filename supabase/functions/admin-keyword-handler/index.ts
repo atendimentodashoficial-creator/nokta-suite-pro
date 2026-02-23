@@ -97,7 +97,11 @@ Deno.serve(async (req) => {
     } else {
       console.log(`[admin-keyword-handler] Processing (admin instance mode) for admin_instancia_id ${admin_instancia_id}, phone: ${phone}, chat_id: ${chat_id || 'none'}, text: "${message_text.substring(0, 50)}..."`);
 
-      const res = await supabase
+      // Query keyword-enabled configs. If chat_id is a group, also include configs 
+      // where admin_instancia_id is null (fallback scenario) by filtering by destination_value.
+      const isGroupLookup = chat_id ? chat_id.endsWith('@g.us') : false;
+      
+      let query = supabase
         .from('admin_client_notifications')
         .select(`
           *,
@@ -108,9 +112,17 @@ Deno.serve(async (req) => {
             is_active
           )
         `)
-        .eq('admin_instancia_id', admin_instancia_id)
-        .eq('keyword_enabled', true)
-        .limit(250);
+        .eq('keyword_enabled', true);
+      
+      if (isGroupLookup && chat_id) {
+        // For groups: match by destination_value (group ID) regardless of admin_instancia_id
+        query = query.eq('destination_type', 'group').eq('destination_value', chat_id);
+      } else {
+        // For direct messages: match by admin_instancia_id
+        query = query.eq('admin_instancia_id', admin_instancia_id);
+      }
+      
+      const res = await query.limit(250);
 
       if (res.error) {
         configError = res.error;
@@ -172,7 +184,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    const adminInstance = notifConfig.admin_notification_instances;
+    let adminInstance = notifConfig.admin_notification_instances;
+    
+    // If admin_notification_instances join returned null (admin_instancia_id was null in config),
+    // try to load the instance using the admin_instancia_id passed in the request
+    if ((!adminInstance || !adminInstance.is_active) && admin_instancia_id) {
+      console.log(`[admin-keyword-handler] Config has no linked admin instance, loading from request param: ${admin_instancia_id}`);
+      const { data: fallbackInstance } = await supabase
+        .from('admin_notification_instances')
+        .select('id, base_url, api_key, is_active')
+        .eq('id', admin_instancia_id)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (fallbackInstance) {
+        adminInstance = fallbackInstance;
+        console.log(`[admin-keyword-handler] Using fallback admin instance: ${fallbackInstance.id}`);
+      }
+    }
+    
     if (!adminInstance || !adminInstance.is_active) {
       console.log('[admin-keyword-handler] No active admin instance configured');
       return new Response(
