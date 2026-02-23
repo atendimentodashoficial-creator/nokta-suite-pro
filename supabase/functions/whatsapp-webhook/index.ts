@@ -732,8 +732,50 @@ Deno.serve(async (req) => {
     // Check if this is a group message (chatId ends with @g.us)
     const isGroupMessage = chatId.endsWith('@g.us');
     if (isGroupMessage && !isAdminNotificationInstance) {
-      console.log('Ignoring group message, chatId:', chatId);
-      await logEvent(effectiveUserId, 'info', `Mensagem de grupo ignorada: ${chatId}`);
+      // Before ignoring group messages, check if this group matches a keyword-enabled admin notification config
+      const messageTextForGroup = typeof normalizedPayload.message?.text === 'string' ? normalizedPayload.message.text.trim() : '';
+      const wasSentByApiGroup = Boolean((normalizedPayload.message as any)?.wasSentByApi);
+      const isFromMeGroup = Boolean(normalizedPayload.message?.fromMe);
+      
+      if (messageTextForGroup && !isFromMeGroup && !wasSentByApiGroup) {
+        // Check if this group ID has keyword triggers configured
+        const { data: groupKeywordConfigs } = await supabase
+          .from('admin_client_notifications')
+          .select('id, admin_instancia_id')
+          .eq('destination_type', 'group')
+          .eq('destination_value', chatId)
+          .eq('keyword_enabled', true)
+          .limit(1);
+        
+        if (groupKeywordConfigs && groupKeywordConfigs.length > 0) {
+          const adminInstanciaId = groupKeywordConfigs[0].admin_instancia_id;
+          console.log(`[Group Keyword] Group ${chatId} matches keyword config, triggering keyword handler with admin_instancia_id: ${adminInstanciaId}`);
+          
+          // Extract sender phone for group messages
+          const senderPn = (normalizedPayload.message as any)?.sender_pn || '';
+          const senderPhone = senderPn.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+          
+          if (adminInstanciaId) {
+            fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                admin_instancia_id: adminInstanciaId,
+                phone: senderPhone || 'group',
+                message_text: messageTextForGroup,
+                chat_id: chatId,
+              }),
+            }).catch((err) => {
+              console.error('[Group Keyword] Error calling keyword handler:', err?.message || err);
+            });
+          }
+        }
+      }
+      
+      console.log('Ignoring group message (non-keyword), chatId:', chatId);
       return new Response(
         JSON.stringify({ message: 'Group messages are ignored' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
