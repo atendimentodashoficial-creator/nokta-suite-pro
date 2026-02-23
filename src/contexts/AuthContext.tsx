@@ -87,22 +87,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    let isMounted = true;
+
+    // Listener for ONGOING auth changes - never call supabase synchronously here
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        if (!isMounted) return;
         console.log('Auth state changed:', event, 'Has session:', !!session);
         
-        // Se o evento for TOKEN_REFRESHED, atualizar a sessão
         if (event === 'TOKEN_REFRESHED') {
           console.log('Token refreshed successfully');
         }
         
-        // Se o evento for SIGNED_OUT, limpar estados
         if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
           setLoading(false);
-          // Limpar dados admin apenas se não estiver voltando ao painel admin
           const adminToken = localStorage.getItem('admin_token');
           if (!adminToken) {
             localStorage.removeItem('admin_token');
@@ -113,62 +113,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         
-        // Verificar se o usuário está expirado
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+
+        // Dispatch async work AFTER callback completes to avoid lock deadlock
         if (session?.user) {
           const expiryDate = (session.user.user_metadata as any)?.expiry_date;
           if (expiryDate && new Date(expiryDate) < new Date()) {
-            // Usuário expirado - fazer logout
-            await supabase.auth.signOut();
-            toast.error("Sua conta expirou. Entre em contato com o suporte da Nokta.", {
-              duration: 5000,
-            });
+            setTimeout(() => {
+              supabase.auth.signOut();
+              toast.error("Sua conta expirou. Entre em contato com o suporte da Nokta.", { duration: 5000 });
+              navigate("/auth");
+            }, 0);
+            return;
+          }
+          
+          if (event === 'SIGNED_IN' && session.access_token) {
+            setTimeout(() => {
+              checkAndStoreAdminStatus(session.access_token);
+            }, 0);
+          }
+        }
+      }
+    );
+
+    // INITIAL load
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        if (session?.user) {
+          const expiryDate = (session.user.user_metadata as any)?.expiry_date;
+          if (expiryDate && new Date(expiryDate) < new Date()) {
+            supabase.auth.signOut();
+            toast.error("Sua conta expirou. Entre em contato com o suporte da Nokta.", { duration: 5000 });
             navigate("/auth");
             return;
           }
           
-          // Verificar status admin após login
-          if (event === 'SIGNED_IN' && session.access_token) {
-            // Usar setTimeout para evitar chamadas durante o render
-            setTimeout(() => {
-              checkAndStoreAdminStatus(session.access_token);
-            }, 100);
+          if (session.access_token) {
+            await checkAndStoreAdminStatus(session.access_token);
           }
         }
         
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    );
+    };
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      // Verificar se o usuário está expirado
-      if (session?.user) {
-        const expiryDate = (session.user.user_metadata as any)?.expiry_date;
-        if (expiryDate && new Date(expiryDate) < new Date()) {
-          // Usuário expirado - fazer logout
-          supabase.auth.signOut();
-          toast.error("Sua conta expirou. Entre em contato com o suporte da Nokta.", {
-            duration: 5000,
-          });
-          navigate("/auth");
-          setLoading(false);
-          return;
-        }
-        
-        // Verificar status admin para sessão existente
-        if (session.access_token) {
-          await checkAndStoreAdminStatus(session.access_token);
-        }
-      }
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    initializeAuth();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate, checkAndStoreAdminStatus]);
 
   const signIn = async (email: string, password: string) => {
