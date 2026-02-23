@@ -739,7 +739,12 @@ Deno.serve(async (req) => {
       
       // Allow keyword triggers from anyone in the group (including fromMe)
       // Only skip if the message was sent by our API (bot response) to prevent loops
-      if (messageTextForGroup && !wasSentByApiGroup) {
+      // Also skip long messages (>50 chars) or messages with formatting (*, 💰, 📊, etc.) 
+      // since these are likely bot responses, not user keyword triggers
+      const looksLikeBotResponse = messageTextForGroup.length > 50 
+        || /^[💰📊❌⚠️🔔📈•]/.test(messageTextForGroup)
+        || (isFromMeGroup && messageTextForGroup.includes('\n'));
+      if (messageTextForGroup && !wasSentByApiGroup && !looksLikeBotResponse) {
         // Check if this group ID has keyword triggers configured
         const { data: groupKeywordConfigs } = await supabase
           .from('admin_client_notifications')
