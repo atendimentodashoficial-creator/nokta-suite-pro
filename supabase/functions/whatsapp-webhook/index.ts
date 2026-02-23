@@ -737,7 +737,9 @@ Deno.serve(async (req) => {
       const wasSentByApiGroup = Boolean((normalizedPayload.message as any)?.wasSentByApi);
       const isFromMeGroup = Boolean(normalizedPayload.message?.fromMe);
       
-      if (messageTextForGroup && !isFromMeGroup && !wasSentByApiGroup) {
+      // Allow keyword triggers from anyone in the group (including fromMe)
+      // Only skip if the message was sent by our API (bot response) to prevent loops
+      if (messageTextForGroup && !wasSentByApiGroup) {
         // Check if this group ID has keyword triggers configured
         const { data: groupKeywordConfigs } = await supabase
           .from('admin_client_notifications')
@@ -754,23 +756,40 @@ Deno.serve(async (req) => {
           // Extract sender phone for group messages
           const senderPn = (normalizedPayload.message as any)?.sender_pn || '';
           const senderPhone = senderPn.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+
+          // Use dedup to prevent the same message from triggering multiple times
+          const stableId = extractStableMessageId(normalizedPayload.message as any);
+          const phoneLast8ForDedup = getLast8Digits(senderPhone || chatId.replace('@g.us', ''));
+          const canRun = await canRunKeywordTrigger({
+            supabase,
+            phoneLast8: phoneLast8ForDedup,
+            stableMessageId: stableId,
+            messageText: messageTextForGroup,
+            messageTimestamp: Number((normalizedPayload.message as any)?.messageTimestamp) || 0,
+          });
           
-          if (adminInstanciaId) {
-            fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({
-                admin_instancia_id: adminInstanciaId,
-                phone: senderPhone || 'group',
-                message_text: messageTextForGroup,
-                chat_id: chatId,
-              }),
-            }).catch((err) => {
+          if (adminInstanciaId && canRun) {
+            try {
+              const kwResponse = await fetch(`${supabaseUrl}/functions/v1/admin-keyword-handler`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  admin_instancia_id: adminInstanciaId,
+                  phone: senderPhone || 'group',
+                  message_text: messageTextForGroup,
+                  chat_id: chatId,
+                }),
+              });
+              const kwResult = await kwResponse.text();
+              console.log(`[Group Keyword] Handler response: ${kwResponse.status} - ${kwResult}`);
+            } catch (err: any) {
               console.error('[Group Keyword] Error calling keyword handler:', err?.message || err);
-            });
+            }
+          } else if (!canRun) {
+            console.log('[Group Keyword] Skipped - dedup prevented duplicate trigger');
           }
         }
       }
