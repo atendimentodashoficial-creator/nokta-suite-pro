@@ -78,17 +78,34 @@ export default function Reunioes() {
   }, [queryClient]);
 
   // Índice simples (telefone -> nome) para reuniões que ainda não estejam vinculadas via cliente_id
+  // Buscar nomes de leads em lotes para evitar limite de 1000 linhas
   const { data: leadNames } = useQuery({
     queryKey: ["leads", "names", user?.id],
     refetchOnMount: "always",
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("nome, telefone")
-        .is("deleted_at", null);
+      const allLeads: Array<{ nome: string; telefone: string }> = [];
+      const PAGE_SIZE = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (error) throw error;
-      return (data || []) as Array<{ nome: string; telefone: string }>;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("nome, telefone")
+          .is("deleted_at", null)
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allLeads.push(...(data as Array<{ nome: string; telefone: string }>));
+          if (data.length < PAGE_SIZE) hasMore = false;
+          else from += PAGE_SIZE;
+        }
+      }
+
+      return allLeads;
     },
     enabled: !!user?.id,
   });
