@@ -347,40 +347,20 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
         return d.length >= 8 ? d.slice(-8) : d;
       };
 
-      const chatIdToLast8: Record<string, string> = {};
-      const uniqueLast8Set = new Set<string>();
-      chats.forEach((chat) => {
-        const k = last8(chat?.normalized_number || chat?.contact_number || "");
-        if (!k) return;
-        chatIdToLast8[chat.id] = k;
-        uniqueLast8Set.add(k);
-      });
+      // Fetch ALL reuniões with resumo (typically very few records)
+      const { data: allReunioes, error } = await supabase
+        .from("reunioes")
+        .select("id, titulo, resumo_ia, data_reuniao, cliente_telefone, duracao_minutos, participantes, transcricao, status")
+        .not("resumo_ia", "is", null)
+        .neq("resumo_ia", "")
+        .order("data_reuniao", { ascending: false });
 
-      if (uniqueLast8Set.size === 0) return;
-
-      const uniqueLast8 = Array.from(uniqueLast8Set);
-      
-      // Process in batches to avoid URL length limits
-      const BATCH_SIZE = 50;
-      const allReunioes: any[] = [];
-      
-      for (let i = 0; i < uniqueLast8.length; i += BATCH_SIZE) {
-        const batch = uniqueLast8.slice(i, i + BATCH_SIZE);
-        const orFilter = batch.map(k => `cliente_telefone.like.%${k}`).join(",");
-
-        const { data: reunioes } = await supabase
-          .from("reunioes")
-          .select("id, titulo, resumo_ia, data_reuniao, cliente_telefone, duracao_minutos, participantes, transcricao, status")
-          .or(orFilter)
-          .not("resumo_ia", "is", null)
-          .neq("resumo_ia", "")
-          .order("data_reuniao", { ascending: false })
-          .limit(500);
-
-        if (reunioes) allReunioes.push(...reunioes);
+      if (error) {
+        console.error("Error fetching reunioes:", error);
+        return;
       }
 
-      if (allReunioes.length === 0) {
+      if (!allReunioes || allReunioes.length === 0) {
         setChatReunioes({});
         return;
       }
@@ -402,9 +382,10 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
         };
       });
 
+      // Match chats to reuniões by last 8 digits
       const chatReMap: Record<string, ChatReuniao | null> = {};
       chats.forEach((chat) => {
-        const k = chatIdToLast8[chat.id];
+        const k = last8(chat?.normalized_number || chat?.contact_number || "");
         chatReMap[chat.id] = k ? (last8ToReuniao[k] ?? null) : null;
       });
 
