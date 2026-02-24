@@ -13,7 +13,7 @@ import {
   formatLastMessagePreview,
   truncateText,
 } from "@/utils/whatsapp";
-import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, Phone, Filter, CheckSquare, Square, XCircle, ArrowRightCircle } from "lucide-react";
+import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, Phone, Filter, CheckSquare, Square, XCircle, ArrowRightCircle, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,13 @@ interface ChatAgendamento {
   id: string;
   data_agendamento: string;
   status: string;
+}
+
+interface ChatReuniao {
+  id: string;
+  titulo: string;
+  resumo_ia: string;
+  data_reuniao: string;
 }
 
 interface DisparosInstancia {
@@ -100,8 +107,10 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
   const [editingColumn, setEditingColumn] = useState<KanbanColumn | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [chatAgendamentos, setChatAgendamentos] = useState<Record<string, ChatAgendamento | null>>({});
+  const [chatReunioes, setChatReunioes] = useState<Record<string, ChatReuniao | null>>({});
   const [instanciasMap, setInstanciasMap] = useState<Record<string, DisparosInstancia>>({});
-  
+  const [reuniaoDialogOpen, setReuniaoDialogOpen] = useState(false);
+  const [selectedReuniao, setSelectedReuniao] = useState<ChatReuniao | null>(null);
   // Filter & Selection state
   const [selectedInstanciaFilter, setSelectedInstanciaFilter] = useState<string>("all");
   const [selectionMode, setSelectionMode] = useState(false);
@@ -131,6 +140,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
   useEffect(() => {
     if (chats.length > 0) {
       loadChatAgendamentos();
+      loadChatReunioes();
     }
   }, [chatIds]);
 
@@ -321,6 +331,67 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       setChatAgendamentos(chatAgMap);
     } catch (error) {
       console.error("Error loading chat agendamentos:", error);
+    }
+  };
+
+  const loadChatReunioes = async () => {
+    try {
+      const onlyDigits = (v: string) => (v || "").replace(/\D/g, "");
+      const last8 = (v: string) => {
+        const d = onlyDigits(v);
+        return d.length >= 8 ? d.slice(-8) : d;
+      };
+
+      const chatIdToLast8: Record<string, string> = {};
+      const uniqueLast8Set = new Set<string>();
+      chats.forEach((chat) => {
+        const k = last8(chat?.normalized_number || chat?.contact_number || "");
+        if (!k) return;
+        chatIdToLast8[chat.id] = k;
+        uniqueLast8Set.add(k);
+      });
+
+      if (uniqueLast8Set.size === 0) return;
+
+      const uniqueLast8 = Array.from(uniqueLast8Set);
+      const orFilter = uniqueLast8.map(k => `cliente_telefone.like.%${k}`).join(",");
+
+      const { data: reunioes } = await supabase
+        .from("reunioes")
+        .select("id, titulo, resumo_ia, data_reuniao, cliente_telefone")
+        .or(orFilter)
+        .not("resumo_ia", "is", null)
+        .neq("resumo_ia", "")
+        .order("data_reuniao", { ascending: false })
+        .limit(500);
+
+      if (!reunioes || reunioes.length === 0) {
+        setChatReunioes({});
+        return;
+      }
+
+      // Map last8 phone -> most recent reunião with resumo
+      const last8ToReuniao: Record<string, ChatReuniao> = {};
+      reunioes.forEach((r) => {
+        const k = last8(r.cliente_telefone || "");
+        if (!k || last8ToReuniao[k]) return; // keep most recent (already ordered desc)
+        last8ToReuniao[k] = {
+          id: r.id,
+          titulo: r.titulo,
+          resumo_ia: r.resumo_ia,
+          data_reuniao: r.data_reuniao,
+        };
+      });
+
+      const chatReMap: Record<string, ChatReuniao | null> = {};
+      chats.forEach((chat) => {
+        const k = chatIdToLast8[chat.id];
+        chatReMap[chat.id] = k ? (last8ToReuniao[k] ?? null) : null;
+      });
+
+      setChatReunioes(chatReMap);
+    } catch (error) {
+      console.error("Error loading chat reunioes:", error);
     }
   };
 
@@ -656,6 +727,34 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
           {format(dataAgendamento, "dd/MM", { locale: ptBR })} às {format(dataAgendamento, "HH:mm")}
         </span>
       </div>
+    );
+  };
+
+  const renderReuniaoBadge = (chatId: string) => {
+    const reuniao = chatReunioes[chatId];
+    if (!reuniao) return null;
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedReuniao(reuniao);
+                setReuniaoDialogOpen(true);
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs mt-1 w-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900 transition-colors text-left"
+            >
+              <FileText className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">Resumo de reunião</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Clique para ver o resumo</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   };
 
@@ -1024,6 +1123,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                           </div>
                         </div>
                         {renderAgendamentoBadge(chat.id)}
+                        {renderReuniaoBadge(chat.id)}
                       </div>
                       {!selectionMode && (chat.unread_count || 0) > 0 && (
                         <Badge
@@ -1139,6 +1239,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                               </div>
                             </div>
                             {renderAgendamentoBadge(chat.id)}
+                            {renderReuniaoBadge(chat.id)}
                           </div>
                           {!selectionMode && (chat.unread_count || 0) > 0 && (
                             <Badge
@@ -1186,6 +1287,26 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reunião Summary Dialog */}
+      <Dialog open={reuniaoDialogOpen} onOpenChange={setReuniaoDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-violet-600" />
+              {selectedReuniao?.titulo || "Resumo da Reunião"}
+            </DialogTitle>
+            {selectedReuniao?.data_reuniao && (
+              <DialogDescription>
+                {format(parseISO(selectedReuniao.data_reuniao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+            {selectedReuniao?.resumo_ia || "Sem resumo disponível."}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
