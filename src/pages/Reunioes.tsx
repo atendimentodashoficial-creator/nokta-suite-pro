@@ -80,6 +80,7 @@ export default function Reunioes() {
   // Índice simples (telefone -> nome) para reuniões que ainda não estejam vinculadas via cliente_id
   const { data: leadNames } = useQuery({
     queryKey: ["leads", "names", user?.id],
+    refetchOnMount: "always",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
@@ -121,6 +122,7 @@ export default function Reunioes() {
 
   const { data: reunioes, isLoading, refetch } = useQuery({
     queryKey: ["reunioes", user?.id],
+    refetchOnMount: "always",
     queryFn: async () => {
       // Buscar reuniões agendadas (com google_event_id OU criadas manualmente com status agendado)
       // Reuniões só do Fireflies (sem google_event_id e sem status agendado) ficam ocultas
