@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
+import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDialog";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,8 +61,12 @@ interface ChatAgendamento {
 interface ChatReuniao {
   id: string;
   titulo: string;
-  resumo_ia: string;
+  resumo_ia: string | null;
   data_reuniao: string;
+  duracao_minutos: number | null;
+  participantes: string[] | null;
+  transcricao: string | null;
+  status: string;
 }
 
 interface DisparosInstancia {
@@ -365,7 +370,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
 
         const { data: reunioes } = await supabase
           .from("reunioes")
-          .select("id, titulo, resumo_ia, data_reuniao, cliente_telefone")
+          .select("id, titulo, resumo_ia, data_reuniao, cliente_telefone, duracao_minutos, participantes, transcricao, status")
           .or(orFilter)
           .not("resumo_ia", "is", null)
           .neq("resumo_ia", "")
@@ -384,12 +389,16 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       const last8ToReuniao: Record<string, ChatReuniao> = {};
       allReunioes.forEach((r: any) => {
         const k = last8(r.cliente_telefone || "");
-        if (!k || last8ToReuniao[k]) return; // keep most recent (already ordered desc)
+        if (!k || last8ToReuniao[k]) return;
         last8ToReuniao[k] = {
           id: r.id,
           titulo: r.titulo,
           resumo_ia: r.resumo_ia,
           data_reuniao: r.data_reuniao,
+          duracao_minutos: r.duracao_minutos,
+          participantes: r.participantes,
+          transcricao: r.transcricao,
+          status: r.status,
         };
       });
 
@@ -1299,24 +1308,11 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       </AlertDialog>
 
       {/* Reunião Summary Dialog */}
-      <Dialog open={reuniaoDialogOpen} onOpenChange={setReuniaoDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-violet-600" />
-              {selectedReuniao?.titulo || "Resumo da Reunião"}
-            </DialogTitle>
-            {selectedReuniao?.data_reuniao && (
-              <DialogDescription>
-                {format(parseISO(selectedReuniao.data_reuniao), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-              </DialogDescription>
-            )}
-          </DialogHeader>
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">
-            {selectedReuniao?.resumo_ia || "Sem resumo disponível."}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReuniaoDetalhesDialog
+        reuniao={selectedReuniao}
+        open={reuniaoDialogOpen}
+        onOpenChange={setReuniaoDialogOpen}
+      />
     </div>
   );
 }
