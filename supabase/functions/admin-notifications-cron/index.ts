@@ -104,6 +104,8 @@ async function getAccountBalance(
     let spendCap = spendCapCents / 100;
     let amountSpent = amountSpentCents / 100;
 
+    console.log(`[admin-notifications-cron] User ${userId} FB API raw values: balance=${rawBalance}, spend_cap=${spendCap}, amount_spent=${amountSpent}, isPrepaid=${isPrepaid}, account_type=${adAccount.account_type}, is_prepay_account=${fbData.is_prepay_account}, manual_funds=${adAccount.manual_funds_balance}`);
+
     let displayBalance: number;
     if (isPrepaid) {
       if (spendCap > 0) {
@@ -118,6 +120,8 @@ async function getAccountBalance(
         displayBalance = -rawBalance;
       }
     }
+
+    console.log(`[admin-notifications-cron] User ${userId} displayBalance before currency: ${displayBalance}, currency: ${adAccount.currency_type}`);
 
     // Convert if USD account
     if (adAccount.currency_type === 'USD') {
