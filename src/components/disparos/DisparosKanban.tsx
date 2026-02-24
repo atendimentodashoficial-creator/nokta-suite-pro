@@ -354,25 +354,35 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
       if (uniqueLast8Set.size === 0) return;
 
       const uniqueLast8 = Array.from(uniqueLast8Set);
-      const orFilter = uniqueLast8.map(k => `cliente_telefone.like.%${k}`).join(",");
+      
+      // Process in batches to avoid URL length limits
+      const BATCH_SIZE = 50;
+      const allReunioes: any[] = [];
+      
+      for (let i = 0; i < uniqueLast8.length; i += BATCH_SIZE) {
+        const batch = uniqueLast8.slice(i, i + BATCH_SIZE);
+        const orFilter = batch.map(k => `cliente_telefone.like.%${k}`).join(",");
 
-      const { data: reunioes } = await supabase
-        .from("reunioes")
-        .select("id, titulo, resumo_ia, data_reuniao, cliente_telefone")
-        .or(orFilter)
-        .not("resumo_ia", "is", null)
-        .neq("resumo_ia", "")
-        .order("data_reuniao", { ascending: false })
-        .limit(500);
+        const { data: reunioes } = await supabase
+          .from("reunioes")
+          .select("id, titulo, resumo_ia, data_reuniao, cliente_telefone")
+          .or(orFilter)
+          .not("resumo_ia", "is", null)
+          .neq("resumo_ia", "")
+          .order("data_reuniao", { ascending: false })
+          .limit(500);
 
-      if (!reunioes || reunioes.length === 0) {
+        if (reunioes) allReunioes.push(...reunioes);
+      }
+
+      if (allReunioes.length === 0) {
         setChatReunioes({});
         return;
       }
 
       // Map last8 phone -> most recent reunião with resumo
       const last8ToReuniao: Record<string, ChatReuniao> = {};
-      reunioes.forEach((r) => {
+      allReunioes.forEach((r: any) => {
         const k = last8(r.cliente_telefone || "");
         if (!k || last8ToReuniao[k]) return; // keep most recent (already ordered desc)
         last8ToReuniao[k] = {
