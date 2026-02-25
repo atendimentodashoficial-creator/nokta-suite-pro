@@ -26,6 +26,7 @@ import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/t
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { KanbanMoverDialog } from "@/components/clientes/KanbanMoverDialog";
 import { RetornosDialog } from "@/components/clientes/RetornosDialog";
+import { FaturaResumoDialog } from "@/components/clientes/FaturaResumoDialog";
 
 export default function EmNegociacao() {
   const navigate = useNavigate();
@@ -43,6 +44,7 @@ export default function EmNegociacao() {
   const [faturaParaExcluir, setFaturaParaExcluir] = useState<any>(null);
   const [kanbanMoverOpen, setKanbanMoverOpen] = useState(false);
   const [kanbanMoverTelefone, setKanbanMoverTelefone] = useState<string | null>(null);
+  const [faturaResumoOpen, setFaturaResumoOpen] = useState<any>(null);
   const {
     data: todasFaturas,
     isLoading
@@ -197,7 +199,10 @@ export default function EmNegociacao() {
                         {(fatura.leads as any)?.nome || "Cliente não identificado"}
                       </h3>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <Badge className="bg-blue-500/20 text-blue-700">
+                        <Badge className="bg-blue-500/20 text-blue-700 cursor-pointer hover:bg-blue-500/30 transition-colors" onClick={(e) => {
+                          e.stopPropagation();
+                          setFaturaResumoOpen(fatura);
+                        }}>
                           Negociação
                         </Badge>
                         {retornosPorFatura[fatura.id]?.length > 0 && (
@@ -394,6 +399,12 @@ export default function EmNegociacao() {
         onOpenChange={setRetornosDialogOpen}
         retornos={retornosDialogData.retornos}
         faturaLabel={retornosDialogData.label}
+      />
+
+      <FaturaResumoDialog
+        open={!!faturaResumoOpen}
+        onOpenChange={(open) => !open && setFaturaResumoOpen(null)}
+        fatura={faturaResumoOpen}
       />
 
       <KanbanMoverDialog
