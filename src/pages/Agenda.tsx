@@ -466,25 +466,30 @@ export default function Agenda() {
 
       <KanbanMoverDialog
         open={kanbanMoverOpen}
-        onOpenChange={async (open) => {
+        onOpenChange={(open) => {
           if (!open) {
-            // When dialog closes (either after moving or "não mover"), update the não compareceu status
-            if (pendingNaoCompareceuId) {
-              try {
-                await updateStatus.mutateAsync({
-                  id: pendingNaoCompareceuId,
-                  status: "cancelado"
-                });
-                queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
-                toast.success("Agendamento marcado como não compareceu!");
-              } catch {
-                toast.error("Erro ao atualizar agendamento");
-              }
-              setPendingNaoCompareceuId(null);
-            }
+            // X button or escape: cancel the whole operation
+            setPendingNaoCompareceuId(null);
             setKanbanMoverTelefone(null);
           }
           setKanbanMoverOpen(open);
+        }}
+        onConfirmed={async () => {
+          // Only update status when user explicitly clicked "Mover" or "Não mover"
+          if (pendingNaoCompareceuId) {
+            try {
+              await updateStatus.mutateAsync({
+                id: pendingNaoCompareceuId,
+                status: "cancelado"
+              });
+              queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+              toast.success("Agendamento marcado como não compareceu!");
+            } catch {
+              toast.error("Erro ao atualizar agendamento");
+            }
+            setPendingNaoCompareceuId(null);
+          }
+          setKanbanMoverTelefone(null);
         }}
         clienteTelefone={kanbanMoverTelefone}
       />
