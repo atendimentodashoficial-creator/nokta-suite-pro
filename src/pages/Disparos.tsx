@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
-import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter, QrCode, Loader2, Smartphone, Unplug, Settings, Pencil, Keyboard, XCircle } from "lucide-react";
+import { MessageSquare, RefreshCw, Plus, Trash2, CheckSquare, X, Send, Megaphone, List, Kanban, Phone, FileText, ListFilter, QrCode, Loader2, Smartphone, Unplug, Settings, Pencil, Keyboard, XCircle, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,7 @@ export default function Disparos() {
   const [instanciasList, setInstanciasList] = useState<DisparosInstancia[]>([]);
   const [selectedInstanciaId, setSelectedInstanciaId] = useState<string>("");
   const [filterInstanciaId, setFilterInstanciaId] = useState<string>("all");
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
   const deepLinkHandledRef = useRef(false);
 
   // Instance management state
@@ -329,9 +330,14 @@ export default function Disparos() {
         return matchName || matchNumber || matchNormalized;
       });
     }
+
+    // Filter by unread
+    if (filterUnreadOnly) {
+      filtered = filtered.filter(chat => (chat.unread_count || 0) > 0);
+    }
     
     setFilteredChats(filtered);
-  }, [searchTerm, chats, filterInstanciaId]);
+  }, [searchTerm, chats, filterInstanciaId, filterUnreadOnly]);
 
   // Load instancias (just load data, don't auto-check connection status)
   // IMPORTANT: Exclude the main WhatsApp instance (linked via uazapi_config.whatsapp_instancia_id)
@@ -1138,6 +1144,25 @@ export default function Disparos() {
                     </SelectContent>
                   </Select>
                 )}
+
+                {/* Unread filter button */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant={filterUnreadOnly ? "default" : "outline"}
+                        className="h-9 w-9 p-0 flex-shrink-0"
+                        onClick={() => setFilterUnreadOnly(prev => !prev)}
+                      >
+                        <BellRing className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {filterUnreadOnly ? "Mostrar todos os chats" : "Mostrar apenas não lidos"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               
                 {/* View mode toggle */}
                 {!isMobile && (
