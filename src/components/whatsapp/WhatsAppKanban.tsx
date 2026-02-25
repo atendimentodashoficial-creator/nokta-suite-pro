@@ -6,9 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatAvatar } from "./ChatAvatar";
+import { FaturasClienteDialog, type FaturaResumo } from "./FaturasClienteDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhoneNumber, formatRelativeTime, formatLastMessagePreview, truncateText } from "@/utils/whatsapp";
-import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, CheckSquare, Square, XCircle } from "lucide-react";
+import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, CheckSquare, Square, XCircle, DollarSign } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -79,6 +86,12 @@ export function WhatsAppKanban({
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [chatAgendamentos, setChatAgendamentos] = useState<Record<string, ChatAgendamento | null>>({});
   
+  // Faturas state
+  const [chatFaturas, setChatFaturas] = useState<Record<string, FaturaResumo[]>>({});
+  const [faturasDialogOpen, setFaturasDialogOpen] = useState(false);
+  const [selectedFaturas, setSelectedFaturas] = useState<FaturaResumo[]>([]);
+  const [selectedFaturaClienteNome, setSelectedFaturaClienteNome] = useState("");
+
   // Selection state
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
@@ -94,6 +107,7 @@ export function WhatsAppKanban({
   useEffect(() => {
     if (chats.length > 0) {
       loadChatAgendamentos();
+      loadChatFaturas();
     }
   }, [chats]);
 
@@ -269,6 +283,141 @@ export function WhatsAppKanban({
     } catch (error) {
       console.error("Error loading chat agendamentos:", error);
     }
+  };
+
+  // Load faturas for chats based on phone matching (last 8 digits)
+  const loadChatFaturas = async () => {
+    try {
+      const onlyDigits = (v: string) => (v || "").replace(/\D/g, "");
+      const last8 = (v: string) => {
+        const d = onlyDigits(v);
+        return d.length >= 8 ? d.slice(-8) : d;
+      };
+
+      const chatIdToLast8: Record<string, string> = {};
+      const last8Set = new Set<string>();
+      chats.forEach(chat => {
+        const k = last8(chat?.normalized_number || chat?.contact_number || "");
+        if (!k) return;
+        chatIdToLast8[chat.id] = k;
+        last8Set.add(k);
+      });
+      if (last8Set.size === 0) return;
+
+      // Get leads matching phones
+      const { data: leads } = await supabase
+        .from("leads")
+        .select("id, telefone, nome")
+        .is("deleted_at", null);
+
+      if (!leads || leads.length === 0) return;
+
+      const last8ToLeadIds: Record<string, { id: string; nome: string }[]> = {};
+      leads.forEach(l => {
+        const k = last8(l.telefone);
+        if (!k) return;
+        if (!last8ToLeadIds[k]) last8ToLeadIds[k] = [];
+        last8ToLeadIds[k].push({ id: l.id, nome: l.nome });
+      });
+
+      const allLeadIds = leads.map(l => l.id);
+
+      // Fetch faturas for these leads (include cliente_id)
+      const { data: faturasWithCliente } = await supabase
+        .from("faturas")
+        .select(`
+          id, valor, status, observacoes, data_fatura, created_at,
+          meio_pagamento, forma_pagamento, cliente_id,
+          procedimentos:procedimento_id(nome),
+          profissionais:profissional_id(nome)
+        `)
+        .in("cliente_id", allLeadIds)
+        .order("created_at", { ascending: false });
+
+      if (!faturasWithCliente || faturasWithCliente.length === 0) {
+        setChatFaturas({});
+        return;
+      }
+
+      // Map leadId -> last8
+      const leadIdToLast8: Record<string, string> = {};
+      leads.forEach(l => {
+        const k = last8(l.telefone);
+        if (k) leadIdToLast8[l.id] = k;
+      });
+
+      // Group faturas by phone last8
+      const last8ToFaturas: Record<string, FaturaResumo[]> = {};
+      faturasWithCliente.forEach((f: any) => {
+        const phoneKey = leadIdToLast8[f.cliente_id];
+        if (!phoneKey) return;
+        if (!last8ToFaturas[phoneKey]) last8ToFaturas[phoneKey] = [];
+        last8ToFaturas[phoneKey].push({
+          id: f.id,
+          valor: f.valor,
+          status: f.status,
+          observacoes: f.observacoes,
+          data_fatura: f.data_fatura,
+          created_at: f.created_at,
+          meio_pagamento: f.meio_pagamento,
+          forma_pagamento: f.forma_pagamento,
+          procedimento_nome: f.procedimentos?.nome || null,
+          profissional_nome: f.profissionais?.nome || null,
+        });
+      });
+
+      // Map chatId -> faturas
+      const chatFatMap: Record<string, FaturaResumo[]> = {};
+      chats.forEach(chat => {
+        const k = chatIdToLast8[chat.id];
+        chatFatMap[chat.id] = k ? (last8ToFaturas[k] || []) : [];
+      });
+      setChatFaturas(chatFatMap);
+    } catch (error) {
+      console.error("Error loading chat faturas:", error);
+    }
+  };
+
+  // Render fatura badge for a chat
+  const renderFaturaBadge = (chat: any) => {
+    const faturas = chatFaturas[chat.id];
+    if (!faturas || faturas.length === 0) return null;
+
+    const negociacoes = faturas.filter(f => f.status === "negociacao").length;
+    const fechadas = faturas.filter(f => f.status === "fechado").length;
+
+    let label = "";
+    if (negociacoes > 0 && fechadas > 0) {
+      label = `${fechadas} fatura${fechadas > 1 ? "s" : ""} · ${negociacoes} negociação${negociacoes > 1 ? "ões" : ""}`;
+    } else if (fechadas > 0) {
+      label = `${fechadas} fatura${fechadas > 1 ? "s" : ""}`;
+    } else {
+      label = `${negociacoes} negociação${negociacoes > 1 ? "ões" : ""}`;
+    }
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedFaturas(faturas);
+                setSelectedFaturaClienteNome(chat.contact_name || formatPhoneNumber(chat.contact_number));
+                setFaturasDialogOpen(true);
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs mt-1 w-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900 transition-colors text-left"
+            >
+              <DollarSign className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{label}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Clique para ver faturas e negociações</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   };
 
   // Create new column
@@ -890,6 +1039,7 @@ export function WhatsAppKanban({
                           </div>
                         </div>
                         {renderAgendamentoBadge(chat.id)}
+                        {renderFaturaBadge(chat)}
                       </div>
                       {chat.unread_count > 0 && <Badge variant="default" className="absolute bottom-3 right-3 text-xs h-5 min-w-5 rounded-full">
                           {chat.unread_count}
@@ -973,6 +1123,7 @@ export function WhatsAppKanban({
                               </div>
                             </div>
                             {renderAgendamentoBadge(chat.id)}
+                            {renderFaturaBadge(chat)}
                           </div>
                           {chat.unread_count > 0 && <Badge variant="default" className="absolute bottom-3 right-3 text-xs h-5 min-w-5 rounded-full">
                               {chat.unread_count}
@@ -989,5 +1140,13 @@ export function WhatsAppKanban({
         })}
           </>}
       </div>
+
+      {/* Faturas Dialog */}
+      <FaturasClienteDialog
+        open={faturasDialogOpen}
+        onOpenChange={setFaturasDialogOpen}
+        faturas={selectedFaturas}
+        clienteNome={selectedFaturaClienteNome}
+      />
     </div>;
 }
