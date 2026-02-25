@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Clock, User, Phone, MessageCircle, RefreshCw, Trash2, FileText, UserX, CheckSquare, Square, X } from "lucide-react";
+import { Search, Clock, User, Phone, MessageCircle, RefreshCw, Trash2, FileText, UserX, CheckSquare, Square, X, Columns3 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ReagendarDialog } from "@/components/clientes/ReagendarDialog";
+import { KanbanMoverDialog } from "@/components/clientes/KanbanMoverDialog";
 
 export default function NaoCompareceu() {
   const navigate = useNavigate();
@@ -38,6 +39,8 @@ export default function NaoCompareceu() {
   const [selectedAgendamentoIds, setSelectedAgendamentoIds] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [kanbanMoverOpen, setKanbanMoverOpen] = useState(false);
+  const [kanbanMoverTelefone, setKanbanMoverTelefone] = useState<string | null>(null);
   
   const queryClient = useQueryClient();
   const deleteAgendamento = useDeleteAgendamento();
@@ -335,7 +338,7 @@ export default function NaoCompareceu() {
 
                 <div className="flex-1" />
 
-                <div className="pt-3 border-t border-border grid grid-cols-3 gap-2 mt-4">
+                <div className="pt-3 border-t border-border grid grid-cols-4 gap-2 mt-4">
                   <Button
                     variant="outline"
                     size="sm"
@@ -354,6 +357,19 @@ export default function NaoCompareceu() {
                     disabled={!agendamento.leads?.telefone}
                   >
                     <MessageCircle className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setKanbanMoverTelefone(agendamento.leads?.telefone || null);
+                      setKanbanMoverOpen(true);
+                    }}
+                    disabled={!agendamento.leads?.telefone}
+                    title="Mover no Kanban"
+                  >
+                    <Columns3 className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
@@ -410,6 +426,15 @@ export default function NaoCompareceu() {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      <KanbanMoverDialog
+        open={kanbanMoverOpen}
+        onOpenChange={(open) => {
+          setKanbanMoverOpen(open);
+          if (!open) setKanbanMoverTelefone(null);
+        }}
+        clienteTelefone={kanbanMoverTelefone}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, Handshake, Phone, Plus, RotateCcw } from "lucide-react";
+import { Search, DollarSign, Calendar as CalendarIcon, User, FileText, MessageCircle, ShoppingBag, Edit, Trash2, Clock, Handshake, Phone, Plus, RotateCcw, Columns3 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import { formatPhoneDisplay } from "@/utils/phoneFormat";
 import { navigateToChat } from "@/utils/chatRouting";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
+import { KanbanMoverDialog } from "@/components/clientes/KanbanMoverDialog";
 
 export default function EmNegociacao() {
   const navigate = useNavigate();
@@ -39,6 +40,8 @@ export default function EmNegociacao() {
   const [novaFaturaOpen, setNovaFaturaOpen] = useState(false);
   const [editarFatura, setEditarFatura] = useState<any>(null);
   const [faturaParaExcluir, setFaturaParaExcluir] = useState<any>(null);
+  const [kanbanMoverOpen, setKanbanMoverOpen] = useState(false);
+  const [kanbanMoverTelefone, setKanbanMoverTelefone] = useState<string | null>(null);
   const {
     data: todasFaturas,
     isLoading
@@ -259,12 +262,19 @@ export default function EmNegociacao() {
 
                   <div className="flex-1" />
 
-                  <div className="pt-3 border-t border-border grid grid-cols-3 gap-2 mt-4">
+                  <div className="pt-3 border-t border-border grid grid-cols-4 gap-2 mt-4">
                     <Button variant="outline" size="sm" onClick={() => setEditarFatura(fatura)}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={e => handleWhatsAppClick(e, (fatura.leads as any)?.telefone, (fatura.leads as any)?.origem)} disabled={!(fatura.leads as any)?.telefone}>
                       <MessageCircle className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={(e) => {
+                      e.stopPropagation();
+                      setKanbanMoverTelefone((fatura.leads as any)?.telefone || null);
+                      setKanbanMoverOpen(true);
+                    }} disabled={!(fatura.leads as any)?.telefone} title="Mover no Kanban">
+                      <Columns3 className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setFaturaParaExcluir(fatura)}>
                       <Trash2 className="h-4 w-4" />
@@ -367,5 +377,14 @@ export default function EmNegociacao() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <KanbanMoverDialog
+        open={kanbanMoverOpen}
+        onOpenChange={(open) => {
+          setKanbanMoverOpen(open);
+          if (!open) setKanbanMoverTelefone(null);
+        }}
+        clienteTelefone={kanbanMoverTelefone}
+      />
     </div>;
 }
