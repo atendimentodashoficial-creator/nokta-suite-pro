@@ -568,7 +568,12 @@ export const ChatWindow = ({ chat, onMessagesRead, onChatDeleted, onChatUpdated,
           Authorization: `Bearer ${session.access_token}`,
         },
       });
-      if (response.error) throw response.error;
+      // 400 means UAZapi not configured - silently skip
+      if (response.error) {
+        const body = response.data;
+        if (body?.error === "UAZapi não configurado") return;
+        throw response.error;
+      }
       setAvailableLabels(response.data.labels || []);
 
       // Load chat labels from database only when we have a real DB UUID
