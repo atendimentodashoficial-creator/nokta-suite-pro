@@ -28,6 +28,7 @@ import { AvisosTab } from "@/components/whatsapp/AvisosTab";
 import { HistoricoAvisosTab } from "@/components/whatsapp/HistoricoAvisosTab";
 import { DateRangeCalendars } from "@/components/filters/CalendarWithMonthSelect";
 import { useTabPersistence } from "@/hooks/useTabPersistence";
+import { KanbanMoverDialog } from "@/components/clientes/KanbanMoverDialog";
 
 export default function Agenda() {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<any>(null);
@@ -45,6 +46,8 @@ export default function Agenda() {
   const [novoAgendamentoOpen, setNovoAgendamentoOpen] = useState(false);
   const [deleteAgendamento, setDeleteAgendamento] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [kanbanMoverOpen, setKanbanMoverOpen] = useState(false);
+  const [kanbanMoverTelefone, setKanbanMoverTelefone] = useState<string | null>(null);
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("mes-atual");
   const [dataInicio, setDataInicio] = useState<Date>(startOfMonth(new Date()));
   const [dataFim, setDataFim] = useState<Date>(endOfMonth(new Date()));
@@ -186,7 +189,8 @@ export default function Agenda() {
   const totalItens = agendamentosPorData.reduce((sum, grupo) => sum + grupo.agendamentos.length, 0);
   const handleMarcarCompareceu = async (agendamento: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Abrir modal de fatura primeiro - o status será alterado após confirmar a fatura
+    // Store phone for kanban mover after fatura creation
+    setKanbanMoverTelefone(agendamento.leads?.telefone || null);
     setClienteParaFatura({
       id: agendamento.cliente_id,
       nome: agendamento.leads?.nome || "Cliente",
@@ -198,17 +202,22 @@ export default function Agenda() {
     setNovaFaturaOpen(true);
   };
   const deleteAgendamentoMutation = useDeleteAgendamento();
-  const handleMarcarNaoCompareceu = async (id: string, e: React.MouseEvent) => {
+  const handleMarcarNaoCompareceu = async (agendamento: any, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await updateStatus.mutateAsync({
-        id,
+        id: agendamento.id,
         status: "cancelado"
       });
       queryClient.invalidateQueries({
         queryKey: ["agendamentos"]
       });
       toast.success("Agendamento marcado como não compareceu!");
+      // Show kanban mover dialog
+      if (agendamento.leads?.telefone) {
+        setKanbanMoverTelefone(agendamento.leads.telefone);
+        setKanbanMoverOpen(true);
+      }
     } catch (error) {
       toast.error("Erro ao atualizar agendamento");
     }
@@ -408,7 +417,7 @@ export default function Agenda() {
                               <Check className="h-4 w-4 mr-1" />
                               Compareceu
                             </Button>
-                            <Button variant="outline" size="sm" className="w-full text-red-600 border-red-600 hover:bg-red-600 hover:text-white" onClick={e => handleMarcarNaoCompareceu(agendamento.id, e)}>
+                            <Button variant="outline" size="sm" className="w-full text-red-600 border-red-600 hover:bg-red-600 hover:text-white" onClick={e => handleMarcarNaoCompareceu(agendamento, e)}>
                               <X className="h-4 w-4 mr-1" />
                               Não Compareceu
                             </Button>
@@ -461,7 +470,20 @@ export default function Agenda() {
       {clienteParaFatura && <NovaFaturaDialog clienteId={clienteParaFatura.id} clienteNome={clienteParaFatura.nome} procedimentoId={clienteParaFatura.procedimentoId} profissionalId={clienteParaFatura.profissionalId} agendamentoId={clienteParaFatura.agendamentoId} dataAgendamento={clienteParaFatura.dataAgendamento} open={novaFaturaOpen} onOpenChange={open => {
       setNovaFaturaOpen(open);
       if (!open) setClienteParaFatura(null);
+    }} onFaturaCreated={() => {
+      if (kanbanMoverTelefone) {
+        setKanbanMoverOpen(true);
+      }
     }} />}
+
+      <KanbanMoverDialog
+        open={kanbanMoverOpen}
+        onOpenChange={(open) => {
+          setKanbanMoverOpen(open);
+          if (!open) setKanbanMoverTelefone(null);
+        }}
+        clienteTelefone={kanbanMoverTelefone}
+      />
 
       {/* Novo Agendamento */}
       <NovoAgendamentoDialog open={novoAgendamentoOpen} onOpenChange={setNovoAgendamentoOpen} />
