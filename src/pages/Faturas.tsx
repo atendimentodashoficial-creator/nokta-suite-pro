@@ -214,14 +214,14 @@ export default function Faturas() {
                         {(fatura.leads as any)?.nome || "Cliente não identificado"}
                       </h3>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        <Badge className="bg-green-500/20 text-green-700 cursor-pointer hover:bg-green-500/30 transition-colors" onClick={(e) => {
+                        <Badge className="bg-green-500/20 text-green-700 rounded-md cursor-pointer hover:bg-green-500/30 transition-colors" onClick={(e) => {
                           e.stopPropagation();
                           setFaturaResumoOpen(fatura);
                         }}>
                           Fechado
                         </Badge>
                         {retornosPorFatura[fatura.id]?.length > 0 && (
-                          <Badge className="bg-purple-500/20 text-purple-700 gap-1 cursor-pointer hover:bg-purple-500/30 transition-colors" onClick={(e) => {
+                          <Badge className="bg-purple-500/20 text-purple-700 rounded-md gap-1 cursor-pointer hover:bg-purple-500/30 transition-colors" onClick={(e) => {
                             e.stopPropagation();
                             setRetornosDialogData({
                               retornos: retornosPorFatura[fatura.id],
