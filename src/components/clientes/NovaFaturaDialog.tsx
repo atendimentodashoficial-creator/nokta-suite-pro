@@ -76,6 +76,7 @@ interface NovaFaturaDialogProps {
   profissionalId?: string;
   agendamentoId?: string;
   dataAgendamento?: string;
+  onFaturaCreated?: () => void;
 }
 
 export function NovaFaturaDialog({
@@ -87,6 +88,7 @@ export function NovaFaturaDialog({
   profissionalId,
   agendamentoId,
   dataAgendamento,
+  onFaturaCreated,
 }: NovaFaturaDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRetornoFaturaId, setSelectedRetornoFaturaId] = useState<string | null>(null);
@@ -191,6 +193,7 @@ export function NovaFaturaDialog({
         onOpenChange(false);
         form.reset();
         setSelectedRetornoFaturaId(null);
+        onFaturaCreated?.();
         setIsSubmitting(false);
         return;
       }
@@ -341,6 +344,7 @@ export function NovaFaturaDialog({
       onOpenChange(false);
       form.reset();
       setSelectedRetornoFaturaId(null);
+      onFaturaCreated?.();
     } catch (error) {
       console.error("Erro ao criar fatura:", error);
       toast.error("Erro ao criar fatura");
