@@ -27,6 +27,7 @@ import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/t
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { KanbanMoverDialog } from "@/components/clientes/KanbanMoverDialog";
 import { RetornosDialog } from "@/components/clientes/RetornosDialog";
+import { FaturaResumoDialog } from "@/components/clientes/FaturaResumoDialog";
 
 export default function Faturas() {
   const navigate = useNavigate();
@@ -45,6 +46,7 @@ export default function Faturas() {
   const [detalhesPagamentoFatura, setDetalhesPagamentoFatura] = useState<any>(null);
   const [kanbanMoverOpen, setKanbanMoverOpen] = useState(false);
   const [kanbanMoverTelefone, setKanbanMoverTelefone] = useState<string | null>(null);
+  const [faturaResumoOpen, setFaturaResumoOpen] = useState<any>(null);
   const {
     data: todasFaturas,
     isLoading
@@ -212,7 +214,10 @@ export default function Faturas() {
                         {(fatura.leads as any)?.nome || "Cliente não identificado"}
                       </h3>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        <Badge className="bg-green-500/20 text-green-700">
+                        <Badge className="bg-green-500/20 text-green-700 cursor-pointer hover:bg-green-500/30 transition-colors" onClick={(e) => {
+                          e.stopPropagation();
+                          setFaturaResumoOpen(fatura);
+                        }}>
                           Fechado
                         </Badge>
                         {retornosPorFatura[fatura.id]?.length > 0 && (
@@ -606,6 +611,12 @@ export default function Faturas() {
         onOpenChange={setRetornosDialogOpen}
         retornos={retornosDialogData.retornos}
         faturaLabel={retornosDialogData.label}
+      />
+
+      <FaturaResumoDialog
+        open={!!faturaResumoOpen}
+        onOpenChange={(open) => !open && setFaturaResumoOpen(null)}
+        fatura={faturaResumoOpen}
       />
 
       <KanbanMoverDialog
