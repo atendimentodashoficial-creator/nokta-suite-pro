@@ -83,7 +83,7 @@ export function RetornosDialog({ open, onOpenChange, retornos, faturaLabel }: Re
             <div className="bg-muted/50 rounded-lg p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Status</span>
-                <Badge className={`${st.className} gap-1`}>{st.icon}{st.label}</Badge>
+                <Badge className={`${st.className} gap-1 rounded-md`}>{st.icon}{st.label}</Badge>
               </div>
 
               <InfoRow
@@ -158,10 +158,10 @@ export function RetornosDialog({ open, onOpenChange, retornos, faturaLabel }: Re
             )}
 
             {/* Observações */}
-            {selectedRetorno.observacoes && (
+            {selectedRetorno.observacoes && selectedRetorno.observacoes.trim() !== "" && (
               <div className="space-y-1">
                 <span className="text-sm font-medium text-muted-foreground">Observações</span>
-                <p className="text-sm bg-muted/30 rounded-lg p-3">{selectedRetorno.observacoes}</p>
+                <p className="text-sm bg-muted/30 rounded-lg p-3 whitespace-pre-wrap">{selectedRetorno.observacoes}</p>
               </div>
             )}
           </div>
@@ -209,7 +209,7 @@ export function RetornosDialog({ open, onOpenChange, retornos, faturaLabel }: Re
                     )}
                   </div>
                 </div>
-                <Badge className={`${st.className} gap-1 flex-shrink-0 text-xs`}>{st.icon}{st.label}</Badge>
+                <Badge className={`${st.className} gap-1 flex-shrink-0 text-xs rounded-md`}>{st.icon}{st.label}</Badge>
               </button>
             );
           })}

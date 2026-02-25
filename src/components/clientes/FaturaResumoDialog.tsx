@@ -74,7 +74,7 @@ export function FaturaResumoDialog({ open, onOpenChange, fatura }: FaturaResumoD
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Status</span>
-              <Badge className={`${statusBadgeClass} gap-1`}>
+              <Badge className={`${statusBadgeClass} gap-1 rounded-md`}>
                 {statusLabel}
               </Badge>
             </div>
@@ -140,7 +140,7 @@ export function FaturaResumoDialog({ open, onOpenChange, fatura }: FaturaResumoD
                   <InfoRow label="Taxa" value={`${taxa}%`} valueClassName={jurosPagoPor === "empresa" ? "text-red-600" : "text-orange-600"} />
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Juros pago por</span>
-                    <Badge variant={jurosPagoPor === "empresa" ? "destructive" : "secondary"} className="rounded text-xs">
+                    <Badge variant={jurosPagoPor === "empresa" ? "destructive" : "secondary"} className="rounded-md text-xs">
                       {jurosPagoPor === "empresa" ? "Empresa" : "Cliente"}
                     </Badge>
                   </div>

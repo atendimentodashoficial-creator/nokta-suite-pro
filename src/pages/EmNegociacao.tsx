@@ -199,14 +199,14 @@ export default function EmNegociacao() {
                         {(fatura.leads as any)?.nome || "Cliente não identificado"}
                       </h3>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <Badge className="bg-blue-500/20 text-blue-700 cursor-pointer hover:bg-blue-500/30 transition-colors" onClick={(e) => {
+                        <Badge className="bg-blue-500/20 text-blue-700 rounded-md cursor-pointer hover:bg-blue-500/30 transition-colors" onClick={(e) => {
                           e.stopPropagation();
                           setFaturaResumoOpen(fatura);
                         }}>
                           Negociação
                         </Badge>
                         {retornosPorFatura[fatura.id]?.length > 0 && (
-                          <Badge className="bg-purple-500/20 text-purple-700 gap-1 cursor-pointer hover:bg-purple-500/30 transition-colors" onClick={(e) => {
+                          <Badge className="bg-purple-500/20 text-purple-700 rounded-md gap-1 cursor-pointer hover:bg-purple-500/30 transition-colors" onClick={(e) => {
                             e.stopPropagation();
                             setRetornosDialogData({
                               retornos: retornosPorFatura[fatura.id],
