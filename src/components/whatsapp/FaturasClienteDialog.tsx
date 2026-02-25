@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DollarSign, FileText, Calendar } from "lucide-react";
+import { DollarSign, FileText, Calendar, ChevronRight, ArrowLeft, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface FaturaResumo {
   id: string;
@@ -17,6 +18,7 @@ export interface FaturaResumo {
   status: string;
   observacoes: string | null;
   data_fatura: string | null;
+  data_follow_up: string | null;
   created_at: string;
   meio_pagamento: string | null;
   forma_pagamento: string | null;
@@ -37,64 +39,126 @@ export function FaturasClienteDialog({
   faturas,
   clienteNome,
 }: FaturasClienteDialogProps) {
+  const [selectedFatura, setSelectedFatura] = useState<FaturaResumo | null>(null);
+
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
   const negociacoes = faturas.filter((f) => f.status === "negociacao");
   const fechadas = faturas.filter((f) => f.status === "fechado");
 
+  const handleClose = (v: boolean) => {
+    if (!v) setSelectedFatura(null);
+    onOpenChange(v);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="text-base">
-            Faturas — {clienteNome}
+            {selectedFatura ? (
+              <button
+                onClick={() => setSelectedFatura(null)}
+                className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar
+              </button>
+            ) : (
+              <>Faturas — {clienteNome}</>
+            )}
           </DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-2">
-          <div className="space-y-4">
-            {negociacoes.length > 0 && (
-              <div>
-                <h4 className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  Em Negociação ({negociacoes.length})
-                </h4>
-                <div className="space-y-2">
-                  {negociacoes.map((f) => (
-                    <FaturaCard key={f.id} fatura={f} formatCurrency={formatCurrency} />
-                  ))}
+          {selectedFatura ? (
+            <FaturaDetalhes fatura={selectedFatura} formatCurrency={formatCurrency} />
+          ) : (
+            <div className="space-y-4">
+              {negociacoes.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1">
+                    <FileText className="w-3 h-3" />
+                    Em Negociação ({negociacoes.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {negociacoes.map((f) => (
+                      <FaturaRow
+                        key={f.id}
+                        fatura={f}
+                        formatCurrency={formatCurrency}
+                        onClick={() => setSelectedFatura(f)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {fechadas.length > 0 && (
-              <div>
-                <h4 className="text-xs font-semibold text-green-600 dark:text-green-400 mb-2 flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" />
-                  Faturas Fechadas ({fechadas.length})
-                </h4>
-                <div className="space-y-2">
-                  {fechadas.map((f) => (
-                    <FaturaCard key={f.id} fatura={f} formatCurrency={formatCurrency} />
-                  ))}
+              {fechadas.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-green-600 dark:text-green-400 mb-2 flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    Faturas Fechadas ({fechadas.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {fechadas.map((f) => (
+                      <FaturaRow
+                        key={f.id}
+                        fatura={f}
+                        formatCurrency={formatCurrency}
+                        onClick={() => setSelectedFatura(f)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {faturas.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhuma fatura encontrada.
-              </p>
-            )}
-          </div>
+              {faturas.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma fatura encontrada.
+                </p>
+              )}
+            </div>
+          )}
         </ScrollArea>
       </DialogContent>
     </Dialog>
   );
 }
 
-function FaturaCard({
+/** Compact row shown in the list */
+function FaturaRow({
+  fatura,
+  formatCurrency,
+  onClick,
+}: {
+  fatura: FaturaResumo;
+  formatCurrency: (v: number) => string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full border rounded-lg px-3 py-2.5 flex items-center justify-between bg-card hover:bg-accent/50 transition-colors text-left"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="font-semibold text-sm whitespace-nowrap">
+          {formatCurrency(fatura.valor)}
+        </span>
+        {fatura.procedimento_nome && (
+          <span className="text-xs text-muted-foreground truncate">
+            {fatura.procedimento_nome}
+          </span>
+        )}
+      </div>
+      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+    </button>
+  );
+}
+
+/** Full details shown when a fatura is selected */
+function FaturaDetalhes({
   fatura,
   formatCurrency,
 }: {
@@ -102,42 +166,70 @@ function FaturaCard({
   formatCurrency: (v: number) => string;
 }) {
   return (
-    <div className="border rounded-lg p-3 space-y-1.5 bg-card">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="font-semibold text-sm">
-          {formatCurrency(fatura.valor)}
-        </span>
+        <span className="text-lg font-bold">{formatCurrency(fatura.valor)}</span>
         <Badge
           variant={fatura.status === "fechado" ? "default" : "secondary"}
-          className="text-[10px]"
+          className="text-xs"
         >
           {fatura.status === "fechado" ? "Fechado" : "Negociação"}
         </Badge>
       </div>
 
-      {fatura.procedimento_nome && (
-        <p className="text-xs text-muted-foreground">{fatura.procedimento_nome}</p>
-      )}
+      <div className="space-y-3 text-sm">
+        {fatura.procedimento_nome && (
+          <div>
+            <span className="text-xs text-muted-foreground">Procedimento</span>
+            <p>{fatura.procedimento_nome}</p>
+          </div>
+        )}
 
-      {fatura.profissional_nome && (
-        <p className="text-xs text-muted-foreground">Dr(a). {fatura.profissional_nome}</p>
-      )}
+        {fatura.profissional_nome && (
+          <div>
+            <span className="text-xs text-muted-foreground">Profissional</span>
+            <p>Dr(a). {fatura.profissional_nome}</p>
+          </div>
+        )}
 
-      {fatura.meio_pagamento && (
-        <p className="text-xs text-muted-foreground capitalize">
-          {fatura.meio_pagamento}{fatura.forma_pagamento ? ` — ${fatura.forma_pagamento}` : ""}
-        </p>
-      )}
+        {fatura.meio_pagamento && (
+          <div>
+            <span className="text-xs text-muted-foreground">Pagamento</span>
+            <p className="capitalize">
+              {fatura.meio_pagamento}
+              {fatura.forma_pagamento ? ` — ${fatura.forma_pagamento}` : ""}
+            </p>
+          </div>
+        )}
 
-      {fatura.observacoes && (
-        <p className="text-xs text-muted-foreground line-clamp-2">{fatura.observacoes}</p>
-      )}
+        {fatura.data_follow_up && (
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+            <div>
+              <span className="text-xs text-muted-foreground">Follow-up: </span>
+              <span className="text-xs">
+                {format(new Date(fatura.data_follow_up + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+              </span>
+            </div>
+          </div>
+        )}
 
-      <div className="flex items-center gap-1 text-[10px] text-muted-foreground pt-1">
-        <Calendar className="w-3 h-3" />
-        {fatura.data_fatura
-          ? format(new Date(fatura.data_fatura), "dd/MM/yyyy", { locale: ptBR })
-          : format(new Date(fatura.created_at), "dd/MM/yyyy", { locale: ptBR })}
+        <div className="flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            {fatura.data_fatura
+              ? format(new Date(fatura.data_fatura + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })
+              : format(new Date(fatura.created_at), "dd/MM/yyyy", { locale: ptBR })}
+          </span>
+        </div>
+
+        {fatura.observacoes && (
+          <div>
+            <span className="text-xs text-muted-foreground">Observações</span>
+            <p className="text-xs whitespace-pre-wrap mt-0.5">{fatura.observacoes}</p>
+          </div>
+        )}
       </div>
     </div>
   );

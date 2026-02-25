@@ -326,7 +326,7 @@ export function WhatsAppKanban({
       const { data: faturasWithCliente } = await supabase
         .from("faturas")
         .select(`
-          id, valor, status, observacoes, data_fatura, created_at,
+          id, valor, status, observacoes, data_fatura, data_follow_up, created_at,
           meio_pagamento, forma_pagamento, cliente_id,
           procedimentos:procedimento_id(nome),
           profissionais:profissional_id(nome)
@@ -358,6 +358,7 @@ export function WhatsAppKanban({
           status: f.status,
           observacoes: f.observacoes,
           data_fatura: f.data_fatura,
+          data_follow_up: f.data_follow_up,
           created_at: f.created_at,
           meio_pagamento: f.meio_pagamento,
           forma_pagamento: f.forma_pagamento,
