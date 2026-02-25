@@ -187,29 +187,31 @@ export function RetornosDialog({ open, onOpenChange, retornos, faturaLabel }: Re
               <button
                 key={r.id}
                 onClick={() => setSelectedRetorno(r)}
-                className="w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors flex items-center justify-between gap-2 overflow-hidden"
+                className="w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors space-y-1.5 overflow-hidden"
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <Calendar className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm font-medium truncate">
                       {format(new Date(r.data_agendamento), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 ml-6 overflow-hidden">
+                  <Badge className={`${st.className} gap-1 flex-shrink-0 text-xs rounded-md whitespace-nowrap`}>{st.icon}{st.label}</Badge>
+                </div>
+                {((r.procedimentos as any)?.nome || (r.profissionais as any)?.nome) && (
+                  <div className="flex items-center gap-1.5 ml-[22px] overflow-hidden">
                     {(r.procedimentos as any)?.nome && (
                       <span className="text-xs text-muted-foreground truncate">
                         {(r.procedimentos as any).nome}
                       </span>
                     )}
                     {(r.profissionais as any)?.nome && (
-                      <span className="text-xs text-muted-foreground truncate flex-shrink-0">
+                      <span className="text-xs text-muted-foreground truncate">
                         • {(r.profissionais as any).nome}
                       </span>
                     )}
                   </div>
-                </div>
-                <Badge className={`${st.className} gap-1 flex-shrink-0 text-xs rounded-md whitespace-nowrap`}>{st.icon}{st.label}</Badge>
+                )}
               </button>
             );
           })}
