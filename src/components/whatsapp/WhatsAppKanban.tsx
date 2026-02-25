@@ -364,6 +364,32 @@ export function WhatsAppKanban({
         return;
       }
 
+      // Fetch retornos (agendamentos linked to these faturas via retorno_fatura_id)
+      const faturaIds = faturasWithCliente.map((f: any) => f.id);
+      const { data: retornos } = await supabase
+        .from("agendamentos")
+        .select(`
+          id, data_agendamento, status, retorno_fatura_id,
+          procedimentos:procedimento_id(nome),
+          profissionais:profissional_id(nome)
+        `)
+        .in("retorno_fatura_id", faturaIds)
+        .order("data_agendamento", { ascending: true });
+
+      // Group retornos by fatura_id
+      const retornosByFatura: Record<string, any[]> = {};
+      (retornos || []).forEach((r: any) => {
+        if (!r.retorno_fatura_id) return;
+        if (!retornosByFatura[r.retorno_fatura_id]) retornosByFatura[r.retorno_fatura_id] = [];
+        retornosByFatura[r.retorno_fatura_id].push({
+          id: r.id,
+          data_agendamento: r.data_agendamento,
+          status: r.status,
+          procedimento_nome: r.procedimentos?.nome || null,
+          profissional_nome: r.profissionais?.nome || null,
+        });
+      });
+
       // Map leadId -> last8
       const leadIdToLast8: Record<string, string> = {};
       leads.forEach(l => {
@@ -389,6 +415,7 @@ export function WhatsAppKanban({
           forma_pagamento: f.forma_pagamento,
           procedimento_nome: f.procedimentos?.nome || null,
           profissional_nome: f.profissionais?.nome || null,
+          retornos: retornosByFatura[f.id] || [],
         });
       });
 
