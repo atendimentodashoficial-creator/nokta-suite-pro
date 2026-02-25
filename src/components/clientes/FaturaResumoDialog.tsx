@@ -62,7 +62,7 @@ export function FaturaResumoDialog({ open, onOpenChange, fatura }: FaturaResumoD
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <StatusIcon className={`h-5 w-5 ${isNegociacao ? "text-blue-500" : "text-green-500"}`} />
-            Resumo da {isNegociacao ? "Negociação" : "Fatura"}
+            {isNegociacao ? "Negociação" : "Fatura"}
           </DialogTitle>
           <DialogDescription>
             {(fatura.leads as any)?.nome || "Cliente"}
