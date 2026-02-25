@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,7 +37,8 @@ import { useProdutos } from "@/hooks/useProdutos";
 
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, Package, Stethoscope, CalendarIcon, RotateCcw, DollarSign, User, FileText, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Package, Stethoscope, CalendarIcon, RotateCcw, DollarSign, User, FileText, CheckCircle2, Eye } from "lucide-react";
+import { FaturaResumoDialog } from "@/components/clientes/FaturaResumoDialog";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -92,6 +93,7 @@ export function NovaFaturaDialog({
 }: NovaFaturaDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRetornoFaturaId, setSelectedRetornoFaturaId] = useState<string | null>(null);
+  const [previewFatura, setPreviewFatura] = useState<any>(null);
   const createFatura = useCreateFatura();
   const queryClient = useQueryClient();
   const { data: procedimentos } = useProcedimentos();
@@ -373,6 +375,7 @@ export function NovaFaturaDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[650px] max-h-[90vh]">
         <DialogHeader>
@@ -501,9 +504,22 @@ export function NovaFaturaDialog({
                                 </div>
                               )}
                             </div>
-                            {selectedRetornoFaturaId === fatura.id && (
-                              <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-                            )}
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewFatura(fatura);
+                                }}
+                                className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                                title="Ver detalhes"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              {selectedRetornoFaturaId === fatura.id && (
+                                <CheckCircle2 className="w-5 h-5 text-primary" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1039,5 +1055,12 @@ export function NovaFaturaDialog({
         </ScrollArea>
       </DialogContent>
     </Dialog>
+
+    <FaturaResumoDialog
+      open={!!previewFatura}
+      onOpenChange={(open) => !open && setPreviewFatura(null)}
+      fatura={previewFatura}
+    />
+    </>
   );
 }
