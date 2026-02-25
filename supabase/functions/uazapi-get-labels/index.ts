@@ -32,15 +32,34 @@ Deno.serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    // Get user's UAZapi configuration
-    const { data: config, error: configError } = await supabase
+    // Get user's UAZapi configuration - try uazapi_config first, then fall back to disparos_instancias
+    let config: { base_url: string; api_key: string } | null = null;
+
+    const { data: uazapiConfig } = await supabase
       .from("uazapi_config")
-      .select("*")
+      .select("base_url, api_key")
       .eq("user_id", user.id)
       .eq("is_active", true)
-      .single();
+      .maybeSingle();
 
-    if (configError || !config) {
+    if (uazapiConfig) {
+      config = uazapiConfig;
+    } else {
+      // Fallback: try the first active disparos_instancias for this user
+      const { data: instancia } = await supabase
+        .from("disparos_instancias")
+        .select("base_url, api_key")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (instancia) {
+        config = instancia;
+      }
+    }
+
+    if (!config) {
       return new Response(
         JSON.stringify({ error: "UAZapi não configurado" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
