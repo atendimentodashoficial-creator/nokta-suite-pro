@@ -68,9 +68,9 @@ export function RetornosDialog({ open, onOpenChange, retornos, faturaLabel }: Re
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <RotateCcw className="h-5 w-5 text-purple-500" />
-              Detalhes do Retorno
+              Retorno
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="mt-1">
               {(selectedRetorno.leads as any)?.nome || faturaLabel || "Retorno"}
             </DialogDescription>
           </DialogHeader>
