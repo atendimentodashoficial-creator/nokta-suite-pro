@@ -1145,24 +1145,7 @@ export default function Disparos() {
                   </Select>
                 )}
 
-                {/* Unread filter button */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant={filterUnreadOnly ? "default" : "outline"}
-                        className="h-9 w-9 p-0 flex-shrink-0"
-                        onClick={() => setFilterUnreadOnly(prev => !prev)}
-                      >
-                        <BellRing className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {filterUnreadOnly ? "Mostrar todos os chats" : "Mostrar apenas não lidos"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                
               
                 {/* View mode toggle */}
                 {!isMobile && (
@@ -1186,6 +1169,25 @@ export default function Disparos() {
                   </div>
                 )}
               
+                {/* Unread filter button */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant={filterUnreadOnly ? "default" : "outline"}
+                        className="h-9 w-9 p-0 flex-shrink-0"
+                        onClick={() => setFilterUnreadOnly(prev => !prev)}
+                      >
+                        <BellRing className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {filterUnreadOnly ? "Mostrar todos os chats" : "Mostrar apenas não lidos"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
                 {/* New chat dialog */}
                 <Dialog>
                   <DialogTrigger asChild>
