@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatAvatar } from "./ChatAvatar";
 import { FaturasClienteDialog, type FaturaResumo } from "./FaturasClienteDialog";
+import { AgendamentosClienteDialog, type AgendamentoResumo } from "./AgendamentosClienteDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhoneNumber, formatRelativeTime, formatLastMessagePreview, truncateText } from "@/utils/whatsapp";
 import { Plus, Settings, Trash2, GripVertical, X, Check, Pencil, Calendar, CheckSquare, Square, XCircle, DollarSign } from "lucide-react";
@@ -85,12 +86,18 @@ export function WhatsAppKanban({
   const [editingColumn, setEditingColumn] = useState<KanbanColumn | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [chatAgendamentos, setChatAgendamentos] = useState<Record<string, ChatAgendamento | null>>({});
+  const [chatAllAgendamentos, setChatAllAgendamentos] = useState<Record<string, AgendamentoResumo[]>>({});
   
   // Faturas state
   const [chatFaturas, setChatFaturas] = useState<Record<string, FaturaResumo[]>>({});
   const [faturasDialogOpen, setFaturasDialogOpen] = useState(false);
   const [selectedFaturas, setSelectedFaturas] = useState<FaturaResumo[]>([]);
   const [selectedFaturaClienteNome, setSelectedFaturaClienteNome] = useState("");
+
+  // Agendamentos dialog state
+  const [agendamentosDialogOpen, setAgendamentosDialogOpen] = useState(false);
+  const [selectedAgendamentos, setSelectedAgendamentos] = useState<AgendamentoResumo[]>([]);
+  const [selectedAgendamentoClienteNome, setSelectedAgendamentoClienteNome] = useState("");
 
   // Selection state
   const [selectionMode, setSelectionMode] = useState(false);
@@ -208,8 +215,13 @@ export function WhatsAppKanban({
       // - "realizado" -> visible ONLY if has linked fatura (in Faturas)
       const {
         data: agendamentos
-      } = await supabase.from("agendamentos").select("id, cliente_id, data_agendamento, status, updated_at").in("cliente_id", allLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("updated_at", {
-        ascending: false // Most recently updated first
+      } = await supabase.from("agendamentos").select(`
+        id, cliente_id, data_agendamento, status, updated_at, tipo, observacoes,
+        data_follow_up, numero_reagendamentos, origem_agendamento,
+        procedimentos:procedimento_id(nome),
+        profissionais:profissional_id(nome)
+      `).in("cliente_id", allLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("updated_at", {
+        ascending: false
       });
 
       // Get fatura_agendamentos to know which "realizado" are visible (have fatura)
@@ -236,9 +248,9 @@ export function WhatsAppKanban({
       }) || [];
 
       // Best agendamento per phone (last8) - priority: most recently updated
-      // Group agendamentos by phone (last8) since multiple leads can have same phone
       const last8ToAgendamento: Record<string, ChatAgendamento> = {};
       const last8AgendamentoCount: Record<string, number> = {};
+      const last8ToAllAgendamentos: Record<string, AgendamentoResumo[]> = {};
       
       // Create leadId -> last8 map
       const leadIdToLast8: Record<string, string> = {};
@@ -247,20 +259,30 @@ export function WhatsAppKanban({
         if (k) leadIdToLast8[l.id] = k;
       });
       
-      // First pass: count VISIBLE agendamentos per phone (last8)
-      visibleAgendamentos.forEach(ag => {
+      // First pass: count and collect ALL visible agendamentos per phone
+      visibleAgendamentos.forEach((ag: any) => {
         const phoneKey = leadIdToLast8[ag.cliente_id];
         if (!phoneKey) return;
         last8AgendamentoCount[phoneKey] = (last8AgendamentoCount[phoneKey] || 0) + 1;
+        if (!last8ToAllAgendamentos[phoneKey]) last8ToAllAgendamentos[phoneKey] = [];
+        last8ToAllAgendamentos[phoneKey].push({
+          id: ag.id,
+          data_agendamento: ag.data_agendamento,
+          status: ag.status,
+          tipo: ag.tipo || "",
+          observacoes: ag.observacoes,
+          data_follow_up: ag.data_follow_up,
+          numero_reagendamentos: ag.numero_reagendamentos || 0,
+          origem_agendamento: ag.origem_agendamento,
+          procedimento_nome: ag.procedimentos?.nome || null,
+          profissional_nome: ag.profissionais?.nome || null,
+        });
       });
       
-      // Second pass: pick the most recently UPDATED agendamento per phone (last8)
-      // Because query is ordered by updated_at desc, the first record we see for a phoneKey is the one we want.
-      visibleAgendamentos.forEach(ag => {
+      // Second pass: pick the most recently UPDATED agendamento per phone
+      visibleAgendamentos.forEach((ag: any) => {
         const phoneKey = leadIdToLast8[ag.cliente_id];
         if (!phoneKey) return;
-
-        // already picked the most recent for this phone
         if (last8ToAgendamento[phoneKey]) return;
 
         const totalCount = last8AgendamentoCount[phoneKey] || 1;
@@ -273,13 +295,16 @@ export function WhatsAppKanban({
         };
       });
 
-      // Map chat -> agendamento using last8 match
+      // Map chat -> agendamento and all agendamentos
       const chatAgMap: Record<string, ChatAgendamento | null> = {};
+      const chatAllAgMap: Record<string, AgendamentoResumo[]> = {};
       chats.forEach(chat => {
         const k = chatIdToLast8[chat.id];
         chatAgMap[chat.id] = k ? last8ToAgendamento[k] ?? null : null;
+        chatAllAgMap[chat.id] = k ? last8ToAllAgendamentos[k] ?? [] : [];
       });
       setChatAgendamentos(chatAgMap);
+      setChatAllAgendamentos(chatAllAgMap);
     } catch (error) {
       console.error("Error loading chat agendamentos:", error);
     }
@@ -770,7 +795,7 @@ export function WhatsAppKanban({
   };
 
   // Render agendamento badge for a chat
-  const renderAgendamentoBadge = (chatId: string) => {
+  const renderAgendamentoBadge = (chatId: string, chat: any) => {
     const agendamento = chatAgendamentos[chatId];
     if (!agendamento) return null;
     
@@ -787,26 +812,21 @@ export function WhatsAppKanban({
     let statusLabel = "";
     
     if (isRealizado) {
-      // Realizado (consulta já aconteceu) - blue color
       bgColor = "bg-blue-100 dark:bg-blue-950";
       textColor = "text-blue-700 dark:text-blue-400";
       statusLabel = " (Realizado)";
     } else if (isCancelado) {
-      // Cancelado (Não Compareceu) - red color
       bgColor = "bg-red-100 dark:bg-red-950";
       textColor = "text-red-700 dark:text-red-400";
       statusLabel = " (Não compareceu)";
     } else if (passado) {
-      // Past pending appointments - yellow/warning color
       bgColor = "bg-yellow-100 dark:bg-yellow-950";
       textColor = "text-yellow-700 dark:text-yellow-400";
       statusLabel = " (Atrasado)";
     } else if (hoje) {
-      // Today - green
       bgColor = "bg-green-100 dark:bg-green-950";
       textColor = "text-green-700 dark:text-green-400";
     } else if (amanha) {
-      // Tomorrow - orange
       bgColor = "bg-orange-100 dark:bg-orange-950";
       textColor = "text-orange-700 dark:text-orange-400";
     }
@@ -814,7 +834,15 @@ export function WhatsAppKanban({
     const hasMultiple = agendamento.totalAgendamentos > 1;
     
     return (
-      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs mt-2 w-full ${bgColor} ${textColor}`}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedAgendamentos(chatAllAgendamentos[chatId] || []);
+          setSelectedAgendamentoClienteNome(chat.contact_name || formatPhoneNumber(chat.contact_number));
+          setAgendamentosDialogOpen(true);
+        }}
+        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs mt-2 w-full ${bgColor} ${textColor} hover:opacity-80 transition-opacity text-left`}
+      >
         <Calendar className="w-3 h-3 flex-shrink-0" />
         <span className="truncate flex-1">
           {format(dataAgendamento, "dd/MM", { locale: ptBR })} às {format(dataAgendamento, "HH:mm")}
@@ -825,7 +853,7 @@ export function WhatsAppKanban({
             +{agendamento.totalAgendamentos - 1}
           </span>
         )}
-      </div>
+      </button>
     );
   };
   if (isLoading) {
@@ -1039,7 +1067,7 @@ export function WhatsAppKanban({
                               </span>}
                           </div>
                         </div>
-                        {renderAgendamentoBadge(chat.id)}
+                        {renderAgendamentoBadge(chat.id, chat)}
                         {renderFaturaBadge(chat)}
                       </div>
                       {chat.unread_count > 0 && <Badge variant="default" className="absolute bottom-3 right-3 text-xs h-5 min-w-5 rounded-full">
@@ -1123,7 +1151,7 @@ export function WhatsAppKanban({
                                   </span>}
                               </div>
                             </div>
-                            {renderAgendamentoBadge(chat.id)}
+                            {renderAgendamentoBadge(chat.id, chat)}
                             {renderFaturaBadge(chat)}
                           </div>
                           {chat.unread_count > 0 && <Badge variant="default" className="absolute bottom-3 right-3 text-xs h-5 min-w-5 rounded-full">
@@ -1148,6 +1176,14 @@ export function WhatsAppKanban({
         onOpenChange={setFaturasDialogOpen}
         faturas={selectedFaturas}
         clienteNome={selectedFaturaClienteNome}
+      />
+
+      {/* Agendamentos Dialog */}
+      <AgendamentosClienteDialog
+        open={agendamentosDialogOpen}
+        onOpenChange={setAgendamentosDialogOpen}
+        agendamentos={selectedAgendamentos}
+        clienteNome={selectedAgendamentoClienteNome}
       />
     </div>;
 }
