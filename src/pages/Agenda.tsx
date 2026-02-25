@@ -48,6 +48,7 @@ export default function Agenda() {
   const [searchTerm, setSearchTerm] = useState("");
   const [kanbanMoverOpen, setKanbanMoverOpen] = useState(false);
   const [kanbanMoverTelefone, setKanbanMoverTelefone] = useState<string | null>(null);
+  const [pendingNaoCompareceuId, setPendingNaoCompareceuId] = useState<string | null>(null);
   const [filtroPeriodo, setFiltroPeriodo] = useState<string>("mes-atual");
   const [dataInicio, setDataInicio] = useState<Date>(startOfMonth(new Date()));
   const [dataFim, setDataFim] = useState<Date>(endOfMonth(new Date()));
@@ -204,23 +205,10 @@ export default function Agenda() {
   const deleteAgendamentoMutation = useDeleteAgendamento();
   const handleMarcarNaoCompareceu = async (agendamento: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      await updateStatus.mutateAsync({
-        id: agendamento.id,
-        status: "cancelado"
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["agendamentos"]
-      });
-      toast.success("Agendamento marcado como não compareceu!");
-      // Show kanban mover dialog
-      if (agendamento.leads?.telefone) {
-        setKanbanMoverTelefone(agendamento.leads.telefone);
-        setKanbanMoverOpen(true);
-      }
-    } catch (error) {
-      toast.error("Erro ao atualizar agendamento");
-    }
+    // Store the agendamento ID and show kanban dialog first - status update happens after
+    setPendingNaoCompareceuId(agendamento.id);
+    setKanbanMoverTelefone(agendamento.leads?.telefone || null);
+    setKanbanMoverOpen(true);
   };
   const handleReagendar = (agendamento: any, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -478,9 +466,25 @@ export default function Agenda() {
 
       <KanbanMoverDialog
         open={kanbanMoverOpen}
-        onOpenChange={(open) => {
+        onOpenChange={async (open) => {
+          if (!open) {
+            // When dialog closes (either after moving or "não mover"), update the não compareceu status
+            if (pendingNaoCompareceuId) {
+              try {
+                await updateStatus.mutateAsync({
+                  id: pendingNaoCompareceuId,
+                  status: "cancelado"
+                });
+                queryClient.invalidateQueries({ queryKey: ["agendamentos"] });
+                toast.success("Agendamento marcado como não compareceu!");
+              } catch {
+                toast.error("Erro ao atualizar agendamento");
+              }
+              setPendingNaoCompareceuId(null);
+            }
+            setKanbanMoverTelefone(null);
+          }
           setKanbanMoverOpen(open);
-          if (!open) setKanbanMoverTelefone(null);
         }}
         clienteTelefone={kanbanMoverTelefone}
       />
