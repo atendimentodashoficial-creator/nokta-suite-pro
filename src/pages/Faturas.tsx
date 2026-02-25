@@ -26,6 +26,7 @@ import { navigateToChat } from "@/utils/chatRouting";
 import { toZonedBrasilia, startOfDayBrasilia, endOfDayBrasilia } from "@/utils/timezone";
 import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
 import { KanbanMoverDialog } from "@/components/clientes/KanbanMoverDialog";
+import { RetornosDialog } from "@/components/clientes/RetornosDialog";
 
 export default function Faturas() {
   const navigate = useNavigate();
@@ -60,16 +61,19 @@ export default function Faturas() {
   } = useProfissionais();
   const { data: allAgendamentos } = useAgendamentos();
 
-  // Compute retorno counts per fatura
+  // Compute retornos per fatura (full data)
   const retornosPorFatura = useMemo(() => {
-    const map: Record<string, number> = {};
+    const map: Record<string, any[]> = {};
     (allAgendamentos || []).forEach((ag: any) => {
       if (ag.retorno_fatura_id) {
-        map[ag.retorno_fatura_id] = (map[ag.retorno_fatura_id] || 0) + 1;
+        if (!map[ag.retorno_fatura_id]) map[ag.retorno_fatura_id] = [];
+        map[ag.retorno_fatura_id].push(ag);
       }
     });
     return map;
   }, [allAgendamentos]);
+  const [retornosDialogOpen, setRetornosDialogOpen] = useState(false);
+  const [retornosDialogData, setRetornosDialogData] = useState<{ retornos: any[]; label: string }>({ retornos: [], label: "" });
 
   const faturasFiltradas = todasFaturas?.filter(fatura => {
     // Converter UTC para Brasília para comparar com filtros locais
@@ -211,10 +215,17 @@ export default function Faturas() {
                         <Badge className="bg-green-500/20 text-green-700">
                           Fechado
                         </Badge>
-                        {retornosPorFatura[fatura.id] > 0 && (
-                          <Badge className="bg-blue-500/20 text-blue-700 gap-1">
+                        {retornosPorFatura[fatura.id]?.length > 0 && (
+                          <Badge className="bg-purple-500/20 text-purple-700 gap-1 cursor-pointer hover:bg-purple-500/30 transition-colors" onClick={(e) => {
+                            e.stopPropagation();
+                            setRetornosDialogData({
+                              retornos: retornosPorFatura[fatura.id],
+                              label: (fatura.leads as any)?.nome || "Cliente"
+                            });
+                            setRetornosDialogOpen(true);
+                          }}>
                             <RotateCcw className="h-3 w-3" />
-                            {retornosPorFatura[fatura.id]} retorno{retornosPorFatura[fatura.id] > 1 ? "s" : ""}
+                            {retornosPorFatura[fatura.id].length} retorno{retornosPorFatura[fatura.id].length > 1 ? "s" : ""}
                           </Badge>
                         )}
                       </div>
@@ -589,6 +600,13 @@ export default function Faturas() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RetornosDialog
+        open={retornosDialogOpen}
+        onOpenChange={setRetornosDialogOpen}
+        retornos={retornosDialogData.retornos}
+        faturaLabel={retornosDialogData.label}
+      />
 
       <KanbanMoverDialog
         open={kanbanMoverOpen}
