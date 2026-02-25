@@ -18,6 +18,7 @@ import { getLast8Digits } from "@/utils/phoneFormat";
 interface KanbanMoverDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onConfirmed?: () => void;
   clienteTelefone: string | null;
   titulo?: string;
   descricao?: string;
@@ -61,6 +62,7 @@ async function moveWhatsAppKanbanCard(userId: string, telefone: string, columnId
 export function KanbanMoverDialog({
   open,
   onOpenChange,
+  onConfirmed,
   clienteTelefone,
   titulo = "Mover card no Kanban",
   descricao = "Selecione para qual coluna do Kanban o card do cliente deve ser movido.",
@@ -93,6 +95,7 @@ export function KanbanMoverDialog({
       queryClient.invalidateQueries({ queryKey: ["whatsapp-chat-kanban"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-kanban"] });
       toast.success("Card movido no Kanban!");
+      onConfirmed?.();
       handleClose();
     },
     onError: (error) => {
@@ -160,7 +163,10 @@ export function KanbanMoverDialog({
           )}
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1 gap-2" onClick={handleClose}>
+            <Button variant="outline" className="flex-1 gap-2" onClick={() => {
+              onConfirmed?.();
+              handleClose();
+            }}>
               <Ban className="w-4 h-4" />
               Não mover
             </Button>
