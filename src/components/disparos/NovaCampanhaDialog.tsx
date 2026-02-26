@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, type ReactNode, useMemo } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Upload, FileText, Image, Video, Music, X, Plus, Trash2, Users, Kanban, Phone, Shuffle, ChevronDown, ChevronUp, Layers, Copy, FileDown, List, ClipboardPaste, Database, RefreshCw, Check, CheckSquare, Square, ChevronLeft, ChevronRight, ExternalLink, AtSign, Info } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -146,11 +148,11 @@ export function NovaCampanhaDialog({
   // Listas importadas
   const [listasImportadas, setListasImportadas] = useState<ListaImportada[]>([]);
 
-  // Números que já foram disparados em alguma campanha (para badge "nutrindo")
-  const [numerosDisparados, setNumerosDisparados] = useState<Set<string>>(new Set());
+  // Números que já foram disparados em alguma campanha (para badge "nutrindo") — Map<last8, enviado_em>
+  const [numerosDisparados, setNumerosDisparados] = useState<Map<string, string>>(new Map());
 
-  // Números sem WhatsApp em campanhas anteriores (para badge "sem whatsapp")
-  const [numerosSemWhatsApp, setNumerosSemWhatsApp] = useState<Set<string>>(new Set());
+  // Números sem WhatsApp em campanhas anteriores (para badge "sem whatsapp") — Map<last8, enviado_em>
+  const [numerosSemWhatsApp, setNumerosSemWhatsApp] = useState<Map<string, string>>(new Map());
 
   // Popup de detalhes do contato na etapa 3
   const [contatoDetalhesAberto, setContatoDetalhesAberto] = useState<Contato | null>(null);
@@ -474,8 +476,8 @@ export function NovaCampanhaDialog({
       if (!campanhas || campanhas.length === 0) return;
 
       const campanhaIds = campanhas.map((c: any) => c.id);
-      const nums = new Set<string>();
-      const semWpp = new Set<string>();
+      const nums = new Map<string, string>();
+      const semWpp = new Map<string, string>();
 
       // Busca em lotes para contornar limite de 1000 linhas
       const BATCH = 500;
@@ -487,14 +489,21 @@ export function NovaCampanhaDialog({
         while (true) {
           const { data } = await supabase
             .from("disparos_campanha_contatos")
-            .select("numero")
+            .select("numero, enviado_em")
             .in("campanha_id", batchIds)
             .in("status", ["sent", "delivered"])
             .range(from, from + PAGE - 1);
           if (!data || data.length === 0) break;
           data.forEach((d: any) => {
             const cleaned = d.numero?.replace(/\D/g, "");
-            if (cleaned) nums.add(cleaned.slice(-8));
+            if (cleaned) {
+              const key = cleaned.slice(-8);
+              const existing = nums.get(key);
+              // Mantém a data mais recente
+              if (!existing || (d.enviado_em && d.enviado_em > existing)) {
+                nums.set(key, d.enviado_em || "");
+              }
+            }
           });
           if (data.length < PAGE) break;
           from += PAGE;
@@ -504,7 +513,7 @@ export function NovaCampanhaDialog({
         while (true) {
           const { data } = await supabase
             .from("disparos_campanha_contatos")
-            .select("numero, erro")
+            .select("numero, erro, enviado_em")
             .in("campanha_id", batchIds)
             .eq("status", "failed")
             .not("erro", "is", null)
@@ -521,7 +530,13 @@ export function NovaCampanhaDialog({
               lower.includes("invalid phone")
             ) {
               const cleaned = d.numero?.replace(/\D/g, "");
-              if (cleaned) semWpp.add(cleaned.slice(-8));
+              if (cleaned) {
+                const key = cleaned.slice(-8);
+                const existing = semWpp.get(key);
+                if (!existing || (d.enviado_em && d.enviado_em > existing)) {
+                  semWpp.set(key, d.enviado_em || "");
+                }
+              }
             }
           });
           if (data.length < PAGE) break;
@@ -2152,10 +2167,14 @@ export function NovaCampanhaDialog({
                                <span className="truncate text-xs text-muted-foreground leading-tight">{formatPhoneDisplay(c.numero)}</span>
                              </div>
                              {isNutrindo && (
-                               <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                               <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">
+                                 nutrindo{numerosDisparados.get(c.numero.slice(-8)) ? ` · ${format(new Date(numerosDisparados.get(c.numero.slice(-8))!), "dd/MM/yy")}` : ""}
+                               </Badge>
                              )}
                              {isSemWhatsApp && (
-                               <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">sem whatsapp</Badge>
+                               <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">
+                                 sem whatsapp{numerosSemWhatsApp.get(c.numero.slice(-8)) ? ` · ${format(new Date(numerosSemWhatsApp.get(c.numero.slice(-8))!), "dd/MM/yy")}` : ""}
+                               </Badge>
                              )}
                            </div>
                            {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
@@ -2523,10 +2542,14 @@ export function NovaCampanhaDialog({
                                 <span className="truncate text-xs text-muted-foreground leading-tight">{formatPhoneDisplay(c.numero)}</span>
                               </div>
                               {numerosDisparados.has(c.numero.slice(-8)) && (
-                                <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">nutrindo</Badge>
+                                <Badge className="text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700 border-amber-500/30 shrink-0">
+                                  nutrindo{numerosDisparados.get(c.numero.slice(-8)) ? ` · ${format(new Date(numerosDisparados.get(c.numero.slice(-8))!), "dd/MM/yy")}` : ""}
+                                </Badge>
                               )}
                               {numerosSemWhatsApp.has(c.numero.slice(-8)) && (
-                                <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">sem whatsapp</Badge>
+                                <Badge className="text-[9px] px-1 py-0 h-4 bg-orange-500/15 text-orange-600 border-orange-400/40 shrink-0">
+                                  sem whatsapp{numerosSemWhatsApp.get(c.numero.slice(-8)) ? ` · ${format(new Date(numerosSemWhatsApp.get(c.numero.slice(-8))!), "dd/MM/yy")}` : ""}
+                                </Badge>
                               )}
                             </div>
                             {c.origem && <span className="text-[10px] text-muted-foreground truncate">{c.origem}</span>}
