@@ -222,19 +222,25 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
         const chatIds = matchedChats.map(c => c.id);
         const chatsComResposta = new Set<string>();
 
-        // Query in batches
-        for (let i = 0; i < chatIds.length; i += 200) {
-          const batchChatIds = chatIds.slice(i, i + 200);
-          const { data: msgs } = await supabase
-            .from("disparos_messages")
-            .select("chat_id")
-            .in("chat_id", batchChatIds)
-            .eq("sender_type", "customer")
-            .limit(batchChatIds.length);
-
-          if (msgs) {
-            msgs.forEach(m => chatsComResposta.add(m.chat_id));
-          }
+        // Query in batches - check each chat for at least one customer message
+        for (let i = 0; i < chatIds.length; i += 50) {
+          const batchChatIds = chatIds.slice(i, i + 50);
+          
+          // For each chat, check if there's at least one customer message
+          const promises = batchChatIds.map(async (chatId) => {
+            const { data: msgs } = await supabase
+              .from("disparos_messages")
+              .select("id")
+              .eq("chat_id", chatId)
+              .eq("sender_type", "customer")
+              .limit(1);
+            
+            if (msgs && msgs.length > 0) {
+              chatsComResposta.add(chatId);
+            }
+          });
+          
+          await Promise.all(promises);
         }
 
         setRespostasCount(chatsComResposta.size);
