@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3, WifiOff, RotateCcw, Wifi, ArrowRight, Type } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Play, Pause, Trash2, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Users, Pencil, Copy, BarChart3, WifiOff, RotateCcw, Wifi, ArrowRight, Type, Send, Ban, Megaphone } from "lucide-react";
 import { EditarCampanhaDialog } from "./EditarCampanhaDialog";
 import { ContatosCampanhaDialog } from "./ContatosCampanhaDialog";
 import { RelatorioCampanhaDialog } from "./RelatorioCampanhaDialog";
@@ -17,6 +17,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 
 interface DisparosInstancia {
   id: string;
@@ -52,6 +54,7 @@ interface CampanhasTabProps {
 
 export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   const { user } = useAuth();
+  const { periodFilter, setPeriodFilter, dateStart, setDateStart, dateEnd, setDateEnd } = usePeriodFilter("this_month");
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [instancias, setInstancias] = useState<DisparosInstancia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -508,6 +511,27 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
     return labels[tipo] || tipo;
   };
 
+  // ── Dashboard Stats ──────────────────────────────────────────────────
+  const dashStats = useMemo(() => {
+    const startOfPeriod = new Date(dateStart.getFullYear(), dateStart.getMonth(), dateStart.getDate(), 0, 0, 0, 0);
+    const endOfPeriod = new Date(dateEnd.getFullYear(), dateEnd.getMonth(), dateEnd.getDate(), 23, 59, 59, 999);
+
+    const campanhasPeriodo = campanhas.filter(c => {
+      const d = new Date(c.created_at);
+      return d >= startOfPeriod && d <= endOfPeriod;
+    });
+
+    const totalCampanhas = campanhasPeriodo.length;
+    const totalContatos = campanhasPeriodo.reduce((s, c) => s + c.total_contatos, 0);
+    const totalEnviados = campanhasPeriodo.reduce((s, c) => s + c.enviados, 0);
+    const totalFalhas = campanhasPeriodo.reduce((s, c) => s + c.falhas, 0);
+    const taxaSucesso = totalEnviados + totalFalhas > 0
+      ? Math.round((totalEnviados / (totalEnviados + totalFalhas)) * 100)
+      : 0;
+
+    return { totalCampanhas, totalContatos, totalEnviados, totalFalhas, taxaSucesso };
+  }, [campanhas, dateStart, dateEnd]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -530,6 +554,52 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
 
   return (
     <div className="space-y-4 p-4">
+      {/* Period Filter */}
+      <Card className="p-4">
+        <PeriodFilter
+          showLabel
+          value={periodFilter}
+          onChange={setPeriodFilter}
+          dateStart={dateStart}
+          dateEnd={dateEnd}
+          onDateStartChange={setDateStart}
+          onDateEndChange={setDateEnd}
+        />
+      </Card>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatsCard
+          title="Campanhas"
+          value={dashStats.totalCampanhas}
+          change="No período"
+          changeType="neutral"
+          icon={Megaphone}
+        />
+        <StatsCard
+          title="Contatos"
+          value={dashStats.totalContatos.toLocaleString("pt-BR")}
+          change="Total importados"
+          changeType="neutral"
+          icon={Users}
+        />
+        <StatsCard
+          title="Enviados"
+          value={dashStats.totalEnviados.toLocaleString("pt-BR")}
+          change={`${dashStats.taxaSucesso}% de sucesso`}
+          changeType={dashStats.taxaSucesso >= 90 ? "positive" : dashStats.taxaSucesso >= 70 ? "neutral" : "negative"}
+          icon={Send}
+        />
+        <StatsCard
+          title="Falhas"
+          value={dashStats.totalFalhas.toLocaleString("pt-BR")}
+          change={dashStats.totalFalhas > 0 ? "Verifique os erros" : "Nenhuma falha"}
+          changeType={dashStats.totalFalhas > 0 ? "negative" : "positive"}
+          icon={Ban}
+        />
+      </div>
+
+      {/* Campaign List */}
       {campanhas.map((campanha) => {
         const progress = campanha.total_contatos > 0
           ? ((campanha.enviados + campanha.falhas) / campanha.total_contatos) * 100
