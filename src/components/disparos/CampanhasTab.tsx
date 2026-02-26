@@ -167,6 +167,13 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
       try {
         // Get sent contacts from campaigns in period (last 8 digits)
         const campanhaIds = campanhasPeriodo.map(c => c.id);
+        
+        // Find the earliest campaign start time to filter messages
+        const earliestCampaignStart = campanhasPeriodo.reduce((earliest, c) => {
+          const start = c.iniciado_em || c.created_at;
+          return !earliest || start < earliest ? start : earliest;
+        }, "" as string);
+
         const sentNumbers = new Set<string>();
         const PAGE = 1000;
 
@@ -217,43 +224,51 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
           return;
         }
 
-        // Filter chats that match campaign contacts
-        const matchedChats = allChats.filter(chat => {
+        // Filter chats that match campaign contacts - deduplicate by last 8 digits
+        // Only keep one chat per unique phone number to avoid >100%
+        const seenPhones = new Set<string>();
+        const matchedChats: { id: string; last8: string }[] = [];
+        for (const chat of allChats) {
           const last8 = chat.normalized_number.slice(-8);
-          return sentNumbers.has(last8);
-        });
+          if (sentNumbers.has(last8) && !seenPhones.has(last8)) {
+            seenPhones.add(last8);
+            matchedChats.push({ id: chat.id, last8 });
+          }
+        }
 
         if (matchedChats.length === 0) {
           setRespostasCount(0);
           return;
         }
 
-        // Check which of these chats actually have a reply (sender_type = 'contact')
+        // Check which of these chats have a customer reply AFTER the campaign started
         const chatIds = matchedChats.map(c => c.id);
-        const chatsComResposta = new Set<string>();
+        const repliedPhones = new Set<string>();
 
-        // Query in batches - check each chat for at least one customer message
-        for (let i = 0; i < chatIds.length; i += 50) {
-          const batchChatIds = chatIds.slice(i, i + 50);
+        // Use batch IN query instead of individual queries for performance
+        for (let i = 0; i < chatIds.length; i += 200) {
+          const batchChatIds = chatIds.slice(i, i + 200);
+          const batchChats = matchedChats.slice(i, i + 200);
           
-          // For each chat, check if there's at least one customer message
-          const promises = batchChatIds.map(async (chatId) => {
-            const { data: msgs } = await supabase
-              .from("disparos_messages")
-              .select("id")
-              .eq("chat_id", chatId)
-              .eq("sender_type", "customer")
-              .limit(1);
-            
-            if (msgs && msgs.length > 0) {
-              chatsComResposta.add(chatId);
-            }
-          });
-          
-          await Promise.all(promises);
+          const { data: msgs } = await supabase
+            .from("disparos_messages")
+            .select("chat_id")
+            .in("chat_id", batchChatIds)
+            .eq("sender_type", "customer")
+            .gte("timestamp", earliestCampaignStart)
+            .limit(batchChatIds.length);
+
+          if (msgs) {
+            const repliedChatIds = new Set(msgs.map(m => m.chat_id));
+            batchChats.forEach(c => {
+              if (repliedChatIds.has(c.id)) {
+                repliedPhones.add(c.last8);
+              }
+            });
+          }
         }
 
-        setRespostasCount(chatsComResposta.size);
+        setRespostasCount(repliedPhones.size);
       } catch (error) {
         console.error("Error loading reply count:", error);
         setRespostasCount(0);
