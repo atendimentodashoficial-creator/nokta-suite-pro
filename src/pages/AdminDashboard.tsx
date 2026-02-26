@@ -863,7 +863,7 @@ export default function AdminDashboard() {
             {/* Versão Desktop - Tabela com Drag and Drop */}
             {!isMobile && (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
+                <SortableContext items={sortedUsers.map(u => u.id)} strategy={verticalListSortingStrategy}>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -899,7 +899,7 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.map(user => (
+                      {sortedUsers.map(user => (
                         <SortableUserRow 
                           key={user.id} 
                           user={user}
@@ -922,9 +922,9 @@ export default function AdminDashboard() {
             {/* Versão Mobile - Cards com Drag and Drop */}
             {isMobile && (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
+                <SortableContext items={sortedUsers.map(u => u.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-4">
-                    {users.map(user => (
+                    {sortedUsers.map(user => (
                       <SortableUserCard 
                         key={user.id} 
                         user={user}
