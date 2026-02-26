@@ -195,27 +195,49 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
           return;
         }
 
-        // Count chats that have at least one contact reply
-        // We check disparos_chats where normalized_number ends with one of our sent numbers
-        // and has unread or messages from contact
+        // Get chats that match sent numbers
         const { data: chats } = await supabase
           .from("disparos_chats")
-          .select("normalized_number")
+          .select("id, normalized_number")
           .eq("user_id", user.id)
           .is("deleted_at", null);
 
-        if (!chats) {
+        if (!chats || chats.length === 0) {
           setRespostasCount(0);
           return;
         }
 
-        // Match chats to sent numbers by last 8 digits
-        const chatsQueResponderam = chats.filter(chat => {
+        // Filter chats that match campaign contacts
+        const matchedChats = chats.filter(chat => {
           const last8 = chat.normalized_number.slice(-8);
           return sentNumbers.has(last8);
         });
 
-        setRespostasCount(chatsQueResponderam.length);
+        if (matchedChats.length === 0) {
+          setRespostasCount(0);
+          return;
+        }
+
+        // Check which of these chats actually have a reply (sender_type = 'contact')
+        const chatIds = matchedChats.map(c => c.id);
+        const chatsComResposta = new Set<string>();
+
+        // Query in batches
+        for (let i = 0; i < chatIds.length; i += 200) {
+          const batchChatIds = chatIds.slice(i, i + 200);
+          const { data: msgs } = await supabase
+            .from("disparos_messages")
+            .select("chat_id")
+            .in("chat_id", batchChatIds)
+            .eq("sender_type", "customer")
+            .limit(batchChatIds.length);
+
+          if (msgs) {
+            msgs.forEach(m => chatsComResposta.add(m.chat_id));
+          }
+        }
+
+        setRespostasCount(chatsComResposta.size);
       } catch (error) {
         console.error("Error loading reply count:", error);
         setRespostasCount(0);
