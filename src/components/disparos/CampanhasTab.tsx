@@ -72,6 +72,7 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [campanhaToRename, setCampanhaToRename] = useState<{ id: string; nome: string } | null>(null);
   const [newCampanhaName, setNewCampanhaName] = useState("");
+  const [respostasCount, setRespostasCount] = useState(0);
 
   const loadCampanhas = async () => {
     try {
@@ -141,6 +142,88 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
       supabase.removeChannel(channel);
     };
   }, [user?.id]);
+
+  // Load reply count for campaigns in period
+  useEffect(() => {
+    const loadRespostas = async () => {
+      if (!user?.id || campanhas.length === 0) {
+        setRespostasCount(0);
+        return;
+      }
+
+      const startOfPeriod = new Date(dateStart.getFullYear(), dateStart.getMonth(), dateStart.getDate(), 0, 0, 0, 0);
+      const endOfPeriod = new Date(dateEnd.getFullYear(), dateEnd.getMonth(), dateEnd.getDate(), 23, 59, 59, 999);
+
+      const campanhasPeriodo = campanhas.filter(c => {
+        const d = new Date(c.created_at);
+        return d >= startOfPeriod && d <= endOfPeriod;
+      });
+
+      if (campanhasPeriodo.length === 0) {
+        setRespostasCount(0);
+        return;
+      }
+
+      try {
+        // Get sent contacts from campaigns in period (last 8 digits)
+        const campanhaIds = campanhasPeriodo.map(c => c.id);
+        const sentNumbers = new Set<string>();
+        const PAGE = 1000;
+
+        for (let i = 0; i < campanhaIds.length; i += 500) {
+          const batchIds = campanhaIds.slice(i, i + 500);
+          let from = 0;
+          while (true) {
+            const { data } = await supabase
+              .from("disparos_campanha_contatos")
+              .select("numero")
+              .in("campanha_id", batchIds)
+              .in("status", ["sent", "delivered"])
+              .range(from, from + PAGE - 1);
+            if (!data || data.length === 0) break;
+            data.forEach((d: any) => {
+              const cleaned = d.numero?.replace(/\D/g, "");
+              if (cleaned) sentNumbers.add(cleaned.slice(-8));
+            });
+            if (data.length < PAGE) break;
+            from += PAGE;
+          }
+        }
+
+        if (sentNumbers.size === 0) {
+          setRespostasCount(0);
+          return;
+        }
+
+        // Count chats that have at least one contact reply
+        // We check disparos_chats where normalized_number ends with one of our sent numbers
+        // and has unread or messages from contact
+        const { data: chats } = await supabase
+          .from("disparos_chats")
+          .select("normalized_number")
+          .eq("user_id", user.id)
+          .is("deleted_at", null);
+
+        if (!chats) {
+          setRespostasCount(0);
+          return;
+        }
+
+        // Match chats to sent numbers by last 8 digits
+        const chatsQueResponderam = chats.filter(chat => {
+          const last8 = chat.normalized_number.slice(-8);
+          return sentNumbers.has(last8);
+        });
+
+        setRespostasCount(chatsQueResponderam.length);
+      } catch (error) {
+        console.error("Error loading reply count:", error);
+        setRespostasCount(0);
+      }
+    };
+
+    loadRespostas();
+  }, [user?.id, campanhas, dateStart, dateEnd]);
 
   const handleStartCampanha = async (campanhaId: string) => {
     setActionLoading(campanhaId);
@@ -522,14 +605,13 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
     });
 
     const totalCampanhas = campanhasPeriodo.length;
-    const totalContatos = campanhasPeriodo.reduce((s, c) => s + c.total_contatos, 0);
     const totalEnviados = campanhasPeriodo.reduce((s, c) => s + c.enviados, 0);
     const totalFalhas = campanhasPeriodo.reduce((s, c) => s + c.falhas, 0);
     const taxaSucesso = totalEnviados + totalFalhas > 0
       ? Math.round((totalEnviados / (totalEnviados + totalFalhas)) * 100)
       : 0;
 
-    return { totalCampanhas, totalContatos, totalEnviados, totalFalhas, taxaSucesso };
+    return { totalCampanhas, totalEnviados, totalFalhas, taxaSucesso };
   }, [campanhas, dateStart, dateEnd]);
 
   if (isLoading) {
@@ -577,13 +659,6 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
           icon={Megaphone}
         />
         <StatsCard
-          title="Contatos"
-          value={dashStats.totalContatos.toLocaleString("pt-BR")}
-          change="Total importados"
-          changeType="neutral"
-          icon={Users}
-        />
-        <StatsCard
           title="Enviados"
           value={dashStats.totalEnviados.toLocaleString("pt-BR")}
           change={`${dashStats.taxaSucesso}% de sucesso`}
@@ -596,6 +671,13 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
           change={dashStats.totalFalhas > 0 ? "Verifique os erros" : "Nenhuma falha"}
           changeType={dashStats.totalFalhas > 0 ? "negative" : "positive"}
           icon={Ban}
+        />
+        <StatsCard
+          title="Taxa de Respostas"
+          value={dashStats.totalEnviados > 0 ? `${Math.round((respostasCount / dashStats.totalEnviados) * 100)}%` : "0%"}
+          change={`${respostasCount} respostas de ${dashStats.totalEnviados.toLocaleString("pt-BR")}`}
+          changeType={respostasCount > 0 ? "positive" : "neutral"}
+          icon={Users}
         />
       </div>
 
