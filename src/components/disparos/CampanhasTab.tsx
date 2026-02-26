@@ -195,20 +195,30 @@ export function CampanhasTab({ onRefresh }: CampanhasTabProps) {
           return;
         }
 
-        // Get chats that match sent numbers
-        const { data: chats } = await supabase
-          .from("disparos_chats")
-          .select("id, normalized_number")
-          .eq("user_id", user.id)
-          .is("deleted_at", null);
+        // Get ALL chats (paginated to avoid 1000-row limit)
+        const allChats: { id: string; normalized_number: string }[] = [];
+        let chatFrom = 0;
+        const CHAT_PAGE = 1000;
+        while (true) {
+          const { data: chatPage } = await supabase
+            .from("disparos_chats")
+            .select("id, normalized_number")
+            .eq("user_id", user.id)
+            .is("deleted_at", null)
+            .range(chatFrom, chatFrom + CHAT_PAGE - 1);
+          if (!chatPage || chatPage.length === 0) break;
+          allChats.push(...chatPage);
+          if (chatPage.length < CHAT_PAGE) break;
+          chatFrom += CHAT_PAGE;
+        }
 
-        if (!chats || chats.length === 0) {
+        if (allChats.length === 0) {
           setRespostasCount(0);
           return;
         }
 
         // Filter chats that match campaign contacts
-        const matchedChats = chats.filter(chat => {
+        const matchedChats = allChats.filter(chat => {
           const last8 = chat.normalized_number.slice(-8);
           return sentNumbers.has(last8);
         });
