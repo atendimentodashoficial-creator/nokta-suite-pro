@@ -274,47 +274,45 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
 
       if (uniqueLast8Set.size === 0) return;
 
-      // Batch leads lookup using OR filters on last 8 digits (much faster than loading all leads)
-      const uniqueLast8 = Array.from(uniqueLast8Set);
-      
-      // Build OR filter: telefone.like.%12345678,telefone.like.%87654321,...
-      const orFilter = uniqueLast8.map(k => `telefone.like.%${k}`).join(",");
-      
-      const { data: leads } = await supabase
-        .from("leads")
-        .select("id, telefone")
-        .or(orFilter)
-        .is("deleted_at", null)
-        .limit(500);
+      // Paginated fetch of ALL leads (handles >1000 rows)
+      const PAGE = 1000;
+      const allLeads: { id: string; telefone: string }[] = [];
+      let from = 0;
+      while (true) {
+        const { data } = await supabase
+          .from("leads")
+          .select("id, telefone")
+          .is("deleted_at", null)
+          .range(from, from + PAGE - 1);
+        if (!data || data.length === 0) break;
+        allLeads.push(...data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
 
-      if (!leads || leads.length === 0) return;
+      if (allLeads.length === 0) return;
 
+      // Only keep leads whose phone matches a chat on the kanban
       const last8ToLeadId: Record<string, string> = {};
-      leads.forEach((l) => {
+      allLeads.forEach((l) => {
         const k = last8(l.telefone);
-        if (!k) return;
+        if (!k || !uniqueLast8Set.has(k)) return;
         if (!last8ToLeadId[k]) last8ToLeadId[k] = l.id;
       });
 
       const leadIds = Array.from(new Set(Object.values(last8ToLeadId)));
       if (leadIds.length === 0) return;
 
-      // Only fetch upcoming agendamentos (next 30 days) to reduce data size
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const in30Days = new Date(today);
-      in30Days.setDate(in30Days.getDate() + 30);
-
+      // Fetch agendamentos for all relevant statuses
       const { data: agendamentos } = await supabase
         .from("agendamentos")
         .select("id, cliente_id, data_agendamento, status")
         .in("cliente_id", leadIds)
-        .in("status", ["agendado", "confirmado"])
-        .gte("data_agendamento", today.toISOString())
-        .lte("data_agendamento", in30Days.toISOString())
-        .order("data_agendamento", { ascending: true })
-        .limit(500);
+        .in("status", ["agendado", "confirmado", "cancelado", "realizado"])
+        .order("data_agendamento", { ascending: false })
+        .limit(1000);
 
+      // Pick the most recent agendamento per lead
       const leadIdToAgendamento: Record<string, ChatAgendamento> = {};
       agendamentos?.forEach((ag) => {
         if (!leadIdToAgendamento[ag.cliente_id]) {
