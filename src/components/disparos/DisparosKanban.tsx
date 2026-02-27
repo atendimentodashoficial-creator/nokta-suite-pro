@@ -292,43 +292,54 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
 
       if (allLeads.length === 0) return;
 
-      // Only keep leads whose phone matches a chat on the kanban
-      const last8ToLeadId: Record<string, string> = {};
+      // Collect ALL lead IDs per phone (handles duplicate leads with same number)
+      const last8ToLeadIds: Record<string, string[]> = {};
       allLeads.forEach((l) => {
         const k = last8(l.telefone);
         if (!k || !uniqueLast8Set.has(k)) return;
-        if (!last8ToLeadId[k]) last8ToLeadId[k] = l.id;
+        if (!last8ToLeadIds[k]) last8ToLeadIds[k] = [];
+        last8ToLeadIds[k].push(l.id);
       });
 
-      const leadIds = Array.from(new Set(Object.values(last8ToLeadId)));
+      const leadIds = Array.from(new Set(Object.values(last8ToLeadIds).flat()));
       if (leadIds.length === 0) return;
 
-      // Fetch agendamentos for all relevant statuses
-      const { data: agendamentos } = await supabase
-        .from("agendamentos")
-        .select("id, cliente_id, data_agendamento, status")
-        .in("cliente_id", leadIds)
-        .in("status", ["agendado", "confirmado", "cancelado", "realizado"])
-        .order("data_agendamento", { ascending: false })
-        .limit(1000);
+      // Fetch agendamentos for all relevant statuses (paginated for safety)
+      const allAgendamentos: any[] = [];
+      for (let i = 0; i < leadIds.length; i += 500) {
+        const batch = leadIds.slice(i, i + 500);
+        const { data: agendamentos } = await supabase
+          .from("agendamentos")
+          .select("id, cliente_id, data_agendamento, status")
+          .in("cliente_id", batch)
+          .in("status", ["agendado", "confirmado", "cancelado", "realizado"])
+          .order("data_agendamento", { ascending: false })
+          .limit(1000);
+        if (agendamentos) allAgendamentos.push(...agendamentos);
+      }
 
-      // Pick the most recent agendamento per lead
-      const leadIdToAgendamento: Record<string, ChatAgendamento> = {};
-      agendamentos?.forEach((ag) => {
-        if (!leadIdToAgendamento[ag.cliente_id]) {
-          leadIdToAgendamento[ag.cliente_id] = {
-            id: ag.id,
-            data_agendamento: ag.data_agendamento,
-            status: ag.status,
-          };
+      // Pick the most recent agendamento per phone (across all duplicate leads)
+      const last8ToAgendamento: Record<string, ChatAgendamento> = {};
+      allAgendamentos.forEach((ag) => {
+        // Find which last8 this lead belongs to
+        for (const [k, ids] of Object.entries(last8ToLeadIds)) {
+          if (ids.includes(ag.cliente_id)) {
+            if (!last8ToAgendamento[k] || ag.data_agendamento > last8ToAgendamento[k].data_agendamento) {
+              last8ToAgendamento[k] = {
+                id: ag.id,
+                data_agendamento: ag.data_agendamento,
+                status: ag.status,
+              };
+            }
+            break;
+          }
         }
       });
 
       const chatAgMap: Record<string, ChatAgendamento | null> = {};
       chats.forEach((chat) => {
         const k = chatIdToLast8[chat.id];
-        const leadId = k ? last8ToLeadId[k] : undefined;
-        chatAgMap[chat.id] = leadId ? (leadIdToAgendamento[leadId] ?? null) : null;
+        chatAgMap[chat.id] = k ? (last8ToAgendamento[k] ?? null) : null;
       });
 
       setChatAgendamentos(chatAgMap);
