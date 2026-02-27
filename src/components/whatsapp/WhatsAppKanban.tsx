@@ -169,6 +169,25 @@ export function WhatsAppKanban({
     }
   };
 
+  // Helper: paginated fetch for leads table (handles >1000 rows)
+  const fetchAllLeads = async (select: string): Promise<any[]> => {
+    const PAGE = 1000;
+    const all: any[] = [];
+    let from = 0;
+    while (true) {
+      const { data } = await supabase
+        .from("leads")
+        .select(select)
+        .is("deleted_at", null)
+        .range(from, from + PAGE - 1);
+      if (!data || data.length === 0) break;
+      all.push(...data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+    return all;
+  };
+
   // Load agendamentos for chats based on phone matching (last 8 digits)
   const loadChatAgendamentos = async () => {
     try {
@@ -180,86 +199,76 @@ export function WhatsAppKanban({
 
       // Build last-8 map for chats (chat.id -> last8)
       const chatIdToLast8: Record<string, string> = {};
-      const last8List: string[] = [];
+      const last8Set = new Set<string>();
       chats.forEach(chat => {
         const k = last8(chat?.normalized_number || chat?.contact_number || "");
         if (!k) return;
         chatIdToLast8[chat.id] = k;
-        last8List.push(k);
+        last8Set.add(k);
       });
-      if (last8List.length === 0) return;
+      if (last8Set.size === 0) return;
 
-      // Fetch leads (we'll match locally by last8 digits)
-      const {
-        data: leads
-      } = await supabase.from("leads").select("id, telefone").is("deleted_at", null);
-      if (!leads || leads.length === 0) return;
+      // Fetch ALL leads with pagination (>1000 rows)
+      const leads = await fetchAllLeads("id, telefone");
+      if (leads.length === 0) return;
 
       // Map last8 -> ALL leadIds (handle duplicates with same phone)
+      // Only keep leads whose phone matches a chat on screen
       const last8ToLeadIds: Record<string, string[]> = {};
+      const relevantLeadIds: string[] = [];
       leads.forEach(l => {
         const k = last8(l.telefone);
-        if (!k) return;
+        if (!k || !last8Set.has(k)) return;
         if (!last8ToLeadIds[k]) last8ToLeadIds[k] = [];
         last8ToLeadIds[k].push(l.id);
+        relevantLeadIds.push(l.id);
       });
-      
-      // Get ALL leadIds for agendamento lookup
-      const allLeadIds = leads.map(l => l.id);
-      if (allLeadIds.length === 0) return;
+      if (relevantLeadIds.length === 0) {
+        setChatAgendamentos({});
+        setChatAllAgendamentos({});
+        return;
+      }
 
-      // Get agendamentos for these leads
-      // Visible in app:
-      // - "agendado" / "confirmado" -> visible in Agenda (future or pending)
-      // - "cancelado" -> visible in "Não Compareceu"
-      // - "realizado" -> visible ONLY if has linked fatura (in Faturas)
-      const {
-        data: agendamentos
-      } = await supabase.from("agendamentos").select(`
+      // Get agendamentos only for relevant leads (much smaller set)
+      const { data: agendamentos } = await supabase.from("agendamentos").select(`
         id, cliente_id, data_agendamento, status, updated_at, tipo, observacoes,
         data_follow_up, numero_reagendamentos, origem_agendamento,
         procedimentos:procedimento_id(nome),
         profissionais:profissional_id(nome)
-      `).in("cliente_id", allLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("updated_at", {
+      `).in("cliente_id", relevantLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("updated_at", {
         ascending: false
       });
 
       // Get fatura_agendamentos to know which "realizado" are visible (have fatura)
       const agendamentoIds = agendamentos?.map(a => a.id) || [];
-      const { data: faturaAgendamentos } = await supabase
-        .from("fatura_agendamentos")
-        .select("agendamento_id")
-        .in("agendamento_id", agendamentoIds);
-      
-      const agendamentosComFatura = new Set(faturaAgendamentos?.map(fa => fa.agendamento_id) || []);
+      let agendamentosComFatura = new Set<string>();
+      if (agendamentoIds.length > 0) {
+        const { data: faturaAgendamentos } = await supabase
+          .from("fatura_agendamentos")
+          .select("agendamento_id")
+          .in("agendamento_id", agendamentoIds);
+        agendamentosComFatura = new Set(faturaAgendamentos?.map(fa => fa.agendamento_id) || []);
+      }
 
-      // Filter to only VISIBLE agendamentos:
-      // - agendado/confirmado: always visible
-      // - cancelado: always visible  
-      // - realizado: only if has fatura linked
+      // Filter to only VISIBLE agendamentos
       const visibleAgendamentos = agendamentos?.filter(ag => {
-        if (ag.status === "agendado" || ag.status === "confirmado" || ag.status === "cancelado") {
-          return true;
-        }
-        if (ag.status === "realizado") {
-          return agendamentosComFatura.has(ag.id);
-        }
+        if (ag.status === "agendado" || ag.status === "confirmado" || ag.status === "cancelado") return true;
+        if (ag.status === "realizado") return agendamentosComFatura.has(ag.id);
         return false;
       }) || [];
 
-      // Best agendamento per phone (last8) - priority: most recently updated
+      // Create leadId -> last8 map (only relevant leads)
+      const leadIdToLast8: Record<string, string> = {};
+      leads.forEach(l => {
+        const k = last8(l.telefone);
+        if (k && last8Set.has(k)) leadIdToLast8[l.id] = k;
+      });
+
+      // Best agendamento per phone (last8)
       const last8ToAgendamento: Record<string, ChatAgendamento> = {};
       const last8AgendamentoCount: Record<string, number> = {};
       const last8ToAllAgendamentos: Record<string, AgendamentoResumo[]> = {};
       
-      // Create leadId -> last8 map
-      const leadIdToLast8: Record<string, string> = {};
-      leads.forEach(l => {
-        const k = last8(l.telefone);
-        if (k) leadIdToLast8[l.id] = k;
-      });
-      
-      // First pass: count and collect ALL visible agendamentos per phone
       visibleAgendamentos.forEach((ag: any) => {
         const phoneKey = leadIdToLast8[ag.cliente_id];
         if (!phoneKey) return;
@@ -279,23 +288,19 @@ export function WhatsAppKanban({
         });
       });
       
-      // Second pass: pick the most recently UPDATED agendamento per phone
       visibleAgendamentos.forEach((ag: any) => {
         const phoneKey = leadIdToLast8[ag.cliente_id];
         if (!phoneKey) return;
         if (last8ToAgendamento[phoneKey]) return;
-
-        const totalCount = last8AgendamentoCount[phoneKey] || 1;
         last8ToAgendamento[phoneKey] = {
           id: ag.id,
           data_agendamento: ag.data_agendamento,
           status: ag.status,
-          totalAgendamentos: totalCount,
+          totalAgendamentos: last8AgendamentoCount[phoneKey] || 1,
           updated_at: ag.updated_at
         };
       });
 
-      // Map chat -> agendamento and all agendamentos
       const chatAgMap: Record<string, ChatAgendamento | null> = {};
       const chatAllAgMap: Record<string, AgendamentoResumo[]> = {};
       chats.forEach(chat => {
@@ -329,11 +334,8 @@ export function WhatsAppKanban({
       });
       if (last8Set.size === 0) return;
 
-      // Get leads matching phones
-      const { data: leads } = await supabase
-        .from("leads")
-        .select("id, telefone, nome")
-        .is("deleted_at", null);
+      // Fetch ALL leads with pagination (>1000 rows)
+      const leads = await fetchAllLeads("id, telefone, nome");
 
       if (!leads || leads.length === 0) return;
 
