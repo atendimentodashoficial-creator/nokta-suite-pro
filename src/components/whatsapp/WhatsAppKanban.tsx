@@ -229,33 +229,44 @@ export function WhatsAppKanban({
         return;
       }
 
-      // Get agendamentos only for relevant leads (much smaller set)
-      const { data: agendamentos } = await supabase.from("agendamentos").select(`
-        id, cliente_id, data_agendamento, status, updated_at, tipo, observacoes,
-        data_follow_up, numero_reagendamentos, origem_agendamento,
-        procedimentos:procedimento_id(nome),
-        profissionais:profissional_id(nome)
-      `).in("cliente_id", relevantLeadIds).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("updated_at", {
-        ascending: false
-      });
+      // Get agendamentos in batches (large .in() causes URL overflow)
+      const BATCH = 200;
+      const allAgendamentos: any[] = [];
+      for (let i = 0; i < relevantLeadIds.length; i += BATCH) {
+        const batch = relevantLeadIds.slice(i, i + BATCH);
+        const { data: agendamentos } = await supabase.from("agendamentos").select(`
+          id, cliente_id, data_agendamento, status, updated_at, tipo, observacoes,
+          data_follow_up, numero_reagendamentos, origem_agendamento,
+          procedimentos:procedimento_id(nome),
+          profissionais:profissional_id(nome)
+        `).in("cliente_id", batch).in("status", ["agendado", "confirmado", "cancelado", "realizado"]).order("updated_at", {
+          ascending: false
+        }).limit(1000);
+        if (agendamentos) allAgendamentos.push(...agendamentos);
+      }
 
       // Get fatura_agendamentos to know which "realizado" are visible (have fatura)
-      const agendamentoIds = agendamentos?.map(a => a.id) || [];
+      const agendamentoIds = allAgendamentos.map(a => a.id);
       let agendamentosComFatura = new Set<string>();
       if (agendamentoIds.length > 0) {
-        const { data: faturaAgendamentos } = await supabase
-          .from("fatura_agendamentos")
-          .select("agendamento_id")
-          .in("agendamento_id", agendamentoIds);
-        agendamentosComFatura = new Set(faturaAgendamentos?.map(fa => fa.agendamento_id) || []);
+        const allFaturaAg: string[] = [];
+        for (let i = 0; i < agendamentoIds.length; i += BATCH) {
+          const batch = agendamentoIds.slice(i, i + BATCH);
+          const { data: faturaAgendamentos } = await supabase
+            .from("fatura_agendamentos")
+            .select("agendamento_id")
+            .in("agendamento_id", batch);
+          if (faturaAgendamentos) allFaturaAg.push(...faturaAgendamentos.map(fa => fa.agendamento_id));
+        }
+        agendamentosComFatura = new Set(allFaturaAg);
       }
 
       // Filter to only VISIBLE agendamentos
-      const visibleAgendamentos = agendamentos?.filter(ag => {
+      const visibleAgendamentos = allAgendamentos.filter(ag => {
         if (ag.status === "agendado" || ag.status === "confirmado" || ag.status === "cancelado") return true;
         if (ag.status === "realizado") return agendamentosComFatura.has(ag.id);
         return false;
-      }) || [];
+      });
 
       // Create leadId -> last8 map (only relevant leads)
       const leadIdToLast8: Record<string, string> = {};
@@ -342,41 +353,52 @@ export function WhatsAppKanban({
       const last8ToLeadIds: Record<string, { id: string; nome: string }[]> = {};
       leads.forEach(l => {
         const k = last8(l.telefone);
-        if (!k) return;
+        if (!k || !last8Set.has(k)) return;
         if (!last8ToLeadIds[k]) last8ToLeadIds[k] = [];
         last8ToLeadIds[k].push({ id: l.id, nome: l.nome });
       });
 
-      const allLeadIds = leads.map(l => l.id);
+      const allLeadIds = Array.from(new Set(Object.values(last8ToLeadIds).flatMap(arr => arr.map(l => l.id))));
 
-      // Fetch faturas for these leads (include cliente_id)
-      const { data: faturasWithCliente } = await supabase
-        .from("faturas")
-        .select(`
-          id, valor, status, observacoes, data_fatura, data_follow_up, created_at,
-          meio_pagamento, forma_pagamento, cliente_id,
-          procedimentos:procedimento_id(nome),
-          profissionais:profissional_id(nome)
-        `)
-        .in("cliente_id", allLeadIds)
-        .order("created_at", { ascending: false });
+      // Fetch faturas in batches (large .in() causes URL overflow)
+      const BATCH = 200;
+      const faturasWithCliente: any[] = [];
+      for (let i = 0; i < allLeadIds.length; i += BATCH) {
+        const batch = allLeadIds.slice(i, i + BATCH);
+        const { data } = await supabase
+          .from("faturas")
+          .select(`
+            id, valor, status, observacoes, data_fatura, data_follow_up, created_at,
+            meio_pagamento, forma_pagamento, cliente_id,
+            procedimentos:procedimento_id(nome),
+            profissionais:profissional_id(nome)
+          `)
+          .in("cliente_id", batch)
+          .order("created_at", { ascending: false });
+        if (data) faturasWithCliente.push(...data);
+      }
 
       if (!faturasWithCliente || faturasWithCliente.length === 0) {
         setChatFaturas({});
         return;
       }
 
-      // Fetch retornos (agendamentos linked to these faturas via retorno_fatura_id)
+      // Fetch retornos in batches
       const faturaIds = faturasWithCliente.map((f: any) => f.id);
-      const { data: retornos } = await supabase
-        .from("agendamentos")
-        .select(`
-          id, data_agendamento, status, retorno_fatura_id,
-          procedimentos:procedimento_id(nome),
-          profissionais:profissional_id(nome)
-        `)
-        .in("retorno_fatura_id", faturaIds)
-        .order("data_agendamento", { ascending: true });
+      const retornos: any[] = [];
+      for (let i = 0; i < faturaIds.length; i += BATCH) {
+        const batch = faturaIds.slice(i, i + BATCH);
+        const { data } = await supabase
+          .from("agendamentos")
+          .select(`
+            id, data_agendamento, status, retorno_fatura_id,
+            procedimentos:procedimento_id(nome),
+            profissionais:profissional_id(nome)
+          `)
+          .in("retorno_fatura_id", batch)
+          .order("data_agendamento", { ascending: true });
+        if (data) retornos.push(...data);
+      }
 
       // Group retornos by fatura_id
       const retornosByFatura: Record<string, any[]> = {};
