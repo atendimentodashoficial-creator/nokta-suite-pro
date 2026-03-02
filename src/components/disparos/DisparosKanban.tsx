@@ -149,6 +149,30 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
     }
   }, [chatIds]);
 
+  // Subscribe to agendamentos changes for real-time updates (handles deletions)
+  useEffect(() => {
+    const channel = supabase
+      .channel('disparos-kanban-agendamentos')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agendamentos'
+        },
+        () => {
+          if (chats.length > 0) {
+            loadChatAgendamentos();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatIds]);
+
   const loadInstancias = async () => {
     try {
       const { data } = await supabase
