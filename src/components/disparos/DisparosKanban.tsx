@@ -336,7 +336,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
           .from("agendamentos")
           .select("id, cliente_id, data_agendamento, status")
           .in("cliente_id", batch)
-          .in("status", ["agendado", "confirmado", "cancelado", "realizado"])
+          .in("status", ["agendado", "confirmado"])
           .order("data_agendamento", { ascending: false })
           .limit(1000);
         if (agendamentos) allAgendamentos.push(...agendamentos);
