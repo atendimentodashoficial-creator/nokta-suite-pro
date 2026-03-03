@@ -1932,6 +1932,50 @@ export type Database = {
           },
         ]
       }
+      fatura_pagamentos: {
+        Row: {
+          comprovante_url: string | null
+          created_at: string
+          data_pagamento: string
+          data_proximo_pagamento: string | null
+          fatura_id: string
+          id: string
+          observacoes: string | null
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          comprovante_url?: string | null
+          created_at?: string
+          data_pagamento?: string
+          data_proximo_pagamento?: string | null
+          fatura_id: string
+          id?: string
+          observacoes?: string | null
+          user_id: string
+          valor: number
+        }
+        Update: {
+          comprovante_url?: string | null
+          created_at?: string
+          data_pagamento?: string
+          data_proximo_pagamento?: string | null
+          fatura_id?: string
+          id?: string
+          observacoes?: string | null
+          user_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fatura_pagamentos_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "faturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fatura_upsells: {
         Row: {
           created_at: string
