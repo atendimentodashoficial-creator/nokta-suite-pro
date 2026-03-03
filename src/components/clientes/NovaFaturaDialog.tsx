@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQueryClient } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch";
+import { uploadComprovante } from "@/hooks/useFaturaPagamentos";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +39,7 @@ import { useProdutos } from "@/hooks/useProdutos";
 
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, Package, Stethoscope, CalendarIcon, RotateCcw, DollarSign, User, FileText, CheckCircle2, Eye } from "lucide-react";
+import { Plus, Trash2, Package, Stethoscope, CalendarIcon, RotateCcw, DollarSign, User, FileText, CheckCircle2, Eye, Upload, Loader2 } from "lucide-react";
 import { FaturaResumoDialog } from "@/components/clientes/FaturaResumoDialog";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -94,6 +96,13 @@ export function NovaFaturaDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRetornoFaturaId, setSelectedRetornoFaturaId] = useState<string | null>(null);
   const [previewFatura, setPreviewFatura] = useState<any>(null);
+  const [pagamentoParcial, setPagamentoParcial] = useState(false);
+  const [valorPago, setValorPago] = useState("");
+  const [dataPagamentoParcial, setDataPagamentoParcial] = useState<Date>(new Date());
+  const [dataProximoPagamento, setDataProximoPagamento] = useState<Date | undefined>();
+  const [comprovante, setComprovante] = useState<File | null>(null);
+  const [uploadingComprovante, setUploadingComprovante] = useState(false);
+  const comprovanteRef = useRef<HTMLInputElement>(null);
   const createFatura = useCreateFatura();
   const queryClient = useQueryClient();
   const { data: procedimentos } = useProcedimentos();
@@ -307,6 +316,35 @@ export function NovaFaturaDialog({
         await sb.from("fatura_upsells").insert(upsellsToInsert);
       }
 
+      // Register partial payment if enabled
+      if (faturaResult && pagamentoParcial) {
+        const valorPagoNum = parseCurrencyToNumber(valorPago);
+        if (valorPagoNum > 0) {
+          setUploadingComprovante(true);
+          try {
+            let comprovanteUrl: string | null = null;
+            if (comprovante) {
+              comprovanteUrl = await uploadComprovante(comprovante);
+            }
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            if (currentUser) {
+              await supabase.from("fatura_pagamentos").insert({
+                fatura_id: faturaResult.id,
+                user_id: currentUser.id,
+                valor: valorPagoNum,
+                data_pagamento: format(dataPagamentoParcial, "yyyy-MM-dd"),
+                data_proximo_pagamento: dataProximoPagamento ? format(dataProximoPagamento, "yyyy-MM-dd") : null,
+                comprovante_url: comprovanteUrl,
+              });
+            }
+          } catch (e) {
+            console.error("Erro ao registrar pagamento parcial:", e);
+          } finally {
+            setUploadingComprovante(false);
+          }
+        }
+      }
+
       // Automatically send Purchase event if created with status "fechado"
       if (faturaResult && data.status === "fechado") {
         try {
@@ -346,6 +384,11 @@ export function NovaFaturaDialog({
       onOpenChange(false);
       form.reset();
       setSelectedRetornoFaturaId(null);
+      setPagamentoParcial(false);
+      setValorPago("");
+      setDataPagamentoParcial(new Date());
+      setDataProximoPagamento(undefined);
+      setComprovante(null);
       onFaturaCreated?.();
     } catch (error) {
       console.error("Erro ao criar fatura:", error);
@@ -753,6 +796,97 @@ export function NovaFaturaDialog({
                           </span>
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Pagamento Parcial - disponível para fechado e negociação */}
+              {watchedStatus && (watchedStatus === "fechado" || watchedStatus === "negociacao") && (
+                <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Registrar pagamento parcial?</label>
+                    <Switch checked={pagamentoParcial} onCheckedChange={setPagamentoParcial} />
+                  </div>
+
+                  {pagamentoParcial && (
+                    <div className="space-y-3 pt-2 border-t border-border">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium">Valor Pago *</label>
+                          <CurrencyInput value={valorPago} onChange={setValorPago} className="h-9" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium">Data Pagamento</label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start text-left font-normal h-9 text-xs">
+                                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                                {format(dataPagamentoParcial, "dd/MM/yy", { locale: ptBR })}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={dataPagamentoParcial}
+                                onSelect={(d) => d && setDataPagamentoParcial(d)}
+                                locale={ptBR}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Próximo Pagamento Previsto</label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal h-9 text-xs",
+                                !dataProximoPagamento && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                              {dataProximoPagamento
+                                ? format(dataProximoPagamento, "dd/MM/yyyy", { locale: ptBR })
+                                : "Selecione (opcional)"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={dataProximoPagamento}
+                              onSelect={setDataProximoPagamento}
+                              locale={ptBR}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Comprovante</label>
+                        <input
+                          ref={comprovanteRef}
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={(e) => setComprovante(e.target.files?.[0] || null)}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-9 text-xs"
+                          onClick={() => comprovanteRef.current?.click()}
+                        >
+                          <Upload className="h-3.5 w-3.5 mr-1.5" />
+                          {comprovante ? comprovante.name : "Anexar comprovante (opcional)"}
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
