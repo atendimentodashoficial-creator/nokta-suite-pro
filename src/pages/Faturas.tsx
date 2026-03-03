@@ -5,11 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { useFaturas, useDeleteFatura } from "@/hooks/useFaturas";
 import { useLeads } from "@/hooks/useLeads";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { useProfissionais } from "@/hooks/useProfissionais";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
+import { useAllFaturaPagamentos } from "@/hooks/useFaturaPagamentos";
 import { NovaFaturaDialog } from "@/components/clientes/NovaFaturaDialog";
 import { EditarFaturaDialog } from "@/components/clientes/EditarFaturaDialog";
 import { format } from "date-fns";
@@ -63,7 +65,7 @@ export default function Faturas() {
     data: profissionais
   } = useProfissionais();
   const { data: allAgendamentos } = useAgendamentos();
-
+  const { data: allPagamentos } = useAllFaturaPagamentos();
   // Compute retornos per fatura (full data)
   const retornosPorFatura = useMemo(() => {
     const map: Record<string, any[]> = {};
@@ -192,6 +194,37 @@ export default function Faturas() {
             <p className="text-xs text-muted-foreground mt-1">{contagemTotal} faturas</p>
           </div>
         </div>
+        {/* Paid/Pending summary */}
+        {(() => {
+          const totalPago = filteredFaturas?.reduce((sum, f) => {
+            const pagamentos = allPagamentos?.[f.id] || [];
+            return sum + pagamentos.reduce((s, p) => s + Number(p.valor), 0);
+          }, 0) || 0;
+          const totalPendente = Math.max(totalFechado - totalPago, 0);
+          
+          if (totalPago === 0) return null;
+          
+          const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+          const percentPago = totalFechado > 0 ? Math.min((totalPago / totalFechado) * 100, 100) : 0;
+          
+          return (
+            <div className="mt-3 pt-3 border-t border-border space-y-2">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Recebido: <span className="font-semibold text-green-600">{fmt(totalPago)}</span></span>
+                <span>Pendente: <span className="font-semibold text-orange-600">{fmt(totalPendente)}</span></span>
+              </div>
+              <Progress
+                value={percentPago}
+                className="h-2.5"
+                style={{
+                  "--progress-color": percentPago >= 100 ? "hsl(var(--chart-2))" : "hsl(var(--primary))",
+                  "--progress-background": "hsl(var(--muted))",
+                } as any}
+              />
+              <p className="text-[11px] text-right text-muted-foreground">{percentPago.toFixed(0)}% recebido</p>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Search */}
@@ -302,6 +335,35 @@ export default function Faturas() {
                       </p>
                     </div>}
 
+                  {/* Payment progress bar */}
+                  {(() => {
+                    const pagamentos = allPagamentos?.[fatura.id] || [];
+                    const totalPago = pagamentos.reduce((s, p) => s + Number(p.valor), 0);
+                    const valorTotal = Number(fatura.valor);
+                    const percentPago = valorTotal > 0 ? Math.min((totalPago / valorTotal) * 100, 100) : 0;
+                    const restante = Math.max(valorTotal - totalPago, 0);
+                    const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+                    
+                    if (pagamentos.length === 0) return null;
+                    
+                    return (
+                      <div className="pt-2 border-t border-border mt-3 space-y-1.5">
+                        <div className="flex justify-between text-[11px] text-muted-foreground">
+                          <span>Pago: {fmt(totalPago)}</span>
+                          <span>Restante: {fmt(restante)}</span>
+                        </div>
+                        <Progress
+                          value={percentPago}
+                          className="h-2"
+                          style={{
+                            "--progress-color": percentPago >= 100 ? "hsl(var(--chart-2))" : "hsl(var(--primary))",
+                            "--progress-background": "hsl(var(--muted))",
+                          } as any}
+                        />
+                        <p className="text-[11px] text-right text-muted-foreground">{percentPago.toFixed(0)}%</p>
+                      </div>
+                    );
+                  })()}
 
                   <div className="flex-1" />
 

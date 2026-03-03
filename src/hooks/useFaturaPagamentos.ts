@@ -30,6 +30,28 @@ export const useFaturaPagamentos = (faturaId: string | null) => {
   });
 };
 
+// Bulk fetch pagamentos for multiple faturas at once
+export const useAllFaturaPagamentos = () => {
+  return useQuery({
+    queryKey: ["fatura-pagamentos-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fatura_pagamentos")
+        .select("*")
+        .order("data_pagamento", { ascending: true });
+      if (error) throw error;
+      
+      // Group by fatura_id
+      const grouped: Record<string, FaturaPagamento[]> = {};
+      (data || []).forEach((p: FaturaPagamento) => {
+        if (!grouped[p.fatura_id]) grouped[p.fatura_id] = [];
+        grouped[p.fatura_id].push(p);
+      });
+      return grouped;
+    },
+  });
+};
+
 export const useCreateFaturaPagamento = () => {
   const queryClient = useQueryClient();
   return useMutation({

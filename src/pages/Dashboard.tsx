@@ -1,4 +1,4 @@
-import { Users, Calendar, CheckCircle, DollarSign, TrendingUp, Target, CalendarCheck, UserCheck, UserX, Award, ShoppingBag, Package, Receipt, Loader2, Wallet, RefreshCcw, CreditCard, Megaphone } from "lucide-react";
+import { Users, Calendar, CheckCircle, DollarSign, TrendingUp, Target, CalendarCheck, UserCheck, UserX, Award, ShoppingBag, Package, Receipt, Loader2, Wallet, RefreshCcw, CreditCard, Megaphone, CircleDollarSign, Clock } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useAgendamentos } from "@/hooks/useAgendamentos";
 import { useFaturas } from "@/hooks/useFaturas";
+import { useAllFaturaPagamentos } from "@/hooks/useFaturaPagamentos";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MetaIcon } from "@/components/icons/MetaIcon";
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const { data: despesas, isLoading: despesasLoading } = useDespesasRelatorio();
   const { data: agendamentos, isLoading: agendamentosLoading } = useAgendamentos();
   const { data: faturas, isLoading: faturasLoading } = useFaturas();
+  const { data: allPagamentos } = useAllFaturaPagamentos();
 
   // Estado para despesas de anúncios Meta
   const [adsSpend, setAdsSpend] = useState<number>(0);
@@ -579,6 +581,20 @@ export default function Dashboard() {
   // Receita prevista = Fechadas + Negociação
   const receitaPrevista = receitaAtual + receitaEmNegociacao;
 
+  // Pagamentos parciais - calcular total pago e pendente
+  const totalPagoParciaisAll = useMemo(() => {
+    if (!allPagamentos) return { pago: 0, pendente: 0 };
+    const faturasFechadasIds = new Set(dadosFiltrados.faturas.filter(f => f.status === "fechado").map(f => f.id));
+    let totalPago = 0;
+    let totalValorFaturas = 0;
+    dadosFiltrados.faturas.filter(f => f.status === "fechado").forEach(f => {
+      totalValorFaturas += Number(f.valor);
+      const pagamentos = allPagamentos[f.id] || [];
+      totalPago += pagamentos.reduce((s, p) => s + Number(p.valor), 0);
+    });
+    return { pago: totalPago, pendente: Math.max(totalValorFaturas - totalPago, 0) };
+  }, [dadosFiltrados.faturas, allPagamentos]);
+
   // DESPESAS (considerando ocorrências para recorrentes e parceladas)
   const despesasRecorrentes = dadosFiltrados.despesas.filter(d => d.recorrente);
   const despesasParceladas = dadosFiltrados.despesas.filter(d => d.parcelada);
@@ -853,6 +869,23 @@ export default function Dashboard() {
                 change={`${faturasFechadas} Fechadas + ${faturasEmNegociacao.length} Negociação`}
                 changeType="positive"
                 icon={TrendingUp}
+              />
+            </div>
+            {/* Paid vs Pending */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <StatsCard
+                title="Recebido"
+                value={`R$ ${totalPagoParciaisAll.pago.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                change="Pagamentos Registrados"
+                changeType="positive"
+                icon={CircleDollarSign}
+              />
+              <StatsCard
+                title="Pendente"
+                value={`R$ ${totalPagoParciaisAll.pendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                change="Aguardando Pagamento"
+                changeType={totalPagoParciaisAll.pendente > 0 ? "negative" : "positive"}
+                icon={Clock}
               />
             </div>
           </div>
