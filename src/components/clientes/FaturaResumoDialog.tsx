@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, User, FileText, Clock, CalendarClock, CreditCard, ShoppingBag, Handshake, Receipt } from "lucide-react";
+import { FaturaPagamentosSection } from "@/components/clientes/FaturaPagamentosSection";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -192,6 +193,16 @@ export function FaturaResumoDialog({ open, onOpenChange, fatura }: FaturaResumoD
                   </Badge>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Pagamentos Parciais */}
+          {fatura?.id && (
+            <div className="bg-muted/50 rounded-lg p-4">
+              <FaturaPagamentosSection
+                faturaId={fatura.id}
+                valorTotal={valorBruto}
+              />
             </div>
           )}
 

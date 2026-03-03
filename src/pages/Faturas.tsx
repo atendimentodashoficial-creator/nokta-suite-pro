@@ -28,6 +28,7 @@ import { PeriodFilter, usePeriodFilter } from "@/components/filters/PeriodFilter
 import { KanbanMoverDialog } from "@/components/clientes/KanbanMoverDialog";
 import { RetornosDialog } from "@/components/clientes/RetornosDialog";
 import { FaturaResumoDialog } from "@/components/clientes/FaturaResumoDialog";
+import { FaturaPagamentosSection } from "@/components/clientes/FaturaPagamentosSection";
 
 export default function Faturas() {
   const navigate = useNavigate();
@@ -561,6 +562,14 @@ export default function Faturas() {
                   )}
                 </div>
               )}
+
+              {/* Pagamentos Parciais */}
+              <div className="bg-muted/50 rounded-lg p-4">
+                <FaturaPagamentosSection
+                  faturaId={detalhesPagamentoFatura.id}
+                  valorTotal={Number(detalhesPagamentoFatura.valor)}
+                />
+              </div>
 
               {/* Observações */}
               {detalhesPagamentoFatura.observacoes && (
