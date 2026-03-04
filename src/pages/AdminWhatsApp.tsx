@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { MessageSquare, RefreshCw, Plus, LayoutList, Kanban, CheckCircle2, Trash2, CheckSquare, Square, X, QrCode, Unplug, Loader2, Smartphone, XCircle, Pencil, Settings, Hash, Keyboard } from "lucide-react";
+import { MessageSquare, RefreshCw, Plus, LayoutList, Kanban, CheckCircle2, Trash2, CheckSquare, Square, X, QrCode, Unplug, Loader2, Smartphone, XCircle, Pencil, Settings, Hash, Keyboard, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -43,6 +43,7 @@ export default function AdminWhatsApp() {
   const [instanceConnectedAt, setInstanceConnectedAt] = useState<string | null>(null);
   const [uazapiAuthError, setUazapiAuthError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useTabPersistence("view", "list");
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
 
   // Selection state for bulk delete
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -826,27 +827,24 @@ export default function AdminWhatsApp() {
     }
   };
 
-  // Filter chats by search term
+  // Filter chats by search term and unread filter
   useEffect(() => {
-    if (!searchTerm) {
-      setFilteredChats(chats);
-      return;
+    let filtered = chats;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const normalizedTerm = normalizePhoneNumber(term);
+      filtered = filtered.filter(chat => {
+        const matchName = chat.contact_name.toLowerCase().includes(term);
+        const matchNumber = chat.contact_number.includes(term);
+        const matchNormalized = normalizedTerm.length > 0 && normalizePhoneNumber(chat.contact_number).includes(normalizedTerm);
+        return matchName || matchNumber || matchNormalized;
+      });
     }
-    const term = searchTerm.toLowerCase();
-    const normalizedTerm = normalizePhoneNumber(term);
-    const filtered = chats.filter(chat => {
-      // Busca por nome
-      const matchName = chat.contact_name.toLowerCase().includes(term);
-
-      // Busca por número original
-      const matchNumber = chat.contact_number.includes(term);
-
-      // Busca por número normalizado (apenas se o termo contiver dígitos)
-      const matchNormalized = normalizedTerm.length > 0 && normalizePhoneNumber(chat.contact_number).includes(normalizedTerm);
-      return matchName || matchNumber || matchNormalized;
-    });
+    if (filterUnreadOnly) {
+      filtered = filtered.filter(chat => (chat.unread_count || 0) > 0);
+    }
     setFilteredChats(filtered);
-  }, [searchTerm, chats]);
+  }, [searchTerm, chats, filterUnreadOnly]);
 
   // Handle URL parameter for opening chat (waits for chats to load first)
   const attemptedAutoOpenRef = useRef<Record<string, boolean>>({});
@@ -1569,6 +1567,17 @@ export default function AdminWhatsApp() {
               </div>
             )}
             
+            {/* Unread filter button */}
+            <Button
+              size="sm"
+              variant={filterUnreadOnly ? "default" : "outline"}
+              className="h-8 w-8 p-0 flex-shrink-0"
+              onClick={() => setFilterUnreadOnly(prev => !prev)}
+              title={filterUnreadOnly ? "Mostrar todos os chats" : "Mostrar apenas não lidos"}
+            >
+              <BellRing className="h-4 w-4" />
+            </Button>
+
             {/* New chat dialog */}
             <Dialog>
               <DialogTrigger asChild>
