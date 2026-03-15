@@ -105,24 +105,40 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
           [inst.id]: hasWebhook ? 'configured' : 'pending'
         }));
         
-        // Check connection status
-        await checkConnectionStatus(inst);
+        // Check connection status and get the actual result
+        setConnectionStatus(prev => ({ ...prev, [inst.id]: 'loading' }));
+        let isConnected = false;
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          const response = await supabase.functions.invoke("uazapi-check-status", {
+            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+            body: { base_url: inst.base_url, api_key: inst.api_key },
+          });
+          isConnected = response.data?.status === 'connected';
+          setConnectionStatus(prev => ({
+            ...prev,
+            [inst.id]: isConnected ? 'connected' : 'disconnected',
+          }));
+        } catch {
+          setConnectionStatus(prev => ({ ...prev, [inst.id]: 'disconnected' }));
+        }
         
         // Auto-configure webhook if instance is connected but webhook not configured
-        if (!hasWebhook) {
-          console.log(`[Auto-Webhook] Instance ${inst.nome} needs webhook configuration, attempting...`);
-          // Small delay to let connection status settle
-          setTimeout(async () => {
-            const currentStatus = connectionStatus[inst.id];
-            // Only try if likely connected (or status unknown which means first load)
-            if (currentStatus !== 'disconnected') {
-              const success = await configureWebhook(inst);
-              if (success) {
-                console.log(`[Auto-Webhook] Successfully configured webhook for ${inst.nome}`);
-                onInstanciasChange();
-              }
+        if (!hasWebhook && isConnected) {
+          console.log(`[Auto-Webhook] Instance ${inst.nome} is connected but has no webhook, configuring...`);
+          const success = await configureWebhook(inst);
+          if (success) {
+            console.log(`[Auto-Webhook] Successfully configured webhook for ${inst.nome}`);
+            onInstanciasChange();
+          } else {
+            // Retry once after a delay
+            await new Promise(r => setTimeout(r, 3000));
+            const retrySuccess = await configureWebhook(inst);
+            if (retrySuccess) {
+              console.log(`[Auto-Webhook] Retry succeeded for ${inst.nome}`);
+              onInstanciasChange();
             }
-          }, 3000);
+          }
         }
       }
     };
