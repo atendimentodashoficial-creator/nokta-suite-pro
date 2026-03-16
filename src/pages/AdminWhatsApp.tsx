@@ -58,7 +58,7 @@ export default function AdminWhatsApp() {
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
-  const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [qrPollingInterval, setQrPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
 
   // Create instance dialog (name first, then QR)

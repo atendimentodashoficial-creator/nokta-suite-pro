@@ -79,7 +79,7 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   const [selectedInstancia, setSelectedInstancia] = useState<DisparosInstancia | null>(null);
-  const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [qrPollingInterval, setQrPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   // Webhook status
   const [webhookStatus, setWebhookStatus] = useState<Record<string, 'configured' | 'pending' | 'error'>>({});
@@ -89,7 +89,7 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [newInstanceName, setNewInstanceName] = useState("");
   const [newInstanceQrCode, setNewInstanceQrCode] = useState<string | null>(null);
   const [newInstanceLoading, setNewInstanceLoading] = useState(false);
-  const [newInstancePolling, setNewInstancePolling] = useState<NodeJS.Timeout | null>(null);
+  const [newInstancePolling, setNewInstancePolling] = useState<ReturnType<typeof setInterval> | null>(null);
   const [tempNewInstance, setTempNewInstance] = useState<DisparosInstancia | null>(null);
 
   // Check connection status on mount and auto-configure webhook if needed

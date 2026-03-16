@@ -80,7 +80,7 @@ export default function Disparos() {
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   const [selectedQrInstancia, setSelectedQrInstancia] = useState<DisparosInstancia | null>(null);
-  const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [qrPollingInterval, setQrPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   const [showInstanceManager, setShowInstanceManager] = useState(false);
 
@@ -500,7 +500,7 @@ export default function Disparos() {
 
     const initialDelay = 12000;
 
-    let interval: NodeJS.Timeout | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
 
     const startPolling = () => {
       interval = setInterval(async () => {
