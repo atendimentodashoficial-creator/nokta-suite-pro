@@ -90,7 +90,7 @@ export function WhatsAppInstanceManager({
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<WhatsAppInstance | null>(null);
-  const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [qrPollingInterval, setQrPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   // Pairing Code state
   const [connectionMode, setConnectionMode] = useState<'qrcode' | 'paircode'>('qrcode');

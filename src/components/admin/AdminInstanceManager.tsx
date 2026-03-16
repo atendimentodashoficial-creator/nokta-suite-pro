@@ -91,7 +91,7 @@ export function AdminInstanceManager({ onInstancesChange }: AdminInstanceManager
   const [credentialsLoading, setCredentialsLoading] = useState(false);
   
   // Polling ref
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     loadInstances();

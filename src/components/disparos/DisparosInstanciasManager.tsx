@@ -89,7 +89,7 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [newInstanceName, setNewInstanceName] = useState("");
   const [newInstanceQrCode, setNewInstanceQrCode] = useState<string | null>(null);
   const [newInstanceLoading, setNewInstanceLoading] = useState(false);
-  const [newInstancePolling, setNewInstancePolling] = useState<NodeJS.Timeout | null>(null);
+  const [newInstancePolling, setNewInstancePolling] = useState<ReturnType<typeof setInterval> | null>(null);
   const [tempNewInstance, setTempNewInstance] = useState<DisparosInstancia | null>(null);
 
   // Check connection status on mount and auto-configure webhook if needed
