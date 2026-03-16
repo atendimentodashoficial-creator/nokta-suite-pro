@@ -79,7 +79,7 @@ export function DisparosInstanciasManager({ instancias, onInstanciasChange }: Di
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   const [selectedInstancia, setSelectedInstancia] = useState<DisparosInstancia | null>(null);
-  const [qrPollingInterval, setQrPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [qrPollingInterval, setQrPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   // Webhook status
   const [webhookStatus, setWebhookStatus] = useState<Record<string, 'configured' | 'pending' | 'error'>>({});
