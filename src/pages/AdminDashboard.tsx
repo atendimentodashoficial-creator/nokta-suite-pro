@@ -770,6 +770,10 @@ export default function AdminDashboard() {
           <TabsList className="h-8 mx-auto mb-8">
             <TabsTrigger value="metrics" className="text-xs px-3 h-7">Métricas</TabsTrigger>
             <TabsTrigger value="dashboard" className="text-xs px-3 h-7">Dashboard</TabsTrigger>
+            <TabsTrigger value="consumo" className="text-xs px-3 h-7">
+              <Database className="h-3 w-3 mr-1" />
+              Consumo
+            </TabsTrigger>
             <TabsTrigger value="settings" className="text-xs px-3 h-7">
               <Settings className="h-3 w-3 mr-1" />
               Configurações
