@@ -343,6 +343,10 @@ export default function AdminDashboard() {
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<{ id: string; name: string } | null>(null);
 
+  // Usage/Consumo
+  const [usageData, setUsageData] = useState<UsageData | null>(null);
+  const [isLoadingUsage, setIsLoadingUsage] = useState(false);
+
   // Trigger para recarregar instâncias no AdminNotificationsConfig quando uma nova for criada
   const [instancesRefreshTrigger, setInstancesRefreshTrigger] = useState(0);
   const handleInstancesChange = () => {
