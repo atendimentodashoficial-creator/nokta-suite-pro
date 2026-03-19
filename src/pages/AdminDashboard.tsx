@@ -66,6 +66,29 @@ interface DailyData {
 type SortField = 'email' | 'created_at' | 'leadsCount' | 'agendamentosCount' | 'faturasCount' | 'totalFaturado' | 'emNegociacao' | 'totalPago' | 'status';
 type SortDirection = 'asc' | 'desc';
 
+interface UsageUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  totalRecords: number;
+  counts: Record<string, number>;
+  whatsappMessagesCount: number;
+  disparosMessagesCount: number;
+  campanhaContatosCount: number;
+}
+
+interface TableSummaryItem {
+  table: string;
+  label: string;
+  total: number;
+}
+
+interface UsageData {
+  users: UsageUser[];
+  tableSummary: TableSummaryItem[];
+  grandTotal: number;
+}
+
 // Função para obter o primeiro dia do mês atual
 const getFirstDayOfCurrentMonth = () => {
   const now = new Date();
