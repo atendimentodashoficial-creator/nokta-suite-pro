@@ -496,6 +496,30 @@ export default function AdminDashboard() {
       setIsLoading(false);
     }
   };
+
+  const loadUsageData = async () => {
+    setIsLoadingUsage(true);
+    try {
+      const adminToken = localStorage.getItem('admin_token');
+      const { data, error } = await supabase.functions.invoke('admin-usage-metrics', {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      if (error) throw error;
+      setUsageData(data.usage);
+    } catch (error: any) {
+      console.error('Erro ao carregar consumo:', error);
+      toast.error('Erro ao carregar dados de consumo');
+    } finally {
+      setIsLoadingUsage(false);
+    }
+  };
+
+  // Carregar dados de consumo quando a aba for selecionada
+  useEffect(() => {
+    if (activeAdminTab === 'consumo' && !usageData && !isLoadingUsage) {
+      loadUsageData();
+    }
+  }, [activeAdminTab]);
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_user');
