@@ -1239,6 +1239,187 @@ export default function AdminDashboard() {
         </div>
       </TabsContent>
 
+          {/* Aba Consumo */}
+          <TabsContent value="consumo" className="space-y-6">
+            {isLoadingUsage ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-3 text-muted-foreground">Calculando consumo...</span>
+              </div>
+            ) : usageData ? (
+              <>
+                {/* Resumo geral */}
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total de Registros</CardTitle>
+                      <Database className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{usageData.grandTotal.toLocaleString('pt-BR')}</div>
+                      <p className="text-xs text-muted-foreground mt-1">Em todas as tabelas</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Tabelas Ativas</CardTitle>
+                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{usageData.tableSummary.length}</div>
+                      <p className="text-xs text-muted-foreground mt-1">Com registros</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{usageData.users.length}</div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={loadUsageData}>
+                          Atualizar
+                        </Button>
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* O que mais consome */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">O Que Mais Consome</CardTitle>
+                    <CardDescription>Distribuição de registros por tipo de dado</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {usageData.tableSummary.slice(0, 10).map((item) => (
+                      <div key={item.table} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{item.label}</span>
+                          <span className="text-muted-foreground">{item.total.toLocaleString('pt-BR')} registros</span>
+                        </div>
+                        <Progress 
+                          value={(item.total / usageData.tableSummary[0].total) * 100} 
+                          className="h-2"
+                        />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Consumo por cliente */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Consumo por Cliente</CardTitle>
+                    <CardDescription>Volume de registros por usuário</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isMobile ? (
+                      <div className="space-y-4">
+                        {usageData.users.map((user) => (
+                          <Card key={user.id} className="overflow-hidden">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm">{user.full_name || user.email}</CardTitle>
+                              {user.full_name && <CardDescription className="text-xs">{user.email}</CardDescription>}
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Total</span>
+                                <span className="font-bold">{user.totalRecords.toLocaleString('pt-BR')}</span>
+                              </div>
+                              <Progress 
+                                value={usageData.users[0]?.totalRecords ? (user.totalRecords / usageData.users[0].totalRecords) * 100 : 0} 
+                                className="h-2"
+                              />
+                              <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                                <div>
+                                  <span className="text-muted-foreground">Leads: </span>
+                                  <span className="font-medium">{(user.counts.leads || 0).toLocaleString('pt-BR')}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Agendamentos: </span>
+                                  <span className="font-medium">{(user.counts.agendamentos || 0).toLocaleString('pt-BR')}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Msg WhatsApp: </span>
+                                  <span className="font-medium">{user.whatsappMessagesCount.toLocaleString('pt-BR')}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Msg Disparos: </span>
+                                  <span className="font-medium">{user.disparosMessagesCount.toLocaleString('pt-BR')}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Campanhas: </span>
+                                  <span className="font-medium">{(user.counts.disparos_campanhas || 0).toLocaleString('pt-BR')}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Contatos Camp.: </span>
+                                  <span className="font-medium">{user.campanhaContatosCount.toLocaleString('pt-BR')}</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Cliente</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
+                              <TableHead className="text-right">Leads</TableHead>
+                              <TableHead className="text-right">Agendamentos</TableHead>
+                              <TableHead className="text-right">Faturas</TableHead>
+                              <TableHead className="text-right">Msg WhatsApp</TableHead>
+                              <TableHead className="text-right">Msg Disparos</TableHead>
+                              <TableHead className="text-right">Contatos Camp.</TableHead>
+                              <TableHead className="w-[200px]">Proporção</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {usageData.users.map((user) => (
+                              <TableRow key={user.id}>
+                                <TableCell>
+                                  <div>
+                                    <span className="font-medium">{user.full_name || user.email}</span>
+                                    {user.full_name && <span className="text-xs text-muted-foreground block">{user.email}</span>}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right font-bold">{user.totalRecords.toLocaleString('pt-BR')}</TableCell>
+                                <TableCell className="text-right">{(user.counts.leads || 0).toLocaleString('pt-BR')}</TableCell>
+                                <TableCell className="text-right">{(user.counts.agendamentos || 0).toLocaleString('pt-BR')}</TableCell>
+                                <TableCell className="text-right">{(user.counts.faturas || 0).toLocaleString('pt-BR')}</TableCell>
+                                <TableCell className="text-right">{user.whatsappMessagesCount.toLocaleString('pt-BR')}</TableCell>
+                                <TableCell className="text-right">{user.disparosMessagesCount.toLocaleString('pt-BR')}</TableCell>
+                                <TableCell className="text-right">{user.campanhaContatosCount.toLocaleString('pt-BR')}</TableCell>
+                                <TableCell>
+                                  <Progress 
+                                    value={usageData.users[0]?.totalRecords ? (user.totalRecords / usageData.users[0].totalRecords) * 100 : 0} 
+                                    className="h-2"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum dado de consumo carregado</p>
+                <Button variant="outline" className="mt-4" onClick={loadUsageData}>
+                  Carregar dados
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+
           {/* Aba Configurações */}
           <TabsContent value="settings" className="space-y-6">
             <AdminInstanceManager onInstancesChange={handleInstancesChange} />
