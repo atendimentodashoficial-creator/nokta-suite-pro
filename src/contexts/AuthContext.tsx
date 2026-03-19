@@ -153,16 +153,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
           
+          // Fire admin check in background - don't block initial load
           if (session.access_token) {
-            await checkAndStoreAdminStatus(session.access_token);
+            checkAndStoreAdminStatus(session.access_token);
           }
         }
         
         setSession(session);
         setUser(session?.user ?? null);
       } catch (err: any) {
-        // Ignore Navigator Lock errors - they are transient and the onAuthStateChange
-        // listener will recover the session state automatically
         if (err?.name === 'AbortError' || err?.message?.includes('Lock broken')) {
           console.warn('[Auth] Navigator Lock conflict (safe to ignore):', err.message);
         } else {
