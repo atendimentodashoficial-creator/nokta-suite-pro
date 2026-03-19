@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Pencil, GripVertical, Check, X, Shield, Settings } from "lucide-react";
+import { Users, TrendingUp, Calendar, FileText, LogOut, UserPlus, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Pencil, GripVertical, Check, X, Shield, Settings, Database, BarChart3, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { AdminNotificationsConfig } from "@/components/admin/AdminNotificationsConfig";
 import { AdminInstanceManager } from "@/components/admin/AdminInstanceManager";
 import { UserPermissionsDialog } from "@/components/admin/UserPermissionsDialog";
