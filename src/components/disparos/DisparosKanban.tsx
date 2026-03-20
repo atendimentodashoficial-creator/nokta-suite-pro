@@ -615,9 +615,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const { handleDragOverWithScroll: handleDragOver, stopAutoScroll } = useKanbanAutoScroll(kanbanScrollRef);
 
   const getChatsForColumn = (columnId: string) => {
     return filteredChats.filter((chat) => chatColumnMap[chat.id] === columnId);

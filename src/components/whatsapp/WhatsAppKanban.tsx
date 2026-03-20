@@ -684,9 +684,7 @@ export function WhatsAppKanban({
       toast.error("Erro ao mover chat");
     }
   };
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const { handleDragOverWithScroll: handleDragOver, stopAutoScroll } = useKanbanAutoScroll(kanbanScrollRef);
 
   // Get chats for a column
   const getChatsForColumn = (columnId: string) => {
