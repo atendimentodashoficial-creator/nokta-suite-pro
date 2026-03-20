@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
+import { useKanbanAutoScroll } from "@/hooks/useKanbanAutoScroll";
 import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDialog";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -614,9 +615,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const { handleDragOverWithScroll: handleDragOver, stopAutoScroll } = useKanbanAutoScroll(kanbanScrollRef);
 
   const getChatsForColumn = (columnId: string) => {
     return filteredChats.filter((chat) => chatColumnMap[chat.id] === columnId);
@@ -1112,6 +1111,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                       key={chat.id}
                       draggable={!selectionMode}
                       onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
+                      onDragEnd={stopAutoScroll}
                       onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
                       className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${
                         selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""
@@ -1228,6 +1228,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                           key={chat.id}
                           draggable={!selectionMode}
                           onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
+                          onDragEnd={stopAutoScroll}
                           onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
                           className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl min-w-0 max-w-full overflow-hidden ${
                             selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""

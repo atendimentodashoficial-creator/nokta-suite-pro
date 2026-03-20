@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
+import { useKanbanAutoScroll } from "@/hooks/useKanbanAutoScroll";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -683,9 +684,7 @@ export function WhatsAppKanban({
       toast.error("Erro ao mover chat");
     }
   };
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const { handleDragOverWithScroll: handleDragOver, stopAutoScroll } = useKanbanAutoScroll(kanbanScrollRef);
 
   // Get chats for a column
   const getChatsForColumn = (columnId: string) => {
@@ -1087,6 +1086,7 @@ export function WhatsAppKanban({
                       key={chat.id} 
                       draggable={!selectionMode}
                       onDragStart={e => !selectionMode && handleDragStart(e, chat)} 
+                      onDragEnd={stopAutoScroll}
                       onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)} 
                       className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""} ${selectedChats.has(chat.id) ? "ring-2 ring-inset ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : ""}`}
                     >
@@ -1171,6 +1171,7 @@ export function WhatsAppKanban({
                           key={chat.id} 
                           draggable={!selectionMode}
                           onDragStart={e => !selectionMode && handleDragStart(e, chat)} 
+                          onDragEnd={stopAutoScroll}
                           onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)} 
                           className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""} ${selectedChats.has(chat.id) ? "ring-2 ring-inset ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : ""}`}
                         >
