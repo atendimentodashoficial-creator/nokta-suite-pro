@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
+import { useKanbanAutoScroll } from "@/hooks/useKanbanAutoScroll";
 import { ReuniaoDetalhesDialog } from "@/components/reunioes/ReuniaoDetalhesDialog";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
