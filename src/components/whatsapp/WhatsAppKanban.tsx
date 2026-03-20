@@ -1171,6 +1171,7 @@ export function WhatsAppKanban({
                           key={chat.id} 
                           draggable={!selectionMode}
                           onDragStart={e => !selectionMode && handleDragStart(e, chat)} 
+                          onDragEnd={stopAutoScroll}
                           onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)} 
                           className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""} ${selectedChats.has(chat.id) ? "ring-2 ring-inset ring-blue-500 bg-blue-50 dark:bg-blue-950/20" : ""}`}
                         >
