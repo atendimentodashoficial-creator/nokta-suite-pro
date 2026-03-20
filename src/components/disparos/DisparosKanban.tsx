@@ -1111,6 +1111,7 @@ export function DisparosKanban({ chats, onChatSelect, selectedChatId, onChatsDel
                       key={chat.id}
                       draggable={!selectionMode}
                       onDragStart={(e) => !selectionMode && handleDragStart(e, chat)}
+                      onDragEnd={stopAutoScroll}
                       onClick={() => selectionMode ? toggleChatSelection(chat.id) : onChatSelect(chat)}
                       className={`p-3 cursor-pointer hover:shadow-md transition-all relative rounded-xl ${
                         selectedChatId === chat.id ? "ring-2 ring-inset ring-primary" : ""
