@@ -117,7 +117,9 @@ async function getAccountBalance(
       if (adAccount.manual_funds_balance && adAccount.manual_funds_balance > 0) {
         displayBalance = adAccount.manual_funds_balance - rawBalance;
       } else {
-        displayBalance = -rawBalance;
+        // Conta pós-paga sem saldo manual configurado - não temos como calcular saldo real
+        console.log(`[admin-notifications-cron] User ${userId} is post-paid without manual_funds_balance, skipping balance check`);
+        return { balance: 0, hasAccount: true, fetchError: true };
       }
     }
 
