@@ -403,6 +403,7 @@ export type Database = {
       app_settings: {
         Row: {
           id: string
+          maintenance_data: string | null
           maintenance_message: string | null
           maintenance_mode: boolean
           updated_at: string | null
@@ -410,6 +411,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          maintenance_data?: string | null
           maintenance_message?: string | null
           maintenance_mode?: boolean
           updated_at?: string | null
@@ -417,6 +419,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          maintenance_data?: string | null
           maintenance_message?: string | null
           maintenance_mode?: boolean
           updated_at?: string | null
@@ -5214,6 +5217,7 @@ export type Database = {
       }
       normalize_br_phone: { Args: { phone: string }; Returns: string }
       soft_delete_lead: { Args: { lead_id: string }; Returns: undefined }
+      toggle_cron_jobs: { Args: { p_active: boolean }; Returns: undefined }
     }
     Enums: {
       lead_status: "lead" | "follow_up" | "sem_interesse" | "cliente"
