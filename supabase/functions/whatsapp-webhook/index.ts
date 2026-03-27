@@ -447,6 +447,21 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+  // Check maintenance mode - block all processing if active
+  try {
+    const { data: appSettings } = await supabase
+      .from("app_settings")
+      .select("maintenance_mode")
+      .eq("id", "global")
+      .single();
+    if (appSettings?.maintenance_mode) {
+      console.log("[WEBHOOK] Maintenance mode active, rejecting webhook");
+      return new Response(JSON.stringify({ skipped: true, reason: "maintenance_mode" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } catch (_) { /* continue if check fails */ }
+
   // Helper function to log events
   const logEvent = async (userId: string, level: string, message: string, payload?: any) => {
     try {
