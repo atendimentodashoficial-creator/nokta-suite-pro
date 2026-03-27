@@ -45,6 +45,22 @@ serve(async (req) => {
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+    // Check maintenance mode early
+    if (SUPABASE_URL && SERVICE_ROLE_KEY) {
+      const _sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      const { data: appSettings } = await _sb
+        .from("app_settings")
+        .select("maintenance_mode")
+        .eq("id", "global")
+        .single();
+      if (appSettings?.maintenance_mode) {
+        console.log("[ensure-lead] Maintenance mode active, skipping");
+        return new Response(JSON.stringify({ skipped: true, reason: "maintenance_mode" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SERVICE_ROLE_KEY) {
       return new Response(JSON.stringify({ error: "Missing env vars" }), {
         status: 500,
