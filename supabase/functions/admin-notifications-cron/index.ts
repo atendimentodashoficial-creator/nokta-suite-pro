@@ -311,6 +311,21 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+  // Check maintenance mode - skip execution if active
+  try {
+    const { data: appSettings } = await supabase
+      .from("app_settings")
+      .select("maintenance_mode")
+      .eq("id", "global")
+      .single();
+    if (appSettings?.maintenance_mode) {
+      console.log("[admin-notifications-cron] Maintenance mode active, skipping");
+      return new Response(JSON.stringify({ skipped: true, reason: "maintenance_mode" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } catch (_) { /* continue if check fails */ }
+
   try {
     const saoPauloNow = getSaoPauloTime();
     const currentDayOfWeek = saoPauloNow.getDay(); // 0 = Sunday
