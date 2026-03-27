@@ -400,6 +400,30 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          id: string
+          maintenance_message: string | null
+          maintenance_mode: boolean
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          maintenance_message?: string | null
+          maintenance_mode?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          maintenance_message?: string | null
+          maintenance_mode?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       assistente_contexto: {
         Row: {
           active: boolean
