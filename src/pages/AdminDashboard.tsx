@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { AdminNotificationsConfig } from "@/components/admin/AdminNotificationsConfig";
 import { AdminInstanceManager } from "@/components/admin/AdminInstanceManager";
 import { UserPermissionsDialog } from "@/components/admin/UserPermissionsDialog";
+import { MaintenanceToggle } from "@/components/admin/MaintenanceToggle";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -1422,8 +1423,9 @@ export default function AdminDashboard() {
 
           {/* Aba Configurações */}
           <TabsContent value="settings" className="space-y-6">
+            <MaintenanceToggle />
             <AdminInstanceManager onInstancesChange={handleInstancesChange} />
-            <AdminNotificationsConfig 
+            <AdminNotificationsConfig
               users={users} 
               isActive={activeAdminTab === "settings"} 
               instancesRefreshTrigger={instancesRefreshTrigger}
