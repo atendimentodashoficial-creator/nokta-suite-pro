@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Power, PowerOff, Loader2, AlertTriangle } from "lucide-react";
+import { Power, PowerOff, Loader2, AlertTriangle, Clock, Globe, Database } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function MaintenanceToggle() {
@@ -40,11 +39,13 @@ export function MaintenanceToggle() {
 
   const handleToggle = async () => {
     const newState = !maintenanceMode;
-    const action = newState ? "ATIVAR" : "DESATIVAR";
+    const action = newState ? "DESLIGAR" : "LIGAR";
     
-    if (newState && !confirm(`Tem certeza que deseja ${action} o modo manutenção?\n\nTodos os usuários serão desconectados e não poderão acessar o sistema.`)) {
-      return;
-    }
+    const confirmMsg = newState 
+      ? `Tem certeza que deseja ${action} o sistema?\n\n⚠️ Isso irá:\n• Bloquear todos os usuários\n• Pausar todos os cron jobs\n• Parar praticamente todo consumo do Cloud\n\nApenas o painel admin continuará acessível.`
+      : `Deseja ${action} o sistema novamente?\n\n✅ Isso irá:\n• Liberar acesso dos usuários\n• Reativar todos os cron jobs`;
+    
+    if (!confirm(confirmMsg)) return;
 
     setIsSaving(true);
     try {
@@ -55,7 +56,11 @@ export function MaintenanceToggle() {
       });
       if (error) throw error;
       setMaintenanceMode(newState);
-      toast.success(newState ? "Modo manutenção ATIVADO - App desligado" : "Modo manutenção DESATIVADO - App ligado");
+      toast.success(
+        newState 
+          ? "Sistema DESLIGADO — Usuários bloqueados e crons pausados" 
+          : "Sistema LIGADO — Tudo reativado com sucesso"
+      );
     } catch (e) {
       console.error("Erro:", e);
       toast.error("Erro ao alterar modo manutenção");
@@ -67,25 +72,55 @@ export function MaintenanceToggle() {
   if (isLoading) return null;
 
   return (
-    <Card className={maintenanceMode ? "border-destructive" : ""}>
+    <Card className={maintenanceMode ? "border-destructive bg-destructive/5" : ""}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {maintenanceMode ? <PowerOff className="h-5 w-5 text-destructive" /> : <Power className="h-5 w-5 text-green-500" />}
-          Kill Switch - Modo Manutenção
+          {maintenanceMode ? <PowerOff className="h-5 w-5 text-destructive" /> : <Power className="h-5 w-5 text-emerald-500" />}
+          Kill Switch — Desligar Sistema
         </CardTitle>
         <CardDescription>
-          Desliga o acesso ao sistema para todos os usuários, impedindo qualquer requisição
+          Desliga completamente o sistema, bloqueando usuários e pausando todos os processos automáticos
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {maintenanceMode && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              O sistema está DESLIGADO. Nenhum usuário consegue acessar o app.
+            <AlertDescription className="font-medium">
+              O sistema está DESLIGADO. Nenhum usuário consegue acessar e todos os crons estão pausados.
             </AlertDescription>
           </Alert>
         )}
+
+        <div className="grid grid-cols-3 gap-3 text-sm">
+          <div className={`flex items-center gap-2 p-3 rounded-lg border ${maintenanceMode ? "bg-destructive/10 border-destructive/30" : "bg-muted/50"}`}>
+            <Globe className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <div className="font-medium">Acesso Usuários</div>
+              <div className={maintenanceMode ? "text-destructive" : "text-emerald-600"}>
+                {maintenanceMode ? "Bloqueado" : "Ativo"}
+              </div>
+            </div>
+          </div>
+          <div className={`flex items-center gap-2 p-3 rounded-lg border ${maintenanceMode ? "bg-destructive/10 border-destructive/30" : "bg-muted/50"}`}>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <div className="font-medium">Cron Jobs</div>
+              <div className={maintenanceMode ? "text-destructive" : "text-emerald-600"}>
+                {maintenanceMode ? "Pausados" : "Ativos"}
+              </div>
+            </div>
+          </div>
+          <div className={`flex items-center gap-2 p-3 rounded-lg border ${maintenanceMode ? "bg-destructive/10 border-destructive/30" : "bg-muted/50"}`}>
+            <Database className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <div className="font-medium">Consumo Cloud</div>
+              <div className={maintenanceMode ? "text-destructive" : "text-emerald-600"}>
+                {maintenanceMode ? "~Zero" : "Normal"}
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-2">
           <Label>Mensagem exibida aos usuários</Label>
@@ -110,7 +145,7 @@ export function MaintenanceToggle() {
           ) : (
             <PowerOff className="h-4 w-4 mr-2" />
           )}
-          {isSaving ? "Processando..." : maintenanceMode ? "LIGAR o Sistema" : "DESLIGAR o Sistema"}
+          {isSaving ? "Processando..." : maintenanceMode ? "🟢 LIGAR o Sistema" : "🔴 DESLIGAR o Sistema"}
         </Button>
       </CardContent>
     </Card>
